@@ -19,11 +19,11 @@ git clone <repo-url>
 cd kill-team-rules-bot
 
 # Create virtual environment
-python3.11 -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 **Expected `requirements.txt`**:

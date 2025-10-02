@@ -1,0 +1,157 @@
+"""RuleDocument model for Kill Team rule markdown files.
+
+Represents a markdown file in extracted-rules/ folder.
+Based on specs/001-we-are-building/data-model.md
+"""
+
+from dataclasses import dataclass
+from datetime import date, datetime, timezone
+from typing import Dict, Any, Literal
+from uuid import UUID, uuid4
+import hashlib
+import re
+
+
+DocumentType = Literal["core-rules", "faq", "team-rules", "ops"]
+
+
+@dataclass
+class RuleDocument:
+    """A markdown file representing Kill Team rules."""
+
+    document_id: UUID
+    filename: str
+    content: str
+    metadata: Dict[str, Any]  # YAML frontmatter
+    version: str
+    publication_date: date
+    document_type: DocumentType
+    last_updated: datetime
+    hash: str  # SHA-256 of content
+
+    @staticmethod
+    def compute_hash(content: str) -> str:
+        """Compute SHA-256 hash of document content.
+
+        Args:
+            content: Document content
+
+        Returns:
+            SHA-256 hash hex string
+        """
+        return hashlib.sha256(content.encode()).hexdigest()
+
+    @staticmethod
+    def validate_filename(filename: str) -> bool:
+        """Validate filename pattern.
+
+        Args:
+            filename: Filename to validate
+
+        Returns:
+            True if valid
+        """
+        pattern = r"^[a-z0-9-]+\.md$"
+        return bool(re.match(pattern, filename))
+
+    @staticmethod
+    def validate_document_type(doc_type: str) -> bool:
+        """Validate document type.
+
+        Args:
+            doc_type: Document type to validate
+
+        Returns:
+            True if valid
+        """
+        valid_types = {"core-rules", "faq", "team-rules", "ops"}
+        return doc_type in valid_types
+
+    def validate(self) -> None:
+        """Validate RuleDocument fields.
+
+        Raises:
+            ValueError: If validation fails
+        """
+        # Filename pattern validation
+        if not self.validate_filename(self.filename):
+            raise ValueError(
+                f"filename '{self.filename}' must match pattern [a-z0-9-]+.md"
+            )
+
+        # Document type validation
+        if not self.validate_document_type(self.document_type):
+            raise ValueError(
+                f"document_type must be one of: core-rules, faq, team-rules, ops"
+            )
+
+        # Required metadata fields
+        required_fields = ["source", "publication_date", "document_type"]
+        for field in required_fields:
+            if field not in self.metadata:
+                raise ValueError(f"metadata missing required field: {field}")
+
+        # No executable code blocks
+        if "```python" in self.content or "```bash" in self.content:
+            raise ValueError("content contains executable code blocks")
+
+    def has_changed(self, new_content: str) -> bool:
+        """Check if content has changed.
+
+        Args:
+            new_content: New content to compare
+
+        Returns:
+            True if content is different
+        """
+        new_hash = self.compute_hash(new_content)
+        return new_hash != self.hash
+
+    @classmethod
+    def from_markdown_file(
+        cls,
+        filename: str,
+        content: str,
+        metadata: Dict[str, Any],
+    ) -> "RuleDocument":
+        """Create RuleDocument from markdown file data.
+
+        Args:
+            filename: Markdown filename
+            content: File content
+            metadata: Parsed YAML frontmatter
+
+        Returns:
+            RuleDocument instance
+
+        Raises:
+            ValueError: If metadata is invalid
+        """
+        # Extract required fields from metadata
+        version = metadata.get("source", "Unknown")
+        pub_date_str = metadata.get("publication_date")
+        doc_type = metadata.get("document_type")
+
+        # Parse publication date
+        if isinstance(pub_date_str, str):
+            publication_date = date.fromisoformat(pub_date_str)
+        elif isinstance(pub_date_str, date):
+            publication_date = pub_date_str
+        else:
+            raise ValueError(f"Invalid publication_date format: {pub_date_str}")
+
+        # Validate document type
+        if not cls.validate_document_type(doc_type):
+            raise ValueError(f"Invalid document_type: {doc_type}")
+
+        return cls(
+            document_id=uuid4(),
+            filename=filename,
+            content=content,
+            metadata=metadata,
+            version=version,
+            publication_date=publication_date,
+            document_type=doc_type,
+            last_updated=datetime.now(timezone.utc),
+            hash=cls.compute_hash(content),
+        )
