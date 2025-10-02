@@ -62,7 +62,7 @@ class DocumentChunk:
 4. **Metadata Completeness**:
    - Every `DocumentChunk.metadata` MUST include:
      - `source`: str (e.g., "Core Rules v3.1")
-     - `doc_type`: enum ("core-rules" | "faq" | "team-rules" | "ops")
+     - `doc_type`: enum ("core-rules" | "faq" | "team-rules" | "ops" | "killzone")
      - `last_update_date`: ISO date string
      - `section`: str (optional, for citation)
 
@@ -184,7 +184,7 @@ class IngestionResult:
 **When**: Retrieve any query
 **Then**:
 - Every chunk has `metadata["source"]`
-- Every chunk has `metadata["doc_type"]` in {"core-rules", "faq", "team-rules", "ops"}
+- Every chunk has `metadata["doc_type"]` in {"core-rules", "faq", "team-rules", "ops", "killzone"}
 - Every chunk has `metadata["last_update_date"]` parseable as date
 
 ### Contract Test 5: Ingest Idempotency

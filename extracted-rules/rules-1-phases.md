@@ -1,3 +1,10 @@
+---
+source: "Core Rulebook"
+last_update_date: 2025-01-25
+document_type: core-rule
+section: phases
+---
+
 # CORE RULES
 
 Warhammer 40,000: Kill Team is a tactical skirmish combat game. Teams of specialist operatives will **Engage** in brutal firefights and back-and-forth close combats, where careful moving and positioning will be required to take cover and secure vital objectives.

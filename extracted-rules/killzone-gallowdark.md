@@ -1,3 +1,10 @@
+---
+source: "Core Rulebook"
+last_update_date: 2025-07-25
+document_type: killzone
+section: gallowdark
+---
+
 # KILLZONE: GALLOWDARK TERRAIN RULES
 
 ## KILLZONE SETUP

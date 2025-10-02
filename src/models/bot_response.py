@@ -20,7 +20,7 @@ class Citation:
     document_name: str  # "rules-1-phases.md"
     section: str  # "Movement Phase"
     quote: str  # Relevant excerpt (max 200 chars)
-    document_type: str  # "core-rules", "faq", "team-rules", "ops"
+    document_type: str  # "core-rules", "faq", "team-rules", "ops", "killzone"
     last_update_date: date
 
     def validate(self) -> None:
@@ -34,7 +34,7 @@ class Citation:
             raise ValueError("quote exceeds 200 character limit")
 
         # Document type validation
-        valid_types = {"core-rules", "faq", "team-rules", "ops"}
+        valid_types = {"core-rules", "faq", "team-rules", "ops", "killzone"}
         if self.document_type not in valid_types:
             raise ValueError(
                 f"document_type must be one of: {', '.join(valid_types)}"

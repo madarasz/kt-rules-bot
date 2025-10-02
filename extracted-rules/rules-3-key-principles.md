@@ -1,3 +1,10 @@
+---
+source: "Core Rulebook"
+last_update_date: 2025-03-12
+document_type: core-rule
+section: key principles
+---
+
 # Kill Team Rules - Key Principles
 
 ## BASES

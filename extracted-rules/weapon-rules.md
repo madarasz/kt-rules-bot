@@ -1,3 +1,10 @@
+---
+source: "Core Rulebook"
+last_update_date: 2025-07-25
+document_type: core-rules
+section: weapon rules
+---
+
 # WEAPON RULES
 
 Weapon rules apply whenever a friendly operative uses a weapon that has them. Common weapon rules can be found below, and you may find rare weapon rules in your kill team's rules. Weapons gain no benefit from having the same weapon rule more than once, unless the weapon rule has an x, in which case select which x to use. If a friendly operative is using a weapon that has multiple weapon rules that would take effect at the same time, you can choose the order they take effect.

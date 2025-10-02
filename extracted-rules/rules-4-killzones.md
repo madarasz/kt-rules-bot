@@ -1,3 +1,10 @@
+---
+source: "Core Rulebook"
+last_update_date: 2025-08-25
+document_type: killzone
+section: killzones
+---
+
 ### **Killzones**
 Killzones provide an immersive experience and a tactically engaging battlefield for your operatives. There are specific killzones available - simply use the game board and terrain features a killzone includes. You can also create your own killzone from the game boards and terrain features in your collection. Unless otherwise specified, a killzone game board is **30" x 22"**.
 

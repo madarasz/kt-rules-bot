@@ -20,7 +20,7 @@ class DocumentValidator:
 
     def __init__(self):
         """Initialize document validator."""
-        self.valid_doc_types = {"core-rules", "faq", "team-rules", "ops"}
+        self.valid_doc_types = {"core-rules", "faq", "team-rules", "ops", "killzone"}
 
     def validate_file(self, file_path: str | Path) -> Tuple[bool, str, Dict[str, Any]]:
         """Validate a markdown file.

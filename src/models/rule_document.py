@@ -12,7 +12,7 @@ import hashlib
 import re
 
 
-DocumentType = Literal["core-rules", "faq", "team-rules", "ops"]
+DocumentType = Literal["core-rules", "faq", "team-rules", "ops", "killzone"]
 
 
 @dataclass
@@ -64,7 +64,7 @@ class RuleDocument:
         Returns:
             True if valid
         """
-        valid_types = {"core-rules", "faq", "team-rules", "ops"}
+        valid_types = {"core-rules", "faq", "team-rules", "ops", "killzone"}
         return doc_type in valid_types
 
     def validate(self) -> None:
@@ -82,7 +82,7 @@ class RuleDocument:
         # Document type validation
         if not self.validate_document_type(self.document_type):
             raise ValueError(
-                f"document_type must be one of: core-rules, faq, team-rules, ops"
+                f"document_type must be one of: core-rules, faq, team-rules, ops, killzone"
             )
 
         # Required metadata fields

@@ -43,7 +43,7 @@ class DocumentChunk:
                 raise ValueError(f"metadata missing required field: {field}")
 
         # Document type validation
-        valid_types = {"core-rules", "faq", "team-rules", "ops"}
+        valid_types = {"core-rules", "faq", "team-rules", "ops", "killzone"}
         if self.metadata.get("doc_type") not in valid_types:
             raise ValueError(
                 f"metadata.doc_type must be one of: {', '.join(valid_types)}"

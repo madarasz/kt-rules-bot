@@ -1,4 +1,9 @@
-*Last update: 2025-09-10*
+---
+source: "Core Rules: Update Log"
+last_update_date: 2025-09-10
+document_type: faq
+section: faq
+---
 
 [FAQ]
 *Question*: There are secondary targets of a **Shoot** action as a result of the **Blast** weapon rule. The primary target had a **Conceal** order and was in cover from **Light** terrain, but was selected as a valid target as a result of the **Vantage** terrain rule so it received an improved cover save. Does each secondary target receive an improved cover save too?

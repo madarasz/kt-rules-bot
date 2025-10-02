@@ -1,3 +1,10 @@
+---
+source: "Core Rulebook"
+last_update_date: 2025-07-25
+document_type: killzone
+section: volkus
+---
+
 # KILLZONE: VOLKUS TERRAIN RULES
 
 ## Killzone Composition

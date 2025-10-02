@@ -1,3 +1,10 @@
+---
+source: "Core Rulebook"
+last_update_date: 2024-11-20
+document_type: killzone
+section: bheta-decima
+---
+
 # KILLZONE: BHETA-DECIMA - TERRAIN RULES
 
 ## Killzone Configuration

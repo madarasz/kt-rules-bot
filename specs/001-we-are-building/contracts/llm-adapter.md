@@ -118,7 +118,7 @@ Requirements:
 2. Include YAML frontmatter with:
    - source: (e.g., "Core Rules v3.1")
    - last_update_date: (YYYY-MM-DD format)
-   - document_type: ("core-rules" or "faq" or "team-rules" or "ops")
+   - document_type: ("core-rules" or "faq" or "team-rules" or "ops" or "killzone")
    - section: (thematic grouping, e.g., "Movement Phase")
 3. Use proper markdown syntax (##, ###, -, *, etc.)
 4. Preserve rule citations and cross-references

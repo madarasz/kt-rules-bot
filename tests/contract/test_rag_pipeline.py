@@ -206,7 +206,7 @@ class TestRAGPipelineContractRetrieve:
         When: Retrieve any query
         Then:
             - Every chunk has metadata["source"]
-            - Every chunk has metadata["doc_type"] in {"core-rules", "faq", "team-rules", "ops"}
+            - Every chunk has metadata["doc_type"] in {"core-rules", "faq", "team-rules", "ops", "killzone"}
             - Every chunk has metadata["last_update_date"] parseable as date
         """
         result = RAGContext(
@@ -233,7 +233,7 @@ class TestRAGPipelineContractRetrieve:
             meets_threshold=True
         )
 
-        valid_doc_types = {"core-rules", "faq", "team-rules", "ops"}
+        valid_doc_types = {"core-rules", "faq", "team-rules", "ops", "killzone"}
 
         for chunk in result.document_chunks:
             assert "source" in chunk.metadata

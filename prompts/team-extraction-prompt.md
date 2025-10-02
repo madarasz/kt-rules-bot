@@ -65,6 +65,7 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 3. **Skip/Ignore:**
    - Universal Equipment cards
    - Cards containing only "NOTES:" sections
+   - MARKER/TOKEN GUIDE cards
    - Lore/story sections
    - Update logs and errata sections
    - Visual operative showcase pages
@@ -152,4 +153,5 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 - **Preserve all weapon rules:** Include every special rule listed in WR column
 - **Maintain rule interactions:** Keep all cross-references between abilities
 - **Complete extraction:** Every operative and card must be included
+- **No citations:** Do not add any citations to your output
 - When describing visual rules or demonstrations, extract the underlying mechanic, not the example

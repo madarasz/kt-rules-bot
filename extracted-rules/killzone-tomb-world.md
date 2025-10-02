@@ -1,3 +1,10 @@
+---
+source: "Tomb World"
+last_update_date: 2025-09-10
+document_type: killzone
+section: tomb world
+---
+
 # KILLZONE: TOMB WORLD - TERRAIN RULES
 
 ## KILLZONE SETUP

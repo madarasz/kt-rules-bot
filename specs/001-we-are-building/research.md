@@ -136,7 +136,7 @@ def extract_pdf_to_markdown(pdf_path: Path, llm_provider: LLMProvider) -> Extrac
     2. Include YAML frontmatter with:
        - source: (e.g., "Core Rules v3.1")
        - publication_date: (YYYY-MM-DD format)
-       - document_type: ("core-rules", "faq", "team-rules", or "ops")
+       - document_type: ("core-rules", "faq", "team-rules", "killzone" or "ops")
        - section: (thematic grouping)
     3. Use proper markdown syntax (##, ###, -, *, etc.)
     4. Preserve rule citations and cross-references

@@ -168,7 +168,7 @@ python_files = "test_*.py"
 **File**: `tests/contract/test_rag_pipeline.py`
 **Dependencies**: T006
 **Description**: Implement Contract Test 4
-- Assert: Every chunk has metadata["source"], metadata["doc_type"] in {"core-rules", "faq", "team-rules", "ops"}, parseable last_update_date
+- Assert: Every chunk has metadata["source"], metadata["doc_type"] in {"core-rules", "faq", "team-rules", "ops", "killzone"}, parseable last_update_date
 
 ---
 

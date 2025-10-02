@@ -1,3 +1,10 @@
+---
+source: "Approved Ops 2025"
+last_update_date: 2025-09-06
+document_type: ops
+section: game sequence
+---
+
 # Approved Ops & Game Sequence
 
 ## APPROVED OPS (2025)

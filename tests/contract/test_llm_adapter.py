@@ -308,7 +308,7 @@ class TestLLMAdapterContractExtraction:
         Then:
             - Output includes valid YAML frontmatter
             - Markdown uses proper heading hierarchy
-            - document_type in {"core-rules", "faq", "team-rules", "ops"}
+            - document_type in {"core-rules", "faq", "team-rules", "ops", "killzone"}
         """
         pdf_file = BytesIO(b"Mock PDF content")
 
@@ -319,7 +319,7 @@ Requirements:
 2. Include YAML frontmatter with:
    - source: (e.g., "Core Rules v3.1")
    - last_update_date: (YYYY-MM-DD format)
-   - document_type: ("core-rules" or "faq" or "team-rules" or "ops")
+   - document_type: ("core-rules" or "faq" or "team-rules" or "ops" or "killzone")
    - section: (thematic grouping, e.g., "Movement Phase")
 3. Use proper markdown syntax (##, ###, -, *, etc.)
 """
@@ -362,7 +362,8 @@ Models cannot move through enemy models.
         assert "core-rules" in response.markdown_content or \
                "faq" in response.markdown_content or \
                "team-rules" in response.markdown_content or \
-               "ops" in response.markdown_content
+               "ops" in response.markdown_content or \
+               "killzone" in response.markdown_content
 
         # Verify markdown structure
         assert "##" in response.markdown_content

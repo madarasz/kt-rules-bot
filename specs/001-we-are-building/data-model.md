@@ -49,7 +49,7 @@
 | metadata | dict | Required | YAML frontmatter parsed |
 | version | str | Required | From metadata: source version |
 | last_update_date | date | Required | From metadata |
-| document_type | enum | Required | "core-rules", "faq", "team-rules", "ops" |
+| document_type | enum | Required | "core-rules", "faq", "team-rules", "ops", "killzone" |
 | last_updated | datetime | Required | File modification timestamp |
 | hash | str | Required | SHA-256 of content for change detection |
 
@@ -58,7 +58,7 @@
 ---
 source: "Core Rules v3.1"
 last_update_date: "2024-09-01"
-document_type: "core-rules"  # or "faq", "team-rules", "ops"
+document_type: "core-rules"  # or "faq", "team-rules", "ops", "killzone"
 section: "Phases"  # Optional: thematic grouping
 ---
 ```
@@ -71,7 +71,7 @@ section: "Phases"  # Optional: thematic grouping
 
 **Validation Rules**:
 - `filename` must match pattern: `[a-z0-9-]+\.md`
-- `document_type` must be one of: {"core-rules", "faq", "team-rules", "ops"}
+- `document_type` must be one of: {"core-rules", "faq", "team-rules", "ops", "killzone"}
 - `last_update_date` must be parseable date format
 - Markdown content must not contain executable code blocks
 
