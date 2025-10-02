@@ -1,0 +1,262 @@
+"""LLM Provider base interface.
+
+Abstract base class for LLM integrations ensuring provider independence.
+Based on specs/001-we-are-building/contracts/llm-adapter.md
+"""
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import BinaryIO, List, Optional
+from uuid import UUID, uuid4
+
+
+# Cached system prompt (loaded once from file)
+_SYSTEM_PROMPT_CACHE: Optional[str] = None
+
+
+def load_system_prompt() -> str:
+    """Load system prompt from prompts/rule-helper-prompt.md.
+
+    Loads the prompt file once and caches it in memory for subsequent calls.
+
+    Returns:
+        System prompt text
+
+    Raises:
+        FileNotFoundError: If prompts/rule-helper-prompt.md does not exist
+    """
+    global _SYSTEM_PROMPT_CACHE
+
+    if _SYSTEM_PROMPT_CACHE is not None:
+        return _SYSTEM_PROMPT_CACHE
+
+    # Locate prompt file relative to project root
+    # Assuming this file is at src/services/llm/base.py
+    current_file = Path(__file__)
+    project_root = current_file.parent.parent.parent.parent
+    prompt_file = project_root / "prompts" / "rule-helper-prompt.md"
+
+    if not prompt_file.exists():
+        raise FileNotFoundError(
+            f"System prompt file not found: {prompt_file}\n"
+            f"Expected location: prompts/rule-helper-prompt.md"
+        )
+
+    # Read and cache the prompt
+    _SYSTEM_PROMPT_CACHE = prompt_file.read_text(encoding="utf-8")
+    return _SYSTEM_PROMPT_CACHE
+
+
+# Exception classes
+class LLMError(Exception):
+    """Base exception for LLM errors."""
+
+    pass
+
+
+class RateLimitError(LLMError):
+    """Provider rate limit exceeded."""
+
+    pass
+
+
+class AuthenticationError(LLMError):
+    """Invalid API key or authentication failed."""
+
+    pass
+
+
+class TimeoutError(LLMError):
+    """Request exceeded timeout limit."""
+
+    pass
+
+
+class ContentFilterError(LLMError):
+    """Provider blocked content due to safety filters."""
+
+    pass
+
+
+class PDFParseError(LLMError):
+    """PDF corrupted or unreadable."""
+
+    pass
+
+
+class TokenLimitError(LLMError):
+    """Token limit exceeded (e.g., PDF too large)."""
+
+    pass
+
+
+# Data classes for generation
+@dataclass
+class GenerationConfig:
+    """Configuration for answer generation."""
+
+    max_tokens: int = 2048  # Maximum response length
+    temperature: float = 0.1  # Lower = more deterministic
+    system_prompt: str = field(default_factory=load_system_prompt)
+    include_citations: bool = True
+    timeout_seconds: int = 25  # Must respond within 25s
+
+
+@dataclass
+class GenerationRequest:
+    """Request for answer generation."""
+
+    prompt: str  # User query (sanitized)
+    context: List[str]  # Retrieved document chunks (up to 5)
+    config: GenerationConfig
+
+
+@dataclass
+class LLMResponse:
+    """Response from LLM generation."""
+
+    response_id: UUID
+    answer_text: str  # Generated answer
+    confidence_score: float  # 0-1, provider-specific confidence metric
+    token_count: int  # Total tokens (prompt + completion)
+    latency_ms: int  # Generation time in milliseconds
+    provider: str  # "claude", "gemini", "chatgpt"
+    model_version: str  # e.g., "claude-3-sonnet-20240229"
+    citations_included: bool  # True if answer references context chunks
+
+
+# Data classes for extraction
+@dataclass
+class ExtractionConfig:
+    """Configuration for PDF extraction."""
+
+    max_tokens: int = 16000  # Large output for full rulebook sections
+    temperature: float = 0.1  # Low temperature for consistent structure
+    timeout_seconds: int = 120  # PDF extraction takes longer
+
+
+@dataclass
+class ExtractionRequest:
+    """Request for PDF extraction."""
+
+    pdf_file: BinaryIO  # PDF file handle
+    extraction_prompt: str  # Structured extraction instructions
+    config: ExtractionConfig
+
+
+@dataclass
+class ExtractionResponse:
+    """Response from PDF extraction."""
+
+    extraction_id: UUID
+    markdown_content: str  # Extracted markdown with YAML frontmatter
+    token_count: int  # Tokens used (for cost tracking)
+    latency_ms: int  # Extraction time
+    provider: str  # "claude", "gemini", "chatgpt"
+    model_version: str
+    validation_warnings: List[str]  # E.g., "Missing YAML frontmatter"
+
+
+# Abstract base class
+class LLMProvider(ABC):
+    """Abstract base class for LLM providers.
+
+    Ensures provider independence (Constitution Principle II).
+    All LLM adapters must implement this interface.
+    """
+
+    def __init__(self, api_key: str, model: str):
+        """Initialize LLM provider.
+
+        Args:
+            api_key: API key for provider
+            model: Model identifier (e.g., "claude-3-sonnet-20240229")
+        """
+        self.api_key = api_key
+        self.model = model
+
+    @abstractmethod
+    async def generate(self, request: GenerationRequest) -> LLMResponse:
+        """Generate answer to user query using RAG context.
+
+        Args:
+            request: Generation request with prompt, context, config
+
+        Returns:
+            LLMResponse with answer, confidence, token count
+
+        Raises:
+            RateLimitError: Provider rate limit exceeded
+            AuthenticationError: Invalid API key
+            TimeoutError: Response time exceeded timeout_seconds
+            ContentFilterError: Provider blocked content
+        """
+        pass
+
+    @abstractmethod
+    async def extract_pdf(self, request: ExtractionRequest) -> ExtractionResponse:
+        """Extract structured markdown from PDF rulebook.
+
+        Args:
+            request: Extraction request with PDF file, prompt, config
+
+        Returns:
+            ExtractionResponse with markdown content, validation warnings
+
+        Raises:
+            PDFParseError: PDF corrupted or unreadable
+            TimeoutError: Extraction exceeded timeout
+            TokenLimitError: PDF too large (>100 pages)
+            RateLimitError: Provider rate limit exceeded
+        """
+        pass
+
+    def _build_prompt(self, user_query: str, context: List[str]) -> str:
+        """Build user prompt with retrieved context.
+
+        Note: System prompt is configured separately in GenerationConfig.
+
+        Args:
+            user_query: Sanitized user question
+            context: Retrieved document chunks
+
+        Returns:
+            Formatted user prompt with context
+        """
+        context_text = "\n\n".join(
+            [f"[Context {i+1}]:\n{chunk}" for i, chunk in enumerate(context)]
+        )
+
+        return f"""Context from Kill Team 3rd Edition rules:
+{context_text}
+
+User Question: {user_query}
+
+Answer:"""
+
+    @staticmethod
+    def _create_extraction_prompt() -> str:
+        """Create standard extraction prompt for PDF processing.
+
+        Returns:
+            Extraction prompt template
+        """
+        return """Extract this Kill Team rulebook PDF to markdown format.
+
+Requirements:
+1. Preserve all headings, lists, and section structure
+2. Include YAML frontmatter with:
+   - source: (e.g., "Core Rules v3.1")
+   - last_update_date: (YYYY-MM-DD format)
+   - document_type: ("core-rules" or "faq" or "team-rules" or "ops")
+   - section: (thematic grouping, e.g., "Movement Phase")
+3. Use proper markdown syntax (##, ###, -, *, etc.)
+4. Preserve rule citations and cross-references
+5. Extract tables as markdown tables
+
+Document type selection guide:
+- core-rules: Base game mechanics (phases, actions, terrain)
+- faq: Official FAQs and clarifications
+- team-rules: Faction-specific rules (e.g., Space Marines)
+- ops: Tactical operations and mission rules"""

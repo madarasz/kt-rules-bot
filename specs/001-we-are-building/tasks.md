@@ -423,16 +423,16 @@ python_files = "test_*.py"
 
 ---
 
-## Phase 6: LLM Provider Adapters (T040-T047)
+## Phase 6: LLM Provider Adapters (T040-T047) ✅
 
-### T040: Implement LLM base interface
+### [X] T040: Implement LLM base interface
 **File**: `src/services/llm/base.py`
 **Dependencies**: T022
 **Description**: Abstract base class for LLMProvider with generate() and extract_pdf() methods
 
 ---
 
-### T041: Implement Claude adapter [P]
+### [X] T041: Implement Claude adapter [P]
 **File**: `src/services/llm/claude.py`
 **Dependencies**: T040
 **Description**: Anthropic Claude API integration
@@ -443,7 +443,7 @@ python_files = "test_*.py"
 
 ---
 
-### T042: Implement ChatGPT adapter [P]
+### [X] T042: Implement ChatGPT adapter [P]
 **File**: `src/services/llm/chatgpt.py`
 **Dependencies**: T040
 **Description**: OpenAI ChatGPT API integration
@@ -453,7 +453,7 @@ python_files = "test_*.py"
 
 ---
 
-### T043: Implement Gemini adapter [P]
+### [X] T043: Implement Gemini adapter [P]
 **File**: `src/services/llm/gemini.py`
 **Dependencies**: T040
 **Description**: Google Gemini API integration
@@ -463,28 +463,28 @@ python_files = "test_*.py"
 
 ---
 
-### T044: Implement LLM provider factory
+### [X] T044: Implement LLM provider factory
 **File**: `src/services/llm/factory.py`
 **Dependencies**: T041, T042, T043
 **Description**: Get provider by config (claude/chatgpt/gemini)
 
 ---
 
-### T045: Implement response validation service
+### [X] T045: Implement response validation service
 **File**: `src/services/llm/validator.py`
 **Dependencies**: T022
 **Description**: Combined LLM confidence + RAG retrieval score validation (FR-013)
 
 ---
 
-### T046: Implement rate limiting for LLM calls [P]
+### [X] T046: Implement rate limiting for LLM calls [P]
 **File**: `src/services/llm/rate_limiter.py`
 **Dependencies**: T040
 **Description**: Token bucket per-provider, per-user throttling (10 queries/minute)
 
 ---
 
-### T047: Unit tests for LLM adapters [P]
+### [X] T047: Unit tests for LLM adapters [P]
 **File**: `tests/unit/test_llm_adapters.py`
 **Dependencies**: T041-T046
 **Description**: Mock API calls, test token tracking, confidence scoring, error handling
