@@ -1,18 +1,21 @@
 <!--
 Sync Impact Report:
-Version: 0.0.0 → 1.0.0
-Initial constitution creation for Discord AI chatbot with RAG functionality
+Version: 1.0.0 → 1.1.0
+Added automated quality gates principle to constitution
+
+Modified principles:
+- None (existing principles unchanged)
 
 Added sections:
-- Core Principles (5 principles: Test-First, LLM Independence, Security, RAG Integrity, Observability)
-- Security Requirements
-- Development Workflow
-- Governance
+- VI. Automated Quality Gates (new principle)
+
+Removed sections:
+- None
 
 Templates updated:
-✅ .specify/templates/plan-template.md - Constitution Check section updated with all 5 principles
+✅ .specify/templates/plan-template.md - Constitution Check section updated with VI. Automated Quality Gates
 ✅ .specify/templates/spec-template.md - Already aligned with principle-driven requirements
-✅ .specify/templates/tasks-template.md - Task categorization supports test-first and security principles
+✅ .specify/templates/tasks-template.md - Task categorization supports quality gate automation
 ✅ .claude/commands/*.md - Generic guidance maintained, no agent-specific changes needed
 
 Follow-up TODOs:
@@ -79,6 +82,42 @@ Follow-up TODOs:
 
 **Rationale**: LLM and RAG systems are non-deterministic. Comprehensive observability enables debugging response quality issues, optimizing performance, and detecting security anomalies.
 
+### VI. Automated Quality Gates
+
+**All code changes MUST pass automated quality gates before merge:**
+
+**Functional Quality**:
+- Automated functional tests for all user-facing features
+- Test coverage MUST be ≥80% for business logic
+- All tests MUST pass in CI/CD pipeline
+- Breaking changes require explicit migration documentation
+
+**Non-Functional Quality**:
+- Code complexity metrics enforced (cyclomatic complexity, cognitive complexity)
+- Code duplication detection with threshold limits
+- Maintainability index monitored and enforced
+- Static analysis for code smells and anti-patterns
+
+**Security Gates**:
+- Automated security scanning for vulnerabilities (dependencies, secrets, SAST)
+- Prompt injection pattern detection in test suites
+- Authentication and authorization test coverage
+- Security regression tests for known vulnerabilities
+
+**Performance Gates**:
+- Response latency benchmarks enforced (p50, p95, p99)
+- Token usage monitoring and budget enforcement
+- Memory and CPU profiling for resource-intensive operations
+- Load testing for critical paths (Discord message handling, RAG retrieval)
+
+**Quality Enforcement**:
+- CI/CD pipeline blocks merge on gate failures
+- Quality metrics reported in pull requests
+- Trend analysis to prevent gradual degradation
+- Automated alerts for metric threshold violations
+
+**Rationale**: Manual quality review is insufficient for AI systems. Automated gates ensure consistent quality standards, prevent technical debt accumulation, and catch regressions early. LLM token costs and performance directly impact operational expenses, requiring continuous monitoring.
+
 ## Security Requirements
 
 **Authentication & Authorization**:
@@ -137,4 +176,4 @@ Follow-up TODOs:
 **Constitution Supersedes**:
 This constitution is the highest authority for technical decisions. When conflicts arise between this document and other practices, the constitution takes precedence. Deviations require documented justification and approval.
 
-**Version**: 1.0.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2025-10-02
+**Version**: 1.1.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2025-10-02

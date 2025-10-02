@@ -75,6 +75,13 @@
 - [ ] Performance metrics defined
 - [ ] Health check endpoints planned
 
+**VI. Automated Quality Gates**:
+- [ ] Functional test automation planned (80%+ coverage)
+- [ ] Code quality metrics defined (complexity, duplication, maintainability)
+- [ ] Security scanning integrated (dependencies, secrets, SAST)
+- [ ] Performance benchmarks established (latency, token usage)
+- [ ] CI/CD pipeline gates configured
+
 ## Project Structure
 
 ### Documentation (this feature)
@@ -242,4 +249,4 @@ directories captured above]
 - [ ] Complexity deviations documented
 
 ---
-*Based on Constitution v1.0.0 - See `.specify/memory/constitution.md`*
+*Based on Constitution v1.1.0 - See `.specify/memory/constitution.md`*
