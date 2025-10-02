@@ -306,36 +306,6 @@ jobs:
       - Complexity check (radon)
 ```
 
-### 12. Rule Contradiction Detection
-
-**Decision**: Metadata-based version precedence with conflict logging
-
-**Implementation**:
-- Each markdown file includes YAML frontmatter:
-  ```yaml
-  ---
-  source: "Core Rules v3.1"
-  publication_date: "2024-09-01"
-  document_type: "core-rules" | "faq" | "team-rules" | "ops"
-  ---
-  ```
-- RAG retrieval returns metadata with each chunk
-- Contradiction detection: If same semantic query retrieves chunks with different `document_type` and contradictory text
-- Resolution: FR-016 - Log conflict, do NOT answer user, prompt for manual review
-
-**Conflict Logging**:
-```python
-logger.warning(
-    "Rule contradiction detected",
-    extra={
-        "query": user_query,
-        "source_1": chunk_1.metadata,
-        "source_2": chunk_2.metadata,
-        "contradiction_id": uuid4(),
-    }
-)
-```
-
 ## Technology Stack Summary
 
 | Component | Technology | Version |

@@ -24,7 +24,7 @@ A Kill Team player is participating in a Discord server dedicated to the game. D
 
 1. **Given** a user is in a Discord server with the bot installed, **When** they @ mention the bot with a rules question like "What actions can I take during the movement phase?", **Then** the bot responds with an accurate answer including citations to relevant rule sections (e.g., "rules-1-phases.md", "rules-2-actions.md").
 
-2. **Given** the Kill Team rulebook receives an official update (FAQ, errata, or new edition content), **When** the automated update pipeline runs, **Then** the system downloads the new PDF, extracts/updates the relevant markdown files, and re-ingests the content into the RAG system without manual intervention.
+2. **Given** the Kill Team rulebook receives an official update (FAQ or new edition content), **When** the automated update pipeline runs, **Then** the system downloads the new PDF, extracts/updates the relevant markdown files, and re-ingests the content into the RAG system without manual intervention.
 
 3. **Given** a user asks an ambiguous question, **When** the bot processes the query, **Then** the bot asks clarifying questions or provides multiple relevant answers with context for the user to choose from.
 
@@ -60,7 +60,6 @@ A Kill Team player is participating in a Discord server dedicated to the game. D
 - **FR-013**: Bot MUST validate that responses are relevant to the user's question before sending using combined validation: both LLM confidence score (minimum threshold) AND RAG retrieval similarity score (minimum threshold) must be met. If validation fails, bot responds that it cannot confidently answer and suggests rephrasing.
 - **FR-014**: System MUST track which version of rules is currently active (to support answer citations from correct edition/FAQ version).
 - **FR-015**: Bot MUST handle Discord message length limits by splitting long responses into multiple messages or using embeds.
-- **FR-016**: Bot MUST detect rule contradictions between different source documents (base rules vs FAQ/errata). When detected, bot MUST NOT provide an answer, log the conflict with source citations, and inform the user that manual clarification is required.
 
 ### Non-Functional Requirements
 
@@ -79,7 +78,9 @@ A Kill Team player is participating in a Discord server dedicated to the game. D
 
 - **RAG Context**: Retrieved rule sections relevant to a user query, containing document chunks, relevance scores, source citations, and metadata for answer generation.
 
-- **PDF Update**: An official Kill Team rules document (core rules, FAQ, errata), containing the PDF file, publication date, version identifier, and change summary.
+- **PDF Update**: An official Kill Team rules document (core rules, FAQ), containing the PDF file, publication date, version identifier, and change summary.
+
+> **Note**: During implementation, entities may be decomposed into multiple classes or data structures for better separation of concerns (e.g., PDF Update may become PDFUpdate + IngestionJob with distinct responsibilities).
 
 - **Bot Response**: An answer to a user query, containing the answer text, rule citations, confidence level, and conversation thread ID.
 
