@@ -352,9 +352,9 @@ python_files = "test_*.py"
 
 ---
 
-## Phase 5: RAG Pipeline Implementation (T032-T039)
+## Phase 5: RAG Pipeline Implementation (T032-T039) ✅
 
-### T032: Implement markdown chunking service
+### [X] T032: Implement markdown chunking service
 **File**: `src/services/rag/chunker.py`
 **Dependencies**: T029
 **Description**: Lazy chunking at ## headers when >8192 tokens
@@ -364,7 +364,7 @@ python_files = "test_*.py"
 
 ---
 
-### T033: Implement embedding service
+### [X] T033: Implement embedding service
 **File**: `src/services/rag/embeddings.py`
 **Dependencies**: T026
 **Description**: OpenAI text-embedding-3-small integration
@@ -373,7 +373,7 @@ python_files = "test_*.py"
 
 ---
 
-### T034: Implement vector database service
+### [X] T034: Implement vector database service
 **File**: `src/services/rag/vector_db.py`
 **Dependencies**: T033
 **Description**: Chroma integration with persistence
@@ -382,7 +382,7 @@ python_files = "test_*.py"
 
 ---
 
-### T035: Implement RAG retrieval service
+### [X] T035: Implement RAG retrieval service
 **File**: `src/services/rag/retriever.py`
 **Dependencies**: T021, T034
 **Description**: Implement retrieve() method from RAG contract
@@ -392,7 +392,7 @@ python_files = "test_*.py"
 
 ---
 
-### T036: Implement RAG ingestion service
+### [X] T036: Implement RAG ingestion service
 **File**: `src/services/rag/ingestor.py`
 **Dependencies**: T020, T032, T033, T034
 **Description**: Implement ingest() method from RAG contract
@@ -402,21 +402,21 @@ python_files = "test_*.py"
 
 ---
 
-### T037: Implement document validation service [P]
+### [X] T037: Implement document validation service [P]
 **File**: `src/services/rag/validator.py`
 **Dependencies**: T020
 **Description**: Validate markdown files have YAML frontmatter, correct document_type enum
 
 ---
 
-### T038: Implement caching layer for RAG queries [P]
+### [X] T038: Implement caching layer for RAG queries [P]
 **File**: `src/services/rag/cache.py`
 **Dependencies**: T035
 **Description**: 5-minute TTL cache for same query + context_key
 
 ---
 
-### T039: Unit tests for RAG services [P]
+### [X] T039: Unit tests for RAG services [P]
 **File**: `tests/unit/test_rag_services.py`
 **Dependencies**: T032-T038
 **Description**: 80%+ coverage for chunker, embeddings, retriever, ingestor
