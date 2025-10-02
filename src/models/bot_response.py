@@ -21,7 +21,7 @@ class Citation:
     section: str  # "Movement Phase"
     quote: str  # Relevant excerpt (max 200 chars)
     document_type: str  # "core-rules", "faq", "team-rules", "ops"
-    publication_date: date
+    last_update_date: date
 
     def validate(self) -> None:
         """Validate Citation fields.

@@ -18,7 +18,7 @@ class DocumentChunk:
     text: str  # Complete section from ## or ### header (no overlap)
     header: str  # Section header (e.g., "Movement Phase")
     header_level: int  # 2 for ##, 3 for ###
-    metadata: Dict[str, Any]  # source, doc_type, publication_date, section
+    metadata: Dict[str, Any]  # source, doc_type, last_update_date, section
     relevance_score: float  # 0-1 cosine similarity
     position_in_doc: int  # Section number for citation
 

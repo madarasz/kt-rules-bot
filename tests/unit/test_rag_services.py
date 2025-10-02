@@ -89,7 +89,7 @@ class TestDocumentValidator:
         content = """\
 ---
 source: Core Rules v3.1
-publication_date: 2024-09-15
+last_update_date: 2024-09-15
 document_type: core-rules
 section: Movement
 ---
@@ -126,7 +126,7 @@ Models move up to 6 inches."""
         content = """\
 ---
 source: Core Rules v3.1
-publication_date: 2024-09-15
+last_update_date: 2024-09-15
 document_type: invalid-type
 ---
 
@@ -264,7 +264,7 @@ def sample_markdown():
     """Sample markdown content for testing."""
     return """---
 source: Core Rules v3.1
-publication_date: 2024-09-15
+last_update_date: 2024-09-15
 document_type: core-rules
 section: Phases
 ---
@@ -295,11 +295,11 @@ def sample_document():
         content="## Movement\nTest content",
         metadata={
             "source": "Core Rules v3.1",
-            "publication_date": "2024-09-15",
+            "last_update_date": "2024-09-15",
             "document_type": "core-rules",
         },
         version="3.1",
-        publication_date=date(2024, 9, 15),
+        last_update_date=date(2024, 9, 15),
         document_type="core-rules",
         last_updated=date(2024, 9, 15),
         hash="abc123",

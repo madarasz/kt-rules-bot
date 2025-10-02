@@ -118,7 +118,7 @@ class DocumentValidator:
             Tuple of (is_valid, error_message)
         """
         # Check required fields
-        required_fields = ["source", "publication_date", "document_type"]
+        required_fields = ["source", "last_update_date", "document_type"]
         missing_fields = [
             field for field in required_fields if field not in metadata
         ]
@@ -138,12 +138,12 @@ class DocumentValidator:
                 f"Must be one of: {', '.join(self.valid_doc_types)}",
             )
 
-        # Validate publication_date format
-        pub_date = metadata.get("publication_date")
-        if not self._is_valid_date(pub_date):
+        # Validate last_update_date format
+        last_update = metadata.get("last_update_date")
+        if not self._is_valid_date(last_update):
             return (
                 False,
-                f"{filename}: Invalid publication_date '{pub_date}'. "
+                f"{filename}: Invalid last_update_date '{last_update}'. "
                 f"Must be YYYY-MM-DD format",
             )
 

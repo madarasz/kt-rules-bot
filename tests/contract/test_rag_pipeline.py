@@ -97,7 +97,7 @@ class TestRAGPipelineContractRetrieve:
                     metadata={
                         "source": "Core Rules v3.1",
                         "doc_type": "core-rules",
-                        "publication_date": "2024-09-15",
+                        "last_update_date": "2024-09-15",
                         "section": "Movement Phase"
                     },
                     relevance_score=0.85,
@@ -167,7 +167,7 @@ class TestRAGPipelineContractRetrieve:
                     metadata={
                         "source": "Core Rules v3.1",
                         "doc_type": "core-rules",
-                        "publication_date": "2024-09-15",
+                        "last_update_date": "2024-09-15",
                         "section": "Terrain"
                     },
                     relevance_score=0.9,
@@ -180,7 +180,7 @@ class TestRAGPipelineContractRetrieve:
                     metadata={
                         "source": "FAQ v1.0",
                         "doc_type": "faq",
-                        "publication_date": "2024-10-01",
+                        "last_update_date": "2024-10-01",
                         "section": "Terrain Clarifications"
                     },
                     relevance_score=0.75,
@@ -207,7 +207,7 @@ class TestRAGPipelineContractRetrieve:
         Then:
             - Every chunk has metadata["source"]
             - Every chunk has metadata["doc_type"] in {"core-rules", "faq", "team-rules", "ops"}
-            - Every chunk has metadata["publication_date"] parseable as date
+            - Every chunk has metadata["last_update_date"] parseable as date
         """
         result = RAGContext(
             context_id=uuid4(),
@@ -220,7 +220,7 @@ class TestRAGPipelineContractRetrieve:
                     metadata={
                         "source": "Core Rules v3.1",
                         "doc_type": "core-rules",
-                        "publication_date": "2024-09-15",
+                        "last_update_date": "2024-09-15",
                         "section": "Test Section"
                     },
                     relevance_score=0.8,
@@ -239,9 +239,9 @@ class TestRAGPipelineContractRetrieve:
             assert "source" in chunk.metadata
             assert "doc_type" in chunk.metadata
             assert chunk.metadata["doc_type"] in valid_doc_types
-            assert "publication_date" in chunk.metadata
+            assert "last_update_date" in chunk.metadata
             # Verify date is parseable
-            datetime.fromisoformat(chunk.metadata["publication_date"])
+            datetime.fromisoformat(chunk.metadata["last_update_date"])
 
 
 class TestRAGPipelineContractIngest:
@@ -267,7 +267,7 @@ class TestRAGPipelineContractIngest:
             metadata={
                 "source": "Test Rules v2.0",
                 "doc_type": "core-rules",
-                "publication_date": "2024-10-02"
+                "last_update_date": "2024-10-02"
             }
         )
 

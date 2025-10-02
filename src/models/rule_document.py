@@ -24,7 +24,7 @@ class RuleDocument:
     content: str
     metadata: Dict[str, Any]  # YAML frontmatter
     version: str
-    publication_date: date
+    last_update_date: date
     document_type: DocumentType
     last_updated: datetime
     hash: str  # SHA-256 of content
@@ -86,7 +86,7 @@ class RuleDocument:
             )
 
         # Required metadata fields
-        required_fields = ["source", "publication_date", "document_type"]
+        required_fields = ["source", "last_update_date", "document_type"]
         for field in required_fields:
             if field not in self.metadata:
                 raise ValueError(f"metadata missing required field: {field}")
@@ -129,16 +129,16 @@ class RuleDocument:
         """
         # Extract required fields from metadata
         version = metadata.get("source", "Unknown")
-        pub_date_str = metadata.get("publication_date")
+        last_update_str = metadata.get("last_update_date")
         doc_type = metadata.get("document_type")
 
-        # Parse publication date
-        if isinstance(pub_date_str, str):
-            publication_date = date.fromisoformat(pub_date_str)
-        elif isinstance(pub_date_str, date):
-            publication_date = pub_date_str
+        # Parse last update date
+        if isinstance(last_update_str, str):
+            last_update_date = date.fromisoformat(last_update_str)
+        elif isinstance(last_update_str, date):
+            last_update_date = last_update_str
         else:
-            raise ValueError(f"Invalid publication_date format: {pub_date_str}")
+            raise ValueError(f"Invalid last_update_date format: {last_update_str}")
 
         # Validate document type
         if not cls.validate_document_type(doc_type):
@@ -150,7 +150,7 @@ class RuleDocument:
             content=content,
             metadata=metadata,
             version=version,
-            publication_date=publication_date,
+            last_update_date=last_update_date,
             document_type=doc_type,
             last_updated=datetime.now(timezone.utc),
             hash=cls.compute_hash(content),

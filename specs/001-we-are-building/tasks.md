@@ -168,7 +168,7 @@ python_files = "test_*.py"
 **File**: `tests/contract/test_rag_pipeline.py`
 **Dependencies**: T006
 **Description**: Implement Contract Test 4
-- Assert: Every chunk has metadata["source"], metadata["doc_type"] in {"core-rules", "faq", "team-rules", "ops"}, parseable publication_date
+- Assert: Every chunk has metadata["source"], metadata["doc_type"] in {"core-rules", "faq", "team-rules", "ops"}, parseable last_update_date
 
 ---
 
@@ -260,7 +260,7 @@ python_files = "test_*.py"
 **Dependencies**: T018
 **Description**: Create RuleDocument dataclass
 - All fields including metadata dict with YAML frontmatter
-- Validation: filename pattern, document_type enum, publication_date parsing
+- Validation: filename pattern, document_type enum, last_update_date parsing
 - Hash computation (SHA-256)
 
 ---
@@ -278,7 +278,7 @@ python_files = "test_*.py"
 **File**: `src/models/bot_response.py`
 **Dependencies**: T018
 **Description**: Create BotResponse and Citation dataclasses
-- Citation: document_name, section, quote, document_type, publication_date
+- Citation: document_name, section, quote, document_type, last_update_date
 - BotResponse: response_id, query_id, answer_text, citations, confidence_score, rag_score, validation_passed, llm_provider, token_count, latency_ms, timestamp
 
 ---
@@ -287,7 +287,7 @@ python_files = "test_*.py"
 **File**: `src/models/pdf_update.py`
 **Dependencies**: T018
 **Description**: Create PDFUpdate dataclass
-- Fields: update_id, pdf_filename, pdf_url, download_date, publication_date, version, file_size_bytes, file_hash, extraction_status, error_message
+- Fields: update_id, pdf_filename, pdf_url, download_date, last_update_date, version, file_size_bytes, file_hash, extraction_status, error_message
 
 ---
 

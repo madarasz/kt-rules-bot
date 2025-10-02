@@ -318,7 +318,7 @@ Requirements:
 1. Preserve all headings, lists, and section structure
 2. Include YAML frontmatter with:
    - source: (e.g., "Core Rules v3.1")
-   - publication_date: (YYYY-MM-DD format)
+   - last_update_date: (YYYY-MM-DD format)
    - document_type: ("core-rules" or "faq" or "team-rules" or "ops")
    - section: (thematic grouping, e.g., "Movement Phase")
 3. Use proper markdown syntax (##, ###, -, *, etc.)
@@ -328,7 +328,7 @@ Requirements:
             extraction_id=uuid4(),
             markdown_content="""---
 source: Core Rules v3.1
-publication_date: 2024-09-15
+last_update_date: 2024-09-15
 document_type: core-rules
 section: Movement Phase
 ---
@@ -355,7 +355,7 @@ Models cannot move through enemy models.
         # Verify YAML frontmatter
         assert response.markdown_content.startswith("---")
         assert "source:" in response.markdown_content
-        assert "publication_date:" in response.markdown_content
+        assert "last_update_date:" in response.markdown_content
         assert "document_type:" in response.markdown_content
 
         # Verify document_type is valid
@@ -404,7 +404,7 @@ Models cannot move through enemy models.
             model_version="claude-3-opus-20240229",
             validation_warnings=[
                 "Missing YAML frontmatter",
-                "No publication_date specified"
+                "No last_update_date specified"
             ]
         )
 

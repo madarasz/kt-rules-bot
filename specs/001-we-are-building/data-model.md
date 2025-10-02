@@ -48,7 +48,7 @@
 | content | str | Required | Full markdown content |
 | metadata | dict | Required | YAML frontmatter parsed |
 | version | str | Required | From metadata: source version |
-| publication_date | date | Required | From metadata |
+| last_update_date | date | Required | From metadata |
 | document_type | enum | Required | "core-rules", "faq", "team-rules", "ops" |
 | last_updated | datetime | Required | File modification timestamp |
 | hash | str | Required | SHA-256 of content for change detection |
@@ -57,7 +57,7 @@
 ```yaml
 ---
 source: "Core Rules v3.1"
-publication_date: "2024-09-01"
+last_update_date: "2024-09-01"
 document_type: "core-rules"  # or "faq", "team-rules", "ops"
 section: "Phases"  # Optional: thematic grouping
 ---
@@ -72,7 +72,7 @@ section: "Phases"  # Optional: thematic grouping
 **Validation Rules**:
 - `filename` must match pattern: `[a-z0-9-]+\.md`
 - `document_type` must be one of: {"core-rules", "faq", "team-rules", "ops"}
-- `publication_date` must be parseable date format
+- `last_update_date` must be parseable date format
 - Markdown content must not contain executable code blocks
 
 **State Transitions**:
@@ -109,7 +109,7 @@ class DocumentChunk:
     text: str  # Complete section from ## or ### header (no overlap)
     header: str  # Section header (e.g., "Movement Phase")
     header_level: int  # 2 for ##, 3 for ###
-    metadata: Dict[str, Any]  # source, doc_type, publication_date, section
+    metadata: Dict[str, Any]  # source, doc_type, last_update_date, section
     relevance_score: float
     position_in_doc: int  # Section number for citation
 ```
@@ -152,7 +152,7 @@ class Citation:
     section: str  # "Movement Phase"
     quote: str  # Relevant excerpt (max 200 chars)
     document_type: str  # "base", "faq", "errata"
-    publication_date: date
+    last_update_date: date
 ```
 
 **Validation Rules**:
@@ -183,7 +183,7 @@ class Citation:
 | pdf_filename | str | Required | Original PDF filename |
 | pdf_url | str | Required | Source URL from Warhammer Community API |
 | download_date | datetime | Required, UTC | When PDF was downloaded |
-| publication_date | date | Required | From PDF metadata or API |
+| last_update_date | date | Required | From PDF metadata or API |
 | version | str | Required | e.g., "3.1", "FAQ-2024-10" |
 | file_size_bytes | int | Required | PDF file size |
 | file_hash | str | Required | SHA-256 for duplicate detection |

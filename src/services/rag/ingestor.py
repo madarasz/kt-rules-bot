@@ -144,7 +144,7 @@ class RAGIngestor:
                         "document_id": str(document.document_id),
                         "source": document.metadata.get("source", document.version),
                         "doc_type": document.document_type,
-                        "publication_date": document.publication_date.isoformat(),
+                        "last_update_date": document.last_update_date.isoformat(),
                         "section": document.metadata.get("section", ""),
                         "header": chunk.header,
                         "header_level": chunk.header_level,
@@ -240,7 +240,7 @@ class RAGIngestor:
             InvalidDocumentError: If document is invalid
         """
         # Check required metadata fields
-        required_fields = ["source", "publication_date", "document_type"]
+        required_fields = ["source", "last_update_date", "document_type"]
         missing_fields = [
             field for field in required_fields if field not in document.metadata
         ]

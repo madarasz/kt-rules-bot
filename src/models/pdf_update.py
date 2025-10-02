@@ -23,7 +23,7 @@ class PDFUpdate:
     pdf_filename: str
     pdf_url: str
     download_date: datetime
-    publication_date: date
+    last_update_date: date
     version: str
     file_size_bytes: int
     file_hash: str  # SHA-256 for duplicate detection
@@ -119,7 +119,7 @@ class PDFUpdate:
         pdf_filename: str,
         pdf_url: str,
         file_content: bytes,
-        publication_date: date,
+        last_update_date: date,
         version: str,
     ) -> "PDFUpdate":
         """Create PDFUpdate from downloaded PDF.
@@ -128,7 +128,7 @@ class PDFUpdate:
             pdf_filename: Original PDF filename
             pdf_url: Source URL
             file_content: PDF bytes
-            publication_date: Publication date
+            last_update_date: Last update date
             version: Version string
 
         Returns:
@@ -139,7 +139,7 @@ class PDFUpdate:
             pdf_filename=pdf_filename,
             pdf_url=pdf_url,
             download_date=datetime.now(timezone.utc),
-            publication_date=publication_date,
+            last_update_date=last_update_date,
             version=version,
             file_size_bytes=len(file_content),
             file_hash=cls.compute_file_hash(file_content),

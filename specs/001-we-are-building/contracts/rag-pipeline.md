@@ -40,7 +40,7 @@ class DocumentChunk:
     chunk_id: UUID
     document_id: UUID
     text: str  # ~500 token segment
-    metadata: Dict[str, Any]  # {source, doc_type, publication_date, section}
+    metadata: Dict[str, Any]  # {source, doc_type, last_update_date, section}
     relevance_score: float  # 0-1
     position_in_doc: int  # For citation
 ```
@@ -63,7 +63,7 @@ class DocumentChunk:
    - Every `DocumentChunk.metadata` MUST include:
      - `source`: str (e.g., "Core Rules v3.1")
      - `doc_type`: enum ("core-rules" | "faq" | "team-rules" | "ops")
-     - `publication_date`: ISO date string
+     - `last_update_date`: ISO date string
      - `section`: str (optional, for citation)
 
 5. **Idempotency**:
@@ -136,7 +136,7 @@ class IngestionResult:
    - If partial failure, rollback entire document's embeddings
 
 5. **Validation**:
-   - Reject documents without required metadata (source, doc_type, publication_date)
+   - Reject documents without required metadata (source, doc_type, last_update_date)
    - Log WARNING for ambiguous markdown structure
 
 **Error Conditions**:
@@ -185,7 +185,7 @@ class IngestionResult:
 **Then**:
 - Every chunk has `metadata["source"]`
 - Every chunk has `metadata["doc_type"]` in {"core-rules", "faq", "team-rules", "ops"}
-- Every chunk has `metadata["publication_date"]` parseable as date
+- Every chunk has `metadata["last_update_date"]` parseable as date
 
 ### Contract Test 5: Ingest Idempotency
 
