@@ -49,7 +49,7 @@
 | metadata | dict | Required | YAML frontmatter parsed |
 | version | str | Required | From metadata: source version |
 | publication_date | date | Required | From metadata |
-| document_type | enum | Required | "base", "faq", "errata" |
+| document_type | enum | Required | "core-rules", "faq", "team-rules", "ops" |
 | last_updated | datetime | Required | File modification timestamp |
 | hash | str | Required | SHA-256 of content for change detection |
 
@@ -58,14 +58,20 @@
 ---
 source: "Core Rules v3.1"
 publication_date: "2024-09-01"
-document_type: "base"  # or "faq", "errata"
+document_type: "core-rules"  # or "faq", "team-rules", "ops"
 section: "Phases"  # Optional: thematic grouping
 ---
 ```
 
+**Document Type Definitions**:
+- **core-rules**: Base game rules (phases, actions, key principles, killzones)
+- **faq**: Frequently Asked Questions and clarifications
+- **team-rules**: Faction-specific rules (e.g., Space Marines, Orks)
+- **ops**: Tactical operations and mission rules
+
 **Validation Rules**:
 - `filename` must match pattern: `[a-z0-9-]+\.md`
-- `document_type` must be one of: {"base", "faq", "errata"}
+- `document_type` must be one of: {"core-rules", "faq", "team-rules", "ops"}
 - `publication_date` must be parseable date format
 - Markdown content must not contain executable code blocks
 
@@ -100,10 +106,12 @@ section: "Phases"  # Optional: thematic grouping
 class DocumentChunk:
     chunk_id: UUID
     document_id: UUID  # FK to RuleDocument
-    text: str  # ~500 token segment
-    metadata: Dict[str, Any]  # source, doc_type, publication_date
+    text: str  # Complete section from ## or ### header (no overlap)
+    header: str  # Section header (e.g., "Movement Phase")
+    header_level: int  # 2 for ##, 3 for ###
+    metadata: Dict[str, Any]  # source, doc_type, publication_date, section
     relevance_score: float
-    position_in_doc: int  # For citation: "Section 3, paragraph 2"
+    position_in_doc: int  # Section number for citation
 ```
 
 **Validation Rules**:

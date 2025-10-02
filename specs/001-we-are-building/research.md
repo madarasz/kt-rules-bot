@@ -35,6 +35,64 @@
 - **Weaviate**: More complex deployment, unnecessary for single-instance bot
 - **FAISS**: No built-in persistence, requires custom metadata management
 
+### 2a. Document Chunking Strategy
+
+**Decision**: Lazy chunking - only split when embedding token limit (8192) is reached
+
+**Rationale**:
+- **Keep documents whole when possible**: Most markdown files ≤8192 tokens (text-embedding-3-small limit)
+- **Only split when necessary**: If document exceeds 8192 tokens, split at `##` (H2) boundaries
+- No overlap between chunks (keeps information logically together)
+- Preserves semantic coherence of rule sections
+- Maximizes context in each chunk (better for retrieval accuracy)
+- If single `##` section exceeds 8192 tokens, fall back to `###` (H3) boundaries
+
+**Implementation**:
+```python
+def chunk_markdown(content: str, max_tokens: int = 8192) -> List[Chunk]:
+    """
+    Only split markdown if it exceeds embedding model's token limit.
+    Split at ## headers when needed, no overlap.
+    """
+    token_count = count_tokens(content)
+
+    # Keep whole document if within limit
+    if token_count <= max_tokens:
+        return [Chunk(text=content, header="", header_level=0)]
+
+    # Document too large: split at ## boundaries
+    sections = re.split(r'^(## .+)$', content, flags=re.MULTILINE)
+    chunks = []
+
+    for section in sections:
+        if count_tokens(section) > max_tokens:
+            # Single section too large: split at ### boundaries
+            subsections = re.split(r'^(### .+)$', section, flags=re.MULTILINE)
+            chunks.extend(subsections)
+        else:
+            chunks.append(section)
+
+    return chunks
+```
+
+**Advantages**:
+- **Maximum context**: Entire rulebook sections kept together (e.g., all "Movement Phase" rules in one chunk)
+- **Fewer chunks**: Reduces total embeddings stored, faster retrieval
+- Rule sections naturally align with headers when splitting is needed
+- No duplicate information across chunks (cleaner retrieval)
+- Better citation accuracy: chunk boundaries match document structure
+- Easier debugging: retrieved chunks map 1:1 to markdown sections or whole documents
+
+**Token Limit Analysis**:
+- Embedding model: OpenAI text-embedding-3-small (8192 token limit)
+- Typical Kill Team markdown file: 1000-3000 tokens (fits in single chunk)
+- Large files (e.g., "rules-3-key-principles.md"): May require splitting at `##` headers
+
+**Alternatives Considered**:
+- **Always split at headers**: Wasteful, creates many small chunks with less context
+- **Fixed token chunks with overlap (e.g., 500 tokens, 50 overlap)**: Breaks semantic coherence, duplicates information, harder to cite
+- **Sentence-based chunking**: Too granular, loses contextual information
+
 ### 3. Discord Library
 
 **Decision**: discord.py (v2.x)
@@ -78,10 +136,16 @@ def extract_pdf_to_markdown(pdf_path: Path, llm_provider: LLMProvider) -> Extrac
     2. Include YAML frontmatter with:
        - source: (e.g., "Core Rules v3.1")
        - publication_date: (YYYY-MM-DD format)
-       - document_type: ("base" or "faq" or "errata")
+       - document_type: ("core-rules", "faq", "team-rules", or "ops")
        - section: (thematic grouping)
     3. Use proper markdown syntax (##, ###, -, *, etc.)
     4. Preserve rule citations and cross-references
+
+    Document type guide:
+    - core-rules: Base game mechanics
+    - faq: Official FAQs
+    - team-rules: Faction-specific rules
+    - ops: Mission and tactical operation rules
     """
 
     with open(pdf_path, 'rb') as f:
@@ -252,7 +316,7 @@ jobs:
   ---
   source: "Core Rules v3.1"
   publication_date: "2024-09-01"
-  document_type: "base" | "faq" | "errata"
+  document_type: "core-rules" | "faq" | "team-rules" | "ops"
   ---
   ```
 - RAG retrieval returns metadata with each chunk

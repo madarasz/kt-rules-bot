@@ -62,7 +62,7 @@ class DocumentChunk:
 4. **Metadata Completeness**:
    - Every `DocumentChunk.metadata` MUST include:
      - `source`: str (e.g., "Core Rules v3.1")
-     - `doc_type`: enum ("base" | "faq" | "rule_update" | "team_rules")
+     - `doc_type`: enum ("core-rules" | "faq" | "team-rules" | "ops")
      - `publication_date`: ISO date string
      - `section`: str (optional, for citation)
 
@@ -114,8 +114,14 @@ class IngestionResult:
 **Contracts**:
 
 1. **Chunking Strategy**:
-   - Split documents into ~500 token chunks with 50 token overlap
-   - Preserve section headers in chunks for citation
+   - **Only split when token limit reached**: Keep entire documents as single chunks when ≤8192 tokens
+   - Embedding model limit: 8192 tokens (OpenAI text-embedding-3-small)
+   - **If document exceeds 8192 tokens**: Split at `##` (H2) heading boundaries
+   - No overlap between chunks (keeps information logically together)
+   - Each chunk MUST include the section header for context
+   - **If single `##` section exceeds 8192 tokens**: Split at `###` (H3) boundaries
+   - Preserve complete paragraphs within chunks (no mid-sentence splits)
+   - **Goal**: Maximize chunk size up to embedding limit for better context
 
 2. **Embedding Generation**:
    - Use consistent embedding model (e.g., OpenAI text-embedding-3-small)
@@ -178,7 +184,7 @@ class IngestionResult:
 **When**: Retrieve any query
 **Then**:
 - Every chunk has `metadata["source"]`
-- Every chunk has `metadata["doc_type"]` in {"base", "faq", "errata"}
+- Every chunk has `metadata["doc_type"]` in {"core-rules", "faq", "team-rules", "ops"}
 - Every chunk has `metadata["publication_date"]` parseable as date
 
 ### Contract Test 5: Ingest Idempotency
@@ -203,7 +209,7 @@ class IngestionResult:
 ## Implementation Notes
 
 **Embedding Model**: OpenAI `text-embedding-3-small` (1536 dimensions)
-**Chunking Library**: LangChain `RecursiveCharacterTextSplitter`
+**Chunking Library**: Custom markdown splitter (split at `##` headers)
 **Vector DB**: Chroma with persistence to `data/chroma_db/`
 
 **Configuration**:
@@ -212,9 +218,13 @@ class IngestionResult:
 embedding:
   model: "text-embedding-3-small"
   dimensions: 1536
+  max_tokens: 8192  # Model's token limit
 chunking:
-  chunk_size: 500
-  chunk_overlap: 50
+  split_only_when_needed: true  # Keep documents whole if ≤8192 tokens
+  max_chunk_tokens: 8192  # Match embedding model limit
+  header_level: 2  # Split at H2 (##) when limit exceeded
+  fallback_header_level: 3  # Split at H3 (###) if single section >8192 tokens
+  overlap_tokens: 0  # No overlap
 retrieval:
   max_chunks: 5
   min_relevance: 0.6

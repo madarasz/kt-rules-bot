@@ -118,11 +118,17 @@ Requirements:
 2. Include YAML frontmatter with:
    - source: (e.g., "Core Rules v3.1")
    - publication_date: (YYYY-MM-DD format)
-   - document_type: ("base" or "faq" or "errata")
+   - document_type: ("core-rules" or "faq" or "team-rules" or "ops")
    - section: (thematic grouping, e.g., "Movement Phase")
 3. Use proper markdown syntax (##, ###, -, *, etc.)
 4. Preserve rule citations and cross-references
 5. Extract tables as markdown tables
+
+Document type selection guide:
+- core-rules: Base game mechanics (phases, actions, terrain)
+- faq: Official FAQs and clarifications
+- team-rules: Faction-specific rules (e.g., Space Marines)
+- ops: Tactical operations and mission rules
 ```
 
 **Output**:
