@@ -1,0 +1,10 @@
+# Spec-kit default commands
+.claude/commands/analyze.md
+.claude/commands/clarify.md
+.claude/commands/constitution.md
+.claude/commands/implement.md
+.claude/commands/plan.md
+.claude/commands/specify.md
+.claude/commands/tasks.md
+
+.DS_Store
