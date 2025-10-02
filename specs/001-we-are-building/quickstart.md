@@ -35,13 +35,12 @@ chromadb==0.4.0
 anthropic==0.8.0
 openai==1.6.0
 google-generativeai==0.3.0
-pymupdf==1.23.0
-pdfplumber==0.10.0
 pytest==7.4.0
 pytest-asyncio==0.21.0
 structlog==23.2.0
 pydantic==2.5.0
 python-dotenv==1.0.0
+# Note: No PDF parsing libraries needed - using LLM-based extraction
 ```
 
 ### 2. Configure Environment Variables
@@ -229,9 +228,12 @@ python -m src.cli.download_pdf --url https://warhammer.com/rules/killteam-faq-20
 
 # Expected:
 # ✓ Downloaded killteam-faq-2024.pdf (2.3 MB)
-# ✓ Extracted 3 new sections
+# ✓ Extracting with LLM (Claude)...
+# ✓ Extraction complete: 12,458 tokens used ($0.15 estimated cost)
 # ✓ Created faq-core-rules-2024.md
+# ✓ Validated YAML frontmatter: OK
 # ✓ Re-ingested into vector DB (15 new embeddings)
+# ✓ Total latency: 45.2s
 ```
 
 ### Test Query (Without Discord)

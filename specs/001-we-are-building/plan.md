@@ -35,14 +35,14 @@ Discord bot for Kill Team 3rd edition rules assistance using RAG (Retrieval-Augm
 
 ## Technical Context
 **Language/Version**: Python 3.11+
-**Primary Dependencies**: discord.py (Discord API), LangChain/LlamaIndex (RAG framework), vector database (Chroma/Pinecone/Weaviate), PyPDF2/pdfplumber (PDF extraction), configurable LLM providers (Anthropic/OpenAI/Google APIs)
+**Primary Dependencies**: discord.py (Discord API), LangChain/LlamaIndex (RAG framework), vector database (Chroma/Pinecone/Weaviate), configurable LLM providers (Anthropic/OpenAI/Google APIs - also used for PDF extraction)
 **Storage**: Vector database for embeddings, filesystem for markdown rules (extracted-rules/), metadata store for document versions
 **Testing**: pytest (unit/integration), pytest-asyncio (Discord async testing), contract testing for RAG pipeline
 **Target Platform**: Linux server (Docker container), Python runtime
 **Project Type**: single (backend service with CLI tools)
 **Performance Goals**: <30 seconds response latency, 5 concurrent users, RAG precision ≥90% / recall ≥70%
-**Constraints**: Discord API rate limits, GDPR compliance (1-week data retention), token usage budget monitoring
-**Scale/Scope**: Single Discord bot instance, 12 initial markdown documents, ~50-100 daily queries expected
+**Constraints**: Discord API rate limits, GDPR compliance (1-week data retention), token usage budget monitoring (includes PDF extraction tokens)
+**Scale/Scope**: Single Discord bot instance, 12 initial markdown documents, ~50-100 daily queries expected, PDF ingestion on-demand (low frequency)
 
 ## Constitution Check
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*

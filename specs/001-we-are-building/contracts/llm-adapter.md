@@ -7,6 +7,10 @@
 
 Defines the provider-agnostic interface for LLM interactions. Ensures business logic remains independent of specific LLM providers (Constitution Principle II).
 
+**Includes two primary operations**:
+1. **Answer Generation**: Generate responses to user queries using RAG context
+2. **PDF Extraction**: Extract structured markdown from PDF rulebooks
+
 ## Interface Definition
 
 ### `LLMProvider.generate(prompt: str, context: List[str], config: GenerationConfig) -> LLMResponse`
@@ -83,6 +87,89 @@ class LLMResponse:
 | `AuthenticationError` | Invalid API key | Raise exception, log ERROR |
 | `TimeoutError` | Response time > timeout_seconds | Raise exception, log WARNING |
 | `ContentFilterError` | Provider blocked content | Return empty response, confidence=0 |
+
+---
+
+### `LLMProvider.extract_pdf(pdf_file: BinaryIO, extraction_prompt: str, config: ExtractionConfig) -> ExtractionResponse`
+
+**Description**: Extracts structured markdown from a PDF rulebook using LLM vision/document processing capabilities
+
+**Input**:
+```python
+@dataclass
+class ExtractionRequest:
+    pdf_file: BinaryIO  # PDF file handle
+    extraction_prompt: str  # Structured extraction instructions
+    config: ExtractionConfig
+
+@dataclass
+class ExtractionConfig:
+    max_tokens: int = 16000  # Large output for full rulebook sections
+    temperature: float = 0.1  # Low temperature for consistent structure
+    timeout_seconds: int = 120  # PDF extraction takes longer
+```
+
+**Extraction Prompt Template**:
+```
+Extract this Kill Team rulebook PDF to markdown format.
+
+Requirements:
+1. Preserve all headings, lists, and section structure
+2. Include YAML frontmatter with:
+   - source: (e.g., "Core Rules v3.1")
+   - publication_date: (YYYY-MM-DD format)
+   - document_type: ("base" or "faq" or "errata")
+   - section: (thematic grouping, e.g., "Movement Phase")
+3. Use proper markdown syntax (##, ###, -, *, etc.)
+4. Preserve rule citations and cross-references
+5. Extract tables as markdown tables
+```
+
+**Output**:
+```python
+@dataclass
+class ExtractionResponse:
+    extraction_id: UUID
+    markdown_content: str  # Extracted markdown with YAML frontmatter
+    token_count: int  # Tokens used (for cost tracking)
+    latency_ms: int  # Extraction time
+    provider: str  # "claude", "gemini", "chatgpt"
+    model_version: str
+    validation_warnings: List[str]  # E.g., "Missing YAML frontmatter", "Malformed table"
+```
+
+**Contracts**:
+
+1. **Markdown Structure**:
+   - Output MUST include valid YAML frontmatter at the top
+   - Headings MUST use proper markdown syntax (##, ###)
+   - Lists MUST use consistent bullet/number format
+
+2. **Token Usage Tracking**:
+   - `token_count` MUST be accurate (includes PDF input tokens + output tokens)
+   - Used for budget monitoring and cost alerts
+
+3. **Validation**:
+   - Post-extraction validation checks for required YAML fields
+   - Missing fields added to `validation_warnings`
+   - Malformed markdown syntax logged as warnings
+
+4. **Caching**:
+   - PDF hash computed before extraction
+   - If hash matches cached extraction, return cached markdown (avoid re-extraction costs)
+
+5. **Timeout**:
+   - MUST complete within `timeout_seconds` or raise `TimeoutError`
+   - Typical extraction: 30-60 seconds for 10-20 page PDF
+
+**Error Conditions**:
+
+| Error Type | Condition | Response |
+|------------|-----------|----------|
+| `PDFParseError` | PDF corrupted or unreadable | Raise exception, log ERROR |
+| `TimeoutError` | Extraction exceeds timeout | Raise exception, log WARNING |
+| `TokenLimitError` | PDF too large (>100 pages) | Raise exception, suggest splitting |
+| `RateLimitError` | Provider rate limit | Raise exception, retry with backoff |
 
 ---
 

@@ -215,6 +215,9 @@ class Citation:
 | documents_created | int | Required, default 0 | Count of new RuleDocument entities |
 | documents_updated | int | Required, default 0 | Count of updated RuleDocument entities |
 | reingestion_triggered | bool | Required | True if RAG re-indexing was triggered |
+| extraction_token_count | int | Required, default 0 | Tokens used for LLM-based PDF extraction |
+| extraction_cost_usd | float | Optional | Estimated cost of extraction (for budget tracking) |
+| extraction_latency_ms | int | Optional | Time taken for LLM PDF extraction |
 
 **Validation Rules**:
 - `status` transition: running → (success | failed)

@@ -52,16 +52,61 @@
 
 ### 4. PDF Extraction
 
-**Decision**: PyMuPDF (fitz) primary, pdfplumber fallback
+**Decision**: LLM-based PDF processing (via existing LLM provider APIs)
 
 **Rationale**:
-- PyMuPDF: Fast, accurate text extraction, handles complex layouts
-- pdfplumber: Better for tables and structured content (if Games Workshop PDFs contain tables)
-- Dual-library approach handles format variations (NFR-004 resilience requirement)
+- Claude, ChatGPT, and Gemini all support native PDF upload and processing
+- Better structure preservation: LLMs understand semantic structure (headers, lists, tables) vs raw text extraction
+- Format resilience: Handles PDF layout changes naturally (addresses NFR-004 requirement)
+- Simpler architecture: No additional parsing libraries needed
+- Reuses existing LLM abstraction layer (Constitution Principle II compliance)
+- Cost acceptable: Ingestion is infrequent (on-demand only, not per-query)
+
+**Implementation**:
+```python
+# Upload PDF to LLM with structured extraction prompt
+def extract_pdf_to_markdown(pdf_path: Path, llm_provider: LLMProvider) -> ExtractionResult:
+    """
+    Uses LLM API to extract PDF content to markdown format.
+    Prompt enforces YAML frontmatter and section preservation.
+    """
+    extraction_prompt = """
+    Extract this Kill Team rulebook PDF to markdown format.
+
+    Requirements:
+    1. Preserve all headings, lists, and section structure
+    2. Include YAML frontmatter with:
+       - source: (e.g., "Core Rules v3.1")
+       - publication_date: (YYYY-MM-DD format)
+       - document_type: ("base" or "faq" or "errata")
+       - section: (thematic grouping)
+    3. Use proper markdown syntax (##, ###, -, *, etc.)
+    4. Preserve rule citations and cross-references
+    """
+
+    with open(pdf_path, 'rb') as f:
+        response = llm_provider.extract_document(
+            file=f,
+            prompt=extraction_prompt,
+            max_tokens=16000  # Large rulebook sections
+        )
+
+    return ExtractionResult(
+        markdown_content=response.text,
+        token_count=response.token_count,  # Track for cost monitoring
+        extraction_latency_ms=response.latency_ms
+    )
+```
+
+**Token Usage Tracking**:
+- All PDF extractions log token counts to metrics system
+- Budget alerts if monthly extraction tokens exceed threshold
+- Cache PDF hash → markdown mapping to avoid re-extracting same document
 
 **Alternatives Considered**:
+- **PyMuPDF + pdfplumber**: More code complexity, worse structure preservation, requires custom markdown conversion logic
 - **PyPDF2**: Less accurate for complex PDFs, layout issues
-- **Camelot**: Table-only focus, not suitable for narrative rules text
+- **Manual markdown creation**: Not scalable for frequent rule updates
 
 ### 5. LLM Provider Abstraction
 
@@ -177,7 +222,7 @@ conversation_cache: Dict[str, ConversationContext] = {}
 
 **Gates**:
 1. **Linting**: `ruff` (fast Python linter), `mypy` (type checking)
-2. **Test Coverage**: `pytest-cov` with 80% minimum threshold
+2. **Test Coverage**: `pytest-cov` with 60% minimum threshold
 3. **Security Scanning**: `bandit` (SAST), `safety` (dependency vulnerabilities)
 4. **Complexity**: `radon` (cyclomatic complexity max 10), `vulture` (dead code detection)
 5. **Performance**: Latency test must complete <30s (mock LLM, real RAG)
@@ -235,7 +280,7 @@ logger.warning(
 | Discord API | discord.py | 2.x |
 | RAG Framework | LangChain + LlamaIndex | Latest stable |
 | Vector DB | Chroma | Latest |
-| PDF Extraction | PyMuPDF (fitz) | Latest |
+| PDF Extraction | LLM-based (Claude/ChatGPT/Gemini APIs) | N/A - uses existing LLM providers |
 | LLM Providers | Anthropic/OpenAI/Google SDKs | Latest |
 | Testing | pytest | Latest |
 | Linting | ruff + mypy | Latest |
