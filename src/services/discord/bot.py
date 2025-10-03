@@ -85,6 +85,7 @@ class KillTeamBotOrchestrator:
             rag_context = self.rag.retrieve(
                 RetrieveRequest(
                     query=user_query.sanitized_text,
+                    context_key=user_query.conversation_context_id,
                     max_chunks=5,
                     min_relevance=0.6,
                 )
