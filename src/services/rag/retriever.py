@@ -172,11 +172,11 @@ class RAGRetriever:
         distances = results["distances"][0]
 
         for i, chunk_id_str in enumerate(ids):
-            # Convert distance to similarity (Chroma uses L2 distance)
-            # Lower distance = higher similarity
-            # Normalize to 0-1 range (approximate)
-            distance = distances[i]
-            relevance_score = max(0.0, 1.0 - (distance / 2.0))
+            # Convert L2 squared distance to cosine similarity
+            # Chroma returns squared L2 distance for normalized embeddings
+            # cosine_similarity = 1 - (L2_squared / 2)
+            l2_squared = distances[i]
+            relevance_score = max(0.0, 1.0 - (l2_squared / 2.0))
 
             # Skip if below threshold
             if relevance_score < min_relevance:

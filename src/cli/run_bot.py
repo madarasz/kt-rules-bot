@@ -54,16 +54,11 @@ class BotRunner:
 
         try:
             # Initialize RAG retriever
-            rag_retriever = RAGRetriever(
-                collection_name=self.config.get("vectordb.collection_name", "kill_team_rules"),
-                persist_directory=self.config.get(
-                    "vectordb.persist_directory", "./data/vectordb"
-                ),
-            )
+            rag_retriever = RAGRetriever()
             logger.info("✓ RAG retriever initialized")
 
             # Initialize LLM provider factory
-            llm_factory = LLMProviderFactory(config=self.config)
+            llm_factory = LLMProviderFactory()
             logger.info("✓ LLM provider factory initialized")
 
             # Initialize validator
@@ -124,7 +119,7 @@ class BotRunner:
         self._setup_signal_handlers()
 
         # Get Discord token
-        token = self.config.get("discord.token")
+        token = self.config.discord_bot_token
         if not token:
             logger.error("Discord token not found in configuration")
             sys.exit(1)
@@ -138,11 +133,11 @@ class BotRunner:
             logger.info("Discord bot created")
 
             # Display startup banner
-            mode = self.config.get("environment", "production")
+            mode = "production"
             print(f"\n{'=' * 60}")
             print(f"  Kill Team Rules Bot - Starting in {mode.upper()} mode")
             print(f"{'=' * 60}")
-            print(f"  LLM Provider: {self.config.get('llm.provider', 'claude')}")
+            print(f"  LLM Provider: {self.config.default_llm_provider}")
             print(f"  Rate Limit: 10 requests/minute per user")
             print(f"  Context TTL: 30 minutes")
             print(f"  Max History: 10 messages")
@@ -167,8 +162,8 @@ def run_bot(mode: str = "production") -> None:
         mode: Runtime mode ('dev' or 'production')
     """
     # Load configuration
-    config = Config()
-    config.set("environment", mode)
+    from src.lib.config import get_config
+    config = get_config()
 
     # Create and run bot
     runner = BotRunner(config)

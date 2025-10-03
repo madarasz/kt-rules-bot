@@ -32,15 +32,10 @@ class HealthChecker:
         """
         try:
             # Initialize RAG retriever
-            rag_retriever = RAGRetriever(
-                collection_name=self.config.get("vectordb.collection_name", "kill_team_rules"),
-                persist_directory=self.config.get(
-                    "vectordb.persist_directory", "./data/vectordb"
-                ),
-            )
+            rag_retriever = RAGRetriever()
 
             # Initialize LLM provider
-            llm_factory = LLMProviderFactory(config=self.config)
+            llm_factory = LLMProviderFactory()
             llm_provider = llm_factory.create()
 
             return rag_retriever, llm_provider
@@ -146,7 +141,8 @@ def health_check(verbose: bool = False, wait_for_discord: bool = False) -> None:
         wait_for_discord: Wait for Discord connection
     """
     # Load configuration
-    config = Config()
+    from src.lib.config import get_config
+    config = get_config()
 
     # Create and run health checker
     checker = HealthChecker(config)
