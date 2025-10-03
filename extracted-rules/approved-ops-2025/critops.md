@@ -1,6 +1,6 @@
 ---
 source: "Approved Ops 2025"
-last_update_date: 2025-09-06
+last_update_date: 2025-09-10
 document_type: ops
 section: critops
 ---
@@ -61,7 +61,7 @@ At the end of each turning point after the first:
 * Each player cannot select each objective marker more than once per battle (so they must select each objective marker once during the battle).
 
 **VICTORY POINTS**
-At the end of each turning point:
+At the end of each turning point after the first:
 * If friendly operatives control more objective markers than enemy operatives do, you score **1VP**.
 * If your selected claim is true, you score **1VP**.
 
@@ -75,7 +75,7 @@ At the end of each turning point:
 * Whenever an operative is carrying an objective marker, that operative cannot be removed and set up again more than **6"** away.
 
 **VICTORY POINTS**
-* At the end of each turning point, if friendly operatives control more objective markers than enemy operatives do, you score **1VP**.
+* At the end of each turning point after the first, if friendly operatives control more objective markers than enemy operatives do, you score **1VP**.
 * At the end of the battle, for each objective marker friendly operatives are carrying, you score **1VP**.
 
 ## **CRIT OP 7: DOWNLOAD**

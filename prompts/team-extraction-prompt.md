@@ -155,3 +155,4 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 - **Complete extraction:** Every operative and card must be included
 - **No citations:** Do not add any citations to your output
 - When describing visual rules or demonstrations, extract the underlying mechanic, not the example
+- If you are unsure about something or you have observed conflicting rules, let me know

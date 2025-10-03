@@ -1,3 +1,10 @@
+---
+source: "WC downloads"
+last_update_date: 2025-07-23
+document_type: team-rules
+section: pathfinders
+---
+
 # PATHFINDERS
 
 ## KILL TEAM COMPOSITION
