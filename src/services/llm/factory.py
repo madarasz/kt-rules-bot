@@ -46,7 +46,7 @@ class LLMProviderFactory:
 
         # Use default provider if not specified
         if provider_name is None:
-            provider_name = config.get("DEFAULT_LLM_PROVIDER", "claude")
+            provider_name = config.default_llm_provider
 
         # Validate provider name
         if provider_name not in cls._providers:
@@ -55,19 +55,23 @@ class LLMProviderFactory:
                 f"Must be one of: {', '.join(cls._providers.keys())}"
             )
 
-        # Get API key from environment
+        # Get API key from config
         api_key_map = {
-            "claude": "ANTHROPIC_API_KEY",
-            "chatgpt": "OPENAI_API_KEY",
-            "gemini": "GOOGLE_API_KEY",
+            "claude": config.anthropic_api_key,
+            "chatgpt": config.openai_api_key,
+            "gemini": config.google_api_key,
         }
 
-        api_key_env = api_key_map[provider_name]
-        api_key = config.get(api_key_env)
+        api_key = api_key_map[provider_name]
 
         if not api_key:
+            api_key_env_map = {
+                "claude": "ANTHROPIC_API_KEY",
+                "chatgpt": "OPENAI_API_KEY",
+                "gemini": "GOOGLE_API_KEY",
+            }
             raise KeyError(
-                f"API key not found: {api_key_env}. "
+                f"API key not found: {api_key_env_map[provider_name]}. "
                 f"Set it in your environment or .env file."
             )
 
@@ -78,7 +82,7 @@ class LLMProviderFactory:
             "gemini": "gemini-1.5-pro",
         }
 
-        model = config.get(f"{provider_name.upper()}_MODEL", model_defaults[provider_name])
+        model = model_defaults[provider_name]
 
         # Create provider instance
         provider_class = cls._providers[provider_name]
