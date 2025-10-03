@@ -26,7 +26,7 @@ Score VP from a tac op selected in secret from one of their kill team's archetyp
 ### PRIMARY OP
 As a **Strategic Gambit** in the first turning point, each player secretly selects one of the above ops to be their primary op. At the end of the battle they reveal these operative cards once additional VP from that op. When the battle ends, the player with the most VP is the winner.
 
-## GAME SEQUENCE (1)
+## GAME SEQUENCE
 
 ### 1. SET UP THE BATTLE
 * Each player selects a kill team for the battle.
@@ -41,8 +41,6 @@ As a **Strategic Gambit** in the first turning point, each player secretly selec
 * Each player starts with 2CP.
 * Each player secretly selects a tac op from one of their kill team's archetypes (Infiltration, Recon, Security, or Seek & Destroy), as specified in their kill team's rules.
 
-## GAME SEQUENCE (2)
-
 ### 3. SET UP OPERATIVES
 * Each player alternates setting up an item of equipment that's set up before the battle (ladders, etc.), starting with the player with initiative. Note it's item, not option by option.
 * Each player alternates setting up one third of their kill team (rounding up), starting with the player with initiative. When a player sets up an operative, it must be wholly within their drop zone and must be given a Conceal order.
@@ -51,8 +49,6 @@ As a **Strategic Gambit** in the first turning point, each player secretly selec
 * To determine initiative during each turning point (including the first), the players roll off (but don't re-roll ties). Starting with the loser of the roll-off, each player alternates either using an initiative card to alter their roll result or passing, until they both pass in succession.
 * Turning/1 would use thie kill team's rules to affect the roll-off; they must do so before playing initiative cards, starting with the player that's losing the roll off.
 * The Re-roll initiative card allows the player to re-roll their initiative roll. The remaining initiative cards modify the player's roll result up to down (i.e. +1 takes it above 6 or below 1). For example, if a player rolls a 3 and plays the +2/-2 initiative card, they can modify their roll result to be 2. If a player uses the Re-roll initiative card after they've modified their roll result, the new result superseded their modification(s) used so far.
-
-## GAME SEQUENCE (3)
 
 ### 4. Continued
 * The winner of the roll-off decides who has initiative. Excluding the fourth turning point, the loser of the roll-off gains an initiative card equal to the turning point number (e.g. in the second turning point they would gain the +2/-2 initiative card). If the roll-off is a tie, the player who doesn't currently have initiative is the winner. Note that it's the loser of the roll-off that gains the initiative card, not the player without initiative.
@@ -63,8 +59,6 @@ As a **Strategic Gambit** in the first turning point, each player secretly selec
 * The battle ends after four turning points have been completed. If one player has no operatives in the killzone but the battle hasn't ended, the other player plays out each remaining turning point until it does.
 * At the end of the battle, the players reveal their primary ops simultaneously. They score additional VP equal to half of what they scored from that op (rounding up).
 * The player with the most VP is the winner. If the players are tied, it's a draw.
-
----
 
 ## Initiative Cards
 
@@ -93,8 +87,6 @@ Players score VP through three separate operations (Crit, Kill, and Tac), with a
 [Derived from illustration]
 **Initiative Card Distribution:**
 Initiative cards are distributed based on turning point timing, with higher modifiers (+3/-3) given in later turns to create stronger comeback potential for the player losing initiative rolls.
-
----
 
 ## Key Numerical Rules Summary
 

@@ -43,7 +43,10 @@ def test_query(query: str, provider: str = None, max_chunks: int = 5) -> None:
         )
         llm_factory = LLMProviderFactory()
         llm_provider = llm_factory.create(provider)
-        validator = ResponseValidator()
+        validator = ResponseValidator(
+            llm_confidence_threshold=0.7,
+            rag_score_threshold=0.45,  # Match retrieval threshold
+        )
 
     except Exception as e:
         logger.error(f"Failed to initialize services: {e}", exc_info=True)
@@ -65,7 +68,7 @@ def test_query(query: str, provider: str = None, max_chunks: int = 5) -> None:
                 query=query,
                 context_key="cli:test",
                 max_chunks=max_chunks,
-                min_relevance=0.6,
+                # Use default from RetrieveRequest (0.45)
             ),
             query_id=query_id,
         )

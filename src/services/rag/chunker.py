@@ -38,13 +38,13 @@ class MarkdownChunker:
         self.model = model
 
     def chunk(self, content: str) -> List[MarkdownChunk]:
-        """Chunk markdown content using lazy splitting strategy.
+        """Chunk markdown content using semantic splitting strategy.
 
         Strategy:
-        1. Check token count first
-        2. Keep whole document if ≤ max_tokens
-        3. If > max_tokens, split at ## boundaries
-        4. If single ## section > max_tokens, split at ### boundaries
+        1. ALWAYS split at ## headers if document has structured sections
+        2. This creates focused semantic chunks even for small documents
+        3. If single ## section > max_tokens, split at ### boundaries
+        4. Only keep whole document if no ## headers AND ≤ max_tokens
         5. No overlap between chunks
 
         Args:
@@ -53,10 +53,17 @@ class MarkdownChunker:
         Returns:
             List of MarkdownChunk objects
         """
-        # Count tokens for entire document
+        # Check if document has ## header structure
+        has_h2_headers = bool(re.search(r"^## ", content, flags=re.MULTILINE))
+
+        # ALWAYS split at ## headers if they exist (better semantic granularity)
+        if has_h2_headers:
+            return self._split_at_headers(content)
+
+        # Count tokens for entire document (no headers found)
         total_tokens = count_tokens(content, model=self.model)
 
-        # Keep whole document if within limit
+        # Keep whole document only if no structure AND within limit
         if total_tokens <= self.max_tokens:
             return [
                 MarkdownChunk(
@@ -69,7 +76,7 @@ class MarkdownChunker:
                 )
             ]
 
-        # Document too large: split at ## boundaries
+        # Document too large without headers: emergency split at ### or paragraphs
         return self._split_at_headers(content)
 
     def _split_at_headers(self, content: str) -> List[MarkdownChunk]:

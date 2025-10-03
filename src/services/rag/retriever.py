@@ -22,7 +22,7 @@ class RetrieveRequest:
     query: str  # User question (sanitized)
     context_key: str  # "{channel_id}:{user_id}" for conversation tracking
     max_chunks: int = 5  # Maximum document chunks to retrieve
-    min_relevance: float = 0.6  # Minimum cosine similarity threshold
+    min_relevance: float = 0.45  # Minimum cosine similarity threshold (lowered for better recall)
 
 
 class InvalidQueryError(Exception):

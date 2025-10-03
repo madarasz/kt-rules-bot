@@ -67,6 +67,7 @@ class RAGIngestor:
         self.chunker = chunker or MarkdownChunker()
         self.embedding_service = embedding_service or EmbeddingService()
         self.vector_db = vector_db_service or VectorDBService()
+        self.document_hashes: dict[str, str] = {}  # filename -> hash mapping
 
         logger.info("rag_ingestor_initialized")
 
@@ -165,6 +166,9 @@ class RAGIngestor:
 
                     embedding_count += len(embeddings)
                     documents_processed += 1
+
+                    # Store document hash for deduplication
+                    self.document_hashes[document.filename] = document.hash
 
                     logger.info(
                         "document_ingested",

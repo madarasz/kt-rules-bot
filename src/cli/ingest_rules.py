@@ -104,9 +104,14 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
 
             # Check if document already exists (unless force)
             if not force:
-                # TODO: Check document hash in DB
-                # For now, always ingest
-                pass
+                existing_hash = ingestor.document_hashes.get(rule_doc.filename)
+                if existing_hash == rule_doc.hash:
+                    logger.info(
+                        f"Skipping {relative_path}: unchanged (hash: {rule_doc.hash[:8]}...)"
+                    )
+                    print(f"⊘ {relative_path} - unchanged, skipping")
+                    documents_skipped += 1
+                    continue
 
             # Ingest document (expects a list)
             result = ingestor.ingest([rule_doc])
