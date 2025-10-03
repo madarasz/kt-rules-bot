@@ -334,6 +334,24 @@ jobs:
 3. **RAG quality**: Markdown structure variations may degrade retrieval
    - Mitigation: Document validation during ingestion, metadata enrichment
 
+---
+
+## Phase 7 Architecture Research
+
+**See**: [phase-7-architecture-options.md](phase-7-architecture-options.md) for detailed analysis of 5 architectural patterns
+
+**Decision**: Orchestrator Pattern selected for Discord integration
+
+**Rationale**:
+- Simplest pattern for current scope (single interaction type)
+- Linear flow matches query → RAG → LLM → response pattern
+- Easy to test and debug
+- Can evolve to more complex patterns if needed
+
+**Implementation Plan**: See [phase-7-plan.md](phase-7-plan.md) for detailed task breakdown
+
+---
+
 ## Next Phase
 
 Phase 1 will generate:

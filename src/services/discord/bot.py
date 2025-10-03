@@ -1,0 +1,179 @@
+"""Main bot orchestrator - coordinates all services (Orchestrator Pattern)."""
+
+import discord
+
+from src.lib.logging import get_logger
+from src.models.user_query import UserQuery
+from src.services.discord import formatter
+from src.services.discord.context_manager import ConversationContextManager
+from src.services.llm.factory import LLMProviderFactory
+from src.services.llm.rate_limiter import RateLimiter
+from src.services.llm.validator import ResponseValidator
+from src.services.rag.retriever import RAGRetriever, RetrieveRequest
+from src.services.llm.base import GenerationRequest, GenerationConfig
+
+logger = get_logger(__name__)
+
+
+class KillTeamBotOrchestrator:
+    """Orchestrator Pattern - coordinates all services for query processing."""
+
+    def __init__(
+        self,
+        rag_retriever: RAGRetriever,
+        llm_provider_factory: LLMProviderFactory = None,
+        response_validator: ResponseValidator = None,
+        rate_limiter: RateLimiter = None,
+        context_manager: ConversationContextManager = None,
+    ):
+        """Initialize orchestrator with all service dependencies.
+
+        Args:
+            rag_retriever: RAG retrieval service
+            llm_provider_factory: LLM provider factory (creates provider)
+            response_validator: Response validation service
+            rate_limiter: Rate limiting service
+            context_manager: Conversation context manager
+        """
+        self.rag = rag_retriever
+        self.llm_factory = llm_provider_factory or LLMProviderFactory()
+        self.llm = self.llm_factory.create()  # Get configured LLM provider
+        self.validator = response_validator or ResponseValidator()
+        self.rate_limiter = rate_limiter or RateLimiter()
+        self.context_manager = context_manager or ConversationContextManager()
+
+    async def process_query(
+        self,
+        message: discord.Message,
+        user_query: UserQuery,
+    ) -> None:
+        """Process user query through full orchestration flow.
+
+        Flow: rate limit → RAG → LLM → validate → format → send → feedback buttons
+
+        Args:
+            message: Discord message object
+            user_query: Parsed user query
+        """
+        correlation_id = str(user_query.query_id)
+        logger.info(
+            "Processing query",
+            extra={
+                "correlation_id": correlation_id,
+                "query": user_query.sanitized_text[:100],  # Truncate for logs
+            },
+        )
+
+        try:
+            # Step 1: Rate limiting check
+            is_allowed, retry_after = self.rate_limiter.check_rate_limit(
+                provider=self.llm.model,
+                user_id=user_query.user_id,
+            )
+
+            if not is_allowed:
+                await message.channel.send(
+                    f"⏳ Rate limit reached. Please retry in {retry_after:.0f}s."
+                )
+                logger.warning(
+                    "Rate limit hit",
+                    extra={"correlation_id": correlation_id, "retry_after": retry_after},
+                )
+                return
+
+            # Step 2: RAG retrieval
+            rag_context = self.rag.retrieve(
+                RetrieveRequest(
+                    query=user_query.sanitized_text,
+                    max_chunks=5,
+                    min_relevance=0.6,
+                )
+            )
+
+            logger.debug(
+                "RAG retrieval complete",
+                extra={
+                    "correlation_id": correlation_id,
+                    "chunks_retrieved": rag_context.total_chunks,
+                    "avg_relevance": rag_context.avg_relevance,
+                },
+            )
+
+            # Step 3: LLM generation
+            llm_response = await self.llm.generate(
+                GenerationRequest(
+                    prompt=user_query.sanitized_text,
+                    context=[chunk.text for chunk in rag_context.document_chunks],
+                    config=GenerationConfig(timeout_seconds=25),
+                )
+            )
+
+            logger.debug(
+                "LLM generation complete",
+                extra={
+                    "correlation_id": correlation_id,
+                    "confidence": llm_response.confidence_score,
+                    "token_count": llm_response.token_count,
+                },
+            )
+
+            # Step 4: Validation (FR-013: combined LLM + RAG validation)
+            validation_result = self.validator.validate(llm_response, rag_context)
+
+            if not validation_result.is_valid:
+                # Send fallback message
+                fallback_msg = formatter.format_fallback_message(validation_result.reason)
+                await message.channel.send(fallback_msg)
+
+                logger.warning(
+                    f"Validation failed: {validation_result.reason}",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "llm_confidence": llm_response.confidence_score,
+                        "rag_score": rag_context.avg_relevance,
+                    },
+                )
+                return
+
+            # Step 5: Format response
+            embeds = formatter.format_response(llm_response, validation_result)
+
+            # Step 6: Send to Discord
+            sent_message = await message.channel.send(embeds=embeds)
+
+            # Step 7: Add feedback reaction buttons (👍👎)
+            await formatter.add_feedback_reactions(sent_message)
+
+            # Step 8: Update conversation context (message history only)
+            self.context_manager.add_message(
+                user_query.conversation_context_id,
+                role="user",
+                text=user_query.sanitized_text,
+            )
+            self.context_manager.add_message(
+                user_query.conversation_context_id,
+                role="bot",
+                text=llm_response.answer_text,
+            )
+
+            logger.info(
+                "Query processed successfully",
+                extra={
+                    "correlation_id": correlation_id,
+                    "confidence": llm_response.confidence_score,
+                    "rag_score": rag_context.avg_relevance,
+                    "latency_ms": llm_response.latency_ms,
+                    "validation_passed": True,
+                },
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Error processing query: {e}",
+                extra={"correlation_id": correlation_id},
+                exc_info=True,
+            )
+            await message.channel.send(
+                "❌ An error occurred while processing your request. "
+                "Please try again in a moment."
+            )

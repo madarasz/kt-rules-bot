@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-we-are-building`
 **Generated**: 2025-10-02
-**Total Tasks**: 96
+**Total Tasks**: 97
 
 ## Task Execution Guide
 
@@ -491,41 +491,52 @@ python_files = "test_*.py"
 
 ---
 
-## Phase 7: Discord Bot Integration (T048-T056)
+## Phase 7: Discord Bot Integration - Orchestrator Pattern (T048-T056)
+
+**Architecture Note**: Phase 7 uses the **Orchestrator Pattern** where a single orchestrator class coordinates all services (RAG, LLM, validation, rate limiting) without complex layering.
 
 ### T048: Implement Discord client setup
 **File**: `src/services/discord/client.py`
 **Dependencies**: T026
-**Description**: discord.py client initialization, bot token configuration
+**Description**: discord.py client initialization using raw event handlers (on_message, on_ready)
+- Use discord.Intents with message_content and guild_messages
+- No commands extension, only raw events
 
 ---
 
 ### T049: Implement message handler for @ mentions
 **File**: `src/services/discord/handlers.py`
 **Dependencies**: T019, T048
-**Description**: Parse @ mentions, extract query text, create UserQuery
+**Description**: Raw on_message event handler - parse @ mentions, extract query text, create UserQuery
 - **Non-question mentions** (e.g., "@bot hello"): Handled by AI agent prompt with friendly acknowledgment guidelines
+- Use raw discord.py events (not commands framework)
 
 ---
 
 ### T050: Implement conversation context manager
 **File**: `src/services/discord/context_manager.py`
 **Dependencies**: T025
-**Description**: Track conversations by channel_id:user_id, TTL-based cleanup
+**Description**: Track message history only (NOT RAG chunks) by channel_id:user_id, TTL-based cleanup
+- Store last 10 messages (user + bot turns)
+- No RAG context in conversation state
 
 ---
 
-### T051: Implement response formatter
+### T051: Implement response formatter with feedback buttons
 **File**: `src/services/discord/formatter.py`
 **Dependencies**: T022
 **Description**: Format BotResponse with citations, split long messages, create embeds
+- **Add reaction buttons**: 👍 (helpful) and 👎 (not helpful) to each response
+- Buttons for feedback tracking (logged for analytics)
 
 ---
 
 ### T052: Implement main bot orchestrator
 **File**: `src/services/discord/bot.py`
 **Dependencies**: T035, T044, T045, T049, T050, T051
-**Description**: Orchestrate full flow: receive query → RAG retrieval → LLM generation → validation → send response
+**Description**: **Orchestrator Pattern** - single class coordinates full flow: receive query → RAG retrieval → LLM generation → validation → send response
+- Simple linear flow, no complex layering
+- Orchestrates all Phase 5 + Phase 6 services
 
 ---
 
@@ -553,7 +564,18 @@ python_files = "test_*.py"
 ### T056: Unit tests for Discord services [P]
 **File**: `tests/unit/test_discord_services.py`
 **Dependencies**: T048-T055
-**Description**: Mock Discord events, test message parsing, context tracking, response formatting
+**Description**: Mock Discord events, test message parsing, context tracking, response formatting, reaction button handling
+
+---
+
+### T056.1: Implement feedback logging service [P]
+**File**: `src/services/discord/feedback_logger.py`
+**Dependencies**: T027
+**Description**: Log user feedback from helpful/not helpful reaction buttons
+- Handle on_reaction_add event for 👍👎 reactions
+- Log UserFeedback entity to structured logs (or optional DB)
+- Track response_id, query_id, user_id (hashed), feedback_type, timestamp
+- Support analytics queries (response quality, problematic queries, LLM provider performance)
 
 ---
 
@@ -939,12 +961,12 @@ T071, T072, T073, T074, T075, T076, T077, T078, T079, T080, T081, T082, T083, T0
 | Utilities | T026-T031 | All 6 |
 | RAG Pipeline | T032-T039 | 3 of 8 |
 | LLM Adapters | T040-T047 | 5 of 8 |
-| Discord Bot | T048-T056 | 3 of 9 |
+| Discord Bot | T048-T056.1 | 4 of 10 |
 | Integration Tests | T057-T062 | All 6 |
 | CLI Tools | T063-T070 | 7 of 8 |
 | Quality & Polish | T071-T085 | 14 of 15 |
 | PDF Extraction | T086-T095 | 4 of 10 |
-| **Total** | **95 tasks** | **~60 parallelizable** |
+| **Total** | **97 tasks** | **~61 parallelizable** |
 
 ---
 

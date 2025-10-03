@@ -276,6 +276,46 @@ class Message:
 
 ---
 
+### 8. UserFeedback
+
+**Description**: User feedback on bot responses (helpful/not helpful buttons)
+
+**Fields**:
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| feedback_id | UUID | Required, unique | Unique identifier |
+| response_id | UUID | Required, FK | Reference to BotResponse |
+| query_id | UUID | Required, FK | Reference to UserQuery |
+| user_id | str (hashed) | Required | Discord user ID (hashed) |
+| feedback_type | enum | Required | "helpful" or "not_helpful" |
+| timestamp | datetime | Required, UTC | When feedback was given |
+
+**Validation Rules**:
+- `feedback_type` must be one of: {"helpful", "not_helpful"}
+- Each user can only provide one feedback per response (upsert behavior)
+- `response_id` must reference existing BotResponse
+- `user_id` must match the user who received the response
+
+**State Transitions**:
+1. Response sent → User clicks 👍/👎 → Feedback logged
+2. User can change feedback (👍 → 👎 or vice versa)
+
+**Relationships**:
+- 1 UserFeedback → 1 BotResponse
+- 1 UserFeedback → 1 UserQuery
+
+**Storage**:
+- Logged to structured logs for analytics
+- Optional: Store in lightweight DB (SQLite) for querying
+
+**Analytics Use Cases**:
+- Track response quality over time
+- Identify problematic queries (low helpful rate)
+- Measure LLM provider performance
+- Detect confidence score accuracy
+
+---
+
 ## Relationships Diagram
 
 ```
