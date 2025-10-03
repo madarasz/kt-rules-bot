@@ -5,7 +5,7 @@ document_type: ops
 section: tacops
 ---
 
-# Kill Team Tac Op Rules
+# Approved Ops 2025 - Tac Op Rules
 
 ## TAC OP - RECON
 

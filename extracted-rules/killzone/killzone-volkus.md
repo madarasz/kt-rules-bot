@@ -1,6 +1,6 @@
 ---
 source: "Core Rulebook"
-last_update_date: 2025-07-25
+last_update_date: 2025-07-23
 document_type: killzone
 section: volkus
 ---

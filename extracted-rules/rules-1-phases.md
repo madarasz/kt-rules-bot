@@ -1,7 +1,7 @@
 ---
 source: "Core Rulebook"
 last_update_date: 2025-01-25
-document_type: core-rule
+document_type: core-rules
 section: phases
 ---
 
