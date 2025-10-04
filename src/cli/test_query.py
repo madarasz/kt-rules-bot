@@ -20,7 +20,7 @@ from src.services.llm.base import GenerationRequest, GenerationConfig
 logger = get_logger(__name__)
 
 
-def test_query(query: str, provider: str = None, max_chunks: int = 5) -> None:
+def test_query(query: str, provider: str = None, max_chunks: int = 15) -> None:
     """Test RAG + LLM pipeline locally.
 
     Args:

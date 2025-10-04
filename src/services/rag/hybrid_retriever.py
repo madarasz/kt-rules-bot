@@ -1,0 +1,160 @@
+"""Hybrid retrieval combining BM25 and vector search with RRF fusion.
+
+Implements Reciprocal Rank Fusion (RRF) to merge keyword and semantic search results.
+Based on best practices from 2025 RAG research.
+"""
+
+from typing import List, Dict
+from uuid import UUID
+from collections import defaultdict
+from dataclasses import replace
+
+from src.models.rag_context import DocumentChunk
+from src.services.rag.bm25_retriever import BM25Retriever, BM25Result
+from src.lib.logging import get_logger
+
+logger = get_logger(__name__)
+
+
+class HybridRetriever:
+    """Hybrid retriever combining BM25 keyword search and vector semantic search."""
+
+    def __init__(self, k: int = 60):
+        """Initialize hybrid retriever.
+
+        Args:
+            k: RRF constant (default: 60 from research papers)
+        """
+        self.k = k
+        self.bm25_retriever = BM25Retriever()
+
+        logger.info("hybrid_retriever_initialized", rrf_k=k)
+
+    def index_chunks(self, chunks: List[DocumentChunk]) -> None:
+        """Index chunks for BM25 search.
+
+        Args:
+            chunks: List of DocumentChunk objects
+        """
+        self.bm25_retriever.index_chunks(chunks)
+
+    def fuse_results(
+        self,
+        vector_chunks: List[DocumentChunk],
+        bm25_results: List[BM25Result],
+        top_k: int = 15
+    ) -> List[DocumentChunk]:
+        """Fuse vector and BM25 results using Reciprocal Rank Fusion.
+
+        RRF formula: score(doc) = Σ (1 / (k + rank_i))
+        where k is a constant (typically 60) and rank_i is the rank in each list.
+
+        Args:
+            vector_chunks: Results from vector semantic search (ordered by relevance)
+            bm25_results: Results from BM25 keyword search
+            top_k: Number of results to return
+
+        Returns:
+            Fused and ranked list of DocumentChunk objects
+        """
+        # Calculate RRF scores for each document
+        rrf_scores: Dict[str, float] = defaultdict(float)
+        chunk_map: Dict[str, DocumentChunk] = {}
+
+        # Process vector search results (ranked by relevance_score DESC)
+        for rank, chunk in enumerate(vector_chunks, start=1):
+            chunk_id = str(chunk.chunk_id)
+            rrf_scores[chunk_id] += 1.0 / (self.k + rank)
+            chunk_map[chunk_id] = chunk
+
+        # Process BM25 results (ranked by BM25 score DESC)
+        for rank, result in enumerate(bm25_results, start=1):
+            chunk_id = str(result.chunk.chunk_id)
+            rrf_scores[chunk_id] += 1.0 / (self.k + rank)
+            if chunk_id not in chunk_map:
+                chunk_map[chunk_id] = result.chunk
+
+        # Sort by RRF score DESC
+        sorted_ids = sorted(
+            rrf_scores.keys(),
+            key=lambda cid: rrf_scores[cid],
+            reverse=True
+        )[:top_k]
+
+        # Normalize RRF scores to 0-1 range and assign as relevance scores
+        if sorted_ids:
+            max_rrf = rrf_scores[sorted_ids[0]]
+            min_rrf = rrf_scores[sorted_ids[-1]]
+            rrf_range = max_rrf - min_rrf if max_rrf > min_rrf else 1.0
+
+            # Create new chunks with normalized relevance scores
+            fused_chunks = []
+            for cid in sorted_ids:
+                chunk = chunk_map[cid]
+                # Normalize RRF score to 0.45-1.0 range (matching min threshold)
+                normalized_score = 0.45 + (rrf_scores[cid] - min_rrf) / rrf_range * 0.55
+
+                # Update relevance_score for chunks that came from BM25 only
+                if chunk.relevance_score == 1.0:  # Placeholder from index
+                    chunk = replace(chunk, relevance_score=normalized_score)
+
+                fused_chunks.append(chunk)
+        else:
+            fused_chunks = []
+
+        logger.debug(
+            "rrf_fusion_completed",
+            vector_count=len(vector_chunks),
+            bm25_count=len(bm25_results),
+            fused_count=len(fused_chunks),
+            top_score=rrf_scores[sorted_ids[0]] if sorted_ids else 0.0
+        )
+
+        return fused_chunks
+
+    def retrieve_hybrid(
+        self,
+        query: str,
+        vector_chunks: List[DocumentChunk],
+        top_k: int = 15
+    ) -> List[DocumentChunk]:
+        """Perform hybrid retrieval combining vector and BM25 search.
+
+        Args:
+            query: User query
+            vector_chunks: Pre-retrieved chunks from vector search
+            top_k: Number of final results
+
+        Returns:
+            Fused list of chunks
+        """
+        # Get BM25 results
+        bm25_results = self.bm25_retriever.search(query, top_k=top_k * 2)
+
+        # Fuse results using RRF
+        fused_chunks = self.fuse_results(
+            vector_chunks=vector_chunks,
+            bm25_results=bm25_results,
+            top_k=top_k
+        )
+
+        logger.info(
+            "hybrid_retrieval_completed",
+            query_length=len(query),
+            vector_results=len(vector_chunks),
+            bm25_results=len(bm25_results),
+            fused_results=len(fused_chunks)
+        )
+
+        return fused_chunks
+
+    def get_stats(self) -> Dict:
+        """Get hybrid retriever statistics.
+
+        Returns:
+            Statistics dictionary
+        """
+        return {
+            "rrf_k": self.k,
+            "bm25_stats": self.bm25_retriever.get_stats()
+        }

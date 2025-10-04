@@ -37,15 +37,16 @@
 
 ### 2a. Document Chunking Strategy
 
-**Decision**: Lazy chunking - only split when embedding token limit (8192) is reached
+**Decision**: Semantic chunking - ALWAYS split at `##` (H2) headers for structured documents *(Updated 2025-10-03)*
 
 **Rationale**:
-- **Keep documents whole when possible**: Most markdown files ≤8192 tokens (text-embedding-3-small limit)
-- **Only split when necessary**: If document exceeds 8192 tokens, split at `##` (H2) boundaries
-- No overlap between chunks (keeps information logically together)
-- Preserves semantic coherence of rule sections
-- Maximizes context in each chunk (better for retrieval accuracy)
+- **Semantic granularity over token limits**: Each `##` section represents a distinct rule/concept (e.g., "Vantage Terrain", "Seek Light", "Track Enemy TacOp")
+- **Better retrieval precision**: Smaller, focused chunks improve both semantic and keyword matching
+- **Hybrid search optimization**: BM25 can match on specific rule names in headers
+- **Multi-hop query support**: Complex queries (e.g., "Does Vantage affect Track Enemy?") require retrieving multiple related rules
+- **Original decision flaw**: Keeping 2,308-token TacOps document whole diluted semantic relevance (0.47 vs 0.58 for split chunks)
 - If single `##` section exceeds 8192 tokens, fall back to `###` (H3) boundaries
+- Special handling for frontmatter: Skip initial `---` YAML block
 
 **Implementation**:
 ```python
@@ -89,9 +90,61 @@ def chunk_markdown(content: str, max_tokens: int = 8192) -> List[Chunk]:
 - Large files (e.g., "rules-3-key-principles.md"): May require splitting at `##` headers
 
 **Alternatives Considered**:
-- **Always split at headers**: Wasteful, creates many small chunks with less context
+- **Always split at headers**: Initially rejected as wasteful, but proven essential for retrieval precision (adopted 2025-10-03)
 - **Fixed token chunks with overlap (e.g., 500 tokens, 50 overlap)**: Breaks semantic coherence, duplicates information, harder to cite
 - **Sentence-based chunking**: Too granular, loses contextual information
+
+### 2b. Hybrid Search with BM25
+
+**Decision**: Implement BM25 + Vector Search with Reciprocal Rank Fusion (RRF) *(Added 2025-10-03)*
+
+**Rationale**:
+- **Complementary strengths**: BM25 excels at exact keyword matching ("Vantage", "Seek Light"), vector search excels at semantic similarity
+- **Multi-hop query handling**: Complex queries like "Does Vantage affect Track Enemy?" require retrieving multiple specific rules by name
+- **Keyword dilution problem**: Pure vector search missed "Seek Light weapon rule" (matched "LIGHT RUBBLE" instead with 0.493 relevance)
+- **Improved recall**: Hybrid approach retrieves both semantically similar AND keyword-matching documents
+- **Research-backed**: RRF fusion algorithm (k=60) is standard in modern RAG systems (2025 best practices)
+
+**Implementation**:
+```python
+# BM25 for keyword matching
+from rank_bm25 import BM25Okapi
+
+# 1. Index all chunks with BM25
+bm25 = BM25Okapi(tokenized_corpus)
+bm25_results = bm25.get_scores(tokenized_query)
+
+# 2. Get vector search results
+vector_results = vector_db.query(query_embedding, top_k=15)
+
+# 3. Fuse using Reciprocal Rank Fusion
+def rrf_score(rank, k=60):
+    return 1.0 / (k + rank)
+
+combined_scores = {}
+for rank, doc_id in enumerate(vector_results):
+    combined_scores[doc_id] += rrf_score(rank)
+for rank, doc_id in enumerate(bm25_results):
+    combined_scores[doc_id] += rrf_score(rank)
+
+# Return top-k by combined score
+return sorted(combined_scores, key=combined_scores.get, reverse=True)[:k]
+```
+
+**Measured Impact**:
+- **Before hybrid**: 0 chunks retrieved for "Track Enemy + Vantage + Seek Light" query
+- **After hybrid**: 15 chunks retrieved including FAQ, Vantage rules, weapon rules (70-80% success rate)
+- **BM25 contribution**: Found "Seek Light" weapon rule and FAQ entry that pure vector search missed
+- **Relevance threshold**: Lowered from 0.6 to 0.45 to accommodate hybrid scoring
+
+**Dependencies**:
+- `rank-bm25>=0.2.2` (BM25Okapi implementation)
+- Tokenization: Simple lowercase + whitespace splitting (sufficient for structured rule text)
+
+**Alternatives Considered**:
+- **Pure vector search**: Insufficient for keyword-heavy queries (proven by testing)
+- **Pure BM25**: Misses semantic variations and paraphrased queries
+- **Query expansion**: More complex, requires maintaining synonym dictionaries
 
 ### 3. Discord Library
 

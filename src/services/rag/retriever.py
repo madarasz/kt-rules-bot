@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from src.models.rag_context import RAGContext, DocumentChunk
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.vector_db import VectorDBService
+from src.services.rag.hybrid_retriever import HybridRetriever
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -21,8 +22,9 @@ class RetrieveRequest:
 
     query: str  # User question (sanitized)
     context_key: str  # "{channel_id}:{user_id}" for conversation tracking
-    max_chunks: int = 5  # Maximum document chunks to retrieve
+    max_chunks: int = 15  # Maximum document chunks to retrieve (increased for multi-hop queries)
     min_relevance: float = 0.45  # Minimum cosine similarity threshold (lowered for better recall)
+    use_hybrid: bool = True  # Enable hybrid search (BM25 + vector)
 
 
 class InvalidQueryError(Exception):
@@ -44,17 +46,27 @@ class RAGRetriever:
         self,
         embedding_service: EmbeddingService | None = None,
         vector_db_service: VectorDBService | None = None,
+        enable_hybrid: bool = True,
     ):
         """Initialize RAG retriever.
 
         Args:
             embedding_service: Embedding service (creates if None)
             vector_db_service: Vector DB service (creates if None)
+            enable_hybrid: Enable hybrid search with BM25 (default: True)
         """
         self.embedding_service = embedding_service or EmbeddingService()
         self.vector_db = vector_db_service or VectorDBService()
+        self.enable_hybrid = enable_hybrid
 
-        logger.info("rag_retriever_initialized")
+        # Initialize hybrid retriever if enabled
+        self.hybrid_retriever: HybridRetriever | None = None
+        if enable_hybrid:
+            self.hybrid_retriever = HybridRetriever()
+            # Index all chunks from vector DB
+            self._build_hybrid_index()
+
+        logger.info("rag_retriever_initialized", hybrid_enabled=enable_hybrid)
 
     def retrieve(self, request: RetrieveRequest, query_id: UUID) -> RAGContext:
         """Retrieve relevant rule documents for a user query.
@@ -93,6 +105,15 @@ class RAGRetriever:
 
             # Convert results to DocumentChunk objects
             chunks = self._results_to_chunks(results, request.min_relevance)
+
+            # Apply hybrid search if enabled
+            if request.use_hybrid and self.hybrid_retriever and chunks:
+                chunks = self.hybrid_retriever.retrieve_hybrid(
+                    query=request.query,
+                    vector_chunks=chunks,
+                    top_k=request.max_chunks
+                )
+                logger.debug("hybrid_search_applied", final_chunks=len(chunks))
 
             # Calculate average relevance
             if chunks:
@@ -201,3 +222,48 @@ class RAGRetriever:
         chunks.sort(key=lambda c: c.relevance_score, reverse=True)
 
         return chunks
+
+    def _build_hybrid_index(self) -> None:
+        """Build BM25 index from all chunks in vector database."""
+        if not self.hybrid_retriever:
+            return
+
+        try:
+            # Get all chunks from vector DB
+            all_results = self.vector_db.collection.get(
+                include=["documents", "metadatas"]
+            )
+
+            if not all_results["ids"]:
+                logger.warning("hybrid_index_empty", message="No documents in vector DB")
+                return
+
+            # Convert to DocumentChunk objects
+            chunks: List[DocumentChunk] = []
+            for i, chunk_id_str in enumerate(all_results["ids"]):
+                metadata = all_results["metadatas"][i]
+                chunk = DocumentChunk(
+                    chunk_id=UUID(chunk_id_str),
+                    document_id=UUID(metadata.get("document_id", str(uuid4()))),
+                    text=all_results["documents"][i],
+                    header=metadata.get("header", ""),
+                    header_level=metadata.get("header_level", 0),
+                    metadata=metadata,
+                    relevance_score=1.0,  # Placeholder for indexing
+                    position_in_doc=metadata.get("position", 0),
+                )
+                chunks.append(chunk)
+
+            # Build BM25 index
+            self.hybrid_retriever.index_chunks(chunks)
+
+            logger.info(
+                "hybrid_index_built",
+                chunk_count=len(chunks),
+                stats=self.hybrid_retriever.get_stats()
+            )
+
+        except Exception as e:
+            logger.error("hybrid_index_build_failed", error=str(e))
+            # Non-fatal: continue without hybrid search
+            self.hybrid_retriever = None

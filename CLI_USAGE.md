@@ -380,9 +380,85 @@ fi
 
 ---
 
+## Utility Scripts
+
+### `scripts/reset_rag_db.py` - Reset Vector Database
+
+Delete all embeddings from the vector database. Useful after chunking improvements or when starting fresh.
+
+**Usage:**
+```bash
+python3 scripts/reset_rag_db.py [--confirm]
+```
+
+**Options:**
+- `--confirm` - Skip confirmation prompt (for automation)
+
+**Examples:**
+```bash
+# Reset with confirmation prompt
+python3 scripts/reset_rag_db.py
+
+# Reset without confirmation
+python3 scripts/reset_rag_db.py --confirm
+```
+
+**Output:**
+- Current database stats (collection name, path, embedding count)
+- Confirmation prompt (unless `--confirm`)
+- Deletion summary
+
+**Use Cases:**
+- After improving chunking strategy (e.g., better ## header splitting)
+- After changing embedding model
+- When deduplication creates corrupt data
+- Clean slate for re-ingestion
+
+---
+
+### `scripts/validate_documents.py` - Validate Rule Documents
+
+Validate all markdown documents in `extracted-rules/` folder for correct structure and metadata.
+
+**Usage:**
+```bash
+python3 scripts/validate_documents.py
+```
+
+**Validation Checks:**
+- YAML frontmatter present
+- Required metadata fields (`source`, `last_update_date`, `document_type`, `section`)
+- Valid document type (core-rules, faq, team-rules, ops, killzone)
+- Filename pattern (`[a-z0-9-]+\.md`)
+- No executable code blocks
+
+**Output:**
+```
+✅ rules-1-phases.md
+✅ rules-2-actions.md
+❌ invalid-doc.md
+   - Missing YAML frontmatter
+============================================================
+Results: 16 valid, 1 invalid
+============================================================
+```
+
+**Exit Codes:**
+- `0` - All documents valid
+- `1` - One or more validation errors
+
+**Use Cases:**
+- Before ingestion to catch malformed files
+- After rule extraction from PDFs
+- CI/CD validation gates
+- Pre-commit hooks
+
+---
+
 ## Support
 
 For issues or questions:
 - Check logs in `./logs/` directory
 - Run health check: `python -m src.cli health -v`
+- Validate documents: `python3 scripts/validate_documents.py`
 - Review documentation in `/docs`
