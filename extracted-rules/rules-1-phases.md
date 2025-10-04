@@ -98,7 +98,7 @@ When you would activate a **ready** friendly operative, if all your operatives a
 
 ---
 
-## Key Numerical Rules Summary
+## **Phases** - Key Numerical Rules Summary
 
 | Rule/Constraint | Value |
 |---|---|

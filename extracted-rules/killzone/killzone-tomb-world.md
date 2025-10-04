@@ -5,9 +5,7 @@ document_type: killzone
 section: tomb world
 ---
 
-# KILLZONE: TOMB WORLD - TERRAIN RULES
-
-## KILLZONE SETUP
+# TOMB WORLD - SETUP
 
 Killzone: Tomb World uses a **606mm x 703mm** game board with a **6x7** grid system for setting up. It has a sarcophagus, **4x debris** and **2x each** other terrain feature specified on the Killzone: Tomb World map key. It also has **16x half pillars** to complete terrain configuration. Note that some mission maps use less than this.
 
@@ -15,9 +13,9 @@ Killzone: Tomb World uses a **606mm x 703mm** game board with a **6x7** grid sys
 
 ---
 
-## TERRAIN RULES
+# TOMB WORLD - TERRAIN RULES
 
-### TOMB WORLD WALL
+## TOMB WORLD WALL
 
 A Tomb World wall terrain feature is **Heavy** and **Wall terrain**. Some walls include a hatchway or a breach point (explained later).
 
@@ -42,22 +40,22 @@ When a hatchway is open, the ends of the wall sections on either side of the acc
 
 ---
 
-### HATCHWAY
+## HATCHWAY
 
 A hatchway has two statuses: **closed** and **open**. It has two parts – an **access point** and a **hatch** – and their terrain types depend upon the hatchway's status. Operatives can perform the **Operate Hatch** mission action to change its status. Hatchways begin the battle closed.
 
-#### Closed
+### Closed
 While a hatchway is closed:
 * Its hatch must be within its access point.
 * The access point and hatch are **Heavy** and **Wall terrain**.
 
-#### Open
+### Open
 While a hatchway is open:
 * Its hatch must be removed from the killzone.
 * Its access point is **Accessible** and **Insignificant terrain**.
 * Its access point is also **Exposed terrain**. This means the walls either side of it must be used for cover and obscuring instead.
 
-#### OPERATE HATCH **1AP**
+## OPERATE HATCH **1AP**
 
 **►** Open or close a hatchway thats access point is within the operative's control range.
 
@@ -71,22 +69,22 @@ The physical hatch piece is placed in or removed from the access point depending
 
 ---
 
-### BREACH POINT
+## BREACH POINT
 
 A breach point has two statuses: **closed** and **open**. It has two parts – an **access point** and a **breach wall** – and their terrain types depend upon the breach point's status. Breach points begin the battle closed. To open a breach point, operatives can perform the **Breach** mission action (at which point it cannot be closed again).
 
-#### Closed
+### Closed
 While a breach point is closed:
 * Its breach wall must be within its access point.
 * The access point and breach wall are **Heavy** and **Wall terrain**.
 
-#### Open
+### Open
 While a breach point is open:
 * Its breach wall must be removed from the killzone.
 * Its access point is **Accessible** and **Insignificant terrain**.
 * Its access point is also **Exposed terrain**. This means the walls either side of it must be used for cover and obscuring instead.
 
-#### BREACH **2AP**
+### BREACH **2AP**
 
 **►** Open a closed breach point thats access point is within the operative's control range.
 
@@ -107,7 +105,7 @@ Operatives on the opposite side of a breach point being opened are subject to co
 
 ---
 
-### TELEPORT PAD
+## TELEPORT PAD
 
 A teleport pad is **Exposed**, **Insignificant** and **Vantage terrain**. Only one operative can be on it at once, and whilst an operative is on it, that operative cannot touch the killzone floor (in other words, an operative can't be both on the teleport pad and on the killzone floor).
 
@@ -125,17 +123,17 @@ Teleportation only becomes available from the start of the second turning point 
 
 ---
 
-### SARCOPHAGUS AND DEBRIS (LIGHT TERRAIN)
+## SARCOPHAGUS AND DEBRIS (LIGHT TERRAIN)
 
 [No specific rules text provided beyond identification as Light terrain]
 
 ---
 
-## CLOSE QUARTERS: TOMB WORLD
+# CLOSE QUARTERS: TOMB WORLD
 
 Killzone: Tomb World has the following additional rules.
 
-### ROOM
+## ROOM
 
 Each room is an area of the killzone that's entirely surrounded by Tomb World wall terrain features and, where necessary, killzone edges.
 
@@ -145,7 +143,7 @@ A room is defined by its boundaries: Tomb World walls and/or the killzone edge m
 
 ---
 
-### CONDENSED ENVIRONMENT
+## CONDENSED ENVIRONMENT
 
 Weapons with the **Blast**, **Torrent** and /or **x" Devastating** (i.e. Devastating with a distance requirement) weapon rule also have the **Lethal 5+** weapon rule.
 
@@ -155,11 +153,11 @@ In the confined spaces of Killzone: Tomb World, area effect weapons (Blast, Torr
 
 ---
 
-### ACTIONS
+# TOMB WORLD - ACTIONS
 
 Operatives can perform the following universal actions.
 
-#### GUARD **1AP**
+## GUARD **1AP**
 
 **►** The operative goes on guard (see right) until any of the following are true:
 * It performs any action.
@@ -169,7 +167,7 @@ Operatives can perform the following universal actions.
 
 **◆** This action is treated as a **Shoot action**. An operative cannot perform this action while it has a **Conceal** order, or while it's within control range of an enemy operative.
 
-##### On Guard
+## On Guard
 
 Once during each enemy operative's activation, after that enemy operative performs an action, you can interrupt that activation and select one friendly operative on guard to perform the **Shoot** or **Fight** action for free (including actions that are treated as such, e.g. **Hatchway Fight** below).
 
@@ -188,7 +186,7 @@ A guarding operative can shoot while within enemy control range, overriding the 
 
 ---
 
-#### HATCHWAY FIGHT **1AP**
+## HATCHWAY FIGHT **1AP**
 
 **►** Fight with the active operative.
 
@@ -202,7 +200,7 @@ This action allows operatives to engage in melee combat through open hatchways a
 
 ---
 
-## KEY NUMERICAL RULES SUMMARY
+## *Tomb World** - KEY NUMERICAL RULES SUMMARY
 
 | Rule/Constraint | Value |
 |-----------------|-------|

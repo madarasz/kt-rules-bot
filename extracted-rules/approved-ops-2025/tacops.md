@@ -5,11 +5,9 @@ document_type: ops
 section: tacops
 ---
 
-# Approved Ops 2025 - Tac Op Rules
+# TAC OP - RECON
 
-## TAC OP - RECON
-
-### FLANK
+## FLANK
 
 **REVEAL**  
 As a **STRATEGIC GAMBIT**.
@@ -22,7 +20,7 @@ After measuring this on the end of each turning point after the first, for each 
 
 You cannot score more than 2VP from this op per turning point.
 
-### SCOUT ENEMY MOVEMENT
+## SCOUT ENEMY MOVEMENT
 
 **REVEAL**  
 The first time a friendly operative performs the **Scout** action.
@@ -37,7 +35,7 @@ At the end of each turning point after the first, for each monitored enemy opera
 
 You cannot score more than 2VP from this op per turning point.
 
-### RETRIEVAL
+## RETRIEVAL
 
 **REVEAL**  
 The first time you score VP from this op.
@@ -52,15 +50,15 @@ The first time each objective marker is searched by friendly operatives, you sco
 
 At the end of the battle, for each of your Retrieval mission markers friendly operatives are carrying, you score 1VP.
 
-## TAC OP - INFILTRATION
+# TAC OP - INFILTRATION
 
-### TRACK ENEMY
+## TRACK ENEMY
 
 **REVEAL**  
 The first time you score VP from this op.
 
 **ADDITIONAL RULES**  
-An enemy operative is being tracked if it's a valid target for a friendly operative within 6" of it. That friendly operative must have a Conceal order, cannot be a valid target for the enemy operative it's attempting to track, and cannot be within control range of enemy operatives.
+An enemy operative is being tracked if it's a **valid target** for a friendly operative **within 6"** of it. That friendly operative must have a **Conceal** order, cannot be a **valid target** for the enemy operative it's attempting to track, and cannot be within control range of enemy operatives.
 
 **VICTORY POINTS**  
 At the end of each turning point after the first:
@@ -69,7 +67,7 @@ At the end of each turning point after the first:
 
 You cannot score more than 2VP from this op per turning point.
 
-### STEAL INTELLIGENCE
+## STEAL INTELLIGENCE
 
 **REVEAL**  
 The first time an enemy operative is incapacitated.
@@ -84,7 +82,7 @@ At the end of each turning point after the first, if any friendly operatives are
 
 At the end of the battle, for each of your Intelligence mission markers friendly operatives are carrying, you score 1VP.
 
-### PLANT DEVICES
+## PLANT DEVICES
 
 **REVEAL**  
 The first time a friendly operative performs the **Plant Device** action.
@@ -101,9 +99,9 @@ At the end of each turning point after the first:
 
 You cannot score more than 2VP from this op per turning point.
 
-## TAC OP - SECURITY
+# TAC OP - SECURITY
 
-### PLANT BANNER
+## PLANT BANNER
 
 **REVEAL**  
 When you perform the **Plant Banner** action.
@@ -116,7 +114,7 @@ When you perform the **Plant Banner** action.
 **VICTORY POINTS**  
 At the end of each turning point after the first, if your Banner mission marker is wholly within your opponent's territory and friendly operatives control it, you score 1VP; if that's true and no enemy operatives control it, you score 2VP instead. Your Banner mission marker must be in the killzone to score (not being carried).
 
-### MARTYRS
+## MARTYRS
 
 **REVEAL**  
 The first time a friendly operative is incapacitated while contesting an objective marker.
@@ -129,7 +127,7 @@ At the end of each turning point after the first, if friendly operatives contest
 
 You cannot score more than 2VP from this op per turning point.
 
-### ENVOY
+## ENVOY
 
 **REVEAL**  
 The first time you select an envoy.
@@ -140,9 +138,9 @@ As a **STRATEGIC GAMBIT** in each turning point after the first, select one frie
 **VICTORY POINTS**  
 At the end of each turning point after the first, if your envoy is wholly within enemy territory and not within control range of enemy operatives, you score 1VP; if this is true and your envoy has not lost any wounds during that turning point, you score 2VP instead.
 
-## TAC OP - SEEK & DESTROY
+# TAC OP - SEEK & DESTROY
 
-### SWEEP & CLEAR
+## SWEEP & CLEAR
 
 **REVEAL**  
 The first time an enemy operative is incapacitated while contesting an objective marker, or the first time a friendly operative performs the **Clear** action (whichever comes first).
@@ -160,7 +158,7 @@ At the end of each turning point after the first, if friendly operatives control
 
 You cannot score more than 2VP from this op per turning point.
 
-### ROUTE
+## ROUTE
 
 **REVEAL**  
 The first time you score VP from this op.
@@ -170,7 +168,7 @@ Whenever a friendly operative incapacitates an enemy operative, if that friendly
 
 You cannot score more than 2VP from this op per turning point.
 
-### DOMINATE
+## DOMINATE
 
 **REVEAL**  
 The first time an enemy operative is incapacitated by a friendly operative.
@@ -185,7 +183,7 @@ You cannot score more than 3VP from this op per turning point.
 
 ---
 
-## Key Numerical Rules Summary
+## **TAC OPS** - Key Numerical Rules Summary
 
 | Rule/Constraint | Value |
 |-----------------|-------|

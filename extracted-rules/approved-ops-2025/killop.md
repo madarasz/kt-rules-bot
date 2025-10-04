@@ -32,7 +32,7 @@ section: killop
 
 ---
 
-### **Key Numerical Rules Summary**
+### **Killop - Key Numerical Rules Summary**
 
 | Rule/Constraint | Value | Notes |
 | :--- | :---: | :--- |

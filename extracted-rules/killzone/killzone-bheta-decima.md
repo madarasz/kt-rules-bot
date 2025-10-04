@@ -51,9 +51,7 @@ No part of an operative's base can be touching a hazardous area.
 [Summary]
 **Movement Restriction:** Operatives are completely prohibited from entering hazardous areas. Even partial base contact is not allowed. This creates absolute no-go zones on the battlefield that must be navigated around.
 
----
-
-### RESTRICTED TARGETING
+## RESTRICTED TARGETING
 
 When selecting a valid target for an operative on the killzone floor, an intended target on the killzone floor is not a valid target if **4"** of hazardous area is between them.
 
@@ -96,7 +94,7 @@ Equipment can be set up on Vantage terrain and within **2"** of **Accessible** t
 
 ---
 
-## Key Numerical Rules Summary
+## **Bheta-Decima** Key Numerical Rules Summary
 
 | Rule/Constraint | Value |
 |-----------------|-------|

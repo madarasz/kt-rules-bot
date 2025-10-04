@@ -5,20 +5,18 @@ document_type: killzone
 section: gallowdark
 ---
 
-# KILLZONE: GALLOWDARK TERRAIN RULES
-
-## KILLZONE SETUP
+# GALLOWDARK SETUP
 
 Killzone: Gallowdark uses a **606mm x 703mm** game board with a **6x7 grid** system for setting up. It has **4x** short walls with hatchway and pillars and **2x** each other terrain feature specified on page 109. It also has **8x** left and **8x** right pillars, and **30x** pillar caps to complete terrain configuration. Note that some mission maps use less than this.
 
 ---
 
-## GALLOWDARK WALL
+# GALLOWDARK WALL
 
 A Gallowdark wall terrain feature is **Heavy** and **Wall** terrain.
 Some walls include a hatchway, which is explained separately on pg 69.
 
-### Wall terrain:
+## Wall terrain:
 
 * Operatives cannot move over or through Wall terrain (this takes precedence over all other rules).
 * Visibility cannot be determined over or through Wall terrain.
@@ -39,17 +37,17 @@ When a corner of a Wall is intervening between operatives, the operative behind 
 
 ---
 
-## HATCHWAY
+# HATCHWAY
 
 A hatchway has two statuses: closed and open. It has two parts — an access point and a hatch — and their terrain types depend upon the hatchway's status. Operatives can perform the **Operate Hatch** mission action to change its status. Hatchways begin the battle closed.
 
-### Closed
+## Closed
 While a hatchway is closed:
 
 * Its hatch must be fully shut.
 * The access point and hatch are **Heavy** and **Wall** terrain.
 
-### Open
+## Open
 While a hatchway is open:
 
 * Its hatch must be fully open (it cannot be ajar).
@@ -68,7 +66,7 @@ The terrain type of a hatchway's access point changes based on whether the hatch
 
 ---
 
-### OPERATE HATCH (1AP)
+## OPERATE HATCH (1AP)
 
 ▶ Open or close a hatchway that's access point is within the operative's control range.
 
@@ -90,21 +88,19 @@ When a hatchway is **open**, an end of the wall is intervening, making the dista
 
 ---
 
-## CLOSE QUARTERS RULES
+# CLOSE QUARTERS RULES
 
 Killzone: Gallowdark has the following additional rules.
 
-### CONDENSED ENVIRONMENT
+## CONDENSED ENVIRONMENT
 
 Weapons with the **Blast**, **Torrent** and **/or x" Devastating** (i.e. Devastating with a distance requirement) weapon rule also have the **Lethal 5+** weapon rule.
 
----
-
-## ACTIONS
+# ACTIONS
 
 Operatives can perform the following universal actions.
 
-### GUARD (1AP)
+## GUARD (1AP)
 
 ▶ The operative goes on guard until any of the following are true:
 * It performs any action, moves or is set up.
@@ -120,7 +116,7 @@ Operatives can perform the following universal actions.
 
 ---
 
-### On Guard
+## On Guard
 
 Once during each enemy operative's activation, after that enemy operative performs an action, you can interrupt that activation and select one friendly operative on guard to perform the **Fight** or **Shoot** action for free (including actions that are treated as such, e.g. **Hatchway Fight** opposite). If you do, that friendly operative cannot counteract during the turning point.
 
@@ -148,7 +144,7 @@ The **Hatchway Fight** action allows an operative to fight an enemy operative th
 
 ---
 
-## KEY NUMERICAL RULES SUMMARY
+## **Gallowdark** - KEY NUMERICAL RULES SUMMARY
 
 | Rule/Constraint | Value |
 |----------------|-------|

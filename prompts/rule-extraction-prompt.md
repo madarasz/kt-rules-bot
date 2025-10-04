@@ -61,6 +61,11 @@ Ask yourself: "What rule or mechanic is this image teaching me?" Extract that pr
 
 ## Output Format
 - Begin with all rules transcribed verbatim, organized with clear headings and logical structure, using markdown.
+- **CRITICAL: Use `##` (H2) headers for all major rule sections**
+  - Each distinct rule, phase, mechanic, or concept must have its own `## Header Name`
+  - This structure is essential for document chunking and searchability
+  - Examples: `## Movement Phase`, `## Shooting Action`, `## Valid Target`, `## Vantage Terrain`
+  - Use `###` (H3) for sub-sections within a major rule
 - Immediately after each rule or section, add `[Derived from illustration]`, `[Summary]` and/or `> **Designer's Note:** ...` blocks as appropriate for summaries or visual rule extractions.
 - **Bold** the following elements:
   - Key game terms when first introduced (e.g., **control range**, **wounded**)
@@ -78,14 +83,17 @@ Ask yourself: "What rule or mechanic is this image teaching me?" Extract that pr
 - Nested bullets and numbered lists for complex and sequential rules.
 - Do not use emojis
 - Remove page number references (e.g.: `(see damage on pg 47)`)
-- End with the "Key Numerical Rules Summary" markdown table of rules/constraints and values.
+- End with the "## **[Document Title]** - Key Numerical Rules Summary" markdown table of rules/constraints and values.
 
 ## Example
-**Verbatim Rule Extraction:**
-```
+**Correct output structure with proper headers:**
+```markdown
+## Kill Zone Boundaries
 All operatives must remain within their own kill zone at all times.
+
+## Actions
+### Action Economy
 Each operative may make one action per activation.
-```
 
 [Derived from illustration]
 **Operative Movement Principle:**
@@ -93,12 +101,22 @@ Operatives cannot move past impassable terrain unless an ability explicitly allo
 
 > **Designer's Note:** When planning a turn, check for actions that modify standard movement rules.
 
-**Key Numerical Rules Summary**
+## Movement
+An operative can move up to **6"** during its activation.
+
+## **Actions** - Key Numerical Rules Summary
 
 | Rule/Constraint               | Value     |
 |-------------------------------|-----------|
 | Maximum movement per turn     | 6"        |
 | Standard APL (Action Points)  | 2         |
+```
+
+**Key points demonstrated:**
+- `## Kill Zone Boundaries` - H2 header for major rule
+- `## Actions` with `### Action Economy` - H2 for main section, H3 for sub-section
+- `## Movement` - Another H2 for a distinct rule
+- Each major concept gets its own `##` header for optimal chunking
 
 ## Use Cases
 - Accurate extraction and documentation of board game rules for digital or reference manuals.

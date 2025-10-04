@@ -208,7 +208,7 @@ Players can spend CP on ploys to gain rules bonuses at the opportune moment. Unl
 
 All players have access to the Command Re-roll firefight ploy below and the ploys in their kill team's rules. Other than Command Re-roll, each player cannot use each ploy more than once per turning point.
 
-### COMMAND RE-ROLL
+## COMMAND RE-ROLL
 Use this firefight ploy after rolling your attack or defence dice. You can re-roll one of those dice.
 
 ## PRECEDENCE
@@ -256,7 +256,7 @@ This completes the Key Principles section. These foundational rules establish ho
 
 ---
 
-## Key Numerical Rules Summary
+## **Key Principles** - Key Numerical Rules Summary
 
 | Rule/Constraint | Value |
 |-----------------|-------|

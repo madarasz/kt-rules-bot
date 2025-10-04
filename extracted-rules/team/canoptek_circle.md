@@ -1,8 +1,13 @@
-# CANOPTEK CIRCLE
+---
+source: "WC downloads"
+last_update_date: 2025-09-10
+document_type: team-rules
+section: canoptek circle
+---
 
-## KILL TEAM COMPOSITION
+# CANOPTEK CIRCLE - KILL TEAM COMPOSITION
 
-### Operative Selection
+## Operative Selection
 Your kill team consists of:
 * 1 **CANOPTEK CIRCLE GEOMANCER** operative
 * 2 **CANOPTEK CIRCLE TOMB CRAWLER** operatives, each with one of the following options:
@@ -16,13 +21,13 @@ Your kill team consists of:
 
 Note: Your kill team can only include up to one transdimensional isolator.
 
-### Archetypes
+## Archetypes
 - RECON
 - SECURITY
 
-## FACTION RULES
+# FACTION RULES
 
-### OBELISK NODE MATRIX
+## OBELISK NODE MATRIX
 As a **STRATEGIC GAMBIT** in the first turning point, place your three **OBELISK NODE** markers wholly within your territory. As a **STRATEGIC GAMBIT** in each turning point after the first, you can move your **OBELISK NODE** markers up to 3" each.
 
 Your **OBELISK NODE** markers control other markers within 1" of them that no enemy operatives contest (treat your **OBELISK NODE** markers as friendly operatives for this purpose). If more than one player would use their **OBELISK NODE** markers to control the same marker, no **OBELISK NODE** markers control it.
@@ -33,9 +38,9 @@ Whenever a friendly **CANOPTEK CIRCLE** operative is within your **OBELISK NODE 
 * Weapons on its datacard have the **Accurate 2** weapon rule.
 * Add 1 to its **APL** stat.
 
-## OPERATIVES
+# OPERATIVES
 
-### GEOMANCER
+## GEOMANCER
 **Stats:**
 - APL: 3
 - Move: 6"
@@ -59,7 +64,7 @@ Whenever a friendly **CANOPTEK CIRCLE** operative is within your **OBELISK NODE 
 
 **Keywords:** CANOPTEK CIRCLES, NECRON, LEADER, CRYPTEK, GEOMANCER
 
-### CANOPTEK MACROCYTE ACCELERATOR
+## CANOPTEK MACROCYTE ACCELERATOR
 **Stats:**
 - APL: 2
 - Move: 7"
@@ -78,7 +83,7 @@ Whenever a friendly **CANOPTEK CIRCLE** operative is within your **OBELISK NODE 
 
 **Keywords:** CANOPTEK CIRCLES, NECRON, CANOPTEK, MACROCYTE, ACCELERATOR
 
-### CANOPTEK MACROCYTE REANIMATOR
+## CANOPTEK MACROCYTE REANIMATOR
 **Stats:**
 - APL: 2
 - Move: 7"
@@ -99,7 +104,7 @@ Whenever a friendly **CANOPTEK CIRCLE** operative is within your **OBELISK NODE 
 
 **Keywords:** CANOPTEK CIRCLE, NECRON, CANOPTEK, MACROCYTE, REANIMATOR
 
-### CANOPTEK MACROCYTE WARRIOR
+## CANOPTEK MACROCYTE WARRIOR
 **Stats:**
 - APL: 2
 - Move: 7"
@@ -121,7 +126,7 @@ Whenever a friendly **CANOPTEK CIRCLE** operative is within your **OBELISK NODE 
 
 **Keywords:** CANOPTEK CIRCLES, NECRON, CANOPTEK, MACROCYTE, WARRIOR
 
-### CANOPTEK TOMB CRAWLER
+## CANOPTEK TOMB CRAWLER
 **Stats:**
 - APL: 2
 - Move: 5"
@@ -143,49 +148,49 @@ Whenever a friendly **CANOPTEK CIRCLE** operative is within your **OBELISK NODE 
 
 **Keywords:** CANOPTEK CIRCLE, NECRON, CANOPTEK, TOMB CRAWLER
 
-## STRATEGY PLOYS
+# STRATEGY PLOYS
 
-### HYPERSHIELDING
+## HYPERSHIELDING
 Whenever an operative is shooting a friendly **CANOPTEK CIRCLE** operative, if your **OBELISK NODE MATRIX** is intervening, or that friendly operative is within your **OBELISK NODE MATRIX**, you can re-roll any of your defence dice results of one result (e.g. results of 2).
 
-### TRANSDYNAMIC AMPLIFICATION
+## TRANSDYNAMIC AMPLIFICATION
 Whenever a friendly **CANOPTEK CIRCLE** operative is shooting, if your **OBELISK NODE MATRIX** is intervening, or the target is within your **OBELISK NODE MATRIX**, that friendly operative's weapons have the **Ceaseless** weapon rule.
 
-### CRYPTOGRAVITIC REPULSION
+## CRYPTOGRAVITIC REPULSION
 Once per action, the first time an enemy operative would move within your **OBELISK NODE MATRIX**, the distance is treated as an additional 1". Note this means if that enemy operative doesn't have sufficient move distance (e.g. it's at the end of its move), that operative cannot move within your **OBELISK NODE MATRIX**.
 
-### SOULDRAIN
+## SOULDRAIN
 Whenever an enemy operative is within your **OBELISK NODE MATRIX**, or whenever it's fighting or retaliating against a friendly **CANOPTEK CIRCLE** operative that's within your **OBELISK NODE MATRIX**, subtract 1 from both Dmg stats of that enemy operative's melee weapons (to a minimum of 2) until the end of the activation/counteraction. Note this means if the enemy operative moves through your **OBELISK NODE MATRIX**, apply this change at the end of that move action until the end of the activation/counteraction.
 
-## FIREFIGHT PLOYS
+# FIREFIGHT PLOYS
 
-### SHIELD FLARE
+## SHIELD FLARE
 Use this firefight ploy when an attack dice inflicts Normal Dmg on a friendly **CANOPTEK CIRCLE** operative. If your **OBELISK NODE MATRIX** is intervening, or that friendly operative is within your **OBELISK NODE MATRIX**, ignore that inflicted damage. Note your opponent determines intervening (i.e. where on their operative's base to draw the targeting lines from).
 
-### ANIMATE OBELISK NODES
+## ANIMATE OBELISK NODES
 Use this firefight ploy when it's your turn to activate or counteract. Move any number of your **OBELISK NODE** markers instead. They can move up to 6" combined, and distances are always rounded up to the nearest inch (so if you move a marker 1.5", it's treated as moving it 2"). For example, you could move one marker 6", three markers 1" each, or any combination that doesn't exceed 6" in total. You can also move them 0" (to effectively skip an activation). In any case, your opponent activates as normal afterwards.
 
-### NODAL RESPONSE
+## NODAL RESPONSE
 Use this firefight ploy during a friendly **CANOPTEK CIRCLE** operative's activation, before or after it performs an action. You can either change one of the strategy ploys you used during this turning point (only pay additional CP if that ploy costs more), or use a strategy ploy now (pay its CP cost as normal).
 
-### SACRIFICIAL THRALL
+## SACRIFICIAL THRALL
 Use this firefight ploy when a friendly **CANOPTEK CIRCLE GEOMANCER** operative is selected as the valid target of a **Shoot** action or to fight against during the **Fight** action. Select one other friendly **CANOPTEK CIRCLE CANOPTEK** operative visible to and within 3" of that first friendly operative to become the valid target or to be fought against (as appropriate) instead (even if it wouldn't normally be valid for this). If it's the **Fight** action, treat that other operative as being within the fighting operative's control range for the duration of that action. If it's the **Shoot** action, that other operative is only in cover or obscured if the original target was. This ploy has no effect if it's the **Shoot** action and the ranged weapon has the **Blast** or **Torrent** weapon rule.
 
-## FACTION EQUIPMENT
+# FACTION EQUIPMENT
 
-### MATRIX MANIPULATOR
+## MATRIX MANIPULATOR
 Once per battle, during a friendly **CANOPTEK CIRCLE** operative's activation or counteraction, you can use this rule. If you do, until the end of that activation/counteraction, a friendly **CANOPTEK CIRCLE GEOMANCER** operative is treated as your fourth **OBELISK NODE** marker.
 
-### AWAKENED OBELISK NODES
+## AWAKENED OBELISK NODES
 After revealing this equipment option, roll one D3. You can use the **Animate Obelisk Nodes** firefight ploy for 0CP a number of times during the battle equal to the result.
 
-### NANOSCARAB CASKETS
+## NANOSCARAB CASKETS
 Whenever a friendly **CANOPTEK CIRCLE** operative is activated, it regains up to D3 lost wounds.
 
-### PHASE SHIFTER
+## PHASE SHIFTER
 Once per turning point, when an operative is shooting a friendly **CANOPTEK CIRCLE GEOMANCER** operative, at the start of the Roll Defence Dice step, you can use this rule. If you do, worsen the x of the **Piercing** weapon rule by 1 (if any) until the end of that sequence. Note that **Piercing 1** would therefore be ignored.
 
-## Key Numerical Rules Summary
+## **Canoptek Circle** - Key Numerical Rules Summary
 
 | Rule/Value | Specification |
 |------------|---------------|

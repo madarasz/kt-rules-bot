@@ -121,7 +121,7 @@ At the end of each turning point after the first:
 
 ---
 
-### **Key Numerical Rules Summary**
+## **Crit Ops** - Key Numerical Rules Summary
 
 | Rule/Constraint | Value |
 | :--- | :---: |

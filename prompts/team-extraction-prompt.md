@@ -85,7 +85,7 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 ```markdown
 # [KILL TEAM NAME]
 
-## KILL TEAM COMPOSITION
+## [KILL TEAM NAME] COMPOSITION
 
 ### Operative Selection
 [Exact selection rules from black card]
@@ -93,14 +93,14 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 ### Archetypes
 - [List archetypes]
 
-## FACTION RULES
+# [KILL TEAM NAME] FACTION RULES
 
-### [Rule Name]
+## [Rule Name]
 [Complete rule text]
 
-## OPERATIVES
+# [KILL TEAM NAME] OPERATIVES
 
-### [OPERATIVE NAME]
+## [OPERATIVE NAME]
 **Stats:**    
 - APL: [X]
 - Move [X]"
@@ -120,28 +120,28 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 
 [Repeat for each operative]
 
-## STRATEGY PLOYS
+# [KILL TEAM NAME] STRATEGY PLOYS
 
-### [Ploy Name]
+## [Ploy Name]
 [Complete ploy text]
 
 [Exactly 4 strategy ploys]
 
-## FIREFIGHT PLOYS
+# [KILL TEAM NAME] FIREFIGHT PLOYS
 
-### [Ploy Name]  
+## [Ploy Name]  
 [Complete ploy text]
 
 [Exactly 4 firefight ploys]
 
-## FACTION EQUIPMENT
+# [KILL TEAM NAME] FACTION EQUIPMENT
 
-### [Equipment Name]
+## [Equipment Name]
 [Complete equipment text]
 
 [Exactly 4 faction equipment items]
 
-## Key Numerical Rules Summary
+## **[KILL TEAM NAME]** - Key Numerical Rules Summary
 
 | Rule/Value | Specification |
 |------------|---------------|
@@ -150,6 +150,11 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 
 ## Critical Requirements
 - **Zero tolerance for data errors:** Every stat, keyword, and numerical value must be exact
+- **CRITICAL: Use `##` (H2) headers for all major rule sections**
+  - Each distinct ploy, operative, equipment, faction rule, or concept must have its own `## Header Name`
+  - This structure is essential for document chunking and searchability
+  - Examples: `## OBELISK NODE MATRIX`, `## GEOMANCER`, `## SOULDRAIN`
+  - Use `###` (H3) for sub-sections within a major element
 - **Preserve all weapon rules:** Include every special rule listed in WR column
 - **Maintain rule interactions:** Keep all cross-references between abilities
 - **Complete extraction:** Every operative and card must be included

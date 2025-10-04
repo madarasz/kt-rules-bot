@@ -5,9 +5,7 @@ document_type: killzone
 section: volkus
 ---
 
-# KILLZONE: VOLKUS TERRAIN RULES
-
-## Killzone Composition
+# VOLKUS - Killzone Composition
 
 Killzone: Volkus has **2x** strongholds, **2x** large ruins, **2x** small ruins, **2x** heavy rubble and **3x** light rubble.
 
@@ -72,11 +70,11 @@ Large ruins feature an upper level treated as equivalent height to a stronghold'
 
 ---
 
-## CITYFIGHT
+# CITYFIGHT
 
 Killzone: Volkus has the following additional rules.
 
-### CONDENSED STRONGHOLD
+## CONDENSED STRONGHOLD
 
 Whenever an operative is shooting with a weapon that has the **Blast**, **Torrent** and/or **x" Devastating** (i.e. Devastating with a distance requirement) weapon rule, it also has the **Lethal 5+** weapon rule if the target is wholly within a stronghold terrain feature and on the killzone floor or a fire step.
 
@@ -86,7 +84,7 @@ Whenever an operative is shooting with a weapon that has the **Blast**, **Torren
 **Condensed Stronghold Effect:**
 When targeting operatives positioned wholly within the ground floor of a stronghold with area-effect weapons (Blast, Torrent, or x" Devastating), those weapons gain additional lethality (Lethal 5+). This represents the concentrated destructive power of explosive and area weapons in confined stronghold interiors.
 
-### GARRISONED STRONGHOLD
+## GARRISONED STRONGHOLD
 
 When an operative wholly within a stronghold terrain feature is retaliating against an operative that isn't, the defender resolves first (this takes precedence over the normal fight resolution order).
 
@@ -96,11 +94,11 @@ Defenders positioned wholly within a stronghold gain initiative in close combat 
 
 ---
 
-## ACTION
+# ACTION
 
 Operatives can perform the following universal action.
 
-### DOOR FIGHT (1AP)
+## DOOR FIGHT (1AP)
 
 * Fight with the active operative.
 * In the Select Enemy Operative step, instead select an enemy operative on the killzone floor and within **2"** of, and on the other side of, a door the active operative is touching. For the duration of that action, those operatives are treated as being within each other's control range.
@@ -118,7 +116,7 @@ The Door Fight action allows operatives to engage in close combat through doorwa
 
 ---
 
-## Key Numerical Rules Summary
+## **Volkus** - Key Numerical Rules Summary
 
 | Rule/Constraint | Value |
 |----------------|-------|

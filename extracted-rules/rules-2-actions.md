@@ -5,9 +5,7 @@ document_type: core-rules
 section: actions
 ---
 
-# Kill Team Actions Rules
-
-## Actions Overview
+# Actions Overview
 
 Actions have effects (▶) and conditions (◆). ◆ are conditions that must be fulfilled for the operative to perform that action, whilst ▶ are effects when an operative is performing that action, including any requirements when doing so. There are four different types of actions: universal, unique, mission and free.
 
@@ -28,9 +26,9 @@ Free actions can only be performed when another rule specifies, and the followin
 
 > **Designer's Note:** These movements are done in straight-line increments, rather than curves around the corner.
 
-## Universal Actions
+# Universal Actions
 
-### REPOSITION (1AP)
+## REPOSITION (1AP)
 
 ▶ Move the active operative up to its Move stat to a location it can be placed. This must be done in one or more straight-line increments, and increments are always rounded up to the nearest inch.
 
@@ -46,7 +44,7 @@ Free actions can only be performed when another rule specifies, and the followin
 * Increments are always rounded up (e.g., a **2.75"** increment counts as **3"**)
 * The operative must be able to be placed at the final location
 
-### DASH (1AP)
+## DASH (1AP)
 
 ▶ The same as the **Reposition** action, except don't use the active operative's Move stat – it can move up to **3"** instead. In addition, it cannot climb during this move, but it can drop and jump.
 
@@ -54,7 +52,7 @@ Free actions can only be performed when another rule specifies, and the followin
 
 > **Designer's Note:** As operatives cannot perform the same action more than once in their activation, **Dash** actions are how operatives move even further.
 
-### FALL BACK (2AP)
+## FALL BACK (2AP)
 
 ▶ The same as the **Reposition** action, except the active operative can move within control range of an enemy operative, but cannot finish the move there.
 
@@ -64,7 +62,7 @@ Free actions can only be performed when another rule specifies, and the followin
 
 > **Designer's Note:** The **Charge** action allows operatives to effectively close down enemies, but as they must have an Engage order to do so, they can be vulnerable to enemy shooting later on.
 
-### CHARGE (1AP)
+## CHARGE (1AP)
 
 ▶ The same as the **Reposition** action, except the active operative can move an additional **2"**.
 
@@ -72,7 +70,7 @@ Free actions can only be performed when another rule specifies, and the followin
 
 ◆ An operative cannot perform this action while it has a Conceal order, if it's already within control range of an enemy operative, or during the same activation in which it performed the **Reposition**, **Dash** or **Fall Back** action.
 
-### PICK UP MARKER (1AP)
+## PICK UP MARKER (1AP)
 
 ▶ Remove a marker the active operative controls that the **Pick Up Marker** action can be performed upon. That operative is now carrying, contesting and controlling that marker.
 
@@ -80,7 +78,7 @@ Free actions can only be performed when another rule specifies, and the followin
 
 > **Designer's Note:** If there are any such markers that the **Pick Up Marker** action can be performed upon, it will be specified elsewhere, e.g. your mission pack.
 
-### PLACE MARKER (1AP)
+## PLACE MARKER (1AP)
 
 ▶ Place a marker the active operative is carrying within its control range.
 
@@ -90,7 +88,7 @@ Free actions can only be performed when another rule specifies, and the followin
 
 > **Designer's Note:** As above, if there are any markers the operative is carrying, it will be specified elsewhere.
 
-### SHOOT (1AP)
+## SHOOT (1AP)
 
 ▶ Shoot with the active operative by following the sequence below. The active operative's player is the attacker. The selected enemy operative's player is the defender.
 
@@ -102,10 +100,10 @@ Free actions can only be performed when another rule specifies, and the followin
 
 > **Designer's Note:** Obscuring means it's less efficient to target an enemy operative through large intervening obstructions. However, this is ignored when operatives are at such obstructions – imagine them leaning around corners or through windows.
 
-#### 1. Select Weapon
+### 1. Select Weapon
 The attacker selects one ranged weapon to use that their operative has and collects their attack dice – a number of D6 equal to the weapon's Atk stat.
 
-#### 2. Select Valid Target
+### 2. Select Valid Target
 The attacker selects an enemy operative that's a valid target and has no friendly operatives within its control range.
 
 * If the intended target has an Engage order, it's a valid target if it's visible to the active operative.
@@ -116,7 +114,7 @@ An operative is visible if the active operative can see it. An operative is in c
 
 An operative cannot be in cover from and obscured by the same terrain feature. If it would be, the defender must select one of them (cover or obscured) for that sequence when their operative is selected as the valid target.
 
-#### 3. Roll Attack Dice
+### 3. Roll Attack Dice
 The attacker rolls their attack dice. Each result that equals or beats the weapon's Hit stat is a success and is retained. Each result that doesn't is a fail and is discarded. Each result of 6 is always a critical success. Each other success is a normal success. Each result of 1 is always a fail.
 
 If the target operative is obscured:
@@ -125,21 +123,21 @@ If the target operative is obscured:
 
 An operative is obscured if there's intervening Heavy terrain. However, it cannot be obscured by intervening Heavy terrain that's within **1"** of either operative.
 
-#### 4. Roll Defence Dice
+### 4. Roll Defence Dice
 The defender collects three defence dice. If the target operative is in cover, they can retain one normal success without rolling it – this is known as a cover save. They roll the remainder.
 
 Each result that equals or beats the target's Save stat is a success and is retained. Each result that doesn't is a fail and is discarded. Each result of 6 is always a critical success. Each other success is a normal success. Each result of 1 is always a fail.
 
 > **Designer's Note:** Remember, cover in this step usually applies to operatives with an Engage order, as a Conceal order would have prevented it from being a valid target in the first place.
 
-#### 5. Resolve Defence Dice
+### 5. Resolve Defence Dice
 The defender allocates all their successful defence dice to block successful attack dice.
 
 * A normal success can block a normal success.
 * Two normal successes can block a critical success.
 * A critical success can block a normal success or a critical success.
 
-#### 6. Resolve Attack Dice
+### 6. Resolve Attack Dice
 All successful unblocked attack dice inflict damage on the target operative.
 
 * A normal success inflicts damage equal to the weapon's Normal Dmg stat.
@@ -149,7 +147,7 @@ Any operatives that were incapacitated are removed after the active operative ha
 
 > **Designer's Note:** Some weapons shoot multiple times in one action, such as those with the Blast and Torrent weapon rules (see `weapon rules`). Therefore, operatives aren't removed until the whole action has been resolved.
 
-### FIGHT (1AP)
+## FIGHT (1AP)
 
 ▶ Fight with the active operative by following the sequence below. The active operative's player is the attacker. The selected enemy operative's player is the defender.
 
@@ -161,20 +159,20 @@ Any operatives that were incapacitated are removed after the active operative ha
 
 > **Designer's Note:** If a rule says an operative cannot retaliate, then they can still be fought against, but attack dice cannot be collected or resolved for them.
 
-#### 1. Select Enemy Operative
+### 1. Select Enemy Operative
 The attacker selects an enemy operative within the active operative's control range to fight against. That enemy operative will retaliate in this action.
 
-#### 2. Select Weapons
+### 2. Select Weapons
 Both players select one melee weapon to use that their operative has and collect their attack dice – a number of D6 equal to the weapon's Atk stat.
 
-#### 3. Roll Attack Dice
+### 3. Roll Attack Dice
 Both players roll their attack dice simultaneously. Each result that equals or beats their selected weapon's Hit stat is a success and is retained. Each result that doesn't is a fail and is discarded. Each result of 6 is always a critical success. Each other success is a normal success. Each result of 1 is always a fail.
 
 While a friendly operative is assisted by other friendly operatives, improve the Hit stat of its melee weapons by 1 for each doing so. For a friendly operative to assist them, it must be within control range of the enemy operative in that fight and not within control range of another enemy operative.
 
 > **Designer's Note:** Having multiple friendly operatives within control range of an enemy operative doesn't allow them all to fight simultaneously, but having assists makes successful attack dice more likely.
 
-#### 4. Resolve Attack Dice
+### 4. Resolve Attack Dice
 Starting with the attacker, the players alternate resolving one of their successful unblocked attack dice. The players repeat this process until one player has resolved all their dice (in which case their opponent resolves all their remaining dice), or one operative in that fight is incapacitated (see damage in `rules-3-key-principles.md`). When a player resolves a dice, they must strike or block with it.
 
 If they strike, inflict damage on the enemy operative, then discard that dice.
@@ -194,7 +192,7 @@ If they block, they can allocate that dice to block one of their opponent's unre
 [Summary]
 The Fight action creates a back-and-forth melee combat where both operatives attack simultaneously, but resolve their successes alternately starting with the attacker. The key strategic choice is whether to strike (inflict damage immediately) or block (prevent opponent's future strikes).
 
-## Key Numerical Rules Summary
+## **Actions** - Key Numerical Rules Summary
 
 | Rule/Constraint | Value |
 |---|---|

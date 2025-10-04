@@ -88,7 +88,7 @@ Players score VP through three separate operations (Crit, Kill, and Tac), with a
 **Initiative Card Distribution:**
 Initiative cards are distributed based on turning point timing, with higher modifiers (+3/-3) given in later turns to create stronger comeback potential for the player losing initiative rolls.
 
-## Key Numerical Rules Summary
+## **Game Sequence** - Key Numerical Rules Summary
 
 | Rule/Constraint | Value |
 |----------------|--------|
