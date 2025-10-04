@@ -35,7 +35,7 @@ logger = get_logger(__name__)
 class ClaudeAdapter(LLMProvider):
     """Anthropic Claude API integration."""
 
-    def __init__(self, api_key: str, model: str = "claude-3-sonnet-20240229"):
+    def __init__(self, api_key: str, model: str = "claude-sonnet-4-5-20250929"):
         """Initialize Claude adapter.
 
         Args:

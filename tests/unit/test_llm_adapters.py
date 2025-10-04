@@ -37,7 +37,7 @@ class TestClaudeAdapter:
     @pytest.fixture
     def claude_adapter(self, mock_anthropic):
         """Create Claude adapter with mocked client."""
-        adapter = ClaudeAdapter(api_key="test-key", model="claude-3-sonnet-20240229")
+        adapter = ClaudeAdapter(api_key="test-key", model="claude-sonnet-4-5-20250929")
         return adapter
 
     async def test_generate_success(self, claude_adapter):
@@ -171,7 +171,7 @@ class TestGeminiAdapter:
         """Create Gemini adapter with mocked client."""
         mock_model = Mock()
         mock_genai.GenerativeModel.return_value = mock_model
-        adapter = GeminiAdapter(api_key="test-key", model="gemini-1.5-pro")
+        adapter = GeminiAdapter(api_key="test-key", model="gemini-2.5-pro")
         return adapter
 
     async def test_generate_success(self, gemini_adapter):
@@ -237,7 +237,7 @@ class TestLLMProviderFactory:
             provider = LLMProviderFactory.create("claude")
 
             assert isinstance(provider, ClaudeAdapter)
-            assert provider.model == "claude-3-sonnet-20240229"
+            assert provider.model == "claude-sonnet-4-5-20250929"
 
     @patch("src.services.llm.factory.get_config")
     def test_create_invalid_provider(self, mock_config):
@@ -269,7 +269,7 @@ class TestResponseValidator:
             token_count=100,
             latency_ms=500,
             provider="claude",
-            model_version="claude-3-sonnet-20240229",
+            model_version="claude-sonnet-4-5-20250929",
             citations_included=True,
         )
 
@@ -283,7 +283,7 @@ class TestResponseValidator:
             token_count=100,
             latency_ms=500,
             provider="claude",
-            model_version="claude-3-sonnet-20240229",
+            model_version="claude-sonnet-4-5-20250929",
             citations_included=False,
         )
 

@@ -111,7 +111,7 @@ class TestLLMAdapterContractGeneration:
             token_count=150,
             latency_ms=1200,
             provider="claude",
-            model_version="claude-3-sonnet-20240229",
+            model_version="claude-sonnet-4-5-20250929",
             citations_included=True
         )
 
@@ -133,7 +133,7 @@ class TestLLMAdapterContractGeneration:
             token_count=158,
             latency_ms=1300,
             provider="gemini",
-            model_version="gemini-1.5-pro",
+            model_version="gemini-2.5-pro",
             citations_included=True
         )
 
@@ -178,7 +178,7 @@ class TestLLMAdapterContractGeneration:
             token_count=100,
             latency_ms=800,
             provider="claude",
-            model_version="claude-3-sonnet-20240229",
+            model_version="claude-sonnet-4-5-20250929",
             citations_included=True
         )
 
@@ -198,7 +198,7 @@ class TestLLMAdapterContractGeneration:
             token_count=80,
             latency_ms=700,
             provider="claude",
-            model_version="claude-3-sonnet-20240229",
+            model_version="claude-sonnet-4-5-20250929",
             citations_included=False
         )
 
@@ -227,7 +227,7 @@ class TestLLMAdapterContractGeneration:
             token_count=120,
             latency_ms=1000,
             provider="claude",
-            model_version="claude-3-sonnet-20240229",
+            model_version="claude-sonnet-4-5-20250929",
             citations_included=True
         )
 
@@ -270,7 +270,7 @@ class TestLLMAdapterContractGeneration:
             token_count=150,  # e.g., 100 prompt + 50 completion
             latency_ms=900,
             provider="claude",
-            model_version="claude-3-sonnet-20240229",
+            model_version="claude-sonnet-4-5-20250929",
             citations_included=True
         )
 

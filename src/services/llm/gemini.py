@@ -34,7 +34,7 @@ logger = get_logger(__name__)
 class GeminiAdapter(LLMProvider):
     """Google Gemini API integration."""
 
-    def __init__(self, api_key: str, model: str = "gemini-1.5-pro"):
+    def __init__(self, api_key: str, model: str = "gemini-2.5-pro"):
         """Initialize Gemini adapter.
 
         Args:
@@ -94,6 +94,17 @@ class GeminiAdapter(LLMProvider):
 
             latency_ms = int((time.time() - start_time) * 1000)
 
+            # Check finish_reason before accessing text
+            # finish_reason values: STOP=1, MAX_TOKENS=2, SAFETY=3, RECITATION=4, OTHER=5
+            if hasattr(response, 'candidates') and response.candidates:
+                finish_reason = response.candidates[0].finish_reason
+                if finish_reason in [3, 4]:  # SAFETY or RECITATION
+                    logger.warning(f"Gemini content blocked: finish_reason={finish_reason}")
+                    raise ContentFilterError(
+                        f"Gemini blocked content (finish_reason={finish_reason}). "
+                        "Try rephrasing your query or adjusting safety settings."
+                    )
+
             # Extract answer text
             answer_text = response.text
 
@@ -141,10 +152,14 @@ class GeminiAdapter(LLMProvider):
                 f"Gemini generation exceeded {request.config.timeout_seconds}s timeout"
             )
 
+        except ContentFilterError:
+            # Re-raise ContentFilterError without wrapping
+            raise
+
         except Exception as e:
             error_msg = str(e).lower()
 
-            if "quota" in error_msg or "rate" in error_msg or "429" in error_msg:
+            if "quota" in error_msg or "429" in error_msg:
                 logger.warning(f"Gemini rate limit exceeded: {e}")
                 raise RateLimitError(f"Gemini rate limit: {e}")
 
@@ -152,7 +167,8 @@ class GeminiAdapter(LLMProvider):
                 logger.error(f"Gemini authentication failed: {e}")
                 raise AuthenticationError(f"Gemini auth error: {e}")
 
-            if "safety" in error_msg or "blocked" in error_msg:
+            # Check for finish_reason errors (blocked content)
+            if "finish_reason" in error_msg or "safety" in error_msg or "blocked" in error_msg or "recitation" in error_msg:
                 logger.warning(f"Gemini content filtered: {e}")
                 raise ContentFilterError(f"Gemini content filter: {e}")
 

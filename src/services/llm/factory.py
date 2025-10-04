@@ -77,9 +77,9 @@ class LLMProviderFactory:
 
         # Get model from config or use defaults
         model_defaults = {
-            "claude": "claude-3-sonnet-20240229",
+            "claude": "claude-sonnet-4-5-20250929",
             "chatgpt": "gpt-4-turbo",
-            "gemini": "gemini-1.5-pro",
+            "gemini": "gemini-2.5-pro",
         }
 
         model = model_defaults[provider_name]
