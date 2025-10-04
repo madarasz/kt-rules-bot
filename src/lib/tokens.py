@@ -91,7 +91,9 @@ def estimate_cost(
     # Pricing per 1K tokens (as of 2025 October)
     pricing = {
         "gpt-5": {"prompt": 0.00125, "completion": 0.01},
+        "gpt-5-mini": {"prompt": 0.00025, "completion": 0.002},
         "gpt-4.1": {"prompt": 0.002, "completion": 0.008},
+        "gpt-4.1-mini": {"prompt": 0.0004, "completion": 0.0016},
         "gpt-4o": {"prompt": 0.0025, "completion": 0.01},
         "claude-sonnet": {"prompt": 0.003, "completion": 0.006},
         "claude-opus": {"prompt": 0.015, "completion": 0.075},

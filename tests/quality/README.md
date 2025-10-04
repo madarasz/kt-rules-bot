@@ -35,7 +35,7 @@ requirements:
 
 **llm**: LLM-based evaluation
 - An LLM judge evaluates whether the statement is true about the response
-- Uses configurable judge model (default: gemini-2.5-flash)
+- Uses configurable judge model (default: gpt-4.1-mini)
 
 ## Usage
 

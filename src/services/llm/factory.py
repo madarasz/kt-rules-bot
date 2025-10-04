@@ -21,7 +21,9 @@ ProviderName = Literal[
     "gemini-2.5-pro",
     "gemini-2.5-flash",
     "gpt-5",
+    "gpt-5-mini",
     "gpt-4.1",
+    "gpt-4.1-mini",
     "gpt-4o",
 ]
 
@@ -36,7 +38,9 @@ class LLMProviderFactory:
         "gemini-2.5-pro": (GeminiAdapter, "gemini-2.5-pro", "google"),
         "gemini-2.5-flash": (GeminiAdapter, "gemini-2.5-flash", "google"),
         "gpt-5": (ChatGPTAdapter, "gpt-5", "openai"),
+        "gpt-5-mini": (ChatGPTAdapter, "gpt-5-mini", "openai"),
         "gpt-4.1": (ChatGPTAdapter, "gpt-4.1", "openai"),
+        "gpt-4.1-mini": (ChatGPTAdapter, "gpt-4.1-mini", "openai"),
         "gpt-4o": (ChatGPTAdapter, "gpt-4o", "openai"),
     }
 

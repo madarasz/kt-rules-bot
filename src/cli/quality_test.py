@@ -21,7 +21,7 @@ def quality_test(
     test_id: Optional[str] = None,
     model: Optional[str] = None,
     all_models: bool = False,
-    judge_model: str = "gemini-2.5-flash",
+    judge_model: str = "gpt-4.1-mini",
     skip_confirm: bool = False,
 ) -> None:
     """Run quality tests for RAG + LLM pipeline.

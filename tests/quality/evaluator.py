@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 class RequirementEvaluator:
     """Evaluates test requirements against responses."""
 
-    def __init__(self, judge_model: str = "gemini-2.5-flash"):
+    def __init__(self, judge_model: str = "gpt-4.1-mini"):
         """Initialize evaluator.
 
         Args:
@@ -112,22 +112,18 @@ class RequirementEvaluator:
         """
         judge_provider = self._get_judge_provider()
 
-        # Truncate response if too long (keep first 1500 chars to avoid token limits)
-        truncated_response = response[:1500]
-        if len(response) > 1500:
-            truncated_response += "\n...(truncated)"
+        # Build prompt for LLM judge - use indirect phrasing to avoid RECITATION
+        # Include full response to allow accurate evaluation
+        judge_prompt = f"""Task: Verify if a claim about a text is accurate.
 
-        # Build prompt for LLM judge
-        judge_prompt = f"""You are evaluating whether a statement is true about a given response.
+Claim to check: "{requirement.description}"
 
-Statement to verify: "{requirement.description}"
+Full text to analyze:
+<<<
+{response}
+>>>
 
-Response to evaluate:
----
-{truncated_response}
----
-
-Is the statement true about the response? Answer with just "YES" or "NO" followed by a brief explanation."""
+Is the claim accurate? Answer YES or NO, then briefly explain."""
 
         try:
             llm_response = await judge_provider.generate(
@@ -135,9 +131,9 @@ Is the statement true about the response? Answer with just "YES" or "NO" followe
                     prompt=judge_prompt,
                     context=[],  # No RAG context needed for judging
                     config=GenerationConfig(
-                        max_tokens=200,  # Increased from 100 to avoid MAX_TOKENS
+                        max_tokens=150,
                         temperature=0.0,
-                        system_prompt="You are a precise evaluator. Answer only YES or NO without any additional text or explanation.",
+                        system_prompt="You evaluate text. Be concise.",
                         include_citations=False,
                         timeout_seconds=30,
                     ),
@@ -155,6 +151,18 @@ Is the statement true about the response? Answer with just "YES" or "NO" followe
             )
 
         except Exception as e:
+            from src.services.llm.base import ContentFilterError
+
+            # Handle content filter errors gracefully - treat as uncertain/failed
+            if isinstance(e, ContentFilterError):
+                logger.warning(f"LLM judge content filtered (trying to evaluate: {requirement.description[:50]}...)")
+                return RequirementResult(
+                    requirement=requirement,
+                    passed=False,
+                    points_earned=0,
+                    details=f"Judge model blocked evaluation (content filter). Consider using a different judge model.",
+                )
+
             logger.error(f"LLM judge evaluation failed: {e}", exc_info=True)
             return RequirementResult(
                 requirement=requirement,

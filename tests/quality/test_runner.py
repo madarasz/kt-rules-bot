@@ -35,7 +35,7 @@ class QualityTestRunner:
     def __init__(
         self,
         test_cases_dir: str = "tests/quality/test_cases",
-        judge_model: str = "gemini-2.5-flash",
+        judge_model: str = "gpt-4.1-mini",
     ):
         """Initialize test runner.
 
@@ -108,12 +108,13 @@ class QualityTestRunner:
 
         return test_cases
 
-    async def run_test(self, test_case: TestCase, model: str) -> TestResult:
+    async def run_test(self, test_case: TestCase, model: str, rag_context=None) -> TestResult:
         """Run a single test case with a specific model.
 
         Args:
             test_case: Test case to run
             model: Model to test with
+            rag_context: Optional pre-retrieved RAG context (for performance optimization)
 
         Returns:
             TestResult
@@ -122,18 +123,19 @@ class QualityTestRunner:
 
         start_time = datetime.now(timezone.utc)
 
-        # Step 1: RAG Retrieval
-        from uuid import uuid4
+        # Step 1: RAG Retrieval (only if not provided)
+        if rag_context is None:
+            from uuid import uuid4
 
-        query_id = uuid4()
-        rag_context = self.rag_retriever.retrieve(
-            RetrieveRequest(
-                query=test_case.query,
-                context_key="quality_test",
-                max_chunks=15,
-            ),
-            query_id=query_id,
-        )
+            query_id = uuid4()
+            rag_context = self.rag_retriever.retrieve(
+                RetrieveRequest(
+                    query=test_case.query,
+                    context_key="quality_test",
+                    max_chunks=15,
+                ),
+                query_id=query_id,
+            )
 
         # Step 2: LLM Generation
         llm_provider = LLMProviderFactory.create(model)
@@ -209,9 +211,24 @@ class QualityTestRunner:
         total_cost = 0.0
 
         for test_case in test_cases:
+            # Perform RAG retrieval once per test case (shared across all models)
+            logger.info(f"Retrieving context for test '{test_case.test_id}'")
+            from uuid import uuid4
+
+            query_id = uuid4()
+            rag_context = self.rag_retriever.retrieve(
+                RetrieveRequest(
+                    query=test_case.query,
+                    context_key="quality_test",
+                    max_chunks=15,
+                ),
+                query_id=query_id,
+            )
+
+            # Test with all models using the same RAG context
             for model in models:
                 try:
-                    result = await self.run_test(test_case, model)
+                    result = await self.run_test(test_case, model, rag_context)
                     test_results.append(result)
                     total_time += result.generation_time_seconds
                     total_cost += result.cost_usd
@@ -266,6 +283,18 @@ class QualityTestRunner:
         lines.append(f"- **Total time**: {test_suite.total_time_seconds:.2f}s")
         lines.append(f"- **Total cost**: ${test_suite.total_cost_usd:.4f}")
         lines.append(f"- **Judge model**: {test_suite.judge_model}")
+        lines.append("")
+
+        # Add per-model summary (one-line format)
+        lines.append("### Results by Model")
+        lines.append("")
+        for result in test_suite.test_results:
+            status = "✅" if result.passed else "❌"
+            lines.append(
+                f"- {status} **{result.test_id}** [{result.model}]: "
+                f"{result.score}/{result.max_score} "
+                f"({result.generation_time_seconds:.2f}s, ${result.cost_usd:.4f})"
+            )
         lines.append("")
 
         # Group results by test_id
@@ -379,8 +408,8 @@ def main():
     )
     parser.add_argument(
         "--judge-model",
-        default="gemini-2.5-flash",
-        help="Model to use for LLM-based evaluation (default: gemini-2.5-flash)",
+        default="gpt-4.1-mini",
+        help="Model to use for LLM-based evaluation (default: gpt-4.1-mini)",
     )
     parser.add_argument(
         "--yes",

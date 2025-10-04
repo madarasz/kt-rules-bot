@@ -16,7 +16,7 @@ Helps Kill Team players quickly find accurate rule information by asking questio
 **Supported LLM models:**
 - **Claude**: `claude-sonnet` (Sonnet 4.5), `claude-opus` (Opus 4.1)
 - **Gemini**: `gemini-2.5-pro`, `gemini-2.5-flash`
-- **GPT**: `gpt-5`, `gpt-4.1`, `gpt-4o`
+- **GPT**: `gpt-5`, `gpt-5-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4o`
 
 ## Installation, Requirements
 

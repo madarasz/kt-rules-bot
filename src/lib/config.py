@@ -17,7 +17,9 @@ LLMProvider = Literal[
     "gemini-2.5-pro",
     "gemini-2.5-flash",
     "gpt-5",
+    "gpt-5-mini",
     "gpt-4.1",
+    "gpt-4.1-mini",
     "gpt-4o",
 ]
 
@@ -79,7 +81,9 @@ class Config:
             "gemini-2.5-pro": self.google_api_key,
             "gemini-2.5-flash": self.google_api_key,
             "gpt-5": self.openai_api_key,
+            "gpt-5-mini": self.openai_api_key,
             "gpt-4.1": self.openai_api_key,
+            "gpt-4.1-mini": self.openai_api_key,
             "gpt-4o": self.openai_api_key,
         }
 
