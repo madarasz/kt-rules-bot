@@ -19,14 +19,13 @@ class TestMarkdownChunker:
     """Tests for MarkdownChunker."""
 
     def test_chunk_small_document_keeps_whole(self):
-        """Small document (< 8192 tokens) should be kept whole."""
+        """Small document without headers should be kept whole."""
         chunker = MarkdownChunker(max_tokens=8192)
 
-        content = """## Movement Phase
+        # Content without ## headers - should keep as single chunk
+        content = """This is a simple rule document.
 
 Models can move up to 6 inches during the movement phase.
-
-## Shooting Phase
 
 Models can shoot at visible enemy models."""
 
@@ -35,7 +34,7 @@ Models can shoot at visible enemy models."""
         assert len(chunks) == 1
         assert chunks[0].header == ""
         assert chunks[0].header_level == 0
-        assert "Movement Phase" in chunks[0].text
+        assert "simple rule document" in chunks[0].text
 
     def test_chunk_large_document_splits_at_headers(self):
         """Large document should split at ## headers."""

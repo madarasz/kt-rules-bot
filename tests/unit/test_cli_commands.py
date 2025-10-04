@@ -159,9 +159,7 @@ async def test_bot_runner_initializes_orchestrator(mock_config):
 async def test_bot_runner_handles_missing_token(mock_config):
     """Test that BotRunner exits if Discord token is missing."""
     # Override config to return None for token
-    mock_config.get = Mock(
-        side_effect=lambda key, default=None: {"discord.token": None}.get(key, default)
-    )
+    mock_config.discord_bot_token = None
 
     runner = BotRunner(config=mock_config)
 

@@ -228,10 +228,10 @@ class TestLLMProviderFactory:
     @patch("src.services.llm.factory.get_config")
     def test_create_claude_provider(self, mock_config):
         """Test creating Claude provider."""
-        mock_config.return_value = {
-            "DEFAULT_LLM_PROVIDER": "claude",
-            "ANTHROPIC_API_KEY": "test-key",
-        }
+        config_obj = Mock()
+        config_obj.anthropic_api_key = "test-key"
+        config_obj.default_llm_provider = "claude"
+        mock_config.return_value = config_obj
 
         with patch("src.services.llm.claude.AsyncAnthropic"):
             provider = LLMProviderFactory.create("claude")

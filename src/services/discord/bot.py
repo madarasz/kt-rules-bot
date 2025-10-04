@@ -1,8 +1,11 @@
 """Main bot orchestrator - coordinates all services (Orchestrator Pattern)."""
 
+from datetime import date
+
 import discord
 
 from src.lib.logging import get_logger
+from src.models.bot_response import BotResponse, Citation
 from src.models.user_query import UserQuery
 from src.services.discord import formatter
 from src.services.discord.context_manager import ConversationContextManager
@@ -136,16 +139,39 @@ class KillTeamBotOrchestrator:
                 )
                 return
 
-            # Step 5: Format response
-            embeds = formatter.format_response(llm_response, validation_result)
+            # Step 5: Convert LLMResponse + RAGContext to BotResponse
+            citations = [
+                Citation(
+                    document_name=chunk.metadata.get("source", "Unknown"),
+                    section=chunk.header or "General",
+                    quote=chunk.text[:200],
+                    document_type=chunk.metadata.get("document_type", "core-rules"),
+                    last_update_date=date.fromisoformat(chunk.metadata.get("last_update_date", "2024-01-15")),
+                )
+                for chunk in rag_context.document_chunks
+            ]
 
-            # Step 6: Send to Discord
+            bot_response = BotResponse.create(
+                query_id=user_query.query_id,
+                answer_text=llm_response.answer_text,
+                citations=citations,
+                confidence_score=llm_response.confidence_score,
+                rag_score=rag_context.avg_relevance,
+                llm_provider=llm_response.provider,
+                token_count=llm_response.token_count,
+                latency_ms=llm_response.latency_ms,
+            )
+
+            # Step 6: Format response
+            embeds = formatter.format_response(bot_response, validation_result)
+
+            # Step 7: Send to Discord
             sent_message = await message.channel.send(embeds=embeds)
 
-            # Step 7: Add feedback reaction buttons (👍👎)
+            # Step 8: Add feedback reaction buttons (👍👎)
             await formatter.add_feedback_reactions(sent_message)
 
-            # Step 8: Update conversation context (message history only)
+            # Step 9: Update conversation context (message history only)
             self.context_manager.add_message(
                 user_query.conversation_context_id,
                 role="user",
