@@ -15,16 +15,29 @@ from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
 
-ProviderName = Literal["claude", "chatgpt", "gemini"]
+ProviderName = Literal[
+    "claude-sonnet",
+    "claude-opus",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gpt-5",
+    "gpt-4.1",
+    "gpt-4o",
+]
 
 
 class LLMProviderFactory:
     """Factory for creating LLM provider instances."""
 
-    _providers = {
-        "claude": ClaudeAdapter,
-        "chatgpt": ChatGPTAdapter,
-        "gemini": GeminiAdapter,
+    # Model name to (adapter_class, actual_model_id, api_key_type) mapping
+    _model_registry = {
+        "claude-sonnet": (ClaudeAdapter, "claude-sonnet-4-5-20250929", "anthropic"),
+        "claude-opus": (ClaudeAdapter, "claude-opus-4-1-20250805", "anthropic"),
+        "gemini-2.5-pro": (GeminiAdapter, "gemini-2.5-pro", "google"),
+        "gemini-2.5-flash": (GeminiAdapter, "gemini-2.5-flash", "google"),
+        "gpt-5": (ChatGPTAdapter, "gpt-5", "openai"),
+        "gpt-4.1": (ChatGPTAdapter, "gpt-4.1", "openai"),
+        "gpt-4o": (ChatGPTAdapter, "gpt-4o", "openai"),
     }
 
     @classmethod
@@ -32,7 +45,7 @@ class LLMProviderFactory:
         """Create LLM provider instance.
 
         Args:
-            provider_name: Provider to use (claude/chatgpt/gemini).
+            provider_name: Model to use (claude-sonnet, gemini-2.5-pro, gpt-4o, etc.).
                           If None, uses DEFAULT_LLM_PROVIDER from config.
 
         Returns:
@@ -49,57 +62,50 @@ class LLMProviderFactory:
             provider_name = config.default_llm_provider
 
         # Validate provider name
-        if provider_name not in cls._providers:
+        if provider_name not in cls._model_registry:
             raise ValueError(
-                f"Invalid provider: {provider_name}. "
-                f"Must be one of: {', '.join(cls._providers.keys())}"
+                f"Invalid model: {provider_name}. "
+                f"Must be one of: {', '.join(cls._model_registry.keys())}"
             )
+
+        # Get adapter class, model ID, and API key type
+        adapter_class, model_id, api_key_type = cls._model_registry[provider_name]
 
         # Get API key from config
         api_key_map = {
-            "claude": config.anthropic_api_key,
-            "chatgpt": config.openai_api_key,
-            "gemini": config.google_api_key,
+            "anthropic": config.anthropic_api_key,
+            "openai": config.openai_api_key,
+            "google": config.google_api_key,
         }
 
-        api_key = api_key_map[provider_name]
+        api_key = api_key_map[api_key_type]
 
         if not api_key:
             api_key_env_map = {
-                "claude": "ANTHROPIC_API_KEY",
-                "chatgpt": "OPENAI_API_KEY",
-                "gemini": "GOOGLE_API_KEY",
+                "anthropic": "ANTHROPIC_API_KEY",
+                "openai": "OPENAI_API_KEY",
+                "google": "GOOGLE_API_KEY",
             }
             raise KeyError(
-                f"API key not found: {api_key_env_map[provider_name]}. "
+                f"API key not found: {api_key_env_map[api_key_type]}. "
                 f"Set it in your environment or .env file."
             )
 
-        # Get model from config or use defaults
-        model_defaults = {
-            "claude": "claude-sonnet-4-5-20250929",
-            "chatgpt": "gpt-4-turbo",
-            "gemini": "gemini-2.5-pro",
-        }
-
-        model = model_defaults[provider_name]
-
         # Create provider instance
-        provider_class = cls._providers[provider_name]
-        provider = provider_class(api_key=api_key, model=model)
+        provider = adapter_class(api_key=api_key, model=model_id)
 
-        logger.info(f"Created {provider_name} provider with model {model}")
+        logger.info(f"Created {provider_name} with model {model_id}")
 
         return provider
 
     @classmethod
     def get_available_providers(cls) -> list:
-        """Get list of available provider names.
+        """Get list of available model names.
 
         Returns:
-            List of provider names
+            List of model names
         """
-        return list(cls._providers.keys())
+        return list(cls._model_registry.keys())
 
 
 def get_provider(provider_name: ProviderName = None) -> LLMProvider:

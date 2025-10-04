@@ -9,9 +9,14 @@ Helps Kill Team players quickly find accurate rule information by asking questio
 ## Technology, Architecture
 
 - **Python 3.12** with discord.py for Discord integration
-- **RAG Pipeline**: ChromaDB vector database + LLM (Claude/ChatGPT/Gemini)
+- **RAG Pipeline**: ChromaDB vector database + LLM
 - **Orchestrator Pattern**: Centralized coordination of Discord, RAG, and LLM services
 - **GDPR-compliant**: SHA-256 user ID hashing, 7-day retention, audit logging
+
+**Supported LLM models:**
+- **Claude**: `claude-sonnet` (Sonnet 4.5), `claude-opus` (Opus 4.1)
+- **Gemini**: `gemini-2.5-pro`, `gemini-2.5-flash`
+- **GPT**: `gpt-5`, `gpt-4.1`, `gpt-4o`
 
 ## Installation, Requirements
 
@@ -23,7 +28,7 @@ pip install -r requirements.txt
 cp config/.env.template config/.env
 ```
 
-Set `DEFAULT_LLM_PROVIDER` ("claude", "chatgpt" or "gemini") and related `*_API_KEY` values in the `config/.env` file you just created.
+Set `DEFAULT_LLM_PROVIDER` (e.g., `claude-sonnet`, `gemini-2.5-pro`, `gpt-4o`) and related `*_API_KEY` values in the `config/.env` file you just created.
 
 ```bash
 # Ingest rules into vector database
@@ -52,7 +57,7 @@ pytest
 pytest --cov=src --cov-report=html
 ```
 
-**Current status**: 34 unit tests passing, 80%+ coverage
+**Current status**: 87 tests passing (unit, integration, contract)
 
 ## Project structure
 

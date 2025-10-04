@@ -11,7 +11,15 @@ import os
 from dotenv import load_dotenv
 
 
-LLMProvider = Literal["claude", "gemini", "chatgpt"]
+LLMProvider = Literal[
+    "claude-sonnet",
+    "claude-opus",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gpt-5",
+    "gpt-4.1",
+    "gpt-4o",
+]
 
 
 @dataclass
@@ -27,7 +35,7 @@ class Config:
     google_api_key: Optional[str] = None
 
     # LLM Selection
-    default_llm_provider: LLMProvider = "claude"
+    default_llm_provider: LLMProvider = "claude-sonnet"
 
     # RAG Configuration
     vector_db_path: str = "./data/chroma_db"
@@ -65,15 +73,19 @@ class Config:
             raise ValueError("At least one LLM provider API key is required")
 
         # Validate default provider has API key
-        provider_keys = {
-            "claude": self.anthropic_api_key,
-            "gemini": self.google_api_key,
-            "chatgpt": self.openai_api_key,
+        provider_key_mapping = {
+            "claude-sonnet": self.anthropic_api_key,
+            "claude-opus": self.anthropic_api_key,
+            "gemini-2.5-pro": self.google_api_key,
+            "gemini-2.5-flash": self.google_api_key,
+            "gpt-5": self.openai_api_key,
+            "gpt-4.1": self.openai_api_key,
+            "gpt-4o": self.openai_api_key,
         }
 
-        if not provider_keys.get(self.default_llm_provider):
+        if not provider_key_mapping.get(self.default_llm_provider):
             raise ValueError(
-                f"API key for default provider '{self.default_llm_provider}' is missing"
+                f"API key for default model '{self.default_llm_provider}' is missing"
             )
 
         # Validate log level
@@ -126,7 +138,7 @@ class Config:
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             google_api_key=os.getenv("GOOGLE_API_KEY"),
             # LLM Selection
-            default_llm_provider=os.getenv("DEFAULT_LLM_PROVIDER", "claude"),  # type: ignore
+            default_llm_provider=os.getenv("DEFAULT_LLM_PROVIDER", "claude-sonnet"),  # type: ignore
             # RAG
             vector_db_path=os.getenv("VECTOR_DB_PATH", "./data/chroma_db"),
             embedding_model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),

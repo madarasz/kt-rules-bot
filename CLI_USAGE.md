@@ -108,7 +108,7 @@ Test query processing locally without Discord. Useful for debugging and testing.
 
 **Usage:**
 ```bash
-python -m src.cli query "<query_text>" [--provider {claude|chatgpt|gemini}] [--max-chunks N]
+python -m src.cli query "<query_text>" [--provider MODEL] [--max-chunks N]
 ```
 
 **Arguments:**
@@ -127,7 +127,7 @@ python -m src.cli query "<query_text>" [--provider {claude|chatgpt|gemini}] [--m
 python -m src.cli query "Can I shoot through barricades?"
 
 # Test with specific provider
-python -m src.cli query "What are ploys?" --provider claude
+python -m src.cli query "What are ploys?" --provider claude-sonnet
 
 # Test with more chunks
 python -m src.cli query "How does overwatch work?" --max-chunks 10
@@ -320,7 +320,7 @@ All commands use configuration from:
 
 2. Test changes locally:
    ```bash
-   python -m src.cli query "Test query" --provider claude
+   python -m src.cli query "Test query" --provider claude-sonnet
    ```
 
 3. Monitor health:

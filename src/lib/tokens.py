@@ -76,7 +76,7 @@ def truncate_to_token_limit(
 def estimate_cost(
     prompt_tokens: int,
     completion_tokens: int,
-    model: str = "gpt-3.5-turbo",
+    model: str = "claude-sonnet",
 ) -> float:
     """Estimate cost for LLM API call.
 
@@ -88,14 +88,15 @@ def estimate_cost(
     Returns:
         Estimated cost in USD
     """
-    # Pricing per 1K tokens (as of 2024)
+    # Pricing per 1K tokens (as of 2025 October)
     pricing = {
-        "gpt-3.5-turbo": {"prompt": 0.0015, "completion": 0.002},
-        "gpt-4": {"prompt": 0.03, "completion": 0.06},
-        "gpt-4-turbo": {"prompt": 0.01, "completion": 0.03},
-        "claude-3-sonnet": {"prompt": 0.003, "completion": 0.015},
-        "claude-3-opus": {"prompt": 0.015, "completion": 0.075},
-        "gemini-pro": {"prompt": 0.00025, "completion": 0.0005},
+        "gpt-5": {"prompt": 0.00125, "completion": 0.01},
+        "gpt-4.1": {"prompt": 0.002, "completion": 0.008},
+        "gpt-4o": {"prompt": 0.0025, "completion": 0.01},
+        "claude-sonnet": {"prompt": 0.003, "completion": 0.006},
+        "claude-opus": {"prompt": 0.015, "completion": 0.075},
+        "gemini-2.5-pro": {"prompt": 0.00125, "completion": 0.01},
+        "gemini-2.5-flash": {"prompt": 0.0003, "completion": 0.0025},
     }
 
     # Default pricing if model not found

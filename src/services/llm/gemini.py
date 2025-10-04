@@ -95,18 +95,50 @@ class GeminiAdapter(LLMProvider):
             latency_ms = int((time.time() - start_time) * 1000)
 
             # Check finish_reason before accessing text
-            # finish_reason values: STOP=1, MAX_TOKENS=2, SAFETY=3, RECITATION=4, OTHER=5
+            # Gemini FinishReason enum values:
+            # FINISH_REASON_UNSPECIFIED = 0, STOP = 1, MAX_TOKENS = 2
+            # SAFETY = 3, RECITATION = 4, LANGUAGE = 6, OTHER = 5
             if hasattr(response, 'candidates') and response.candidates:
-                finish_reason = response.candidates[0].finish_reason
-                if finish_reason in [3, 4]:  # SAFETY or RECITATION
-                    logger.warning(f"Gemini content blocked: finish_reason={finish_reason}")
-                    raise ContentFilterError(
-                        f"Gemini blocked content (finish_reason={finish_reason}). "
-                        "Try rephrasing your query or adjusting safety settings."
-                    )
+                candidate = response.candidates[0]
+                finish_reason = candidate.finish_reason
 
-            # Extract answer text
-            answer_text = response.text
+                # Log finish_reason for debugging
+                logger.debug(f"Gemini finish_reason: {finish_reason}")
+
+                # Check if response was blocked
+                # Note: finish_reason=2 with no parts means RECITATION block, not MAX_TOKENS
+                if finish_reason in [3, 4]:  # SAFETY or RECITATION
+                    finish_reason_names = {3: "SAFETY", 4: "RECITATION"}
+                    reason_name = finish_reason_names.get(finish_reason, str(finish_reason))
+                    logger.warning(f"Gemini content blocked: finish_reason={reason_name}")
+                    raise ContentFilterError(
+                        f"Gemini blocked content due to {reason_name} filters. "
+                        "This query may contain content flagged by safety filters. "
+                        "Try rephrasing or use a different model (--provider claude-sonnet)."
+                    )
+                elif finish_reason == 2 and not candidate.content.parts:
+                    # finish_reason=2 with no parts typically means RECITATION
+                    logger.warning(f"Gemini blocked content: finish_reason=2 (likely RECITATION)")
+                    raise ContentFilterError(
+                        "Gemini blocked content (likely due to RECITATION filter). "
+                        "The response may be too similar to training data. "
+                        "Try rephrasing or use a different model (--provider claude-sonnet)."
+                    )
+                elif finish_reason == 2:  # MAX_TOKENS with parts
+                    logger.warning(f"Gemini response truncated: finish_reason=MAX_TOKENS")
+                elif finish_reason not in [1]:  # Not STOP
+                    logger.warning(f"Gemini unexpected finish_reason: {finish_reason}")
+
+            # Extract answer text (may raise exception if no valid parts)
+            try:
+                answer_text = response.text
+            except ValueError as e:
+                # response.text throws ValueError when no valid parts exist
+                logger.error(f"Gemini response has no valid text parts: {e}")
+                raise ContentFilterError(
+                    "Gemini response was blocked. The query may have triggered safety filters. "
+                    "Try rephrasing or use a different model (--provider claude-sonnet)."
+                )
 
             # Check if citations are included
             citations_included = (

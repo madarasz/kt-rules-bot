@@ -108,7 +108,7 @@ class KillTeamBotOrchestrator:
                 GenerationRequest(
                     prompt=user_query.sanitized_text,
                     context=[chunk.text for chunk in rag_context.document_chunks],
-                    config=GenerationConfig(timeout_seconds=25),
+                    config=GenerationConfig(timeout_seconds=60),
                 )
             )
 

@@ -176,9 +176,15 @@ class TestGeminiAdapter:
 
     async def test_generate_success(self, gemini_adapter):
         """Test successful generation."""
-        # Mock API response
+        # Mock API response with candidates
+        mock_candidate = Mock()
+        mock_candidate.finish_reason = 1  # STOP
+        mock_candidate.content = Mock()
+        mock_candidate.content.parts = [Mock()]  # Has valid parts
+
         mock_response = Mock()
         mock_response.text = "According to Core Rules: Movement is 6 inches"
+        mock_response.candidates = [mock_candidate]
         mock_response.safety_ratings = [
             Mock(probability="LOW"),  # 0.8 confidence
             Mock(probability="NEGLIGIBLE"),  # 0.9 confidence
@@ -218,33 +224,35 @@ class TestLLMProviderFactory:
     """Test LLM provider factory."""
 
     def test_get_available_providers(self):
-        """Test getting list of available providers."""
+        """Test getting list of available models."""
         providers = LLMProviderFactory.get_available_providers()
 
-        assert "claude" in providers
-        assert "chatgpt" in providers
-        assert "gemini" in providers
+        assert "claude-sonnet" in providers
+        assert "claude-opus" in providers
+        assert "gemini-2.5-pro" in providers
+        assert "gpt-4o" in providers
+        assert len(providers) == 7  # Total number of models
 
     @patch("src.services.llm.factory.get_config")
     def test_create_claude_provider(self, mock_config):
-        """Test creating Claude provider."""
+        """Test creating Claude Sonnet provider."""
         config_obj = Mock()
         config_obj.anthropic_api_key = "test-key"
-        config_obj.default_llm_provider = "claude"
+        config_obj.default_llm_provider = "claude-sonnet"
         mock_config.return_value = config_obj
 
         with patch("src.services.llm.claude.AsyncAnthropic"):
-            provider = LLMProviderFactory.create("claude")
+            provider = LLMProviderFactory.create("claude-sonnet")
 
             assert isinstance(provider, ClaudeAdapter)
             assert provider.model == "claude-sonnet-4-5-20250929"
 
     @patch("src.services.llm.factory.get_config")
     def test_create_invalid_provider(self, mock_config):
-        """Test creating invalid provider raises error."""
+        """Test creating invalid model raises error."""
         mock_config.return_value = {}
 
-        with pytest.raises(ValueError, match="Invalid provider"):
+        with pytest.raises(ValueError, match="Invalid model"):
             LLMProviderFactory.create("invalid")
 
 

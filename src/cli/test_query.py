@@ -25,7 +25,7 @@ def test_query(query: str, provider: str = None, max_chunks: int = 15) -> None:
 
     Args:
         query: User question to test
-        provider: LLM provider to use (claude/chatgpt/gemini)
+        provider: LLM model to use (claude-sonnet, gemini-2.5-pro, gpt-4o, etc.)
         max_chunks: Maximum chunks to retrieve
     """
     config = get_config()
@@ -107,7 +107,7 @@ def test_query(query: str, provider: str = None, max_chunks: int = 15) -> None:
                 GenerationRequest(
                     prompt=query,
                     context=[chunk.text for chunk in rag_context.document_chunks],
-                    config=GenerationConfig(timeout_seconds=25),
+                    config=GenerationConfig(timeout_seconds=60),
                 )
             )
         )
@@ -165,8 +165,16 @@ def main():
     parser.add_argument(
         "--provider",
         "-p",
-        choices=["claude", "chatgpt", "gemini"],
-        help="LLM provider to use",
+        choices=[
+            "claude-sonnet",
+            "claude-opus",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gpt-5",
+            "gpt-4.1",
+            "gpt-4o",
+        ],
+        help="LLM model to use (default: from config)",
     )
     parser.add_argument(
         "--max-chunks",

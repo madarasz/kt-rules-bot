@@ -77,8 +77,16 @@ def create_parser() -> argparse.ArgumentParser:
     )
     query_parser.add_argument(
         "--provider",
-        choices=["claude", "chatgpt", "gemini"],
-        help="LLM provider to use (default: from config)",
+        choices=[
+            "claude-sonnet",
+            "claude-opus",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gpt-5",
+            "gpt-4.1",
+            "gpt-4o",
+        ],
+        help="LLM model to use (default: from config)",
     )
     query_parser.add_argument(
         "--max-chunks",

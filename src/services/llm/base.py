@@ -100,7 +100,7 @@ class GenerationConfig:
     temperature: float = 0.1  # Lower = more deterministic
     system_prompt: str = field(default_factory=load_system_prompt)
     include_citations: bool = True
-    timeout_seconds: int = 25  # Must respond within 25s
+    timeout_seconds: int = 60  # Must respond within 60s
 
 
 @dataclass

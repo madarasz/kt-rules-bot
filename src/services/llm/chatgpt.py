@@ -49,6 +49,12 @@ class ChatGPTAdapter(LLMProvider):
             raise ImportError("openai package not installed. Run: pip install openai")
 
         self.client = AsyncOpenAI(api_key=api_key)
+
+        # GPT-5 has limited parameter support
+        self.supports_logprobs = model not in ["gpt-5"]
+        self.uses_completion_tokens = model in ["gpt-5"]
+        self.supports_temperature = model not in ["gpt-5"]  # GPT-5 only supports temperature=1
+
         logger.info(f"Initialized ChatGPT adapter with model {model}")
 
     async def generate(self, request: GenerationRequest) -> LLMResponse:
@@ -72,19 +78,33 @@ class ChatGPTAdapter(LLMProvider):
         full_prompt = self._build_prompt(request.prompt, request.context)
 
         try:
-            # Call OpenAI API with timeout and logprobs
+            # Build API call parameters
+            api_params = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": request.config.system_prompt},
+                    {"role": "user", "content": full_prompt},
+                ],
+            }
+
+            # GPT-5 uses max_completion_tokens, older models use max_tokens
+            if self.uses_completion_tokens:
+                api_params["max_completion_tokens"] = request.config.max_tokens
+            else:
+                api_params["max_tokens"] = request.config.max_tokens
+
+            # GPT-5 only supports temperature=1 (default)
+            if self.supports_temperature:
+                api_params["temperature"] = request.config.temperature
+
+            # Only request logprobs if model supports it
+            if self.supports_logprobs:
+                api_params["logprobs"] = True
+                api_params["top_logprobs"] = 5
+
+            # Call OpenAI API with timeout
             response = await asyncio.wait_for(
-                self.client.chat.completions.create(
-                    model=self.model,
-                    max_tokens=request.config.max_tokens,
-                    temperature=request.config.temperature,
-                    messages=[
-                        {"role": "system", "content": request.config.system_prompt},
-                        {"role": "user", "content": full_prompt},
-                    ],
-                    logprobs=True,  # Request logprobs for confidence
-                    top_logprobs=5,
-                ),
+                self.client.chat.completions.create(**api_params),
                 timeout=request.config.timeout_seconds,
             )
 
@@ -99,8 +119,11 @@ class ChatGPTAdapter(LLMProvider):
                 and "According to" in answer_text
             )
 
-            # Calculate confidence from logprobs
-            confidence = self._calculate_confidence(response.choices[0].logprobs)
+            # Calculate confidence from logprobs (if available)
+            if self.supports_logprobs:
+                confidence = self._calculate_confidence(response.choices[0].logprobs)
+            else:
+                confidence = 0.8  # Default confidence for models without logprobs
 
             # Token count
             token_count = response.usage.total_tokens
