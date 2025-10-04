@@ -8,6 +8,7 @@ from src.cli.health_check import health_check
 from src.cli.ingest_rules import ingest_rules
 from src.cli.run_bot import run_bot
 from src.cli.test_query import test_query
+from src.cli.quality_test import quality_test
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -128,6 +129,48 @@ def create_parser() -> argparse.ArgumentParser:
         help="Skip confirmation prompt",
     )
 
+    # Command: quality-test
+    quality_parser = subparsers.add_parser(
+        "quality-test",
+        help="Run response quality tests",
+        description="Run quality tests for RAG + LLM pipeline",
+    )
+    quality_parser.add_argument(
+        "--test",
+        "-t",
+        help="Specific test ID to run (default: all tests)",
+    )
+    quality_parser.add_argument(
+        "--model",
+        "-m",
+        choices=[
+            "claude-sonnet",
+            "claude-opus",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gpt-5",
+            "gpt-4.1",
+            "gpt-4o",
+        ],
+        help="Specific model to test (default: from config)",
+    )
+    quality_parser.add_argument(
+        "--all-models",
+        action="store_true",
+        help="Test all available models",
+    )
+    quality_parser.add_argument(
+        "--judge-model",
+        default="gemini-2.5-flash",
+        help="Model to use for LLM-based evaluation (default: gemini-2.5-flash)",
+    )
+    quality_parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip confirmation prompt",
+    )
+
     return parser
 
 
@@ -161,6 +204,15 @@ def main():
             delete_user_data(
                 user_id=args.user_id,
                 confirm=args.confirm,
+            )
+
+        elif args.command == "quality-test":
+            quality_test(
+                test_id=args.test,
+                model=args.model,
+                all_models=args.all_models,
+                judge_model=args.judge_model,
+                skip_confirm=args.yes,
             )
 
         else:

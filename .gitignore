@@ -51,6 +51,7 @@ config/.env
 .coverage
 htmlcov/
 .hypothesis/
+tests/quality/results/
 
 # Type checking
 .mypy_cache/

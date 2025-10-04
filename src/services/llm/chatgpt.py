@@ -50,7 +50,7 @@ class ChatGPTAdapter(LLMProvider):
 
         self.client = AsyncOpenAI(api_key=api_key)
 
-        # GPT-5 has limited parameter support
+        # GPT-5 has limited parameter support and uses reasoning tokens
         self.supports_logprobs = model not in ["gpt-5"]
         self.uses_completion_tokens = model in ["gpt-5"]
         self.supports_temperature = model not in ["gpt-5"]  # GPT-5 only supports temperature=1
@@ -87,9 +87,17 @@ class ChatGPTAdapter(LLMProvider):
                 ],
             }
 
-            # GPT-5 uses max_completion_tokens, older models use max_tokens
+            # GPT-5 uses max_completion_tokens (includes both reasoning and visible output tokens)
+            # Other models use max_tokens
             if self.uses_completion_tokens:
-                api_params["max_completion_tokens"] = request.config.max_tokens
+                # GPT-5 needs higher token limit to account for reasoning tokens
+                # Multiply by 3 to give enough room for both reasoning and visible output
+                max_tokens = request.config.max_tokens * 3
+                api_params["max_completion_tokens"] = max_tokens
+                logger.info(
+                    f"GPT-5: Using max_completion_tokens={max_tokens} "
+                    f"(3x {request.config.max_tokens} to account for reasoning tokens)"
+                )
             else:
                 api_params["max_tokens"] = request.config.max_tokens
 
@@ -111,7 +119,23 @@ class ChatGPTAdapter(LLMProvider):
             latency_ms = int((time.time() - start_time) * 1000)
 
             # Extract answer text
-            answer_text = response.choices[0].message.content
+            choice = response.choices[0]
+            answer_text = choice.message.content
+
+            # Debug logging for GPT-5 issues
+            logger.debug(f"GPT-5 response - finish_reason: {choice.finish_reason}, content_length: {len(answer_text) if answer_text else 0}")
+
+            # GPT-5 sometimes returns None or empty content - check for refusal or other issues
+            if not answer_text:
+                logger.warning(f"GPT-5 returned empty content. Finish reason: {choice.finish_reason}, Refusal: {getattr(choice.message, 'refusal', None)}")
+                # Check if there's a refusal
+                refusal = getattr(choice.message, 'refusal', None)
+                if refusal:
+                    raise ContentFilterError(f"GPT-5 refused to respond: {refusal}")
+                elif choice.finish_reason == 'length':
+                    raise TokenLimitError("GPT-5 output was truncated due to max_completion_tokens limit")
+                else:
+                    raise Exception(f"GPT-5 returned empty content with finish_reason: {choice.finish_reason}")
 
             # Check if citations are included
             citations_included = (
