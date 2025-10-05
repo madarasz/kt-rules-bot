@@ -52,6 +52,7 @@ class TestResult:
     query: str
     model: str
     response: str
+    system_prompt: str  # System prompt used for generation
 
     # Scoring
     requirements: List[RequirementResult]

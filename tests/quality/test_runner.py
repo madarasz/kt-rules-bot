@@ -139,11 +139,15 @@ class QualityTestRunner:
 
         # Step 2: LLM Generation
         llm_provider = LLMProviderFactory.create(model)
+
+        # Create config and capture system prompt
+        gen_config = GenerationConfig(timeout_seconds=60)
+
         llm_response = await llm_provider.generate(
             GenerationRequest(
                 prompt=test_case.query,
                 context=[chunk.text for chunk in rag_context.document_chunks],
-                config=GenerationConfig(timeout_seconds=60),
+                config=gen_config,
             )
         )
 
@@ -175,6 +179,7 @@ class QualityTestRunner:
             query=test_case.query,
             model=model,
             response=llm_response.answer_text,
+            system_prompt=gen_config.system_prompt,
             requirements=requirement_results,
             score=score,
             max_score=test_case.max_score,
@@ -361,12 +366,34 @@ class QualityTestRunner:
                 lines.append("---")
                 lines.append("")
 
-                # Save response to separate file
+                # Save response to separate file with context
                 response_filename = f"{timestamp_str}_{result.test_id}_{result.model}.md"
                 response_filepath = Path(output_file).parent / response_filename
 
+                # Build formatted output with question, response, and prompt
+                response_content = f"""---
+# Question
+---
+
+{result.query}
+
+---
+# Response
+---
+
+{result.response}
+
+---
+# System Prompt
+---
+
+{result.system_prompt}
+
+---
+"""
+
                 with open(response_filepath, "w") as f:
-                    f.write(result.response)
+                    f.write(response_content)
 
                 lines.append(f"#### Response:")
                 lines.append("")
