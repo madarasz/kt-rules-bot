@@ -6,27 +6,31 @@ query: >
 
 requirements:
   # Relevant rules are quoted
-  - type: contains
+  - check: Quote Track Enemy rule
+    type: contains
     description: >
       An enemy operative is being tracked if it's a valid target for a
       friendly operative within 6" of it.
     points: 5
-  - type: contains
+  - check: Quote Seek Light rule
+    type: contains
     description: >
-      When selecting a valid target, operatives cannot use terrain for cover.
       If the rule is Seek Light, operatives cannot use Light terrain for cover.
     points: 5
-  - type: contains
+  - check: Quote Vantage rule
+    type: contains
     description: >
       whenever you are selecting a valid target for an operative on Vantage terrain, 
       operatives at least 2" lower than that operative with a Conceal order cannot
       use Light terrain for cover
     points: 5
 
-  - type: llm
+  - check: Correct final answer
+    type: llm
     description: The final answer is both Vantage and Seek Light are taken into consideration.
     points: 10
-  - type: llm
+  - check: Reasoning clarity
+    type: llm
     description: The reasoning is clear and easy to follow. It states that Track Enemy requirements
       a valid target, which is affected by both Vantage and Seek Light.
     points: 10
