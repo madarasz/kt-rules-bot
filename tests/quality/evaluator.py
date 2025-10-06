@@ -153,14 +153,15 @@ Is the claim accurate? Answer YES or NO, then briefly explain."""
         except Exception as e:
             from src.services.llm.base import ContentFilterError
 
-            # Handle content filter errors gracefully - treat as uncertain/failed
+            # Handle content filter errors gracefully - treat as judge malfunction
             if isinstance(e, ContentFilterError):
                 logger.warning(f"LLM judge content filtered (trying to evaluate: {requirement.description[:50]}...)")
                 return RequirementResult(
                     requirement=requirement,
                     passed=False,
                     points_earned=0,
-                    details=f"Judge model blocked evaluation (content filter). Consider using a different judge model.",
+                    details=f"LLM malfunction during scoring (content filter)",
+                    judge_malfunction=True,
                 )
 
             logger.error(f"LLM judge evaluation failed: {e}", exc_info=True)
@@ -168,7 +169,8 @@ Is the claim accurate? Answer YES or NO, then briefly explain."""
                 requirement=requirement,
                 passed=False,
                 points_earned=0,
-                details=f"Evaluation failed: {str(e)}",
+                details=f"LLM malfunction during scoring: {str(e)[:100]}",
+                judge_malfunction=True,
             )
 
     @staticmethod

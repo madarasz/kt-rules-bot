@@ -42,6 +42,7 @@ class RequirementResult:
     passed: bool
     points_earned: int
     details: str = ""  # Optional details about the evaluation
+    judge_malfunction: bool = False  # True if judge model failed to evaluate
 
 
 @dataclass

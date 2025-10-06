@@ -324,11 +324,22 @@ class QualityTestRunner:
 
             # Results for each model
             for result in results:
-                pass_mark = "✅" if result.passed else "❌"
+                # Check if any requirement had judge malfunction
+                has_malfunction = any(r.judge_malfunction for r in result.requirements)
+                error_message = ""
+
+                if has_malfunction:
+                    pass_mark = "💀"
+                    error_message = " (Judge malfunction detected)"
+                elif result.passed:
+                    pass_mark = "✅"
+                else:
+                    pass_mark = "❌"
+
                 lines.append(f"**Model: {result.model}**")
                 lines.append("")
                 lines.append(
-                    f"- Score: {result.score}/{result.max_score} {pass_mark} ({result.pass_rate:.1f}%)"
+                    f"- Score: {result.score}/{result.max_score} {pass_mark} ({result.pass_rate:.1f}%) {error_message}"
                 )
                 lines.append(f"- Time: {result.generation_time_seconds:.2f}s")
                 lines.append(f"- Tokens: {result.token_count}")
@@ -339,7 +350,12 @@ class QualityTestRunner:
                 lines.append("#### Requirements:")
                 lines.append("")
                 for req_result in result.requirements:
-                    status = "✅" if req_result.passed else "❌"
+                    # Use skull emoji for judge malfunction, otherwise standard pass/fail
+                    if req_result.judge_malfunction:
+                        status = "💀"
+                    else:
+                        status = "✅" if req_result.passed else "❌"
+
                     lines.append(
                         f"- {status} **{req_result.requirement.type.upper()}** "
                         f"({req_result.points_earned}/{req_result.requirement.points} pts): "
@@ -347,7 +363,7 @@ class QualityTestRunner:
                     )
                     if req_result.details:
                         # Format LLM judge responses differently
-                        if req_result.requirement.type == "llm":
+                        if req_result.requirement.type == "llm" and not req_result.judge_malfunction:
                             # Split on first newline to separate YES/NO from explanation
                             details_parts = req_result.details.split('\n', 1)
                             if len(details_parts) == 2:
