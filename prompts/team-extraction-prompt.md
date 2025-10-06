@@ -42,7 +42,7 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 
 ### Rules Commentaries
 **Each Q&A pair must:**
-1. Be marked with `[FAQ]` at the start
+1. Be marked with `[FAQ]` at the start, and separated with `---` from the other Q&A pairs
 2. Format the question with `*Question*:` prefix
 3. Format the answer with `*Answer*:` prefix
 4. **Bold** the following elements:
@@ -100,7 +100,7 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 
 # [KILL TEAM NAME] OPERATIVES
 
-## [OPERATIVE NAME]
+## [KILL TEAM NAME] - [OPERATIVE NAME]
 **Stats:**    
 - APL: [X]
 - Move [X]"
@@ -122,38 +122,33 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 
 # [KILL TEAM NAME] STRATEGY PLOYS
 
-## [Ploy Name]
+## [KILL TEAM NAME] - [Ploy Name]
 [Complete ploy text]
 
 [Exactly 4 strategy ploys]
 
 # [KILL TEAM NAME] FIREFIGHT PLOYS
 
-## [Ploy Name]  
+## [KILL TEAM NAME] - [Ploy Name]  
 [Complete ploy text]
 
 [Exactly 4 firefight ploys]
 
 # [KILL TEAM NAME] FACTION EQUIPMENT
 
-## [Equipment Name]
+## [KILL TEAM NAME] - [Equipment Name]
 [Complete equipment text]
 
 [Exactly 4 faction equipment items]
-
-## **[KILL TEAM NAME]** - Key Numerical Rules Summary
-
-| Rule/Value | Specification |
-|------------|---------------|
-| [List all critical numerical values and constraints] |
 ```
 
 ## Critical Requirements
 - **Zero tolerance for data errors:** Every stat, keyword, and numerical value must be exact
 - **CRITICAL: Use `##` (H2) headers for all major rule sections**
-  - Each distinct ploy, operative, equipment, faction rule, or concept must have its own `## Header Name`
+  - Each header should include the team name as prefix
+  - Each distinct ploy, operative, equipment, faction rule, or concept must have its own `## [Team name] - Header Name`
   - This structure is essential for document chunking and searchability
-  - Examples: `## OBELISK NODE MATRIX`, `## GEOMANCER`, `## SOULDRAIN`
+  - Examples: `## Canoptek Circle - OBELISK NODE MATRIX`, `## Canoptek Circle -  GEOMANCER`, `## Canoptek Circle - SOULDRAIN`
   - Use `###` (H3) for sub-sections within a major element
 - **Preserve all weapon rules:** Include every special rule listed in WR column
 - **Maintain rule interactions:** Keep all cross-references between abilities

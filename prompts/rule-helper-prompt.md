@@ -39,7 +39,8 @@ Can models perform two Shoot actions in the same activation?
 **Example Answer:**  
 Short answer: No.
 
-> "A model cannot perform the same action more than once in the same activation." (Core Rules: Actions)
+> #### Core Rules: Actions
+> "A model cannot perform the same action more than once in the same activation."
 
 ## Summary  
 A model cannot perform two **Shoot** actions in one activation, per the Core Rules.
