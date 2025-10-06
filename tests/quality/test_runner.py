@@ -17,6 +17,7 @@ from tests.quality.models import (
     QualityTestSuite,
 )
 from tests.quality.evaluator import RequirementEvaluator
+from tests.quality.visualization import generate_visualization
 from src.services.llm.factory import LLMProviderFactory
 from src.services.rag.retriever import RAGRetriever, RetrieveRequest
 from src.services.rag.vector_db import VectorDBService
@@ -262,13 +263,14 @@ class QualityTestRunner:
         )
 
     def generate_markdown_report(
-        self, test_suite: QualityTestSuite, output_file: Optional[str] = None
+        self, test_suite: QualityTestSuite, output_file: Optional[str] = None, chart_path: Optional[str] = None
     ) -> str:
         """Generate markdown report from test suite results.
 
         Args:
             test_suite: Test suite results
             output_file: Optional file path to write report to
+            chart_path: Optional path to visualization chart PNG
 
         Returns:
             Markdown report as string
@@ -295,6 +297,24 @@ class QualityTestRunner:
         lines.append(f"- **Response characters**: {test_suite.total_response_chars}")
         lines.append(f"- **Judge model**: {test_suite.judge_model}")
         lines.append("")
+
+        # Add visualization if provided
+        if chart_path:
+            chart_filename = Path(chart_path).name
+            lines.append("## Model Performance Visualization")
+            lines.append("")
+            lines.append(f"![Model Performance]({chart_filename})")
+            lines.append("")
+            lines.append("The chart shows four key metrics for each model:")
+            lines.append("- **Score %**: Percentage of total points achieved (green bars)")
+            lines.append("- **Time**: Total generation time in seconds (blue bars)")
+            lines.append("- **Cost**: Total cost in USD (red bars)")
+            lines.append("- **Characters**: Total response characters (brown bars)")
+            lines.append("")
+            lines.append("Test queries are listed at the bottom of the chart.")
+            lines.append("")
+            lines.append("---")
+            lines.append("")
 
         # Add per-model summary (one-line format)
         lines.append("### Results by Model")

@@ -11,6 +11,7 @@ import sys
 from typing import Optional, List
 
 from tests.quality.test_runner import QualityTestRunner
+from tests.quality.visualization import generate_visualization
 from src.services.llm.factory import LLMProviderFactory
 from src.lib.logging import get_logger
 
@@ -96,7 +97,14 @@ def quality_test(
         output_dir.mkdir(parents=True, exist_ok=True)
         output_file = output_dir / f"quality_test_{timestamp_str}.md"
 
-        runner.generate_markdown_report(test_suite, str(output_file))
+        # Generate visualization (only if multiple models tested)
+        chart_path = None
+        if len(models) > 1:
+            chart_path = generate_visualization(test_suite)
+            print(f"Visualization saved to: {chart_path}")
+
+        # Generate markdown report with chart reference
+        runner.generate_markdown_report(test_suite, str(output_file), chart_path)
 
         # Print summary
         print("\n" + "=" * 60)
