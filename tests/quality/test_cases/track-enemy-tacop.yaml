@@ -13,8 +13,8 @@ requirements:
     points: 5
   - type: contains
     description: >
-      When selecting a valid target, operatives cannot use Light terrain for cover.
-      Whilst this can allow such operatives to be targeted (assuming they're visible)
+      When selecting a valid target, operatives cannot use terrain for cover.
+      If the rule is Seek Light, operatives cannot use Light terrain for cover.
     points: 5
   - type: contains
     description: >

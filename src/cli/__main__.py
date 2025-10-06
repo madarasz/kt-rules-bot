@@ -165,8 +165,8 @@ def create_parser() -> argparse.ArgumentParser:
     )
     quality_parser.add_argument(
         "--judge-model",
-        default="gemini-2.5-flash",
-        help="Model to use for LLM-based evaluation (default: gemini-2.5-flash)",
+        default="gpt-4.1-mini",
+        help="Model to use for LLM-based evaluation (default: gpt-4.1-mini)",
     )
     quality_parser.add_argument(
         "--yes",
