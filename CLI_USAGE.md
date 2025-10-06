@@ -241,6 +241,232 @@ python -m src.cli gdpr-delete abc123def456...
 
 ---
 
+### `download-team` - Download and Extract Team Rule PDF
+
+Download a team rule PDF from a URL and extract it to markdown using LLM vision capabilities.
+
+**Usage:**
+```bash
+python -m src.cli download-team <url> [--model {gemini-2.5-pro|gemini-2.5-flash}]
+```
+
+**Arguments:**
+- `url` - PDF URL (must be HTTPS, required)
+
+**Options:**
+- `--model` - LLM model to use for extraction (default: gemini-2.5-pro)
+  - `gemini-2.5-pro`: Higher quality, slower, more expensive
+  - `gemini-2.5-flash`: Faster, cheaper, good quality
+
+**Examples:**
+```bash
+# Download and extract team rules (default model)
+python -m src.cli download-team https://assets.warhammer-community.com/eng_jul25_kt_teamrules_novitiates-qcjk0xtwmk-gakdgtyg7r.pdf
+
+# Use faster model
+python -m src.cli download-team https://example.com/team.pdf --model gemini-2.5-flash
+```
+
+**Process:**
+1. Downloads PDF from URL
+2. Extracts team rules using LLM vision (uses `prompts/team-extraction-prompt.md`)
+3. Parses team name from extracted markdown
+4. Adds YAML frontmatter with metadata:
+   - `source`: "WC downloads"
+   - `last_update_date`: Extracted from URL pattern or current date
+   - `document_type`: "team-rules"
+   - `section`: Team name (lowercase)
+5. Saves to `extracted-rules/team/[team_name].md`
+
+**Output:**
+- Download progress (file size)
+- Extraction status
+- Validation warnings (if any)
+- Team name detected
+- Output file path
+- Metrics:
+  - Token count
+  - Processing time
+  - Estimated cost (USD)
+
+**Requirements:**
+- `GOOGLE_API_KEY` configured in environment
+- HTTPS URL pointing to a PDF file
+
+**Example Output:**
+```
+Downloading PDF from URL...
+✓ Downloaded 2.3 MB
+
+Extracting team rules using gemini-2.5-pro...
+✓ Extraction complete
+
+Team name: NOVITIATES
+Saved to: extracted-rules/team/novitiates.md
+
+Metrics:
+  Tokens: 45,234
+  Time: 12.4s
+  Estimated cost: $0.34
+```
+
+**Date Extraction:**
+The tool attempts to extract the last update date from URL patterns like:
+- `eng_jul25_` → 2025-07-23 (last day of July 2025)
+- `eng_jan24_` → 2024-01-31 (last day of January 2024)
+
+If no date pattern is found, it uses the current date.
+
+**Use Cases:**
+- Extract new team rules from Warhammer Community PDFs
+- Update existing team rules when new versions are released
+- Bulk extraction of multiple team PDFs
+- Automation via scripts (exit code 0 on success, 1 on failure)
+
+---
+
+### `download-all-teams` - Download All Team Rule PDFs
+
+Automatically download and extract all team rule PDFs from Warhammer Community API.
+
+**Usage:**
+```bash
+python -m src.cli download-all-teams [--dry-run] [--force]
+```
+
+**Options:**
+- `--dry-run` - Check what needs updating without downloading
+- `--force` - Re-download all teams regardless of date
+
+**Examples:**
+```bash
+# Check what would be downloaded (dry-run)
+python -m src.cli download-all-teams --dry-run
+
+# Download all new/updated teams
+python -m src.cli download-all-teams
+
+# Force re-download all teams
+python -m src.cli download-all-teams --force
+```
+
+**Process:**
+1. Fetches team list from Warhammer Community API
+2. Filters for team-rules downloads
+3. For each team:
+   - Checks if `extracted-rules/team/[team_name].md` exists
+   - Compares API date with `last_update_date` from existing file
+   - Skips if existing file is up-to-date (unless `--force`)
+   - Downloads and extracts if new or updated
+4. Outputs summary with metrics
+
+**Skip Logic:**
+- **New file**: Team doesn't exist locally → Download
+- **Updated**: API date > existing file date → Download
+- **Up-to-date**: API date ≤ existing file date → Skip
+- **Force mode**: Always download, ignore dates
+
+**Requirements:**
+- `GOOGLE_API_KEY` configured in environment
+- Network access to Warhammer Community API
+
+**Example Output (Dry-run):**
+```
+python -m src.cli download-all-teams --dry-run
+```
+```
+Fetching team list from Warhammer Community...
+✓ Found 42 teams
+
+Checking existing files...
+  - 27 teams up-to-date (skipped)
+  - 15 teams to download
+
+============================================================
+DRY RUN - No downloads will be performed
+============================================================
+
+Teams to download (15):
+  ✓ NOVITIATES (new file)
+  ✓ PATHFINDERS (updated: 2025-11-25 > 2025-07-23)
+  ✓ ANGELS OF DEATH (updated: 2025-10-15 > 2025-06-10)
+  ✓ VESPID STINGWINGS (new file)
+  ...
+
+Teams up-to-date (27):
+  ⊘ WARPCOVEN (up-to-date: 2025-07-23)
+  ⊘ DEATHWATCH (up-to-date: 2025-06-10)
+  ...
+
+============================================================
+Summary (dry-run):
+  Would download: 15 teams
+  Already up-to-date: 27 teams
+  Total teams: 42 teams
+============================================================
+```
+
+**Example Output (Normal):**
+```
+python -m src.cli download-all-teams
+```
+```
+Fetching team list from Warhammer Community...
+✓ Found 42 teams
+
+Checking existing files...
+  - 27 teams up-to-date (skipped)
+  - 15 teams to download
+
+Downloading teams...
+[1/15] NOVITIATES... ✓ (12.4s, $0.34)
+[2/15] PATHFINDERS... ✓ (11.8s, $0.31)
+[3/15] ANGELS OF DEATH... ✓ (13.2s, $0.36)
+[4/15] VESPID STINGWINGS... ❌ HTTP 404
+...
+
+============================================================
+Summary:
+  Downloaded: 14 teams
+  Skipped: 27 teams (up-to-date)
+  Failed: 1 team
+  Total time: 5m 32s
+  Total cost: $8.16
+  Total tokens: 234,567
+============================================================
+
+Failed teams:
+  - VESPID STINGWINGS: HTTP 404
+```
+
+**Use Cases:**
+- Bulk download all team rules for initial setup
+- Update all team rules after Warhammer Community publishes updates
+- Check which teams have new versions available (dry-run)
+- Automated daily/weekly updates via cron jobs
+- Re-extract all teams with improved extraction prompts (force mode)
+
+**API Details:**
+- **Endpoint**: `https://www.warhammer-community.com/api/search/downloads/`
+- **Method**: POST
+- **Payload**:
+  ```json
+  {
+    "index": "downloads_v2",
+    "searchTerm": "",
+    "gameSystem": "kill-team",
+    "language": "english"
+  }
+  ```
+- **Filter**: Only downloads where `download_categories` contains `"team-rules"`
+
+**Error Handling:**
+- Continues processing remaining teams if one fails
+- Reports all failures at end with error messages
+- Exit code 1 if any downloads failed, 0 if all successful
+
+---
+
 ## Global Options
 
 ### Version
@@ -263,6 +489,9 @@ python -m src.cli ingest --help
 python -m src.cli query --help
 python -m src.cli health --help
 python -m src.cli gdpr-delete --help
+python -m src.cli quality-test --help
+python -m src.cli download-team --help
+python -m src.cli download-all-teams --help
 ```
 
 ---

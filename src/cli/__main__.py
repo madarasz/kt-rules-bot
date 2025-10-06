@@ -9,6 +9,8 @@ from src.cli.ingest_rules import ingest_rules
 from src.cli.run_bot import run_bot
 from src.cli.test_query import test_query
 from src.cli.quality_test import quality_test
+from src.cli.download_team import download_team
+from src.cli.download_all_teams import download_all_teams
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -175,6 +177,40 @@ def create_parser() -> argparse.ArgumentParser:
         help="Skip confirmation prompt",
     )
 
+    # Command: download-team
+    download_team_parser = subparsers.add_parser(
+        "download-team",
+        help="Download and extract team rule PDF",
+        description="Download team rule PDF from URL and extract to markdown using LLM",
+    )
+    download_team_parser.add_argument(
+        "url",
+        help="PDF URL (must be HTTPS)",
+    )
+    download_team_parser.add_argument(
+        "--model",
+        default="gemini-2.5-pro",
+        choices=["gemini-2.5-pro", "gemini-2.5-flash"],
+        help="LLM model to use for extraction (default: gemini-2.5-pro)",
+    )
+
+    # Command: download-all-teams
+    download_all_teams_parser = subparsers.add_parser(
+        "download-all-teams",
+        help="Download all team rule PDFs from Warhammer Community",
+        description="Automatically download and extract all team rules from Warhammer Community API",
+    )
+    download_all_teams_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Check what needs updating without downloading",
+    )
+    download_all_teams_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-download all teams regardless of date",
+    )
+
     return parser
 
 
@@ -217,6 +253,18 @@ def main():
                 all_models=args.all_models,
                 judge_model=args.judge_model,
                 skip_confirm=args.yes,
+            )
+
+        elif args.command == "download-team":
+            download_team(
+                url=args.url,
+                model=args.model,
+            )
+
+        elif args.command == "download-all-teams":
+            download_all_teams(
+                dry_run=args.dry_run,
+                force=args.force,
             )
 
         else:
