@@ -90,6 +90,7 @@ class QualityTestRunner:
                             type=req_data["type"],
                             description=req_data["description"],
                             points=req_data["points"],
+                            check=req_data.get("check", ""),
                         )
                     )
 
@@ -186,6 +187,7 @@ class QualityTestRunner:
             generation_time_seconds=generation_time,
             token_count=total_tokens,
             cost_usd=cost,
+            response_chars=len(llm_response.answer_text),
         )
 
     async def run_tests(
@@ -214,6 +216,7 @@ class QualityTestRunner:
         test_results = []
         total_time = 0.0
         total_cost = 0.0
+        total_chars = 0
 
         for test_case in test_cases:
             # Perform RAG retrieval once per test case (shared across all models)
@@ -237,6 +240,7 @@ class QualityTestRunner:
                     test_results.append(result)
                     total_time += result.generation_time_seconds
                     total_cost += result.cost_usd
+                    total_chars += result.response_chars
                 except Exception as e:
                     logger.error(
                         f"Test '{test_case.test_id}' failed with model '{model}': {e}",
@@ -253,6 +257,7 @@ class QualityTestRunner:
             total_queries=len(test_results),
             total_time_seconds=total_time,
             total_cost_usd=total_cost,
+            total_response_chars=total_chars,
             judge_model=self.judge_model,
         )
 
@@ -287,6 +292,7 @@ class QualityTestRunner:
         lines.append(f"- **Total queries**: {test_suite.total_queries}")
         lines.append(f"- **Total time**: {test_suite.total_time_seconds:.2f}s")
         lines.append(f"- **Total cost**: ${test_suite.total_cost_usd:.4f}")
+        lines.append(f"- **Response characters**: {test_suite.total_response_chars}")
         lines.append(f"- **Judge model**: {test_suite.judge_model}")
         lines.append("")
 
@@ -298,7 +304,7 @@ class QualityTestRunner:
             lines.append(
                 f"- {status} **{result.test_id}** [{result.model}]: "
                 f"{result.score}/{result.max_score} "
-                f"({result.generation_time_seconds:.2f}s, ${result.cost_usd:.4f})"
+                f"({result.generation_time_seconds:.2f}s, ${result.cost_usd:.4f}, {result.response_chars} chars)"
             )
         lines.append("")
 
@@ -356,11 +362,16 @@ class QualityTestRunner:
                     else:
                         status = "✅" if req_result.passed else "❌"
 
-                    lines.append(
-                        f"- {status} **{req_result.requirement.type.upper()}** "
+                    # Build requirement line with optional check title
+                    req_line = f"- {status} "
+                    if req_result.requirement.check:
+                        req_line += f"**{req_result.requirement.check}** "
+                    req_line += (
+                        f"*({req_result.requirement.type.upper()})* "
                         f"({req_result.points_earned}/{req_result.requirement.points} pts): "
                         f"{req_result.requirement.description}"
                     )
+                    lines.append(req_line)
                     if req_result.details:
                         # Format LLM judge responses differently
                         if req_result.requirement.type == "llm" and not req_result.judge_malfunction:
@@ -466,7 +477,7 @@ def main():
     # Determine models to test
     models = None
     if args.all_models:
-        models = LLMProviderFactory.get_available_providers()
+        models = LLMProviderFactory.get_quality_test_models()
     elif args.model:
         models = [args.model]
 

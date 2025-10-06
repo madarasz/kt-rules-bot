@@ -50,6 +50,7 @@ python -m src.cli quality-test --test track-enemy-tacop
 ```
 
 ### Test all available models
+Currently limited to: *claude-sonnet, gemini-2.5-pro, gemini-2.5-flash, gpt-4.1, gpt-4o*
 ```bash
 python -m src.cli quality-test --all-models
 ```

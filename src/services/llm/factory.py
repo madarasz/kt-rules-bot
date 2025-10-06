@@ -111,6 +111,21 @@ class LLMProviderFactory:
         """
         return list(cls._model_registry.keys())
 
+    @classmethod
+    def get_quality_test_models(cls) -> list:
+        """Get curated list of models for quality testing with --all-models.
+
+        Returns:
+            List of model names for quality testing
+        """
+        return [
+            "claude-sonnet",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gpt-4.1",
+            "gpt-4o",
+        ]
+
 
 def get_provider(provider_name: ProviderName = None) -> LLMProvider:
     """Convenience function to get LLM provider.

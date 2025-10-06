@@ -18,6 +18,7 @@ class TestRequirement:
     type: RequirementType  # "contains" or "llm"
     description: str  # Text to check for (contains) or statement to verify (llm)
     points: int  # Points awarded if requirement passes
+    check: str = ""  # Optional check title/name
 
 
 @dataclass
@@ -64,6 +65,7 @@ class TestResult:
     generation_time_seconds: float
     token_count: int
     cost_usd: float
+    response_chars: int = 0  # Number of characters in response
 
     @property
     def passed(self) -> bool:
@@ -90,6 +92,7 @@ class QualityTestSuite:
     total_queries: int
     total_time_seconds: float
     total_cost_usd: float
+    total_response_chars: int = 0  # Total characters across all responses
 
     judge_model: str = "gemini-2.5-flash"
 

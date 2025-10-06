@@ -36,7 +36,7 @@ def quality_test(
     # Determine models to test
     models: Optional[List[str]] = None
     if all_models:
-        models = LLMProviderFactory.get_available_providers()
+        models = LLMProviderFactory.get_quality_test_models()
     elif model:
         models = [model]
 
