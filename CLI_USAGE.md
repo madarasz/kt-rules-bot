@@ -247,7 +247,7 @@ Download a team rule PDF from a URL and extract it to markdown using LLM vision 
 
 **Usage:**
 ```bash
-python -m src.cli download-team <url> [--model {gemini-2.5-pro|gemini-2.5-flash}]
+python -m src.cli download-team <url> [OPTIONS]
 ```
 
 **Arguments:**
@@ -257,26 +257,36 @@ python -m src.cli download-team <url> [--model {gemini-2.5-pro|gemini-2.5-flash}
 - `--model` - LLM model to use for extraction (default: gemini-2.5-pro)
   - `gemini-2.5-pro`: Higher quality, slower, more expensive
   - `gemini-2.5-flash`: Faster, cheaper, good quality
+- `--team-name` - Team name override (default: extract from markdown)
+- `--update-date` - Update date override in YYYY-MM-DD format (default: extract from URL or use today)
 
 **Examples:**
 ```bash
-# Download and extract team rules (default model)
+# Download and extract team rules (automatic extraction)
 python -m src.cli download-team https://assets.warhammer-community.com/eng_jul25_kt_teamrules_novitiates-qcjk0xtwmk-gakdgtyg7r.pdf
 
 # Use faster model
 python -m src.cli download-team https://example.com/team.pdf --model gemini-2.5-flash
+
+# Override team name and date (useful if automatic extraction fails)
+python -m src.cli download-team https://example.com/team.pdf --team-name pathfinders --update-date 2025-07-23
 ```
 
 **Process:**
 1. Downloads PDF from URL
 2. Extracts team rules using LLM vision (uses `prompts/team-extraction-prompt.md`)
-3. Parses team name from extracted markdown
-4. Adds YAML frontmatter with metadata:
+3. Determines team name:
+   - If `--team-name` provided: uses provided value
+   - Otherwise: parses from extracted markdown H1 header
+4. Determines update date:
+   - If `--update-date` provided: uses provided value
+   - Otherwise: extracts from URL pattern (e.g., `eng_jul25_` → `2025-07-23`) or uses current date
+5. Adds YAML frontmatter with metadata:
    - `source`: "WC downloads"
-   - `last_update_date`: Extracted from URL pattern or current date
+   - `last_update_date`: Determined date
    - `document_type`: "team-rules"
    - `section`: Team name (lowercase)
-5. Saves to `extracted-rules/team/[team_name].md`
+6. Saves to `extracted-rules/team/[team_name].md`
 
 **Output:**
 - Download progress (file size)
@@ -358,6 +368,7 @@ python -m src.cli download-all-teams --force
    - Compares API date with `last_update_date` from existing file
    - Skips if existing file is up-to-date (unless `--force`)
    - Downloads and extracts if new or updated
+   - **Uses API data**: Team name from `title` field, date from `last_updated` field (DD/MM/YYYY format, falls back to `date` timestamp if not available)
 4. Outputs summary with metrics
 
 **Skip Logic:**

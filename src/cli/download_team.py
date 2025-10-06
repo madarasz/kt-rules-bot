@@ -234,13 +234,21 @@ def calculate_cost(token_count: int, model: str) -> float:
     return token_count * 2.00 / 1_000_000
 
 
-def download_team_internal(url: str, model: str = "gemini-2.5-pro", verbose: bool = True) -> dict:
+def download_team_internal(
+    url: str,
+    model: str = "gemini-2.5-pro",
+    verbose: bool = True,
+    team_name: Optional[str] = None,
+    update_date: Optional[date] = None,
+) -> dict:
     """Download and extract team rule PDF (internal function).
 
     Args:
         url: PDF URL
         model: LLM model to use for extraction
         verbose: If True, print progress messages
+        team_name: Optional team name override (if None, extracts from markdown)
+        update_date: Optional update date override (if None, extracts from URL or uses today)
 
     Returns:
         Dictionary with results:
@@ -360,28 +368,39 @@ def download_team_internal(url: str, model: str = "gemini-2.5-pro", verbose: boo
             "validation_warnings": [],
         }
 
-    # Step 4: Parse team name
-    try:
-        team_name = extract_team_name(response.markdown_content)
+    # Step 4: Determine team name
+    if team_name is None:
+        # Extract team name from markdown
+        try:
+            team_name = extract_team_name(response.markdown_content)
+            if verbose:
+                print(f"\nTeam name: {team_name.upper()}")
+        except Exception as e:
+            logger.error(f"Failed to extract team name: {e}", exc_info=True)
+            return {
+                "success": False,
+                "team_name": None,
+                "output_file": None,
+                "tokens": response.token_count,
+                "latency_ms": response.latency_ms,
+                "cost_usd": calculate_cost(response.token_count, model),
+                "error": f"Failed to extract team name: {e}",
+                "validation_warnings": [],
+            }
+    else:
+        # Use provided team name
         if verbose:
-            print(f"\nTeam name: {team_name.upper()}")
-    except Exception as e:
-        logger.error(f"Failed to extract team name: {e}", exc_info=True)
-        return {
-            "success": False,
-            "team_name": None,
-            "output_file": None,
-            "tokens": response.token_count,
-            "latency_ms": response.latency_ms,
-            "cost_usd": calculate_cost(response.token_count, model),
-            "error": f"Failed to extract team name: {e}",
-            "validation_warnings": [],
-        }
+            print(f"\nTeam name: {team_name.upper()} (provided)")
 
     # Step 5: Add YAML frontmatter
     try:
-        # Extract date from URL or use current date
-        last_update_date = extract_date_from_url(url) or date.today()
+        # Determine update date
+        if update_date is None:
+            # Extract date from URL or use current date
+            last_update_date = extract_date_from_url(url) or date.today()
+        else:
+            # Use provided date
+            last_update_date = update_date
 
         markdown_with_frontmatter = prepend_yaml_frontmatter(
             markdown=response.markdown_content,
@@ -466,14 +485,36 @@ def download_team_internal(url: str, model: str = "gemini-2.5-pro", verbose: boo
     }
 
 
-def download_team(url: str, model: str = "gemini-2.5-pro") -> None:
+def download_team(
+    url: str,
+    model: str = "gemini-2.5-pro",
+    team_name: Optional[str] = None,
+    update_date: Optional[str] = None,
+) -> None:
     """Download and extract team rule PDF (CLI entry point).
 
     Args:
         url: PDF URL
         model: LLM model to use for extraction
+        team_name: Optional team name override
+        update_date: Optional update date override (YYYY-MM-DD format)
     """
-    result = download_team_internal(url, model, verbose=True)
+    # Parse update_date string to date object
+    parsed_date = None
+    if update_date:
+        try:
+            parsed_date = datetime.strptime(update_date, '%Y-%m-%d').date()
+        except ValueError:
+            print(f"❌ Invalid date format: {update_date}. Expected YYYY-MM-DD")
+            sys.exit(1)
+
+    result = download_team_internal(
+        url,
+        model,
+        verbose=True,
+        team_name=team_name,
+        update_date=parsed_date,
+    )
 
     if not result["success"]:
         print(f"❌ {result['error']}")
@@ -497,11 +538,24 @@ def main():
         choices=["gemini-2.5-pro", "gemini-2.5-flash"],
         help="LLM model to use for extraction (default: gemini-2.5-pro)",
     )
+    parser.add_argument(
+        "--team-name",
+        help="Team name override (default: extract from markdown)",
+    )
+    parser.add_argument(
+        "--update-date",
+        help="Update date override in YYYY-MM-DD format (default: extract from URL or use today)",
+    )
 
     args = parser.parse_args()
 
     try:
-        download_team(args.url, model=args.model)
+        download_team(
+            args.url,
+            model=args.model,
+            team_name=args.team_name,
+            update_date=args.update_date,
+        )
     except Exception as e:
         logger.error(f"download-team failed: {e}", exc_info=True)
         print(f"❌ Failed: {e}")

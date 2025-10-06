@@ -193,6 +193,14 @@ def create_parser() -> argparse.ArgumentParser:
         choices=["gemini-2.5-pro", "gemini-2.5-flash"],
         help="LLM model to use for extraction (default: gemini-2.5-pro)",
     )
+    download_team_parser.add_argument(
+        "--team-name",
+        help="Team name override (default: extract from markdown)",
+    )
+    download_team_parser.add_argument(
+        "--update-date",
+        help="Update date override in YYYY-MM-DD format (default: extract from URL or use today)",
+    )
 
     # Command: download-all-teams
     download_all_teams_parser = subparsers.add_parser(
@@ -259,6 +267,8 @@ def main():
             download_team(
                 url=args.url,
                 model=args.model,
+                team_name=args.team_name,
+                update_date=args.update_date,
             )
 
         elif args.command == "download-all-teams":

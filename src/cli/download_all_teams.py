@@ -182,6 +182,34 @@ def get_existing_team_date(team_filename: str) -> Optional[date]:
         return None
 
 
+def parse_api_date(hit: dict) -> Optional[date]:
+    """Parse last_updated date from API hit.
+
+    Args:
+        hit: Team data from API
+
+    Returns:
+        Date object or None if parsing fails
+    """
+    # Try to get last_updated from id.last_updated (DD/MM/YYYY format)
+    last_updated_str = hit.get('id', {}).get('last_updated')
+
+    if last_updated_str:
+        try:
+            # Parse DD/MM/YYYY format
+            return datetime.strptime(last_updated_str, '%d/%m/%Y').date()
+        except ValueError:
+            logger.warning(f"Failed to parse last_updated: {last_updated_str}")
+
+    # Fallback to timestamp if last_updated not available
+    api_timestamp = hit.get('date', 0)
+    if api_timestamp > 0:
+        return datetime.fromtimestamp(api_timestamp).date()
+
+    logger.warning("No valid date found in API hit")
+    return None
+
+
 def should_download_team(
     hit: dict,
     force: bool = False
@@ -208,8 +236,11 @@ def should_download_team(
         return True, "forced"
 
     # Compare dates
-    api_timestamp = hit.get('date', 0)
-    api_date = datetime.fromtimestamp(api_timestamp).date()
+    api_date = parse_api_date(hit)
+
+    if api_date is None:
+        logger.warning(f"No API date for {title}, downloading anyway")
+        return True, "no API date"
 
     if api_date > existing_date:
         return True, f"updated: {api_date} > {existing_date}"
@@ -311,10 +342,26 @@ def download_all_teams(dry_run: bool = False, force: bool = False) -> None:
 
         url = f"{WH_ASSETS_BASE}{file_name}"
 
+        # Extract team name and date from API data
+        normalized_team_name = normalize_team_name(title)
+        api_date = parse_api_date(hit)
+
+        if api_date is None:
+            logger.error(f"No valid date for {title}")
+            print(f"[{idx}/{len(teams_to_download)}] {title}... ❌ No valid date in API")
+            results_failed.append((title, "No valid date in API response"))
+            continue
+
         print(f"[{idx}/{len(teams_to_download)}] {title}...", end=" ", flush=True)
 
         try:
-            result = download_team_internal(url, model="gemini-2.5-pro", verbose=False)
+            result = download_team_internal(
+                url,
+                model="gemini-2.5-pro",
+                verbose=False,
+                team_name=normalized_team_name,
+                update_date=api_date,
+            )
 
             if result["success"]:
                 latency_s = result["latency_ms"] / 1000
