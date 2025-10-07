@@ -13,6 +13,7 @@ from tests.quality.models import (
 )
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.base import GenerationRequest, GenerationConfig
+from src.services.llm.retry import retry_on_content_filter
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -126,7 +127,9 @@ Full text to analyze:
 Is the claim accurate? Answer YES or NO, then briefly explain."""
 
         try:
-            llm_response = await judge_provider.generate(
+            # Wrap LLM judge generation with retry logic for ContentFilterError
+            llm_response = await retry_on_content_filter(
+                judge_provider.generate,
                 GenerationRequest(
                     prompt=judge_prompt,
                     context=[],  # No RAG context needed for judging
@@ -137,7 +140,8 @@ Is the claim accurate? Answer YES or NO, then briefly explain."""
                         include_citations=False,
                         timeout_seconds=30,
                     ),
-                )
+                ),
+                timeout_seconds=30
             )
 
             answer = llm_response.answer_text.strip().upper()

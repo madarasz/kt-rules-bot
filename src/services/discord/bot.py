@@ -14,6 +14,7 @@ from src.services.llm.rate_limiter import RateLimiter
 from src.services.llm.validator import ResponseValidator
 from src.services.rag.retriever import RAGRetriever, RetrieveRequest
 from src.services.llm.base import GenerationRequest, GenerationConfig
+from src.services.llm.retry import retry_on_content_filter
 
 logger = get_logger(__name__)
 
@@ -103,13 +104,15 @@ class KillTeamBotOrchestrator:
                 },
             )
 
-            # Step 3: LLM generation
-            llm_response = await self.llm.generate(
+            # Step 3: LLM generation with retry logic for ContentFilterError
+            llm_response = await retry_on_content_filter(
+                self.llm.generate,
                 GenerationRequest(
                     prompt=user_query.sanitized_text,
                     context=[chunk.text for chunk in rag_context.document_chunks],
                     config=GenerationConfig(timeout_seconds=60),
-                )
+                ),
+                timeout_seconds=60
             )
 
             logger.debug(

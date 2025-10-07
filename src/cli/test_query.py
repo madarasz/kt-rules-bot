@@ -16,6 +16,7 @@ from src.services.rag.retriever import RAGRetriever, RetrieveRequest
 from src.services.rag.vector_db import VectorDBService
 from src.services.rag.embeddings import EmbeddingService
 from src.services.llm.base import GenerationRequest, GenerationConfig
+from src.services.llm.retry import retry_on_content_filter
 
 logger = get_logger(__name__)
 
@@ -102,13 +103,16 @@ def test_query(query: str, provider: str = None, max_chunks: int = 15) -> None:
     try:
         import asyncio
 
+        # Wrap LLM generation with retry logic for ContentFilterError
         llm_response = asyncio.run(
-            llm_provider.generate(
+            retry_on_content_filter(
+                llm_provider.generate,
                 GenerationRequest(
                     prompt=query,
                     context=[chunk.text for chunk in rag_context.document_chunks],
                     config=GenerationConfig(timeout_seconds=60),
-                )
+                ),
+                timeout_seconds=60
             )
         )
 

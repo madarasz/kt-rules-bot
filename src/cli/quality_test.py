@@ -145,12 +145,18 @@ def quality_test(
             overall_avgs = aggregator.get_overall_averages()
             overall_stds = aggregator.get_overall_std_devs()
 
+            # Calculate totals
+            total_time = sum(suite.total_time_seconds for suite in multi_run_suite.run_suites)
+            total_cost = sum(suite.total_cost_usd for suite in multi_run_suite.run_suites)
+
             print("\n" + "=" * 60)
             print(f"Test Results Summary ({runs} runs)")
             print("=" * 60)
+            print(f"Total time: {total_time:.2f}s")
+            print(f"Total cost: ${total_cost:.4f}")
             print(f"Average score: {overall_avgs['score_pct']:.1f}% (±{overall_stds['score_pct']:.1f}%)")
-            print(f"Average time: {overall_avgs['time']:.2f}s (±{overall_stds['time']:.2f}s)")
-            print(f"Average cost: ${overall_avgs['cost']:.4f} (±${overall_stds['cost']:.4f})")
+            print(f"Average time per query: {overall_avgs['time']:.2f}s (±{overall_stds['time']:.2f}s)")
+            print(f"Average cost per query: ${overall_avgs['cost']:.4f} (±${overall_stds['cost']:.4f})")
             print(f"Average response chars: {overall_avgs['chars']:.0f} (±{overall_stds['chars']:.0f})")
             print("=" * 60)
 
