@@ -4,6 +4,8 @@ Usage:
     python -m src.cli quality-test
     python -m src.cli quality-test --test track-enemy-tacop
     python -m src.cli quality-test --all-models
+    python -m src.cli quality-test --all-models --runs 3 --yes
+    python -m src.cli quality-test --test track-enemy-tacop --runs 10 --model gemini-2.5-flash
 """
 
 import asyncio
@@ -12,6 +14,9 @@ from typing import Optional, List
 
 from tests.quality.test_runner import QualityTestRunner
 from tests.quality.visualization import generate_visualization
+from tests.quality.report_generator import generate_markdown_report
+from tests.quality.multi_run_visualization import generate_multi_run_visualization
+from tests.quality.aggregator import MultiRunAggregator
 from src.services.llm.factory import LLMProviderFactory
 from src.lib.logging import get_logger
 
@@ -24,6 +29,7 @@ def quality_test(
     all_models: bool = False,
     judge_model: str = "gpt-4.1-mini",
     skip_confirm: bool = False,
+    runs: int = 1,
 ) -> None:
     """Run quality tests for RAG + LLM pipeline.
 
@@ -33,6 +39,7 @@ def quality_test(
         all_models: Test all available models
         judge_model: Model to use for LLM-based evaluation
         skip_confirm: Skip confirmation prompt
+        runs: Number of times to run each test (default: 1)
     """
     # Determine models to test
     models: Optional[List[str]] = None
@@ -70,7 +77,10 @@ def quality_test(
     for tc in test_cases:
         print(f"  - {tc.test_id}")
     print(f"Models: {', '.join(models)}")
-    print(f"Total queries: {len(test_cases) * len(models)}")
+    print(f"Queries per run: {len(test_cases) * len(models)}")
+    if runs > 1:
+        print(f"Number of runs: {runs}")
+        print(f"Total queries: {len(test_cases) * len(models) * runs}")
     print(f"Judge model: {judge_model}")
     print("=" * 60)
 
@@ -84,49 +94,77 @@ def quality_test(
     # Run tests
     print("\nRunning tests...")
     try:
-        test_suite = asyncio.run(runner.run_tests(test_id=test_id, models=models))
+        if runs == 1:
+            # Single run - use existing logic
+            test_suite = asyncio.run(runner.run_tests(test_id=test_id, models=models))
 
-        # Generate report
-        from pathlib import Path
-        from datetime import datetime
-
-        dt = datetime.fromisoformat(test_suite.timestamp)
-        timestamp_str = dt.strftime("%Y-%m-%d_%H-%M-%S")
-
-        output_dir = Path("tests/quality/results")
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = output_dir / f"quality_test_{timestamp_str}.md"
-
-        # Generate visualization (only if multiple models tested)
-        chart_path = None
-        if len(models) > 1:
+            # Generate visualization
             chart_path = generate_visualization(test_suite)
-            print(f"Visualization saved to: {chart_path}")
 
-        # Generate markdown report with chart reference
-        runner.generate_markdown_report(test_suite, str(output_file), chart_path)
+            # Generate report
+            report_path = generate_markdown_report(test_suite, chart_path=chart_path)
 
-        # Print summary
-        print("\n" + "=" * 60)
-        print("Test Results Summary")
-        print("=" * 60)
-        print(f"Total tests: {test_suite.total_tests}")
-        print(f"Total queries: {test_suite.total_queries}")
-        print(f"Total time: {test_suite.total_time_seconds:.2f}s")
-        print(f"Total cost: ${test_suite.total_cost_usd:.4f}")
-        print(f"Average score: {test_suite.average_score:.1f}")
-        print("=" * 60)
+            # Print summary
+            print("\n" + "=" * 60)
+            print("Test Results Summary")
+            print("=" * 60)
+            print(f"Total tests: {test_suite.total_tests}")
+            print(f"Total queries: {test_suite.total_queries}")
+            print(f"Total time: {test_suite.total_time_seconds:.2f}s")
+            print(f"Total cost: ${test_suite.total_cost_usd:.4f}")
+            print(f"Average score: {test_suite.average_score:.1f}")
+            print("=" * 60)
 
-        # Print individual results
-        for result in test_suite.test_results:
-            status = "✓" if result.passed else "✗"
-            print(
-                f"{status} {result.test_id} [{result.model}]: "
-                f"{result.score}/{result.max_score} "
-                f"({result.generation_time_seconds:.2f}s, ${result.cost_usd:.4f})"
+            # Print individual results
+            for result in test_suite.test_results:
+                status = "✅" if result.passed else "❌"
+                print(
+                    f"{status} {result.test_id} [{result.model}]: "
+                    f"{result.score}/{result.max_score} "
+                    f"({result.generation_time_seconds:.2f}s, ${result.cost_usd:.4f})"
+                )
+
+            print(f"\nFull report saved to: {report_path}")
+
+        else:
+            # Multi-run
+            multi_run_suite = asyncio.run(
+                runner.run_tests_multi(runs=runs, test_id=test_id, models=models)
             )
 
-        print(f"\nFull report saved to: {output_file}")
+            # Generate individual run reports
+            for suite in multi_run_suite.run_suites:
+                chart_path = generate_visualization(suite)
+                generate_markdown_report(suite, chart_path=chart_path)
+
+            # Generate aggregated report
+            report_path = runner.generate_multi_run_report(multi_run_suite)
+
+            # Print summary
+            aggregator = MultiRunAggregator(multi_run_suite.run_suites)
+            overall_avgs = aggregator.get_overall_averages()
+            overall_stds = aggregator.get_overall_std_devs()
+
+            print("\n" + "=" * 60)
+            print(f"Test Results Summary ({runs} runs)")
+            print("=" * 60)
+            print(f"Average score: {overall_avgs['score_pct']:.1f}% (±{overall_stds['score_pct']:.1f}%)")
+            print(f"Average time: {overall_avgs['time']:.2f}s (±{overall_stds['time']:.2f}s)")
+            print(f"Average cost: ${overall_avgs['cost']:.4f} (±${overall_stds['cost']:.4f})")
+            print(f"Average response chars: {overall_avgs['chars']:.0f} (±{overall_stds['chars']:.0f})")
+            print("=" * 60)
+
+            # Print per-model averages
+            for model_name in aggregator.models:
+                avgs = aggregator.get_model_averages(model_name)
+                stds = aggregator.get_model_std_devs(model_name)
+                print(
+                    f"{model_name}: {avgs['score_pct']:.1f}% (±{stds['score_pct']:.1f}%) | "
+                    f"{avgs['time']:.2f}s (±{stds['time']:.2f}s) | "
+                    f"${avgs['cost']:.4f} (±${stds['cost']:.4f})"
+                )
+
+            print(f"\nAggregated report saved to: {report_path}")
 
     except Exception as e:
         logger.error(f"Quality tests failed: {e}", exc_info=True)

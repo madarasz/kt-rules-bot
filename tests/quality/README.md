@@ -70,12 +70,34 @@ python -m src.cli quality-test --judge-model claude-sonnet
 python -m src.cli quality-test --yes
 ```
 
+### Run tests multiple times (NEW!)
+Run tests N times and get aggregated statistics with averages and standard deviations:
+
+```bash
+# Run all models 3 times
+python -m src.cli quality-test --all-models --runs 3 --yes
+
+# Run specific test 5 times
+python -m src.cli quality-test --test track-enemy-tacop --runs 5 --yes
+
+# Short form
+python -m src.cli quality-test --all-models -n 5 -y
+```
+
+Multi-run mode generates:
+- Individual reports for each run
+- Aggregated report with averaged metrics and standard deviations
+- Visualization chart with error bars and individual data points
+
 ## Output
+
+### Single Run Output
 
 Results are saved to timestamped markdown files in `tests/quality/results/`:
 
 ```
 tests/quality/results/quality_test_2025-10-04_14-30-45.md
+tests/quality/results/quality_test_2025-10-04_14-30-45_chart.png
 ```
 
 Each result includes:
@@ -85,7 +107,28 @@ Each result includes:
 - **Tokens**: Total token count
 - **Cost**: Estimated cost in USD
 - **Requirements**: Breakdown of each requirement (passed/failed)
-- **Response**: Full response text (in collapsible section)
+- **Response**: Full response text (saved to separate file)
+- **Visualization**: Chart showing score%, time, cost, and character count per model
+
+### Multi-Run Output
+
+When using `--runs N`, additional aggregated files are created:
+
+```
+tests/quality/results/quality_test_2025-10-04_14-45-30_multirun_3x.md
+tests/quality/results/quality_test_2025-10-04_14-45-30_chart_multirun_3x.png
+```
+
+Aggregated report includes:
+- **Summary**: Averaged metrics across all runs with standard deviations
+- **Visualization**: Chart with error bars and individual run data points overlaid
+- **Model Comparison Table**: Averaged score%, time, cost, and characters per model
+- **Individual Run Links**: Links to detailed reports for each run
+
+The visualization chart shows:
+- **Bars**: Average values across runs
+- **Error bars**: Standard deviation
+- **Dots**: Individual run values overlaid on bars
 
 ## Example Test Case
 
@@ -103,3 +146,24 @@ The system automatically tracks costs using model-specific pricing:
 - Estimates token usage (70% prompt, 30% completion)
 - Calculates cost using `src.lib.tokens.estimate_cost()`
 - Provides per-query and total costs in results
+- Multi-run mode shows average cost with standard deviation
+
+## Architecture
+
+The quality testing framework is organized into focused modules:
+
+- **[test_runner.py](test_runner.py)**: Main test execution and CLI
+- **[models.py](models.py)**: Data models for tests, results, and multi-run suites
+- **[evaluator.py](evaluator.py)**: Requirement evaluation logic (contains + LLM judge)
+- **[report_generator.py](report_generator.py)**: Markdown report generation for single runs
+- **[aggregator.py](aggregator.py)**: Multi-run statistics aggregation
+- **[visualization.py](visualization.py)**: Single-run chart generation
+- **[multi_run_visualization.py](multi_run_visualization.py)**: Multi-run chart with error bars
+
+## LLM Error Handling
+
+The framework gracefully handles LLM failures:
+- **ContentFilterError**: When models block responses (e.g., RECITATION in Gemini)
+- **Failed requirements**: Marked with 💀 skull emoji
+- **Score tracking**: Points lost to LLM errors tracked separately from test failures
+- **Visualization**: Grey bars show points lost to LLM judge malfunctions

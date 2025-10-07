@@ -142,3 +142,31 @@ class QualityTestSuite:
     def total_earned_points(self) -> int:
         """Total points earned across all tests."""
         return sum(r.score for r in self.test_results)
+
+
+@dataclass
+class MultiRunTestSuite:
+    """Results from running quality tests N times."""
+
+    run_suites: List[QualityTestSuite]  # All individual test runs
+    run_count: int  # Number of runs (N)
+
+    # Metadata
+    first_run_timestamp: str  # ISO format timestamp of first run
+    last_run_timestamp: str  # ISO format timestamp of last run
+
+    @property
+    def test_ids(self) -> List[str]:
+        """Get unique test IDs across all runs."""
+        if not self.run_suites or not self.run_suites[0].test_results:
+            return []
+        # Assume all runs have same test structure
+        return list(set(r.test_id for r in self.run_suites[0].test_results))
+
+    @property
+    def models(self) -> List[str]:
+        """Get unique models tested across all runs."""
+        if not self.run_suites or not self.run_suites[0].test_results:
+            return []
+        # Assume all runs have same test structure
+        return sorted(set(r.model for r in self.run_suites[0].test_results))

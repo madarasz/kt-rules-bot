@@ -15,9 +15,13 @@ from tests.quality.models import (
     TestRequirement,
     TestResult,
     QualityTestSuite,
+    MultiRunTestSuite,
 )
 from tests.quality.evaluator import RequirementEvaluator
 from tests.quality.visualization import generate_visualization
+from tests.quality.report_generator import generate_markdown_report
+from tests.quality.multi_run_visualization import generate_multi_run_visualization
+from tests.quality.aggregator import MultiRunAggregator
 from src.services.llm.factory import LLMProviderFactory
 from src.services.rag.retriever import RAGRetriever, RetrieveRequest
 from src.services.rag.vector_db import VectorDBService
@@ -321,204 +325,157 @@ class QualityTestRunner:
             judge_model=self.judge_model,
         )
 
-    def generate_markdown_report(
-        self, test_suite: QualityTestSuite, output_file: Optional[str] = None, chart_path: Optional[str] = None
-    ) -> str:
-        """Generate markdown report from test suite results.
+    async def run_tests_multi(
+        self, runs: int, test_id: Optional[str] = None, models: Optional[List[str]] = None
+    ) -> MultiRunTestSuite:
+        """Run quality tests N times and aggregate results.
 
         Args:
-            test_suite: Test suite results
-            output_file: Optional file path to write report to
-            chart_path: Optional path to visualization chart PNG
+            runs: Number of times to run each test
+            test_id: Optional specific test to run. If None, runs all tests.
+            models: List of models to test. If None, uses default model from config.
 
         Returns:
-            Markdown report as string
+            MultiRunTestSuite with aggregated results
+        """
+        if runs < 1:
+            raise ValueError(f"Number of runs must be at least 1, got {runs}")
+
+        logger.info(f"Running quality tests {runs} times")
+
+        run_suites = []
+        for i in range(runs):
+            logger.info(f"Run {i + 1}/{runs}...")
+            print(f"\n{'='*60}")
+            print(f"Run {i + 1}/{runs}")
+            print(f"{'='*60}\n")
+
+            suite = await self.run_tests(test_id=test_id, models=models)
+            run_suites.append(suite)
+
+        # Create multi-run test suite
+        multi_run_suite = MultiRunTestSuite(
+            run_suites=run_suites,
+            run_count=runs,
+            first_run_timestamp=run_suites[0].timestamp,
+            last_run_timestamp=run_suites[-1].timestamp,
+        )
+
+        logger.info(f"Completed {runs} test runs")
+        return multi_run_suite
+
+    def generate_multi_run_report(
+        self, multi_run_suite: MultiRunTestSuite, output_file: Optional[str] = None
+    ) -> str:
+        """Generate aggregated markdown report from multi-run test suite.
+
+        Args:
+            multi_run_suite: Multi-run test suite results
+            output_file: Optional file path to write report to
+
+        Returns:
+            Path to markdown report file
         """
         # Generate timestamp for filename
-        dt = datetime.fromisoformat(test_suite.timestamp)
+        dt = datetime.fromisoformat(multi_run_suite.last_run_timestamp)
         timestamp_str = dt.strftime("%Y-%m-%d_%H-%M-%S")
 
         if output_file is None:
             output_dir = Path("tests/quality/results")
             output_dir.mkdir(parents=True, exist_ok=True)
-            output_file = output_dir / f"quality_test_{timestamp_str}.md"
+            output_file = output_dir / f"quality_test_{timestamp_str}_multirun_{multi_run_suite.run_count}x.md"
+
+        # Generate visualization first
+        chart_path = generate_multi_run_visualization(multi_run_suite)
+
+        # Create aggregator
+        aggregator = MultiRunAggregator(multi_run_suite.run_suites)
+        overall_avgs = aggregator.get_overall_averages()
+        overall_stds = aggregator.get_overall_std_devs()
 
         # Build markdown report
         lines = []
-        lines.append(f"# Quality Test Results - {timestamp_str}")
+        lines.append(f"# Quality Test Results - Multi-Run (N={multi_run_suite.run_count}) - {timestamp_str}")
         lines.append("")
-        lines.append("## Summary")
+        lines.append(f"## Summary (Averaged across {multi_run_suite.run_count} runs)")
         lines.append("")
-        lines.append(f"- **Total tests**: {test_suite.total_tests}")
-        lines.append(f"- **Total queries**: {test_suite.total_queries}")
-        lines.append(f"- **Total time**: {test_suite.total_time_seconds:.2f}s")
-        lines.append(f"- **Total cost**: ${test_suite.total_cost_usd:.4f}")
-        lines.append(f"- **Response characters**: {test_suite.total_response_chars}")
-        lines.append(f"- **Judge model**: {test_suite.judge_model}")
+        lines.append(f"- **Average score**: {overall_avgs['score_pct']:.1f}% (±{overall_stds['score_pct']:.1f}%)")
+        lines.append(f"- **Average time**: {overall_avgs['time']:.2f}s (±{overall_stds['time']:.2f}s)")
+        lines.append(f"- **Average cost**: ${overall_avgs['cost']:.4f} (±${overall_stds['cost']:.4f})")
+        lines.append(f"- **Average response chars**: {overall_avgs['chars']:.0f} (±{overall_stds['chars']:.0f})")
+
+        if overall_avgs['llm_error_pct'] > 0:
+            lines.append(f"- **Average LLM error %**: {overall_avgs['llm_error_pct']:.1f}% (±{overall_stds['llm_error_pct']:.1f}%) 💀")
+
         lines.append("")
 
-        # Add visualization if provided
-        if chart_path:
-            chart_filename = Path(chart_path).name
-            lines.append("## Model Performance Visualization")
-            lines.append("")
-            lines.append(f"![Model Performance]({chart_filename})")
-            lines.append("")
-            lines.append("The chart shows four key metrics for each model:")
-            lines.append("- **Score %**: Stacked bars showing earned points (green) and points lost to LLM judge errors (grey)")
-            lines.append("- **Time**: Total generation time in seconds (blue bars)")
-            lines.append("- **Cost**: Total cost in USD (red bars)")
-            lines.append("- **Characters**: Total response characters (brown bars)")
-            lines.append("")
-            lines.append("Test queries are listed at the bottom of the chart.")
-            lines.append("")
-            lines.append("---")
-            lines.append("")
-
-        # Add per-model summary (one-line format)
-        lines.append("### Results by Model")
+        # Add visualization
+        chart_filename = Path(chart_path).name
+        lines.append("## Model Performance Visualization")
         lines.append("")
-        for result in test_suite.test_results:
-            status = "✅" if result.score == result.max_score else "⚠️"
-            if result.score / result.max_score < 0.5:
-                status = "❌"
-            if result.response_chars == 0:
-                status = "💀"
+        lines.append(f"![Multi-Run Performance]({chart_filename})")
+        lines.append("")
+        lines.append(f"The chart shows averaged metrics across {multi_run_suite.run_count} runs:")
+        lines.append("- **Score %**: Stacked bars showing earned points (green) and points lost to LLM judge errors (grey)")
+        lines.append("- **Time**: Average generation time in seconds (blue bars)")
+        lines.append("- **Cost**: Average cost in USD (red bars)")
+        lines.append("- **Characters**: Average response characters (brown bars)")
+        lines.append("- **Error bars**: Standard deviation across runs")
+        lines.append("- **Dots**: Individual run values")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        # Aggregated results by model table
+        lines.append("## Aggregated Results by Model")
+        lines.append("")
+        lines.append("| Model | Avg Score | Avg Time | Avg Cost | Avg Chars |")
+        lines.append("|-------|-----------|----------|----------|-----------|")
+
+        for model in aggregator.models:
+            avgs = aggregator.get_model_averages(model)
+            stds = aggregator.get_model_std_devs(model)
             lines.append(
-                f"- {status} **{result.test_id}** [{result.model}]: "
-                f"{result.score}/{result.max_score} "
-                f"({result.generation_time_seconds:.2f}s, ${result.cost_usd:.4f}, {result.response_chars} chars)"
+                f"| {model} | {avgs['score_pct']:.1f}% (±{stds['score_pct']:.1f}%) | "
+                f"{avgs['time']:.2f}s (±{stds['time']:.2f}s) | "
+                f"${avgs['cost']:.4f} (±${stds['cost']:.4f}) | "
+                f"{avgs['chars']:.0f} (±{stds['chars']:.0f}) |"
             )
+
+        lines.append("")
+        lines.append("---")
         lines.append("")
 
-        # Group results by test_id
-        from collections import defaultdict
-
-        results_by_test = defaultdict(list)
-        for result in test_suite.test_results:
-            results_by_test[result.test_id].append(result)
-
-        # Individual test results
-        lines.append("## Individual Test Results")
+        # Individual run results
+        lines.append("## Individual Run Results")
         lines.append("")
 
-        for test_id, results in results_by_test.items():
-            # Use first result for query (same across models)
-            first_result = results[0]
+        for i, suite in enumerate(multi_run_suite.run_suites):
+            dt_run = datetime.fromisoformat(suite.timestamp)
+            timestamp_run_str = dt_run.strftime("%Y-%m-%d %H:%M:%S")
 
-            lines.append(f"### Test: {test_id}")
+            lines.append(f"### Run {i + 1} - {timestamp_run_str}")
             lines.append("")
-            lines.append(f"**Query:** {first_result.query}")
+            lines.append(f"- Total tests: {suite.total_tests}")
+            lines.append(f"- Total queries: {suite.total_queries}")
+            lines.append(f"- Total time: {suite.total_time_seconds:.2f}s")
+            lines.append(f"- Total cost: ${suite.total_cost_usd:.4f}")
+
+            # Link to detailed report
+            report_filename = f"quality_test_{dt_run.strftime('%Y-%m-%d_%H-%M-%S')}.md"
+            report_path = Path(output_file).parent / report_filename
+            if report_path.exists():
+                lines.append(f"- See detailed report: [{report_filename}]({report_filename})")
+
             lines.append("")
-
-            # Results for each model
-            for result in results:
-                # Check if any requirement had judge malfunction
-                has_malfunction = any(r.judge_malfunction for r in result.requirements)
-                error_message = ""
-
-                if has_malfunction:
-                    pass_mark = "💀"
-                    error_message = " (Judge malfunction detected)"
-                elif result.passed:
-                    pass_mark = "✅"
-                else:
-                    pass_mark = "❌"
-
-                lines.append(f"**Model: {result.model}**")
-                lines.append("")
-                lines.append(
-                    f"- Score: {result.score}/{result.max_score} {pass_mark} ({result.pass_rate:.1f}%) {error_message}"
-                )
-                lines.append(f"- Time: {result.generation_time_seconds:.2f}s")
-                lines.append(f"- Tokens: {result.token_count}")
-                lines.append(f"- Cost: ${result.cost_usd:.4f}")
-                lines.append("")
-
-                # Requirements breakdown
-                lines.append("#### Requirements:")
-                lines.append("")
-                for req_result in result.requirements:
-                    # Use skull emoji for judge malfunction, otherwise standard pass/fail
-                    if req_result.judge_malfunction:
-                        status = "💀"
-                    else:
-                        status = "✅" if req_result.passed else "❌"
-
-                    # Build requirement line with optional check title
-                    req_line = f"- {status} "
-                    if req_result.requirement.check:
-                        req_line += f"**{req_result.requirement.check}** "
-                    req_line += (
-                        f"*({req_result.requirement.type.upper()})* "
-                        f"({req_result.points_earned}/{req_result.requirement.points} pts): "
-                        f"{req_result.requirement.description}"
-                    )
-                    lines.append(req_line)
-                    if req_result.details:
-                        # Format LLM judge responses differently
-                        if req_result.requirement.type == "llm" and not req_result.judge_malfunction:
-                            # Split on first newline to separate YES/NO from explanation
-                            details_parts = req_result.details.split('\n', 1)
-                            if len(details_parts) == 2:
-                                verdict = details_parts[0].strip()
-                                explanation = details_parts[1].strip()
-                                lines.append(f"  - _{verdict}_")
-                                lines.append("")
-                                lines.append(f"> {explanation}")
-                            else:
-                                # Fallback if no newline
-                                lines.append(f"  - _{req_result.details}_")
-                        else:
-                            lines.append(f"  - _{req_result.details}_")
-                    lines.append("")
-
-                lines.append("---")
-                lines.append("")
-
-                # Save response to separate file with context
-                response_filename = f"{timestamp_str}_{result.test_id}_{result.model}.md"
-                response_filepath = Path(output_file).parent / response_filename
-
-                # Build formatted output with question, response, and prompt
-                response_content = f"""---
-# Question
----
-
-{result.query}
-
----
-# Response
----
-
-{result.response}
-
----
-# System Prompt
----
-
-{result.system_prompt}
-
----
-"""
-
-                with open(response_filepath, "w") as f:
-                    f.write(response_content)
-
-                lines.append(f"#### Response:")
-                lines.append("")
-                lines.append(f"See [{response_filename}]({response_filename})")
-                lines.append("")
-                lines.append("---")
-                lines.append("")
 
         # Write to file
         markdown = "\n".join(lines)
         with open(output_file, "w") as f:
             f.write(markdown)
 
-        logger.info(f"Report written to {output_file}")
-        return markdown
+        logger.info(f"Multi-run report written to {output_file}")
+        return str(output_file)
 
 
 def main():
@@ -554,6 +511,13 @@ def main():
         action="store_true",
         help="Skip confirmation prompt",
     )
+    parser.add_argument(
+        "--runs",
+        "-n",
+        type=int,
+        default=1,
+        help="Number of times to run each test (default: 1)",
+    )
 
     args = parser.parse_args()
 
@@ -582,7 +546,10 @@ def main():
     for tc in test_cases:
         print(f"  - {tc.test_id}")
     print(f"Models: {', '.join(models)}")
-    print(f"Total queries: {len(test_cases) * len(models)}")
+    print(f"Queries per run: {len(test_cases) * len(models)}")
+    if args.runs > 1:
+        print(f"Number of runs: {args.runs}")
+        print(f"Total queries: {len(test_cases) * len(models) * args.runs}")
     print(f"Judge model: {args.judge_model}")
     print("=" * 60)
 
@@ -596,32 +563,77 @@ def main():
     # Run tests
     print("\nRunning tests...")
     try:
-        test_suite = asyncio.run(runner.run_tests(test_id=args.test, models=models))
+        if args.runs == 1:
+            # Single run - use existing logic
+            test_suite = asyncio.run(runner.run_tests(test_id=args.test, models=models))
 
-        # Generate report
-        markdown_report = runner.generate_markdown_report(test_suite)
+            # Generate visualization
+            chart_path = generate_visualization(test_suite)
 
-        # Print summary
-        print("\n" + "=" * 60)
-        print("Test Results Summary")
-        print("=" * 60)
-        print(f"Total tests: {test_suite.total_tests}")
-        print(f"Total queries: {test_suite.total_queries}")
-        print(f"Total time: {test_suite.total_time_seconds:.2f}s")
-        print(f"Total cost: ${test_suite.total_cost_usd:.4f}")
-        print(f"Average score: {test_suite.average_score:.1f}")
-        print("=" * 60)
+            # Generate report
+            report_path = generate_markdown_report(test_suite, chart_path=chart_path)
 
-        # Print individual results
-        for result in test_suite.test_results:
-            status = "✅" if result.passed else "❌"
-            print(
-                f"{status} {result.test_id} [{result.model}]: "
-                f"{result.score}/{result.max_score} "
-                f"({result.generation_time_seconds:.2f}s, ${result.cost_usd:.4f})"
+            # Print summary
+            print("\n" + "=" * 60)
+            print("Test Results Summary")
+            print("=" * 60)
+            print(f"Total tests: {test_suite.total_tests}")
+            print(f"Total queries: {test_suite.total_queries}")
+            print(f"Total time: {test_suite.total_time_seconds:.2f}s")
+            print(f"Total cost: ${test_suite.total_cost_usd:.4f}")
+            print(f"Average score: {test_suite.average_score:.1f}")
+            print("=" * 60)
+
+            # Print individual results
+            for result in test_suite.test_results:
+                status = "✅" if result.passed else "❌"
+                print(
+                    f"{status} {result.test_id} [{result.model}]: "
+                    f"{result.score}/{result.max_score} "
+                    f"({result.generation_time_seconds:.2f}s, ${result.cost_usd:.4f})"
+                )
+
+            print(f"\nFull report saved to: {report_path}")
+
+        else:
+            # Multi-run
+            multi_run_suite = asyncio.run(
+                runner.run_tests_multi(runs=args.runs, test_id=args.test, models=models)
             )
 
-        print(f"\nFull report saved to: {runner.generate_markdown_report.__defaults__}")
+            # Generate individual run reports
+            for suite in multi_run_suite.run_suites:
+                chart_path = generate_visualization(suite)
+                generate_markdown_report(suite, chart_path=chart_path)
+
+            # Generate aggregated report
+            report_path = runner.generate_multi_run_report(multi_run_suite)
+
+            # Print summary
+            aggregator = MultiRunAggregator(multi_run_suite.run_suites)
+            overall_avgs = aggregator.get_overall_averages()
+            overall_stds = aggregator.get_overall_std_devs()
+
+            print("\n" + "=" * 60)
+            print(f"Test Results Summary ({args.runs} runs)")
+            print("=" * 60)
+            print(f"Average score: {overall_avgs['score_pct']:.1f}% (±{overall_stds['score_pct']:.1f}%)")
+            print(f"Average time: {overall_avgs['time']:.2f}s (±{overall_stds['time']:.2f}s)")
+            print(f"Average cost: ${overall_avgs['cost']:.4f} (±${overall_stds['cost']:.4f})")
+            print(f"Average response chars: {overall_avgs['chars']:.0f} (±{overall_stds['chars']:.0f})")
+            print("=" * 60)
+
+            # Print per-model averages
+            for model in aggregator.models:
+                avgs = aggregator.get_model_averages(model)
+                stds = aggregator.get_model_std_devs(model)
+                print(
+                    f"{model}: {avgs['score_pct']:.1f}% (±{stds['score_pct']:.1f}%) | "
+                    f"{avgs['time']:.2f}s (±{stds['time']:.2f}s) | "
+                    f"${avgs['cost']:.4f} (±${stds['cost']:.4f})"
+                )
+
+            print(f"\nAggregated report saved to: {report_path}")
 
     except Exception as e:
         logger.error(f"Quality tests failed: {e}", exc_info=True)

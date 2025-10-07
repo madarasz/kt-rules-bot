@@ -176,6 +176,13 @@ def create_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip confirmation prompt",
     )
+    quality_parser.add_argument(
+        "--runs",
+        "-n",
+        type=int,
+        default=1,
+        help="Number of times to run each test (default: 1)",
+    )
 
     # Command: download-team
     download_team_parser = subparsers.add_parser(
@@ -261,6 +268,7 @@ def main():
                 all_models=args.all_models,
                 judge_model=args.judge_model,
                 skip_confirm=args.yes,
+                runs=args.runs,
             )
 
         elif args.command == "download-team":
