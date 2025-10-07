@@ -22,7 +22,7 @@ from src.services.llm.factory import LLMProviderFactory
 from src.services.rag.retriever import RAGRetriever, RetrieveRequest
 from src.services.rag.vector_db import VectorDBService
 from src.services.rag.embeddings import EmbeddingService
-from src.services.llm.base import GenerationRequest, GenerationConfig
+from src.services.llm.base import GenerationRequest, GenerationConfig, ContentFilterError
 from src.lib.config import get_config
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost
@@ -145,51 +145,84 @@ class QualityTestRunner:
         # Create config and capture system prompt
         gen_config = GenerationConfig(timeout_seconds=60)
 
-        llm_response = await llm_provider.generate(
-            GenerationRequest(
-                prompt=test_case.query,
-                context=[chunk.text for chunk in rag_context.document_chunks],
-                config=gen_config,
+        try:
+            llm_response = await llm_provider.generate(
+                GenerationRequest(
+                    prompt=test_case.query,
+                    context=[chunk.text for chunk in rag_context.document_chunks],
+                    config=gen_config,
+                )
             )
-        )
 
-        generation_time = (datetime.now(timezone.utc) - start_time).total_seconds()
+            generation_time = (datetime.now(timezone.utc) - start_time).total_seconds()
 
-        # Step 3: Evaluate requirements
-        requirement_results = await self.evaluator.evaluate_all(
-            test_case.requirements, llm_response.answer_text
-        )
+            # Step 3: Evaluate requirements
+            requirement_results = await self.evaluator.evaluate_all(
+                test_case.requirements, llm_response.answer_text
+            )
 
-        # Calculate score
-        score = sum(r.points_earned for r in requirement_results)
+            # Calculate score
+            score = sum(r.points_earned for r in requirement_results)
 
-        # Step 4: Calculate cost
-        # For LLM response tokens, we need to split into prompt and completion
-        # The token_count from LLMResponse is total, so we estimate 70% prompt, 30% completion
-        total_tokens = llm_response.token_count
-        estimated_prompt_tokens = int(total_tokens * 0.7)
-        estimated_completion_tokens = int(total_tokens * 0.3)
+            # Step 4: Calculate cost
+            # For LLM response tokens, we need to split into prompt and completion
+            # The token_count from LLMResponse is total, so we estimate 70% prompt, 30% completion
+            total_tokens = llm_response.token_count
+            estimated_prompt_tokens = int(total_tokens * 0.7)
+            estimated_completion_tokens = int(total_tokens * 0.3)
 
-        cost = estimate_cost(
-            prompt_tokens=estimated_prompt_tokens,
-            completion_tokens=estimated_completion_tokens,
-            model=model,
-        )
+            cost = estimate_cost(
+                prompt_tokens=estimated_prompt_tokens,
+                completion_tokens=estimated_completion_tokens,
+                model=model,
+            )
 
-        return TestResult(
-            test_id=test_case.test_id,
-            query=test_case.query,
-            model=model,
-            response=llm_response.answer_text,
-            system_prompt=gen_config.system_prompt,
-            requirements=requirement_results,
-            score=score,
-            max_score=test_case.max_score,
-            generation_time_seconds=generation_time,
-            token_count=total_tokens,
-            cost_usd=cost,
-            response_chars=len(llm_response.answer_text),
-        )
+            return TestResult(
+                test_id=test_case.test_id,
+                query=test_case.query,
+                model=model,
+                response=llm_response.answer_text,
+                system_prompt=gen_config.system_prompt,
+                requirements=requirement_results,
+                score=score,
+                max_score=test_case.max_score,
+                generation_time_seconds=generation_time,
+                token_count=total_tokens,
+                cost_usd=cost,
+                response_chars=len(llm_response.answer_text),
+            )
+
+        except ContentFilterError as e:
+            # LLM generation failed due to content filter (e.g., RECITATION)
+            generation_time = (datetime.now(timezone.utc) - start_time).total_seconds()
+
+            # Create failed requirement results for all requirements
+            from tests.quality.models import RequirementResult
+            requirement_results = [
+                RequirementResult(
+                    requirement=req,
+                    passed=False,
+                    points_earned=0,
+                    details=f"LLM generation failed: {str(e)}",
+                    judge_malfunction=True,
+                )
+                for req in test_case.requirements
+            ]
+
+            return TestResult(
+                test_id=test_case.test_id,
+                query=test_case.query,
+                model=model,
+                response=f"[LLM Generation Failed: {str(e)}]",
+                system_prompt=gen_config.system_prompt,
+                requirements=requirement_results,
+                score=0,
+                max_score=test_case.max_score,
+                generation_time_seconds=generation_time,
+                token_count=0,
+                cost_usd=0.0,
+                response_chars=0,
+            )
 
     async def run_tests(
         self, test_id: Optional[str] = None, models: Optional[List[str]] = None
@@ -247,7 +280,33 @@ class QualityTestRunner:
                         f"Test '{test_case.test_id}' failed with model '{model}': {e}",
                         exc_info=True,
                     )
-                    # Continue with other tests
+                    # Create a failed TestResult for unexpected errors
+                    from tests.quality.models import RequirementResult
+                    requirement_results = [
+                        RequirementResult(
+                            requirement=req,
+                            passed=False,
+                            points_earned=0,
+                            details=f"Test execution failed: {str(e)}",
+                            judge_malfunction=True,
+                        )
+                        for req in test_case.requirements
+                    ]
+                    result = TestResult(
+                        test_id=test_case.test_id,
+                        query=test_case.query,
+                        model=model,
+                        response=f"[Test Execution Failed: {str(e)}]",
+                        system_prompt="",
+                        requirements=requirement_results,
+                        score=0,
+                        max_score=test_case.max_score,
+                        generation_time_seconds=0.0,
+                        token_count=0,
+                        cost_usd=0.0,
+                        response_chars=0,
+                    )
+                    test_results.append(result)
 
         # Create test suite
         timestamp = datetime.now(timezone.utc).isoformat()
@@ -306,7 +365,7 @@ class QualityTestRunner:
             lines.append(f"![Model Performance]({chart_filename})")
             lines.append("")
             lines.append("The chart shows four key metrics for each model:")
-            lines.append("- **Score %**: Percentage of total points achieved (green bars)")
+            lines.append("- **Score %**: Stacked bars showing earned points (green) and points lost to LLM judge errors (grey)")
             lines.append("- **Time**: Total generation time in seconds (blue bars)")
             lines.append("- **Cost**: Total cost in USD (red bars)")
             lines.append("- **Characters**: Total response characters (brown bars)")
@@ -320,7 +379,11 @@ class QualityTestRunner:
         lines.append("### Results by Model")
         lines.append("")
         for result in test_suite.test_results:
-            status = "✅" if result.passed else "❌"
+            status = "✅" if result.score == result.max_score else "⚠️"
+            if result.score / result.max_score < 0.5:
+                status = "❌"
+            if result.response_chars == 0:
+                status = "💀"
             lines.append(
                 f"- {status} **{result.test_id}** [{result.model}]: "
                 f"{result.score}/{result.max_score} "

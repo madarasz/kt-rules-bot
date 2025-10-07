@@ -79,6 +79,24 @@ class TestResult:
             return 0.0
         return (self.score / self.max_score) * 100
 
+    @property
+    def points_lost_to_llm_error(self) -> int:
+        """Points lost due to LLM judge malfunction."""
+        return sum(
+            r.requirement.points
+            for r in self.requirements
+            if r.judge_malfunction and r.points_earned == 0
+        )
+
+    @property
+    def points_failed(self) -> int:
+        """Points lost due to actual test failure (not LLM error)."""
+        return sum(
+            r.requirement.points - r.points_earned
+            for r in self.requirements
+            if not r.judge_malfunction
+        )
+
 
 @dataclass
 class QualityTestSuite:
@@ -109,3 +127,18 @@ class QualityTestSuite:
         if not self.test_results:
             return 0.0
         return self.total_time_seconds / self.total_queries
+
+    @property
+    def total_llm_error_points(self) -> int:
+        """Total points lost to LLM judge malfunctions across all tests."""
+        return sum(r.points_lost_to_llm_error for r in self.test_results)
+
+    @property
+    def total_possible_points(self) -> int:
+        """Total possible points across all tests."""
+        return sum(r.max_score for r in self.test_results)
+
+    @property
+    def total_earned_points(self) -> int:
+        """Total points earned across all tests."""
+        return sum(r.score for r in self.test_results)

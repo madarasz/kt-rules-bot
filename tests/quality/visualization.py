@@ -57,19 +57,22 @@ def generate_visualization(
             model_stats[result.model] = {
                 'total_score': 0,
                 'total_max': 0,
+                'total_llm_error': 0,
                 'total_time': 0.0,
                 'total_cost': 0.0,
                 'total_chars': 0,
             }
         model_stats[result.model]['total_score'] += result.score
         model_stats[result.model]['total_max'] += result.max_score
+        model_stats[result.model]['total_llm_error'] += result.points_lost_to_llm_error
         model_stats[result.model]['total_time'] += result.generation_time_seconds
         model_stats[result.model]['total_cost'] += result.cost_usd
         model_stats[result.model]['total_chars'] += result.response_chars
 
     # Calculate score percentages
     models = list(model_stats.keys())
-    score_pcts = []
+    earned_pcts = []
+    llm_error_pcts = []
     times = []
     costs = []
     chars = []
@@ -77,10 +80,13 @@ def generate_visualization(
     for model in models:
         stats = model_stats[model]
         if stats['total_max'] > 0:
-            score_pct = (stats['total_score'] / stats['total_max']) * 100
+            earned_pct = (stats['total_score'] / stats['total_max']) * 100
+            llm_error_pct = (stats['total_llm_error'] / stats['total_max']) * 100
         else:
-            score_pct = 0.0
-        score_pcts.append(score_pct)
+            earned_pct = 0.0
+            llm_error_pct = 0.0
+        earned_pcts.append(earned_pct)
+        llm_error_pcts.append(llm_error_pct)
         times.append(stats['total_time'])
         costs.append(stats['total_cost'])
         chars.append(stats['total_chars'])
@@ -98,12 +104,21 @@ def generate_visualization(
     pos3 = x + 0.5 * width
     pos4 = x + 1.5 * width
 
-    # Plot score % on left axis
-    color1 = '#2ecc71'  # Green
-    ax1.bar(pos1, score_pcts, width, label='Score %', color=color1, alpha=0.8)
+    # Plot score % on left axis - use stacked bars
+    color_earned = '#2ecc71'  # Green for earned points
+    color_llm_error = '#95a5a6'  # Grey for LLM errors
+
+    # Bottom layer: earned score
+    ax1.bar(pos1, earned_pcts, width, label='Score % (earned)',
+            color=color_earned, alpha=0.8)
+
+    # Top layer: LLM error (stacked on earned)
+    ax1.bar(pos1, llm_error_pcts, width, bottom=earned_pcts,
+            label='LLM Error %', color=color_llm_error, alpha=0.8)
+
     ax1.set_xlabel('Model', fontsize=12, fontweight='bold')
-    ax1.set_ylabel('Score %', fontsize=12, fontweight='bold', color=color1)
-    ax1.tick_params(axis='y', labelcolor=color1)
+    ax1.set_ylabel('Score %', fontsize=12, fontweight='bold', color=color_earned)
+    ax1.tick_params(axis='y', labelcolor=color_earned)
     ax1.set_ylim(0, 100)
     ax1.set_xticks(x)
     ax1.set_xticklabels(models, rotation=45, ha='right')
