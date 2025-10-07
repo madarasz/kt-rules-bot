@@ -15,6 +15,12 @@ from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.base import GenerationRequest, GenerationConfig
 from src.services.llm.retry import retry_on_content_filter
 from src.lib.logging import get_logger
+from src.lib.constants import (
+    QUALITY_TEST_JUDGE_MODEL,
+    QUALITY_TEST_JUDGE_MAX_TOKENS,
+    QUALITY_TEST_JUDGE_TEMPERATURE,
+    LLM_JUDGE_TIMEOUT,
+)
 
 logger = get_logger(__name__)
 
@@ -22,7 +28,7 @@ logger = get_logger(__name__)
 class RequirementEvaluator:
     """Evaluates test requirements against responses."""
 
-    def __init__(self, judge_model: str = "gpt-4.1-mini"):
+    def __init__(self, judge_model: str = QUALITY_TEST_JUDGE_MODEL):
         """Initialize evaluator.
 
         Args:
@@ -134,14 +140,14 @@ Is the claim accurate? Answer YES or NO, then briefly explain."""
                     prompt=judge_prompt,
                     context=[],  # No RAG context needed for judging
                     config=GenerationConfig(
-                        max_tokens=150,
-                        temperature=0.0,
+                        max_tokens=QUALITY_TEST_JUDGE_MAX_TOKENS,
+                        temperature=QUALITY_TEST_JUDGE_TEMPERATURE,
                         system_prompt="You evaluate text. Be concise.",
                         include_citations=False,
-                        timeout_seconds=30,
+                        timeout_seconds=LLM_JUDGE_TIMEOUT,
                     ),
                 ),
-                timeout_seconds=30
+                timeout_seconds=LLM_JUDGE_TIMEOUT
             )
 
             answer = llm_response.answer_text.strip().upper()

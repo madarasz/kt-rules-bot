@@ -11,6 +11,7 @@ from src.cli.test_query import test_query
 from src.cli.quality_test import quality_test
 from src.cli.download_team import download_team
 from src.cli.download_all_teams import download_all_teams
+from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -167,8 +168,8 @@ def create_parser() -> argparse.ArgumentParser:
     )
     quality_parser.add_argument(
         "--judge-model",
-        default="gpt-4.1-mini",
-        help="Model to use for LLM-based evaluation (default: gpt-4.1-mini)",
+        default=QUALITY_TEST_JUDGE_MODEL,
+        help=f"Model to use for LLM-based evaluation (default: {QUALITY_TEST_JUDGE_MODEL})",
     )
     quality_parser.add_argument(
         "--yes",

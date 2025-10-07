@@ -11,6 +11,7 @@ from src.models.rag_context import RAGContext, DocumentChunk
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.vector_db import VectorDBService
 from src.services.rag.hybrid_retriever import HybridRetriever
+from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -22,8 +23,8 @@ class RetrieveRequest:
 
     query: str  # User question (sanitized)
     context_key: str  # "{channel_id}:{user_id}" for conversation tracking
-    max_chunks: int = 15  # Maximum document chunks to retrieve (increased for multi-hop queries)
-    min_relevance: float = 0.45  # Minimum cosine similarity threshold (lowered for better recall)
+    max_chunks: int = RAG_MAX_CHUNKS  # Maximum document chunks to retrieve
+    min_relevance: float = RAG_MIN_RELEVANCE  # Minimum cosine similarity threshold
     use_hybrid: bool = True  # Enable hybrid search (BM25 + vector)
 
 

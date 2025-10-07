@@ -10,6 +10,7 @@ from typing import List
 from uuid import UUID, uuid4
 
 from src.lib.tokens import count_tokens
+from src.lib.constants import CHUNKING_MAX_TOKENS
 
 
 @dataclass
@@ -27,7 +28,7 @@ class MarkdownChunk:
 class MarkdownChunker:
     """Chunks markdown documents using lazy splitting strategy."""
 
-    def __init__(self, max_tokens: int = 8192, model: str = "gpt-3.5-turbo"):
+    def __init__(self, max_tokens: int = CHUNKING_MAX_TOKENS, model: str = "gpt-3.5-turbo"):
         """Initialize chunker.
 
         Args:

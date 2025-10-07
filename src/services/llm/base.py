@@ -10,6 +10,15 @@ from pathlib import Path
 from typing import BinaryIO, List, Optional
 from uuid import UUID, uuid4
 
+from src.lib.constants import (
+    LLM_DEFAULT_MAX_TOKENS,
+    LLM_DEFAULT_TEMPERATURE,
+    LLM_GENERATION_TIMEOUT,
+    LLM_EXTRACTION_MAX_TOKENS,
+    LLM_EXTRACTION_TEMPERATURE,
+    LLM_EXTRACTION_TIMEOUT,
+)
+
 
 # Cached system prompt (loaded once from file)
 _SYSTEM_PROMPT_CACHE: Optional[str] = None
@@ -96,11 +105,11 @@ class TokenLimitError(LLMError):
 class GenerationConfig:
     """Configuration for answer generation."""
 
-    max_tokens: int = 2048  # Maximum response length
-    temperature: float = 0.1  # Lower = more deterministic
+    max_tokens: int = LLM_DEFAULT_MAX_TOKENS  # Maximum response length
+    temperature: float = LLM_DEFAULT_TEMPERATURE  # Lower = more deterministic
     system_prompt: str = field(default_factory=load_system_prompt)
     include_citations: bool = True
-    timeout_seconds: int = 60  # Must respond within 60s
+    timeout_seconds: int = LLM_GENERATION_TIMEOUT  # Must respond within timeout
 
 
 @dataclass
@@ -131,9 +140,9 @@ class LLMResponse:
 class ExtractionConfig:
     """Configuration for PDF extraction."""
 
-    max_tokens: int = 16000  # Large output for full rulebook sections
-    temperature: float = 0.1  # Low temperature for consistent structure
-    timeout_seconds: int = 120  # PDF extraction takes longer
+    max_tokens: int = LLM_EXTRACTION_MAX_TOKENS  # Large output for full rulebook sections
+    temperature: float = LLM_EXTRACTION_TEMPERATURE  # Low temperature for consistent structure
+    timeout_seconds: int = LLM_EXTRACTION_TIMEOUT  # PDF extraction takes longer
 
 
 @dataclass

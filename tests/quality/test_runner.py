@@ -28,6 +28,7 @@ from src.services.rag.vector_db import VectorDBService
 from src.services.rag.embeddings import EmbeddingService
 from src.services.llm.base import GenerationRequest, GenerationConfig, ContentFilterError
 from src.services.llm.retry import retry_on_content_filter
+from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
 from src.lib.config import get_config
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost
@@ -41,7 +42,7 @@ class QualityTestRunner:
     def __init__(
         self,
         test_cases_dir: str = "tests/quality/test_cases",
-        judge_model: str = "gpt-4.1-mini",
+        judge_model: str = QUALITY_TEST_JUDGE_MODEL,
     ):
         """Initialize test runner.
 
@@ -464,6 +465,7 @@ class QualityTestRunner:
             lines.append("")
             lines.append(f"- Total tests: {suite.total_tests}")
             lines.append(f"- Total queries: {suite.total_queries}")
+            lines.append(f"- Total score: {suite.total_earned_points} / {suite.total_possible_points} (AVG: {suite.average_score:.1f}%)")
             lines.append(f"- Total time: {suite.total_time_seconds:.2f}s")
             lines.append(f"- Total cost: ${suite.total_cost_usd:.4f}")
 
@@ -508,8 +510,8 @@ def main():
     )
     parser.add_argument(
         "--judge-model",
-        default="gpt-4.1-mini",
-        help="Model to use for LLM-based evaluation (default: gpt-4.1-mini)",
+        default=QUALITY_TEST_JUDGE_MODEL,
+        help=f"Model to use for LLM-based evaluation (default: {QUALITY_TEST_JUDGE_MODEL})",
     )
     parser.add_argument(
         "--yes",

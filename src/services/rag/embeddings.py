@@ -10,6 +10,7 @@ from openai import OpenAI
 
 from src.lib.config import get_config
 from src.lib.logging import get_logger
+from src.lib.constants import EMBEDDING_MAX_TOKENS
 
 logger = get_logger(__name__)
 
@@ -25,7 +26,7 @@ class EmbeddingService:
         """
         self.model = model
         self.dimensions = 1536  # text-embedding-3-small dimensions
-        self.max_tokens = 8192  # Model token limit
+        self.max_tokens = EMBEDDING_MAX_TOKENS  # Model token limit
 
         # Initialize OpenAI client
         config = get_config()

@@ -10,6 +10,8 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+from src.lib.constants import EMBEDDING_MODEL
+
 
 LLMProvider = Literal[
     "claude-sonnet",
@@ -37,11 +39,11 @@ class Config:
     google_api_key: Optional[str] = None
 
     # LLM Selection
-    default_llm_provider: LLMProvider = "claude-sonnet"
+    default_llm_provider: LLMProvider = os.getenv("DEFAULT_LLM_PROVIDER", "gpt-4.1") 
 
     # RAG Configuration
     vector_db_path: str = "./data/chroma_db"
-    embedding_model: str = "text-embedding-3-small"
+    embedding_model: str = EMBEDDING_MODEL
 
     # Logging
     log_level: str = "INFO"

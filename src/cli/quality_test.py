@@ -19,6 +19,7 @@ from tests.quality.multi_run_visualization import generate_multi_run_visualizati
 from tests.quality.aggregator import MultiRunAggregator
 from src.services.llm.factory import LLMProviderFactory
 from src.lib.logging import get_logger
+from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
 
 logger = get_logger(__name__)
 
@@ -27,7 +28,7 @@ def quality_test(
     test_id: Optional[str] = None,
     model: Optional[str] = None,
     all_models: bool = False,
-    judge_model: str = "gpt-4.1-mini",
+    judge_model: str = QUALITY_TEST_JUDGE_MODEL,
     skip_confirm: bool = False,
     runs: int = 1,
 ) -> None:

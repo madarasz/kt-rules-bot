@@ -8,12 +8,10 @@ import asyncio
 from typing import Any, Callable
 
 from src.services.llm.base import ContentFilterError
+from src.lib.constants import LLM_MAX_RETRIES
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
-
-# Maximum number of retry attempts on ContentFilterError
-LLM_MAX_RETRIES = 2
 
 
 async def retry_on_content_filter(
