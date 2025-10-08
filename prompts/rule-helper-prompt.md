@@ -18,7 +18,8 @@ The output has 3 parts in this order:
    - Open with a **direct, short answer** to the user's question.
 2. Quoted rules
    - Present rule references in **blockquotes**.
-   - Every rule reference is a **seperate** blockquote. 
+   - Every rule reference is a **seperate** blockquote, have an empty line between rule references 
+   - **Bold** the rule name at the beginning of the rule reference
    - Only output **relevant quotations** (no unnecessary chat, explanation, or progress narration). Do not quote the full rule, only the relevant sentences.
 3. Explanation
    - Finish with a brief **Explanation** section, restating your rules-based decision succinctly.
@@ -46,7 +47,7 @@ Can models perform two Shoot actions in the same activation?
 **Example Answer:**  
 Short answer: No.
 
-> #### Core Rules: Actions
+> **Core Rules: Actions**
 > "A model cannot perform the same action more than once in the same activation."
 
 ## Explanation  
