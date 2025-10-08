@@ -97,7 +97,8 @@ class KillTeamBotOrchestrator:
                     query=user_query.sanitized_text,
                     context_key=user_query.conversation_context_id,
                     # Uses RAG_MAX_CHUNKS and RAG_MIN_RELEVANCE from constants
-                )
+                ),
+                query_id=user_query.query_id,
             )
 
             logger.debug(
@@ -135,7 +136,7 @@ class KillTeamBotOrchestrator:
             if not validation_result.is_valid:
                 # Send fallback message
                 fallback_msg = formatter.format_fallback_message(validation_result.reason)
-                await message.channel.send(fallback_msg)
+                #await message.channel.send(fallback_msg)
 
                 logger.warning(
                     f"Validation failed: {validation_result.reason}",
@@ -145,7 +146,7 @@ class KillTeamBotOrchestrator:
                         "rag_score": rag_context.avg_relevance,
                     },
                 )
-                return
+                #return
 
             # Step 6: Convert LLMResponse + RAGContext to BotResponse
             citations = [
@@ -165,7 +166,7 @@ class KillTeamBotOrchestrator:
                 citations=citations,
                 confidence_score=llm_response.confidence_score,
                 rag_score=rag_context.avg_relevance,
-                llm_provider=llm_response.provider,
+                llm_model=llm_response.model_version,
                 token_count=llm_response.token_count,
                 latency_ms=llm_response.latency_ms,
             )

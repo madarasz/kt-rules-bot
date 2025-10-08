@@ -68,6 +68,9 @@ CHUNKING_MAX_TOKENS = 8192  # Match embedding model limit
 # Acknowledgement messages file path
 ACKNOWLEDGEMENTS_FILE_PATH = "personality/necron/acknowledgements-glitch.txt"
 
+# Disclaimer messages file path
+DISCLAIMERS_FILE_PATH = "personality/necron/disclaimers-glitch.txt"
+
 # ============================================================================
 # Notes
 # ============================================================================

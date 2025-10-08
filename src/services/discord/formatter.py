@@ -5,6 +5,7 @@ from typing import List
 
 import discord
 
+from src.lib.discord_utils import get_random_disclaimer
 from src.models.bot_response import BotResponse
 from src.services.llm.validator import ValidationResult
 
@@ -49,30 +50,38 @@ def format_response(
     )
 
     # Add RAG score field
-    embed.add_field(
-        name="RAG Score",
-        value=f"{bot_response.rag_score:.0%}",
-        inline=True,
-    )
+    # embed.add_field(
+    #     name="RAG Score",
+    #     value=f"{bot_response.rag_score:.0%}",
+    #     inline=True,
+    # )
 
     # Add citations
-    if bot_response.citations:
-        citations_text = "\n".join(
-            [
-                f"{i+1}. **{c.document_name}** - {c.section}"
-                for i, c in enumerate(bot_response.citations[:5])  # Limit to 5 citations
-            ]
-        )
-        embed.add_field(
-            name="Sources",
-            value=citations_text,
-            inline=False,
-        )
+    # if bot_response.citations:
+    #     citations_text = "\n".join(
+    #         [
+    #             f"{i+1}. **{c.document_name}** - {c.section}"
+    #             for i, c in enumerate(bot_response.citations[:5])  # Limit to 5 citations
+    #         ]
+    #     )
+    #     embed.add_field(
+    #         name="Sources",
+    #         value=citations_text,
+    #         inline=False,
+    #     )
+
+    # Add disclaimer
+    disclaimer_text = get_random_disclaimer()
+    embed.add_field(
+        name="Disclaimer",
+        value=f"*{disclaimer_text}*",
+        inline=True,
+    )
 
     # Footer with metadata (includes response_id for feedback tracking)
     embed.set_footer(
         text=f"ID: {str(bot_response.response_id)[:8]} | "
-        f"Provider: {bot_response.llm_provider} | "
+        f"Model: {bot_response.llm_model} | "
         f"Tokens: {bot_response.token_count} | "
         f"Latency: {bot_response.latency_ms}ms"
     )

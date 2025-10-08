@@ -26,5 +26,6 @@ requirements:
   - check: Reasoning clarity
     type: llm
     description: >
-      The reasoning is clear and easy to follow. It states that being a secondary target requires visibility from the primary target.
+      The reasoning is clear and easy to follow. The explanation states that
+      not being visible to primary target allows the operative to avoid being hit by the blast.
     points: 10

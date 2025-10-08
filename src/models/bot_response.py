@@ -10,7 +10,8 @@ from typing import List, Literal
 from uuid import UUID, uuid4
 
 
-LLMProvider = Literal["claude", "gemini", "chatgpt"]
+# LLM Model names (actual model identifiers like "gpt-4.1", "claude-sonnet-4-5-20250929", etc.)
+LLMModel = str
 
 
 @dataclass
@@ -52,7 +53,7 @@ class BotResponse:
     confidence_score: float  # LLM confidence (0-1)
     rag_score: float  # RAG avg relevance (0-1)
     validation_passed: bool  # FR-013 combined validation
-    llm_provider: LLMProvider
+    llm_model: LLMModel
     token_count: int
     latency_ms: int
     timestamp: datetime
@@ -83,12 +84,9 @@ class BotResponse:
         for citation in self.citations:
             citation.validate()
 
-        # LLM provider validation
-        valid_providers = {"claude", "gemini", "chatgpt"}
-        if self.llm_provider not in valid_providers:
-            raise ValueError(
-                f"llm_provider must be one of: {', '.join(valid_providers)}"
-            )
+        # LLM model validation (basic check for non-empty string)
+        if not self.llm_model or not self.llm_model.strip():
+            raise ValueError("llm_model cannot be empty")
 
     def should_send(self, confidence_threshold: float = 0.7) -> bool:
         """Check if response meets validation criteria (FR-013).
@@ -147,7 +145,7 @@ class BotResponse:
         citations: List[Citation],
         confidence_score: float,
         rag_score: float,
-        llm_provider: LLMProvider,
+        llm_model: LLMModel,
         token_count: int,
         latency_ms: int,
         confidence_threshold: float = 0.7,
@@ -160,7 +158,7 @@ class BotResponse:
             citations: Source rule references
             confidence_score: LLM confidence (0-1)
             rag_score: RAG avg relevance (0-1)
-            llm_provider: LLM used for generation
+            llm_model: LLM model used for generation (e.g., "gpt-4.1", "claude-sonnet-4-5-20250929")
             token_count: Total tokens used
             latency_ms: Response time in milliseconds
             confidence_threshold: Minimum LLM confidence for validation
@@ -181,7 +179,7 @@ class BotResponse:
             confidence_score=confidence_score,
             rag_score=rag_score,
             validation_passed=validation_passed,
-            llm_provider=llm_provider,
+            llm_model=llm_model,
             token_count=token_count,
             latency_ms=latency_ms,
             timestamp=datetime.now(timezone.utc),
