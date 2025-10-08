@@ -15,13 +15,13 @@ DEFAULT_LLM_PROVIDER = "gpt-4.1"  # Default model for Discord bot and CLI
 LLM_MAX_RETRIES = 2  # Number of retry attempts on ContentFilterError
 
 # Default LLM timeouts (in seconds)
-LLM_GENERATION_TIMEOUT = 60  # Standard generation timeout
+LLM_GENERATION_TIMEOUT = 50  # Standard generation timeout
 LLM_EXTRACTION_TIMEOUT = 120  # PDF extraction timeout (longer)
 LLM_JUDGE_TIMEOUT = 30  # Quality test judge evaluation timeout
 
 # Default LLM generation parameters
-LLM_DEFAULT_MAX_TOKENS = 2048  # Maximum response length
-LLM_DEFAULT_TEMPERATURE = 0  # Lower = more deterministic (0.0-1.0)
+LLM_DEFAULT_MAX_TOKENS = 512  # Maximum response length
+LLM_DEFAULT_TEMPERATURE = 0.1  # Lower = more deterministic (0.0-1.0)
 
 # PDF extraction parameters
 LLM_EXTRACTION_MAX_TOKENS = 16000  # Large output for full rulebook sections

@@ -23,6 +23,9 @@ LLMProvider = Literal[
     "gpt-4.1",
     "gpt-4.1-mini",
     "gpt-4o",
+    "o3",
+    "o3-mini",
+    "o4-mini",
 ]
 
 
@@ -87,6 +90,9 @@ class Config:
             "gpt-4.1": self.openai_api_key,
             "gpt-4.1-mini": self.openai_api_key,
             "gpt-4o": self.openai_api_key,
+            "o3": self.openai_api_key,
+            "o3-mini": self.openai_api_key,
+            "o4-mini": self.openai_api_key,
         }
 
         if not provider_key_mapping.get(self.default_llm_provider):

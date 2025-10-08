@@ -91,6 +91,9 @@ def create_parser() -> argparse.ArgumentParser:
             "gpt-4.1",
             "gpt-4.1-mini",
             "gpt-4o",
+            "o3",
+            "o3-mini",
+            "o4-mini",
         ],
         help="LLM model to use (default: from config)",
     )
@@ -158,6 +161,9 @@ def create_parser() -> argparse.ArgumentParser:
             "gpt-4.1",
             "gpt-4.1-mini",
             "gpt-4o",
+            "o3",
+            "o3-mini",
+            "o4-mini",
         ],
         help="Specific model to test (default: from config)",
     )

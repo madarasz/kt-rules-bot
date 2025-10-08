@@ -9,6 +9,7 @@ import sys
 from datetime import datetime, timezone
 
 from src.lib.config import get_config
+from src.lib.constants import LLM_GENERATION_TIMEOUT
 from src.lib.logging import get_logger
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.validator import ResponseValidator
@@ -110,9 +111,9 @@ def test_query(query: str, provider: str = None, max_chunks: int = 15) -> None:
                 GenerationRequest(
                     prompt=query,
                     context=[chunk.text for chunk in rag_context.document_chunks],
-                    config=GenerationConfig(timeout_seconds=60),
+                    config=GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT),
                 ),
-                timeout_seconds=60
+                timeout_seconds=LLM_GENERATION_TIMEOUT
             )
         )
 

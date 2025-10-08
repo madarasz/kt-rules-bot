@@ -8,7 +8,7 @@ import asyncio
 from typing import Any, Callable
 
 from src.services.llm.base import ContentFilterError
-from src.lib.constants import LLM_MAX_RETRIES
+from src.lib.constants import LLM_MAX_RETRIES, LLM_GENERATION_TIMEOUT
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 async def retry_on_content_filter(
     async_func: Callable,
     *args,
-    timeout_seconds: int = 60,
+    timeout_seconds: int = LLM_GENERATION_TIMEOUT,
     **kwargs
 ) -> Any:
     """Retry async LLM calls on ContentFilterError.
@@ -43,7 +43,7 @@ async def retry_on_content_filter(
         >>> llm_response = await retry_on_content_filter(
         ...     llm_provider.generate,
         ...     GenerationRequest(prompt="...", context=[...]),
-        ...     timeout_seconds=60
+        ...     timeout_seconds=LLM_GENERATION_TIMEOUT
         ... )
     """
 

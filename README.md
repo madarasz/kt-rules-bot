@@ -24,7 +24,7 @@ Helps Kill Team players quickly find accurate rule information by asking questio
 **Supported LLM models:**
 - **Claude**: `claude-sonnet` (Sonnet 4.5), `claude-opus` (Opus 4.1)
 - **Gemini**: `gemini-2.5-pro`, `gemini-2.5-flash`
-- **GPT**: `gpt-5`, `gpt-5-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4o`
+- **OpenAI**: `gpt-5`, `gpt-5-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4o`, `o3`, `o3-mini`, `o4-mini`
 
 ## Installation, Requirements
 
@@ -36,7 +36,7 @@ pip install -r requirements.txt
 cp config/.env.template config/.env
 ```
 
-Set `DEFAULT_LLM_PROVIDER` (e.g., `claude-sonnet`, `gemini-2.5-pro`, `gpt-4o`) and related `*_API_KEY` values in the `config/.env` file you just created.
+Set `DEFAULT_LLM_PROVIDER` (e.g., `claude-sonnet`, `gemini-2.5-pro`, `gpt-4o`, `o3`) and related `*_API_KEY` values in the `config/.env` file you just created.
 
 ```bash
 # Ingest rules into vector database

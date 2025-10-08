@@ -4,6 +4,7 @@ from datetime import date
 
 import discord
 
+from src.lib.constants import LLM_GENERATION_TIMEOUT
 from src.lib.logging import get_logger
 from src.models.bot_response import BotResponse, Citation
 from src.models.user_query import UserQuery
@@ -109,9 +110,9 @@ class KillTeamBotOrchestrator:
                 GenerationRequest(
                     prompt=user_query.sanitized_text,
                     context=[chunk.text for chunk in rag_context.document_chunks],
-                    config=GenerationConfig(timeout_seconds=60),
+                    config=GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT),
                 ),
-                timeout_seconds=60
+                timeout_seconds=LLM_GENERATION_TIMEOUT
             )
 
             logger.debug(
