@@ -1,54 +1,26 @@
 # Decisions
-Best so far:
-- Claude Sonnet
-- gemini-2.5-flash
+## LLM models removed from consideration
+- `GPT-5`: VERY SLOW (often 2mins are not enough to get a reply)
+- `Claude Opus 4.1`: 5-8x more expensive than other models, and does not preform well either
 
-Get rid of:
-- GPT-5, GTP-5-mini: VERY SLOW, often times out
-- GPT-4.1-mini: not smart enough
-- Claude Opus: Expensive, logic might be broken
+## To improve
+- Gemini models often fail with RECITATION error, blocking the response
 
-## claude-sonnet
-- factual: CORRECT
-- speed: fast, ~10s
-- cost: medium, ~0.03$
-## claude-opus
-- factual: WRONG
-    - rewrites Seek rule, compacting Light into first sentence
-    - contradicting statements
-- speed: fast, ~10s
-- cost: expensive, ~0.25$
-## gemini-2.5-pro
-- factual: WRONG
-    - didn't quote Seek Light rule, quoted Markerlight instead
-- speed: medium, ~15s
-- cost: medium, ~0.03$
-## gemini-2.5-flash
-- factual: CORRECT
-- speed: fast, ~10s
-- cost: cheep, ~0.001$
-## gpt-5
-- SOMETIMES TIMES OUT
-- factual: CORRECT
-- speed: slow, ~35s
-- cost: medium, ~0.03$
-## gpt-5-mini
-- SOMETIMES TIMES OUT
-- factual: CORRECT
-- speed: slow, ~30s
-- cost: cheep, ~0.007$
-## gpt-4.1
-- factual: CORRECT
-- speed: fast, ~10s
-- cost: medium, ~0.03$
-## gpt-4.1-mini
-- factual: WRONG
-    - Thinks 6" is important and thus Seek Light and Vantage do not affect
-- speed: fast, ~10s
-- cost: cheep, ~0.005$
-- length: long
-## gpt-4o
-- factual: CORRECT
-- speed: fast, ~10s
-- cost: medium, ~0.03$
-- length: very short, no real explanation, summary = short answer
+# Test results
+## Comparing OpenAI models - 2025-10-08
+- `GPT-4.1` is the most promising, 77% score, 6s to reply, $0.02 cost
+- `GTP-o3` is also nice, 80% score, $0.01 cost, unfortunately slower: 24s to reply
+- `GPT-5` is extremely slow, usually 2 minutes is not enough to get a reply
+- `GPT-5-mini` is also slow, more than 40s in average, sometimes timing out
+
+![report](quality_test_2025-10-08_12-27-54_chart_multirun_3x.png)
+
+| Model | Avg Score | Avg Time | Avg Cost | Avg Chars |
+|-------|-----------|----------|----------|-----------|
+| gpt-4.1 | 76.9% (±34.3%) | 6.27s (±1.63s) | $0.0216 (±$0.0057) | 1221 (±388) |
+| gpt-4o | 44.1% (±37.8%) | 6.93s (±1.87s) | $0.0267 (±$0.0073) | 888 (±242) |
+| gpt-5-mini | 65.9% (±44.7%) | 37.70s (±16.99s) | $0.0056 (±$0.0024) | 1661 (±830) |
+| o3 | 79.5% (±32.3%) | 23.63s (±11.97s) | $0.0135 (±$0.0041) | 1021 (±252) |
+| o3-mini | 56.2% (±39.6%) | 15.92s (±4.93s) | $0.0138 (±$0.0037) | 921 (±169) |
+| o4-mini | 57.5% (±45.0%) | 19.03s (±8.66s) | $0.0138 (±$0.0038) | 851 (±266) |
+
