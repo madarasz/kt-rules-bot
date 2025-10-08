@@ -5,6 +5,7 @@ from datetime import date
 import discord
 
 from src.lib.constants import LLM_GENERATION_TIMEOUT
+from src.lib.discord_utils import get_random_acknowledgement
 from src.lib.logging import get_logger
 from src.models.bot_response import BotResponse, Citation
 from src.models.user_query import UserQuery
@@ -54,7 +55,7 @@ class KillTeamBotOrchestrator:
     ) -> None:
         """Process user query through full orchestration flow.
 
-        Flow: rate limit → RAG → LLM → validate → format → send → feedback buttons
+        Flow: rate limit → acknowledgement → RAG → LLM → validate → format → send → feedback buttons
 
         Args:
             message: Discord message object
@@ -86,7 +87,11 @@ class KillTeamBotOrchestrator:
                 )
                 return
 
-            # Step 2: RAG retrieval
+            # Step 2: Send acknowledgement/please-wait message
+            acknowledgement = get_random_acknowledgement()
+            await message.channel.send(acknowledgement)
+
+            # Step 3: RAG retrieval
             rag_context = self.rag.retrieve(
                 RetrieveRequest(
                     query=user_query.sanitized_text,
@@ -104,7 +109,7 @@ class KillTeamBotOrchestrator:
                 },
             )
 
-            # Step 3: LLM generation with retry logic for ContentFilterError
+            # Step 4: LLM generation with retry logic for ContentFilterError
             llm_response = await retry_on_content_filter(
                 self.llm.generate,
                 GenerationRequest(
@@ -124,7 +129,7 @@ class KillTeamBotOrchestrator:
                 },
             )
 
-            # Step 4: Validation (FR-013: combined LLM + RAG validation)
+            # Step 5: Validation (FR-013: combined LLM + RAG validation)
             validation_result = self.validator.validate(llm_response, rag_context)
 
             if not validation_result.is_valid:
@@ -142,7 +147,7 @@ class KillTeamBotOrchestrator:
                 )
                 return
 
-            # Step 5: Convert LLMResponse + RAGContext to BotResponse
+            # Step 6: Convert LLMResponse + RAGContext to BotResponse
             citations = [
                 Citation(
                     document_name=chunk.metadata.get("source", "Unknown"),
@@ -165,16 +170,16 @@ class KillTeamBotOrchestrator:
                 latency_ms=llm_response.latency_ms,
             )
 
-            # Step 6: Format response
+            # Step 7: Format response
             embeds = formatter.format_response(bot_response, validation_result)
 
-            # Step 7: Send to Discord
+            # Step 8: Send to Discord
             sent_message = await message.channel.send(embeds=embeds)
 
-            # Step 8: Add feedback reaction buttons (👍👎)
+            # Step 9: Add feedback reaction buttons (👍👎)
             await formatter.add_feedback_reactions(sent_message)
 
-            # Step 9: Update conversation context (message history only)
+            # Step 10: Update conversation context (message history only)
             self.context_manager.add_message(
                 user_query.conversation_context_id,
                 role="user",

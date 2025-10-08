@@ -62,6 +62,13 @@ EMBEDDING_MAX_TOKENS = 8192  # text-embedding-3-small token limit
 CHUNKING_MAX_TOKENS = 8192  # Match embedding model limit
 
 # ============================================================================
+# Discord Bot Personality Constants
+# ============================================================================
+
+# Acknowledgement messages file path
+ACKNOWLEDGEMENTS_FILE_PATH = "personality/necron/acknowledgements-glitch.txt"
+
+# ============================================================================
 # Notes
 # ============================================================================
 # - LLM_GENERATION_TIMEOUT applies to total operation including retries
