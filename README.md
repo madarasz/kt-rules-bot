@@ -6,6 +6,14 @@ A Discord bot that answers questions about Warhammer 40,000 Kill Team rules usin
 
 Helps Kill Team players quickly find accurate rule information by asking questions in Discord. The bot searches through official rule documents and provides AI-generated answers with citations and confidence scores.
 
+## Roadmap
+- ✅ Kill Team rules extracted
+- ✅ LLM models integrated
+- ✅ RAG system operational
+- ✅ Rules query available via CLI
+- 🏗️ Assessing LLM models, optimizing prompts
+- ❌ Discord integration
+
 ## Technology, Architecture
 
 - **Python 3.12** with discord.py for Discord integration
@@ -91,7 +99,7 @@ Detailed document about [CLI usage](CLI_USAGE.md)
 
 ## Spec Kit
 
-This project uses the Specify workflow for systematic development. See [specs/001-we-are-building/](specs/001-we-are-building/) for detailed specifications, plans, and tasks.
+This project uses the [Spec Kit](https://github.com/github/spec-kit) workflow for systematic development. See [specs/001-we-are-building/](specs/001-we-are-building/) for detailed specifications, plans, and tasks.
 
 ## Licence
 
