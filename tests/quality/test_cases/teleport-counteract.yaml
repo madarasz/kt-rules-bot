@@ -1,0 +1,31 @@
+test_id: teleport-counteract
+query: >
+  Can I use the Teleport Pad during counteract?
+
+requirements:
+  # Relevant rules are quoted
+  - check: Quote Teleport Pad rule
+    type: contains
+    description: >
+      Instead, remove it from the killzone and set it back up on the other teleport pad.
+    points: 5
+  - check: Quote Counteract rule
+    type: contains
+    description: >
+      or must be set up wholly within 2" if it’s removed and set up again, while counteracting
+    points: 5
+
+  - check: Correct final answer
+    type: llm
+    description: The final answer is no.
+    points: 10
+  - check: Teleport Pad distance is more than 2"
+    type: llm
+    description: The explanation correctly states that the other teleport pad is not wholly within 2" of the first one.
+    points: 5
+  - check: Reasoning clarity
+    type: llm
+    description: > 
+      The reasoning is clear and easy to follow. It states that the other teleport pad is not wholly
+      within 2" of the first one, so the Teleport Pad cannot be used during counteract.
+    points: 10

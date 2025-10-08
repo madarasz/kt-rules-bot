@@ -1,0 +1,28 @@
+test_id: banner-carrier-dies
+query: >
+  If my plant banner is picked up by my opponent and the carrier dies, 
+  who places the banner, me or my opponent?
+
+requirements:
+  # Relevant rules are quoted
+  - check: Quote Place marker rule
+    type: contains
+    description: >
+      If an operative carrying a marker is incapacitated, 
+      it must perform this action before being removed from the killzone
+    points: 5
+
+  - check: Correct final answer
+    type: llm
+    description: The final answer is that your opponent places it.
+    points: 10
+  - check: The marker is placed within control range
+    type: llm
+    description: The explanation correctly states that the marker is placed within the carrier's control range.
+    points: 5
+  - check: Reasoning clarity
+    type: llm
+    description: > 
+      The reasoning is clear and easy to follow. It states that the carrier must place the marker 
+      within its control range before being removed from the killzone.
+    points: 10
