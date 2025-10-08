@@ -44,7 +44,7 @@ def load_system_prompt() -> str:
     # Assuming this file is at src/services/llm/base.py
     current_file = Path(__file__)
     project_root = current_file.parent.parent.parent.parent
-    prompt_file = project_root / "prompts" / "rule-helper-prompt.md"
+    prompt_file = project_root / "prompts" / "rule-helper-prompt-necron.md"
 
     if not prompt_file.exists():
         raise FileNotFoundError(
