@@ -10,7 +10,7 @@ from openai import OpenAI
 
 from src.lib.config import get_config
 from src.lib.logging import get_logger
-from src.lib.constants import EMBEDDING_MAX_TOKENS
+from src.lib.constants import EMBEDDING_MAX_TOKENS, EMBEDDING_MODEL
 
 logger = get_logger(__name__)
 
@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 class EmbeddingService:
     """Service for generating embeddings using OpenAI API."""
 
-    def __init__(self, model: str = "text-embedding-3-small"):
+    def __init__(self, model: str = EMBEDDING_MODEL):
         """Initialize embedding service.
 
         Args:

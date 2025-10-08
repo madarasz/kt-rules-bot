@@ -10,7 +10,7 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-from src.lib.constants import EMBEDDING_MODEL
+from src.lib.constants import EMBEDDING_MODEL, DEFAULT_LLM_PROVIDER
 
 
 LLMProvider = Literal[
@@ -42,7 +42,7 @@ class Config:
     google_api_key: Optional[str] = None
 
     # LLM Selection
-    default_llm_provider: LLMProvider = os.getenv("DEFAULT_LLM_PROVIDER", "gpt-4.1") 
+    default_llm_provider: LLMProvider = os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER) 
 
     # RAG Configuration
     vector_db_path: str = "./data/chroma_db"
@@ -150,10 +150,10 @@ class Config:
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             google_api_key=os.getenv("GOOGLE_API_KEY"),
             # LLM Selection
-            default_llm_provider=os.getenv("DEFAULT_LLM_PROVIDER", "claude-sonnet"),  # type: ignore
+            default_llm_provider=os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER),  # type: ignore
             # RAG
             vector_db_path=os.getenv("VECTOR_DB_PATH", "./data/chroma_db"),
-            embedding_model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
+            embedding_model=os.getenv("EMBEDDING_MODEL", EMBEDDING_MODEL),
             # Logging
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             # GDPR

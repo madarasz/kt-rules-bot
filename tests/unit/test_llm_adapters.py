@@ -231,7 +231,7 @@ class TestLLMProviderFactory:
         assert "claude-opus" in providers
         assert "gemini-2.5-pro" in providers
         assert "gpt-4o" in providers
-        assert len(providers) == 7  # Total number of models
+        assert len(providers) == 12  # Total number of models
 
     @patch("src.services.llm.factory.get_config")
     def test_create_claude_provider(self, mock_config):

@@ -28,7 +28,7 @@ from src.services.rag.vector_db import VectorDBService
 from src.services.rag.embeddings import EmbeddingService
 from src.services.llm.base import GenerationRequest, GenerationConfig, ContentFilterError
 from src.services.llm.retry import retry_on_content_filter
-from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
+from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, RAG_MAX_CHUNKS, LLM_GENERATION_TIMEOUT
 from src.lib.config import get_config
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost
@@ -140,7 +140,7 @@ class QualityTestRunner:
                 RetrieveRequest(
                     query=test_case.query,
                     context_key="quality_test",
-                    max_chunks=15,
+                    max_chunks=RAG_MAX_CHUNKS,
                 ),
                 query_id=query_id,
             )
@@ -149,7 +149,7 @@ class QualityTestRunner:
         llm_provider = LLMProviderFactory.create(model)
 
         # Create config and capture system prompt
-        gen_config = GenerationConfig(timeout_seconds=60)
+        gen_config = GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT)
 
         try:
             # Wrap LLM generation with retry logic for ContentFilterError
@@ -160,7 +160,7 @@ class QualityTestRunner:
                     context=[chunk.text for chunk in rag_context.document_chunks],
                     config=gen_config,
                 ),
-                timeout_seconds=60
+                timeout_seconds=LLM_GENERATION_TIMEOUT
             )
 
             # Measure total time including all retry attempts
@@ -273,7 +273,7 @@ class QualityTestRunner:
                 RetrieveRequest(
                     query=test_case.query,
                     context_key="quality_test",
-                    max_chunks=15,
+                    max_chunks=RAG_MAX_CHUNKS,
                 ),
                 query_id=query_id,
             )

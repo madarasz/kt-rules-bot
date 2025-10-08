@@ -9,7 +9,7 @@ import sys
 from datetime import datetime, timezone
 
 from src.lib.config import get_config
-from src.lib.constants import LLM_GENERATION_TIMEOUT
+from src.lib.constants import LLM_GENERATION_TIMEOUT, RAG_MAX_CHUNKS
 from src.lib.logging import get_logger
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.validator import ResponseValidator
@@ -22,7 +22,7 @@ from src.services.llm.retry import retry_on_content_filter
 logger = get_logger(__name__)
 
 
-def test_query(query: str, provider: str = None, max_chunks: int = 15) -> None:
+def test_query(query: str, provider: str = None, max_chunks: int = RAG_MAX_CHUNKS) -> None:
     """Test RAG + LLM pipeline locally.
 
     Args:
@@ -187,8 +187,8 @@ def main():
         "--max-chunks",
         "-m",
         type=int,
-        default=5,
-        help="Maximum chunks to retrieve (default: 5)",
+        default=RAG_MAX_CHUNKS,
+        help=f"Maximum chunks to retrieve (default: {RAG_MAX_CHUNKS})",
     )
 
     args = parser.parse_args()

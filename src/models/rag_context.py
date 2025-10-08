@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from typing import Dict, Any, List
 from uuid import UUID, uuid4
 
+from src.lib.constants import RAG_MIN_RELEVANCE
+
 
 @dataclass
 class DocumentChunk:
@@ -101,7 +103,7 @@ class RAGContext:
             raise ValueError("total_chunks must match document_chunks length")
 
         # Threshold validation
-        expected_meets_threshold = self.avg_relevance >= 0.6
+        expected_meets_threshold = self.avg_relevance >= RAG_MIN_RELEVANCE
         if self.meets_threshold != expected_meets_threshold:
             raise ValueError(
                 f"meets_threshold should be {expected_meets_threshold} "
@@ -113,7 +115,7 @@ class RAGContext:
         cls,
         query_id: UUID,
         chunks: List[DocumentChunk],
-        min_relevance: float = 0.6,
+        min_relevance: float = RAG_MIN_RELEVANCE,
     ) -> "RAGContext":
         """Create RAGContext from retrieval results.
 
