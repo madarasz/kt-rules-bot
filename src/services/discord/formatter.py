@@ -36,7 +36,7 @@ def format_response(
 
     # Create main embed
     embed = discord.Embed(
-        title="Kill Team Rules Assistant",
+        title="Kill Team Rules Bot",
         description=bot_response.answer_text[:2000],  # Discord limit
         color=color,
         timestamp=datetime.now(timezone.utc),
