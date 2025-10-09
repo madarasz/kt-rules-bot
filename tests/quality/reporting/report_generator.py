@@ -8,6 +8,7 @@ from tests.quality.reporting.report_models import (
     IndividualTestResult,
     ModelSummary,
 )
+from tests.quality.reporting.chart_generator import ChartGenerator
 
 
 class ReportGenerator:
@@ -22,6 +23,10 @@ class ReportGenerator:
         Generates all necessary report files based on the test configuration.
         Returns the path to the main report file.
         """
+        # Generate charts first (they populate chart_path fields in the report)
+        chart_generator = ChartGenerator(self.report)
+        chart_generator.generate_all_charts()
+        
         # Always generate the main report
         main_report_path = os.path.join(self.report_dir, "report.md")
         main_report_content = self._generate_main_report()
@@ -52,17 +57,10 @@ class ReportGenerator:
         content.append(self._get_overall_report_header())
 
         if self.report.is_multi_model:
-            content.append(self._get_model_comparison_table())
+            content.append("\n" + self._get_model_comparison_table())
 
         if self.report.is_multi_run and self.report.is_multi_test_case and not self.report.is_multi_model:
             content.append(self._get_test_case_summary_table())
-
-        if self.report.is_multi_model:
-            content.append("\n## Summary per Model")
-            for model_name in self.report.models:
-                summary = self.report.per_model_summaries.get(model_name)
-                if summary:
-                    content.append(self._get_model_summary_section(summary))
 
         # Link to sub-reports or show individual results
         if self.report.is_multi_test_case and self.report.is_multi_model:
@@ -188,19 +186,6 @@ class ReportGenerator:
             ]
             table.append("| " + " | ".join(row) + " |")
         return "\n".join(["\n## Summary per Test Case", table])
-
-    def _get_model_summary_section(self, summary: ModelSummary) -> str:
-        """Builds a section summarizing a single model's performance."""
-        score_std_dev = f" (±{summary.std_dev_score_pct:.1f}%)" if self.report.is_multi_run else ""
-        time_std_dev = f" (±{summary.std_dev_time:.2f}s)" if self.report.is_multi_run else ""
-        cost_std_dev = f" (±${summary.std_dev_cost:.4f})" if self.report.is_multi_run else ""
-        content = [
-            f"\n### {summary.model_name}",
-            f"- **Average Score**: {summary.avg_score_pct:.1f}%{score_std_dev}",
-            f"- **Average Time/Query**: {summary.avg_time:.2f}s{time_std_dev}",
-            f"- **Average Cost/Query**: ${summary.avg_cost:.4f}{cost_std_dev}",
-        ]
-        return "\n".join(content)
 
     def _get_individual_test_result_section(self, result: IndividualTestResult, include_header: bool = True) -> str:
         """Builds a section for a single test result."""

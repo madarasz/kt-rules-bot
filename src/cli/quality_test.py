@@ -11,7 +11,6 @@ from tests.quality.test_runner import QualityTestRunner
 from tests.quality.reporting.report_models import QualityReport
 from tests.quality.reporting.aggregator import aggregate_results
 from tests.quality.reporting.report_generator import ReportGenerator
-# from tests.quality.visualization import generate_visualization # This will be replaced
 from src.services.llm.factory import LLMProviderFactory
 from src.lib.logging import get_logger
 from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
@@ -95,13 +94,7 @@ def quality_test(
         # Aggregate results
         aggregate_results(report)
 
-        # TODO: Add visualization generation here
-        # For now, we'll skip chart generation
-        # report.chart_path = generate_visualization(report)
-        # for test_id, test_case_report in report.per_test_case_reports.items():
-        #     test_case_report.chart_path = generate_test_case_visualization(test_case_report)
-
-        # Generate reports
+        # Generate reports (includes chart generation)
         report_generator = ReportGenerator(report)
         main_report_path = report_generator.generate_all_reports()
 

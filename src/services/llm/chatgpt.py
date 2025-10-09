@@ -124,7 +124,7 @@ class ChatGPTAdapter(LLMProvider):
             answer_text = choice.message.content
 
             # Debug logging for GPT-5 issues
-            logger.debug(f"GPT-5 response - finish_reason: {choice.finish_reason}, content_length: {len(answer_text) if answer_text else 0}")
+            logger.debug(f"GPT response - finish_reason: {choice.finish_reason}, content_length: {len(answer_text) if answer_text else 0}")
 
             # GPT-5 sometimes returns None or empty content - check for refusal or other issues
             if not answer_text:

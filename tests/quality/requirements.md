@@ -99,7 +99,7 @@ Table with columns:
     - Summary for the test case across all runs (average score, overall time, overall cost, and std. dev.).
     - "Individual test result" for each run of this test case.
 - `output_[test_case]_[model_name]_[#run].md` for each run of each test case, `report_[test_case].md`
-- Visualization: `chart.png` showing score distribution per test case, referred in `report.md`
+- Visualization not needed
 
 ### multiple runs, single test case, multiple models
 - `report.md`
