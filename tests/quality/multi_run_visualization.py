@@ -172,6 +172,7 @@ def generate_multi_run_visualization(
 
     ax2.set_ylabel('Time (seconds)', fontsize=12, fontweight='bold', color=color_time)
     ax2.tick_params(axis='y', labelcolor=color_time)
+    ax2.set_ylim(bottom=0)
 
     # Create third y-axis for cost
     ax3 = ax1.twinx()
@@ -191,6 +192,7 @@ def generate_multi_run_visualization(
 
     ax3.set_ylabel('Cost (USD)', fontsize=12, fontweight='bold', color=color_cost)
     ax3.tick_params(axis='y', labelcolor=color_cost)
+    ax3.set_ylim(bottom=0)
 
     # Create fourth y-axis for characters
     ax4 = ax1.twinx()
@@ -210,6 +212,7 @@ def generate_multi_run_visualization(
 
     ax4.set_ylabel('Response Characters', fontsize=12, fontweight='bold', color=color_chars)
     ax4.tick_params(axis='y', labelcolor=color_chars)
+    ax4.set_ylim(bottom=0)
 
     # Title
     plt.title(f'Model Performance Comparison (N={multi_run_suite.run_count} runs, averaged)',
@@ -243,12 +246,12 @@ def generate_multi_run_visualization(
     # Join with minimal spacing
     query_text = "\n".join(query_lines)
     plt.figtext(0.1, 0.02, query_text, fontsize=9, va='top',
-                linespacing=1.2)  # Reduced line spacing
+                linespacing=1)  # Reduced line spacing
 
     # Note about error bars
-    note_text = f"Error bars show standard deviation across {multi_run_suite.run_count} runs. Dots show individual run values."
-    plt.figtext(0.1, 0.01, note_text, fontsize=8, va='top',
-                style='italic', color='#666666')
+    # note_text = f"Error bars show standard deviation across {multi_run_suite.run_count} runs. Dots show individual run values."
+    # plt.figtext(0.1, 0.01, note_text, fontsize=8, va='top',
+    #             style='italic', color='#666666')
 
     # Adjust layout to make room for queries
     plt.subplots_adjust(bottom=0.25)

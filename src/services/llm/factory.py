@@ -140,10 +140,7 @@ class LLMProviderFactory:
        #     "gemini-2.5-pro",
         #    "gemini-2.5-flash",
             "gpt-4.1",
-         #   "o3",
-            "grok-3",
-            "grok-3-mini",
-            "grok-4-0709",
+            "o3",
             "grok-4-fast-reasoning",
         ]
 
