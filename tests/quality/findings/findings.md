@@ -1,6 +1,6 @@
 # Decisions
 ## LLM models removed from consideration
-- `GPT-5`: VERY SLOW (often 2mins are not enough to get a reply)
+- `GPT-5`, `grok-4-0709`: VERY SLOW (often around 2 mins or more)
 - `Claude Opus 4.1`: 5-8x more expensive than other models, and does not preform well either
 
 ## To improve
