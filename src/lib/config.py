@@ -26,6 +26,10 @@ LLMProvider = Literal[
     "o3",
     "o3-mini",
     "o4-mini",
+    "grok-4-fast-reasoning",
+    "grok-4-0709",
+    "grok-3",
+    "grok-3-mini",
 ]
 
 
@@ -40,6 +44,7 @@ class Config:
     anthropic_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
     google_api_key: Optional[str] = None
+    x_api_key: Optional[str] = None
 
     # LLM Selection
     default_llm_provider: LLMProvider = os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER) 
@@ -74,6 +79,7 @@ class Config:
                 self.anthropic_api_key,
                 self.openai_api_key,
                 self.google_api_key,
+                self.x_api_key,
             ]
         )
         if not has_provider:
@@ -93,6 +99,10 @@ class Config:
             "o3": self.openai_api_key,
             "o3-mini": self.openai_api_key,
             "o4-mini": self.openai_api_key,
+            "grok-4-fast-reasoning": self.x_api_key,
+            "grok-4-0709": self.x_api_key,
+            "grok-3": self.x_api_key,
+            "grok-3-mini": self.x_api_key,
         }
 
         if not provider_key_mapping.get(self.default_llm_provider):
@@ -149,6 +159,7 @@ class Config:
             anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             google_api_key=os.getenv("GOOGLE_API_KEY"),
+            x_api_key=os.getenv("X_API_KEY"),
             # LLM Selection
             default_llm_provider=os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER),  # type: ignore
             # RAG

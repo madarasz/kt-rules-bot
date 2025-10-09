@@ -10,6 +10,7 @@ from src.services.llm.base import LLMProvider
 from src.services.llm.claude import ClaudeAdapter
 from src.services.llm.chatgpt import ChatGPTAdapter
 from src.services.llm.gemini import GeminiAdapter
+from src.services.llm.grok import GrokAdapter
 from src.lib.config import get_config
 from src.lib.logging import get_logger
 
@@ -28,6 +29,10 @@ ProviderName = Literal[
     "o3",
     "o3-mini",
     "o4-mini",
+    "grok-4-fast-reasoning",
+    "grok-4-0709",
+    "grok-3",
+    "grok-3-mini",
 ]
 
 
@@ -48,6 +53,10 @@ class LLMProviderFactory:
         "o3": (ChatGPTAdapter, "o3", "openai"),
         "o3-mini": (ChatGPTAdapter, "o3-mini", "openai"),
         "o4-mini": (ChatGPTAdapter, "o4-mini", "openai"),
+        "grok-4-fast-reasoning": (GrokAdapter, "grok-4-fast-reasoning", "x"),
+        "grok-4-0709": (GrokAdapter, "grok-4-0709", "x"),
+        "grok-3": (GrokAdapter, "grok-3", "x"),
+        "grok-3-mini": (GrokAdapter, "grok-3-mini", "x"),
     }
 
     @classmethod
@@ -86,6 +95,7 @@ class LLMProviderFactory:
             "anthropic": config.anthropic_api_key,
             "openai": config.openai_api_key,
             "google": config.google_api_key,
+            "x": config.x_api_key,
         }
 
         api_key = api_key_map[api_key_type]
@@ -95,6 +105,7 @@ class LLMProviderFactory:
                 "anthropic": "ANTHROPIC_API_KEY",
                 "openai": "OPENAI_API_KEY",
                 "google": "GOOGLE_API_KEY",
+                "x": "X_API_KEY",
             }
             raise KeyError(
                 f"API key not found: {api_key_env_map[api_key_type]}. "
@@ -125,11 +136,15 @@ class LLMProviderFactory:
             List of model names for quality testing
         """
         return [
-            "claude-sonnet",
-            "gemini-2.5-pro",
-            "gemini-2.5-flash",
+      #      "claude-sonnet",
+       #     "gemini-2.5-pro",
+        #    "gemini-2.5-flash",
             "gpt-4.1",
-            "o3"
+         #   "o3",
+            "grok-3",
+            "grok-3-mini",
+            "grok-4-0709",
+            "grok-4-fast-reasoning",
         ]
 
 

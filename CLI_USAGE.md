@@ -516,7 +516,7 @@ All commands use configuration from:
 
 **Required Configuration:**
 - `DISCORD_TOKEN` - Discord bot token (for `run` command)
-- `LLM_PROVIDER` - LLM provider (claude/chatgpt/gemini)
+- `LLM_PROVIDER` - LLM provider (claude/chatgpt/gemini/grok)
 - `LLM_API_KEY` - API key for LLM provider
 - `VECTORDB_PERSIST_DIRECTORY` - Vector database storage path
 

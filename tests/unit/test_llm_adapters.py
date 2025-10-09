@@ -19,6 +19,7 @@ from src.services.llm.base import (
 from src.services.llm.claude import ClaudeAdapter
 from src.services.llm.chatgpt import ChatGPTAdapter
 from src.services.llm.gemini import GeminiAdapter
+from src.services.llm.grok import GrokAdapter
 from src.services.llm.factory import LLMProviderFactory, get_provider
 from src.services.llm.validator import ResponseValidator, ValidationResult
 from src.services.llm.rate_limiter import RateLimiter, RateLimitConfig
@@ -220,6 +221,118 @@ class TestGeminiAdapter:
         assert 0.7 <= confidence <= 0.85  # Average around 0.8
 
 
+class TestGrokAdapter:
+    """Test Grok LLM adapter."""
+
+    @pytest.fixture
+    def mock_httpx(self):
+        """Mock httpx client."""
+        with patch("src.services.llm.grok.httpx") as mock:
+            yield mock
+
+    @pytest.fixture
+    def grok_adapter(self, mock_httpx):
+        """Create Grok adapter with mocked client."""
+        with patch("src.services.llm.grok.httpx", mock_httpx):
+            adapter = GrokAdapter(api_key="test-key", model="grok-3")
+            return adapter
+
+    async def test_generate_success(self, grok_adapter, mock_httpx):
+        """Test successful generation."""
+        # Mock HTTP response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [
+                {
+                    "message": {
+                        "content": "According to Core Rules: Movement is 6 inches"
+                    },
+                    "finish_reason": "stop"
+                }
+            ],
+            "usage": {
+                "total_tokens": 150
+            }
+        }
+
+        # Mock the AsyncClient context manager properly
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        
+        mock_context_manager = AsyncMock()
+        mock_context_manager.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_context_manager.__aexit__ = AsyncMock(return_value=None)
+        
+        mock_httpx.AsyncClient.return_value = mock_context_manager
+
+        request = GenerationRequest(
+            prompt="How far can I move?",
+            context=["Movement: 6 inches"],
+            config=GenerationConfig(timeout_seconds=25),
+        )
+
+        response = await grok_adapter.generate(request)
+
+        assert isinstance(response, LLMResponse)
+        assert response.provider == "grok"
+        assert response.model_version == "grok-3"
+        assert response.confidence_score == 0.8  # Default confidence
+        assert response.token_count == 150
+
+    async def test_generate_rate_limit(self, grok_adapter, mock_httpx):
+        """Test rate limit error handling."""
+        # Mock 429 response
+        mock_response = Mock()
+        mock_response.status_code = 429
+        mock_response.text = "Rate limit exceeded"
+
+        # Mock the AsyncClient context manager properly
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        
+        mock_context_manager = AsyncMock()
+        mock_context_manager.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_context_manager.__aexit__ = AsyncMock(return_value=None)
+        
+        mock_httpx.AsyncClient.return_value = mock_context_manager
+
+        request = GenerationRequest(
+            prompt="Test query",
+            context=[],
+            config=GenerationConfig(),
+        )
+
+        with pytest.raises(RateLimitError, match="Grok rate limit"):
+            await grok_adapter.generate(request)
+
+    async def test_generate_auth_error(self, grok_adapter, mock_httpx):
+        """Test authentication error handling."""
+        # Mock 401 response
+        mock_response = Mock()
+        mock_response.status_code = 401
+        mock_response.text = "Unauthorized"
+
+        # Mock the AsyncClient context manager properly
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        
+        mock_context_manager = AsyncMock()
+        mock_context_manager.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_context_manager.__aexit__ = AsyncMock(return_value=None)
+        
+        mock_httpx.AsyncClient.return_value = mock_context_manager
+
+        request = GenerationRequest(
+            prompt="Test query",
+            context=[],
+            config=GenerationConfig(),
+        )
+
+        with pytest.raises(AuthenticationError, match="Grok auth error"):
+            await grok_adapter.generate(request)
+
+
 class TestLLMProviderFactory:
     """Test LLM provider factory."""
 
@@ -231,7 +344,7 @@ class TestLLMProviderFactory:
         assert "claude-opus" in providers
         assert "gemini-2.5-pro" in providers
         assert "gpt-4o" in providers
-        assert len(providers) == 12  # Total number of models
+        assert len(providers) == 16  # Total number of models (12 + 4 Grok models)
 
     @patch("src.services.llm.factory.get_config")
     def test_create_claude_provider(self, mock_config):
@@ -246,6 +359,20 @@ class TestLLMProviderFactory:
 
             assert isinstance(provider, ClaudeAdapter)
             assert provider.model == "claude-sonnet-4-5-20250929"
+
+    @patch("src.services.llm.factory.get_config")
+    def test_create_grok_provider(self, mock_config):
+        """Test creating Grok provider."""
+        config_obj = Mock()
+        config_obj.x_api_key = "test-key"
+        config_obj.default_llm_provider = "grok-3"
+        mock_config.return_value = config_obj
+
+        with patch("src.services.llm.grok.httpx"):
+            provider = LLMProviderFactory.create("grok-3")
+
+            assert isinstance(provider, GrokAdapter)
+            assert provider.model == "grok-3"
 
     @patch("src.services.llm.factory.get_config")
     def test_create_invalid_provider(self, mock_config):
