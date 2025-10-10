@@ -32,7 +32,7 @@ LLM_EXTRACTION_TEMPERATURE = 0  # Low temperature for consistent structure
 # ============================================================================
 
 # Default judge model for quality tests
-QUALITY_TEST_JUDGE_MODEL = "gpt-4.1-mini"
+QUALITY_TEST_JUDGE_MODEL = "gemini-2.5-flash"
 
 # Judge evaluation parameters
 QUALITY_TEST_JUDGE_MAX_TOKENS = 150  # Short evaluation responses
@@ -60,6 +60,13 @@ EMBEDDING_MODEL = "text-embedding-3-small"  # OpenAI embedding model
 # Token limits for embeddings and chunking
 EMBEDDING_MAX_TOKENS = 8192  # text-embedding-3-small token limit
 CHUNKING_MAX_TOKENS = 8192  # Match embedding model limit
+
+# ============================================================================
+# LLM Prompt Constants
+# ============================================================================
+
+# System prompt file path for LLM providers
+LLM_SYSTEM_PROMPT_FILE_PATH = "prompts/rule-helper-prompt-necron.md"
 
 # ============================================================================
 # Discord Bot Personality Constants
