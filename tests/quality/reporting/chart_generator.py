@@ -223,6 +223,8 @@ class ChartGenerator:
             self._add_individual_points(ax2, pos2, models, 'times')
         ax2.set_ylabel('Time (seconds)', fontsize=12, fontweight='bold', color=color_time)
         ax2.tick_params(axis='y', labelcolor=color_time)
+        # Ensure time axis starts from 0
+        ax2.set_ylim(bottom=0)
         
         ax3 = ax1.twinx()
         ax3.spines['right'].set_position(('outward', 60))
@@ -234,6 +236,8 @@ class ChartGenerator:
             self._add_individual_points(ax3, pos3, models, 'costs')
         ax3.set_ylabel('Cost (USD)', fontsize=12, fontweight='bold', color=color_cost)
         ax3.tick_params(axis='y', labelcolor=color_cost)
+        # Ensure cost axis starts from 0
+        ax3.set_ylim(bottom=0)
         
         ax4 = ax1.twinx()
         ax4.spines['right'].set_position(('outward', 120))
@@ -245,6 +249,8 @@ class ChartGenerator:
             self._add_individual_points(ax4, pos4, models, 'chars')
         ax4.set_ylabel('Response Characters', fontsize=12, fontweight='bold', color=color_chars)
         ax4.tick_params(axis='y', labelcolor=color_chars)
+        # Ensure characters axis starts from 0
+        ax4.set_ylim(bottom=0)
         
         # Title and legend
         plt.title(title, fontsize=14, fontweight='bold', pad=20)
