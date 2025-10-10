@@ -12,7 +12,7 @@ Helps Kill Team players quickly find accurate rule information by asking questio
 - ✅ RAG system operational
 - ✅ Rules query available via CLI
 - 🏗️ Assessing LLM models, optimizing prompts
-- ❌ Discord integration
+- 🏗️ Discord integration
 
 ## Technology, Architecture
 
