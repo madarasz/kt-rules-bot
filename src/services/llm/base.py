@@ -17,6 +17,7 @@ from src.lib.constants import (
     LLM_EXTRACTION_MAX_TOKENS,
     LLM_EXTRACTION_TEMPERATURE,
     LLM_EXTRACTION_TIMEOUT,
+    LLM_SYSTEM_PROMPT_FILE_PATH,
 )
 
 
@@ -44,12 +45,12 @@ def load_system_prompt() -> str:
     # Assuming this file is at src/services/llm/base.py
     current_file = Path(__file__)
     project_root = current_file.parent.parent.parent.parent
-    prompt_file = project_root / "prompts" / "rule-helper-prompt-necron.md"
+    prompt_file = project_root / LLM_SYSTEM_PROMPT_FILE_PATH
 
     if not prompt_file.exists():
         raise FileNotFoundError(
             f"System prompt file not found: {prompt_file}\n"
-            f"Expected location: prompts/rule-helper-prompt.md"
+            f"Expected location: {LLM_SYSTEM_PROMPT_FILE_PATH}"
         )
 
     # Read and cache the prompt
