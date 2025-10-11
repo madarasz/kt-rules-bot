@@ -6,5 +6,5 @@ query: >
 
 required_chunks:
   - "TRACK ENEMY"
-  - "Vantage"
+  - "**Vantage**"
   - "Seek"

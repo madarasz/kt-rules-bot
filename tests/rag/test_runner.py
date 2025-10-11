@@ -229,29 +229,65 @@ class RAGTestRunner:
                 embedding_model=EMBEDDING_MODEL,
             )
 
-        # Calculate means
-        mean_map = sum(r.map_score for r in results) / len(results)
-        mean_recall_5 = sum(r.recall_at_5 for r in results) / len(results)
-        mean_recall_10 = sum(r.recall_at_10 for r in results) / len(results)
-        mean_prec_3 = sum(r.precision_at_3 for r in results) / len(results)
-        mean_prec_5 = sum(r.precision_at_5 for r in results) / len(results)
-        mean_mrr = sum(r.mrr for r in results) / len(results)
+        # Group results by test_id to separate test cases
+        from collections import defaultdict
+        import statistics
+
+        results_by_test = defaultdict(list)
+        for result in results:
+            results_by_test[result.test_id].append(result)
+
+        # Calculate per-test-case means and standard deviations
+        test_case_means = {
+            'map': [],
+            'recall_5': [],
+            'recall_10': [],
+            'prec_3': [],
+            'prec_5': [],
+            'mrr': [],
+        }
+        test_case_stds = {
+            'map': [],
+            'recall_5': [],
+            'prec_3': [],
+        }
+
+        for test_id, test_results in results_by_test.items():
+            # Calculate mean for this test case across all runs
+            test_case_means['map'].append(sum(r.map_score for r in test_results) / len(test_results))
+            test_case_means['recall_5'].append(sum(r.recall_at_5 for r in test_results) / len(test_results))
+            test_case_means['recall_10'].append(sum(r.recall_at_10 for r in test_results) / len(test_results))
+            test_case_means['prec_3'].append(sum(r.precision_at_3 for r in test_results) / len(test_results))
+            test_case_means['prec_5'].append(sum(r.precision_at_5 for r in test_results) / len(test_results))
+            test_case_means['mrr'].append(sum(r.mrr for r in test_results) / len(test_results))
+
+            # Calculate standard deviation for this test case (only if multiple runs)
+            if len(test_results) > 1:
+                test_case_stds['map'].append(statistics.stdev([r.map_score for r in test_results]))
+                test_case_stds['recall_5'].append(statistics.stdev([r.recall_at_5 for r in test_results]))
+                test_case_stds['prec_3'].append(statistics.stdev([r.precision_at_3 for r in test_results]))
+            else:
+                test_case_stds['map'].append(0.0)
+                test_case_stds['recall_5'].append(0.0)
+                test_case_stds['prec_3'].append(0.0)
+
+        # Overall means (average of per-test-case means)
+        mean_map = sum(test_case_means['map']) / len(test_case_means['map'])
+        mean_recall_5 = sum(test_case_means['recall_5']) / len(test_case_means['recall_5'])
+        mean_recall_10 = sum(test_case_means['recall_10']) / len(test_case_means['recall_10'])
+        mean_prec_3 = sum(test_case_means['prec_3']) / len(test_case_means['prec_3'])
+        mean_prec_5 = sum(test_case_means['prec_5']) / len(test_case_means['prec_5'])
+        mean_mrr = sum(test_case_means['mrr']) / len(test_case_means['mrr'])
+
+        # Overall standard deviations (average of per-test-case standard deviations)
+        # This represents the typical variance across runs for a single test case
+        std_map = sum(test_case_stds['map']) / len(test_case_stds['map'])
+        std_recall_5 = sum(test_case_stds['recall_5']) / len(test_case_stds['recall_5'])
+        std_prec_3 = sum(test_case_stds['prec_3']) / len(test_case_stds['prec_3'])
 
         # Calculate performance metrics
         avg_retrieval_time = sum(r.retrieval_time_seconds for r in results) / len(results)
         total_cost = sum(r.embedding_cost_usd for r in results)
-
-        # Calculate standard deviations if multiple runs
-        if len(results) > 1:
-            import statistics
-
-            std_map = statistics.stdev([r.map_score for r in results])
-            std_recall_5 = statistics.stdev([r.recall_at_5 for r in results])
-            std_prec_3 = statistics.stdev([r.precision_at_3 for r in results])
-        else:
-            std_map = 0.0
-            std_recall_5 = 0.0
-            std_prec_3 = 0.0
 
         # Get BM25 parameters from hybrid retriever
         bm25_k1 = self.bm25_k1

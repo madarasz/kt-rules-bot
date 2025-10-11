@@ -223,12 +223,6 @@ def create_parser() -> argparse.ArgumentParser:
         default=RAG_MIN_RELEVANCE,
         help=f"Minimum relevance threshold (default: {RAG_MIN_RELEVANCE})",
     )
-    rag_parser.add_argument(
-        "--yes",
-        "-y",
-        action="store_true",
-        help="Skip confirmation prompt",
-    )
 
     # Command: rag-test-sweep
     rag_sweep_parser = subparsers.add_parser(
@@ -283,12 +277,6 @@ def create_parser() -> argparse.ArgumentParser:
     rag_sweep_parser.add_argument(
         "--bm25-b",
         help="Comma-separated bm25_b values for grid search (e.g., 0.5,0.75,1.0)",
-    )
-    rag_sweep_parser.add_argument(
-        "--yes",
-        "-y",
-        action="store_true",
-        help="Skip confirmation prompt",
     )
 
     # Command: download-team
@@ -383,8 +371,7 @@ def main():
                 test_id=args.test,
                 runs=args.runs,
                 max_chunks=args.max_chunks,
-                min_relevance=args.min_relevance,
-                yes=args.yes,
+                min_relevance=args.min_relevance
             )
 
         elif args.command == "rag-test-sweep":
@@ -398,8 +385,7 @@ def main():
                 min_relevance=args.min_relevance,
                 rrf_k=args.rrf_k,
                 bm25_k1=args.bm25_k1,
-                bm25_b=args.bm25_b,
-                yes=args.yes,
+                bm25_b=args.bm25_b
             )
 
         elif args.command == "download-team":
