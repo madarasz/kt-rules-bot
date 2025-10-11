@@ -78,7 +78,7 @@ def truncate_to_token_limit(
 def estimate_cost(
     prompt_tokens: int,
     completion_tokens: int,
-    model: str = "claude-sonnet",
+    model: str,
 ) -> float:
     """Estimate cost for LLM API call.
 
@@ -129,6 +129,32 @@ def get_embedding_token_limit(model: str = EMBEDDING_MODEL) -> int:
     }
 
     return limits.get(model, 8192)
+
+
+def estimate_embedding_cost(text: str, model: str = EMBEDDING_MODEL) -> float:
+    """Estimate cost for embedding generation.
+
+    Args:
+        text: Text to generate embedding for
+        model: Embedding model name (default: from constants)
+
+    Returns:
+        Estimated cost in USD
+    """
+    # Pricing per 1M tokens (as of 2025 October)
+    pricing = {
+        "text-embedding-3-small": 0.020 / 1_000_000,  # $0.020 per 1M tokens
+        "text-embedding-3-large": 0.130 / 1_000_000,  # $0.130 per 1M tokens
+        "text-embedding-ada-002": 0.100 / 1_000_000,  # $0.100 per 1M tokens
+    }
+
+    # Count tokens
+    tokens = count_tokens(text, model="gpt-3.5-turbo")  # Use default encoder
+
+    # Get cost per token
+    cost_per_token = pricing.get(model, pricing["text-embedding-3-small"])
+
+    return tokens * cost_per_token
 
 
 def split_text_by_tokens(
