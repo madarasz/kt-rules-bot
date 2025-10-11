@@ -1,0 +1,10 @@
+test_id: track-enemy-tacop
+query: >
+  With the Track Enemy TacOp, are Vantage and the Seek Light weapon
+  of the tracking operative taken into consideration when choosing a
+  tracked enemy operative?
+
+required_chunks:
+  - "TRACK ENEMY"
+  - "Vantage"
+  - "Seek"

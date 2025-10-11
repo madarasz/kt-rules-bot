@@ -52,6 +52,7 @@ config/.env
 htmlcov/
 .hypothesis/
 tests/quality/results/
+tests/rag/results/
 
 # Type checking
 .mypy_cache/

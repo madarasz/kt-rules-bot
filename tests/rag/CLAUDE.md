@@ -31,6 +31,11 @@ Verifies RAG retrieval quality using standard Information Retrieval metrics:
 - **MRR (Mean Reciprocal Rank)**: Average 1/rank of first required chunk
 - **Consistency**: Variance across multiple runs
 
+**Performance Tracking**:
+- **Total Time**: Total time for all tests
+- **Avg Retrieval Time**: Average time per retrieval operation
+- **Total Cost**: Total embedding generation cost (OpenAI API)
+
 ## Test Case Format
 
 **Ultra-simple YAML** - just list the chunk headers that should be retrieved:
@@ -236,12 +241,18 @@ Each test run generates:
   - Average Precision@3, Precision@5
   - Average MRR
 
+- **Performance Metrics**:
+  - Total time for all tests (seconds)
+  - Average retrieval time per test (seconds)
+  - Total embedding cost (USD)
+
 - **Per-Test Breakdown**:
   - Test ID and query
   - Required chunks (headers)
   - Retrieved chunks (top-k with ranks)
   - Which required chunks were found/missed
   - Metrics for this test (MAP, Recall@5, etc.)
+  - Retrieval time and embedding cost for this test
 
 - **Configuration Used**:
   - RAG_MAX_CHUNKS
@@ -338,15 +349,15 @@ python -m src.cli rag-test --runs 50
 
 ## Implementation Status
 
-🏗️ **Planned** (not yet implemented):
-- Test runner implementation
+✅ **Implemented**:
+- Test runner with multi-run support
 - Metric calculators (MAP, Recall@k, Precision@k, MRR)
-- Report generation with charts
-- CLI command integration
-- Test case creation
+- Report generation with comprehensive breakdowns
+- CLI command integration (`python -m src.cli rag-test`)
+- Performance tracking (timing and cost)
+- Example test cases
 
-**Implementation complexity**: Medium
-**Estimated effort**: 3-4 hours for core functionality
+**Note**: Charts are not yet implemented in reports
 
 ## Related Documentation
 

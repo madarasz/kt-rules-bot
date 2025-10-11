@@ -9,9 +9,10 @@ from src.cli.ingest_rules import ingest_rules
 from src.cli.run_bot import run_bot
 from src.cli.test_query import test_query
 from src.cli.quality_test import quality_test
+from src.cli.rag_test import rag_test
 from src.cli.download_team import download_team
 from src.cli.download_all_teams import download_all_teams
-from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
+from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -191,6 +192,43 @@ def create_parser() -> argparse.ArgumentParser:
         help="Number of times to run each test (default: 1)",
     )
 
+    # Command: rag-test
+    rag_parser = subparsers.add_parser(
+        "rag-test",
+        help="Test RAG chunk retrieval quality",
+        description="Test RAG retrieval quality using IR metrics (MAP, Recall@k, Precision@k)",
+    )
+    rag_parser.add_argument(
+        "--test",
+        "-t",
+        help="Specific test ID to run (default: all tests)",
+    )
+    rag_parser.add_argument(
+        "--runs",
+        "-n",
+        type=int,
+        default=1,
+        help="Number of times to run each test (default: 1)",
+    )
+    rag_parser.add_argument(
+        "--max-chunks",
+        type=int,
+        default=RAG_MAX_CHUNKS,
+        help=f"Maximum chunks to retrieve (default: {RAG_MAX_CHUNKS})",
+    )
+    rag_parser.add_argument(
+        "--min-relevance",
+        type=float,
+        default=RAG_MIN_RELEVANCE,
+        help=f"Minimum relevance threshold (default: {RAG_MIN_RELEVANCE})",
+    )
+    rag_parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip confirmation prompt",
+    )
+
     # Command: download-team
     download_team_parser = subparsers.add_parser(
         "download-team",
@@ -276,6 +314,15 @@ def main():
                 judge_model=args.judge_model,
                 skip_confirm=args.yes,
                 runs=args.runs,
+            )
+
+        elif args.command == "rag-test":
+            rag_test(
+                test_id=args.test,
+                runs=args.runs,
+                max_chunks=args.max_chunks,
+                min_relevance=args.min_relevance,
+                yes=args.yes,
             )
 
         elif args.command == "download-team":
