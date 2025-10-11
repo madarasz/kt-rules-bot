@@ -55,6 +55,8 @@ class RAGTestResult:
     required_chunks: List[str]
     retrieved_chunks: List[str]  # Headers of retrieved chunks in order
     retrieved_chunk_texts: List[str]  # Full text of retrieved chunks
+    retrieved_relevance_scores: List[float]  # Relevance scores for each retrieved chunk
+    retrieved_chunk_metadata: List[dict]  # Metadata including vector_similarity, rrf_score, etc.
 
     # Metrics
     map_score: float  # Mean Average Precision

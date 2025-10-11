@@ -21,8 +21,7 @@ def rag_test(
     test_id: str | None = None,
     runs: int = 1,
     max_chunks: int = RAG_MAX_CHUNKS,
-    min_relevance: float = RAG_MIN_RELEVANCE,
-    yes: bool = False,
+    min_relevance: float = RAG_MIN_RELEVANCE
 ) -> None:
     """Run RAG retrieval tests.
 
@@ -33,15 +32,9 @@ def rag_test(
         min_relevance: Minimum relevance threshold
         yes: Skip confirmation prompt
     """
-    # Confirmation prompt
-    if not yes:
-        test_desc = f"test '{test_id}'" if test_id else "all tests"
-        print(f"Running {test_desc} with {runs} run(s)")
-        print(f"Configuration: max_chunks={max_chunks}, min_relevance={min_relevance}")
-        response = input("Continue? [y/N]: ")
-        if response.lower() != 'y':
-            print("Aborted.")
-            return
+    test_desc = f"test '{test_id}'" if test_id else "all tests"
+    print(f"Running {test_desc} with {runs} run(s)")
+    print(f"Configuration: max_chunks={max_chunks}, min_relevance={min_relevance}")
 
     # Initialize runner
     runner = RAGTestRunner()
@@ -84,7 +77,7 @@ def rag_test(
         print(f"Mean MAP: {summary.mean_map:.3f}")
         print(f"Recall@5: {summary.mean_recall_at_5:.3f} ({summary.mean_recall_at_5*100:.1f}%)")
         print(f"Precision@3: {summary.mean_precision_at_3:.3f} ({summary.mean_precision_at_3*100:.1f}%)")
-        print(f"MRR: {summary.mean_mrr:.3f}")
+        #print(f"MRR: {summary.mean_mrr:.3f}")
 
         if summary.std_dev_map > 0:
             print("")

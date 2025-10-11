@@ -27,8 +27,7 @@ def rag_test_sweep(
     min_relevance: str | None = None,
     rrf_k: str | None = None,
     bm25_k1: str | None = None,
-    bm25_b: str | None = None,
-    yes: bool = False,
+    bm25_b: str | None = None
 ) -> None:
     """Run RAG parameter sweep tests.
 
@@ -80,29 +79,22 @@ def rag_test_sweep(
         print(f"Error parsing parameter values: {e}")
         sys.exit(1)
 
-    # Confirmation prompt
-    if not yes:
-        if grid:
-            print(f"Grid Search Mode")
-            print(f"Parameters:")
-            for pname, pvalues in param_grid.items():
-                print(f"  {pname}: {pvalues}")
-            print(f"Total configurations: {total_configs}")
-        else:
-            print(f"Parameter Sweep Mode")
-            print(f"Parameter: {param}")
-            print(f"Values: {param_values}")
-            print(f"Configurations: {len(param_values)}")
+    if grid:
+        print(f"Grid Search Mode")
+        print(f"Parameters:")
+        for pname, pvalues in param_grid.items():
+            print(f"  {pname}: {pvalues}")
+        print(f"Total configurations: {total_configs}")
+    else:
+        print(f"Parameter Sweep Mode")
+        print(f"Parameter: {param}")
+        print(f"Values: {param_values}")
+        print(f"Configurations: {len(param_values)}")
 
-        print(f"Test ID: {test_id or 'all'}")
-        print(f"Runs per configuration: {runs}")
-        print(f"Total test executions: {(total_configs if grid else len(param_values)) * runs}")
-        print("")
-
-        response = input("Continue? [y/N]: ")
-        if response.lower() != 'y':
-            print("Aborted.")
-            return
+    print(f"Test ID: {test_id or 'all'}")
+    print(f"Runs per configuration: {runs}")
+    print(f"Total test executions: {(total_configs if grid else len(param_values)) * runs}")
+    print("")
 
     # Initialize runners
     sweep_runner = RAGSweepRunner()

@@ -126,9 +126,9 @@ class RAGReportGenerator:
                 content.append(f"- Recall@10: {first_result.recall_at_10:.3f}")
                 content.append(f"- Precision@3: {first_result.precision_at_3:.3f}")
                 content.append(f"- Precision@5: {first_result.precision_at_5:.3f}")
-                content.append(f"- MRR: {first_result.mrr:.3f}")
-                content.append(f"- Retrieval Time: {first_result.retrieval_time_seconds:.3f}s")
-                content.append(f"- Embedding Cost: ${first_result.embedding_cost_usd:.6f}")
+                #content.append(f"- MRR: {first_result.mrr:.3f}")
+                #content.append(f"- Retrieval Time: {first_result.retrieval_time_seconds:.3f}s")
+                #content.append(f"- Embedding Cost: ${first_result.embedding_cost_usd:.6f}")
 
             content.append("")
 
@@ -142,14 +142,48 @@ class RAGReportGenerator:
             content.append("**Found** ✅:")
             if first_result.found_chunks:
                 for chunk in first_result.found_chunks:
-                    # Find rank
+                    # Find rank, relevance, and metadata
                     chunk_lower = chunk.strip().lower()
                     rank = None
-                    for i, retr in enumerate(first_result.retrieved_chunks, start=1):
+                    relevance = None
+                    metadata = None
+                    for i, (retr, score, meta) in enumerate(
+                        zip(
+                            first_result.retrieved_chunks,
+                            first_result.retrieved_relevance_scores,
+                            first_result.retrieved_chunk_metadata
+                        ),
+                        start=1
+                    ):
                         if retr.strip().lower() == chunk_lower:
                             rank = i
+                            relevance = score
+                            metadata = meta
                             break
-                    content.append(f"- {chunk} (rank #{rank})")
+
+                    # Build score display
+                    score_parts = [f"final: {relevance:.4f}"]
+
+                    # Vector score - show N/A if not present
+                    if metadata:
+                        vector_score = metadata.get('vector_similarity')
+                        if vector_score is not None:
+                            score_parts.append(f"vector: {vector_score:.4f}")
+                        else:
+                            score_parts.append("vector: N/A")
+
+                        # BM25 score
+                        bm25_score = metadata.get('bm25_score')
+                        if bm25_score is not None:
+                            score_parts.append(f"bm25: {bm25_score:.2f}")
+
+                        # RRF score
+                        rrf_score = metadata.get('rrf_score')
+                        if rrf_score is not None:
+                            score_parts.append(f"rrf: {rrf_score:.4f}")
+
+                    score_display = ', '.join(score_parts)
+                    content.append(f"- {chunk} (rank #{rank}, {score_display})")
             else:
                 content.append("- (none)")
             content.append("")
@@ -160,12 +194,40 @@ class RAGReportGenerator:
                     content.append(f"- {chunk}")
                 content.append("")
 
-            # Retrieved chunks (top 10)
-            content.append("**Retrieved Chunks** (top 10):")
-            for i, chunk_header in enumerate(first_result.retrieved_chunks[:10], start=1):
+            # Retrieved chunks - markdown table format
+            content.append("**Retrieved Chunks**:")
+            content.append("")
+            # Table header
+            content.append("| Rank | Chunk | Final | Vector | BM25 | RRF |")
+            content.append("|------|-------|-------|--------|------|-----|")
+
+            for i, (chunk_header, relevance, metadata) in enumerate(
+                zip(
+                    first_result.retrieved_chunks,
+                    first_result.retrieved_relevance_scores,
+                    first_result.retrieved_chunk_metadata
+                ),
+                start=1
+            ):
                 # Mark if it's a required chunk
-                marker = "✅" if chunk_header in first_result.found_chunks else ""
-                content.append(f"{i}. {chunk_header} {marker}")
+                marker = " ✅" if chunk_header in first_result.found_chunks else ""
+
+                # Get scores from metadata
+                # Show "N/A" if vector_similarity is missing (BM25-only chunk)
+                vector_score = metadata.get('vector_similarity')
+                vector_display = f"{vector_score:.4f}" if vector_score is not None else "N/A"
+
+                # Show BM25 score if available
+                bm25_score = metadata.get('bm25_score')
+                bm25_display = f"{bm25_score:.2f}" if bm25_score is not None else "N/A"
+
+                # RRF score should always be present
+                rrf_score = metadata.get('rrf_score', 0.0)
+
+                # Format as table row
+                content.append(
+                    f"| {i} | {chunk_header}{marker} | {relevance:.4f} | {vector_display} | {bm25_display} | {rrf_score:.4f} |"
+                )
             content.append("")
             content.append("---")
             content.append("")

@@ -70,6 +70,7 @@ EMBEDDING_MODEL = "text-embedding-3-small"  # OpenAI embedding model
 
 # Token limits for embeddings and chunking
 EMBEDDING_MAX_TOKENS = 8192  # text-embedding-3-small token limit
+EMBEDDING_DIMENSIONS = 1536  # Embedding vector dimensions
 CHUNKING_MAX_TOKENS = 8192  # Match embedding model limit
 
 # ============================================================================
