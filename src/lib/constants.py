@@ -32,18 +32,23 @@ LLM_EXTRACTION_TEMPERATURE = 0  # Low temperature for consistent structure
 # ============================================================================
 
 # Default judge model for quality tests
-QUALITY_TEST_JUDGE_MODEL = "gemini-2.5-flash"
+QUALITY_TEST_JUDGE_MODEL = "gpt-4.1-mini"
 
 # Judge evaluation parameters
 QUALITY_TEST_JUDGE_MAX_TOKENS = 150  # Short evaluation responses
 QUALITY_TEST_JUDGE_TEMPERATURE = 0.0  # Deterministic for consistency
+
+# Quality test concurrency and rate limit handling
+QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS = 2  # Max parallel LLM requests
+QUALITY_TEST_MAX_RETRIES_ON_RATE_LIMIT = 2  # Retries when rate limited
+QUALITY_TEST_RATE_LIMIT_INITIAL_DELAY = 10.0  # Initial retry delay in seconds (doubles each retry)
 
 # ============================================================================
 # RAG Retrieval Constants
 # ============================================================================
 
 # Default retrieval parameters (used everywhere including Discord bot)
-RAG_MAX_CHUNKS = 15  # Maximum document chunks to retrieve
+RAG_MAX_CHUNKS = 8  # Maximum document chunks to retrieve
 RAG_MIN_RELEVANCE = 0.45  # Minimum cosine similarity threshold
 
 # Note: Increased from 5→15 chunks for better multi-hop queries

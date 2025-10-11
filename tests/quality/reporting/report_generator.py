@@ -193,7 +193,7 @@ class ReportGenerator:
                 f"${avg_cost:.4f}",
             ]
             table.append("| " + " | ".join(row) + " |")
-        return "\n".join(["\n## Summary per Test Case", table])
+        return "\n## Summary per Test Case\n" + "\n".join(table)
 
     def _get_grouped_individual_results(self, results: List[IndividualTestResult]) -> str:
         """Group test results by test_id with models as subheaders."""
