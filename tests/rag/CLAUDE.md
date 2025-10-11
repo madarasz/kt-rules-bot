@@ -4,6 +4,7 @@ Automated testing for RAG chunk retrieval quality - verifies that correct chunks
 
 ## Quick Start
 
+### Single Test Run
 ```bash
 # Test all RAG test cases
 python -m src.cli rag-test
@@ -18,7 +19,22 @@ python -m src.cli rag-test --runs 10
 python -m src.cli rag-test --max-chunks 10
 ```
 
-**Results**: `tests/rag/results/{timestamp}/report.md`
+### Parameter Sweep (Find Optimal Parameters)
+```bash
+# Sweep single parameter
+python -m src.cli rag-test-sweep --param rrf_k --values 40,60,80,100 --runs 10
+
+# Grid search (test all combinations)
+python -m src.cli rag-test-sweep --grid \
+  --max-chunks 10,15,20 \
+  --min-relevance 0.4,0.45,0.5 \
+  --runs 5
+```
+
+**Results**:
+- Single test: `tests/rag/results/{timestamp}/report.md`
+- Parameter sweep: `tests/rag/results/{param}_sweep_{timestamp}/comparison_report.md`
+- Grid search: `tests/rag/results/grid_search_{timestamp}/comparison_report.md`
 
 ## What It Tests
 
@@ -137,98 +153,149 @@ In retrieval request: `use_hybrid=True` (default)
 
 **File**: [src/services/rag/bm25_retriever.py](../../src/services/rag/bm25_retriever.py)
 
-Currently uses default BM25Okapi parameters:
-- `k1 = 1.5` (term frequency saturation)
-- `b = 0.75` (document length normalization)
-
-**Note**: Requires code modification to adjust
-
-## Parameter Tuning Workflow
-
-Systematic approach to finding optimal RAG configuration:
-
-### Step 1: Establish Baseline
-
-```bash
-# Run tests with current settings
-python -m src.cli rag-test --runs 10
-
-# Record MAP, Recall@5, Precision@3
-# Save report to baseline/
+```python
+def __init__(self, k1: float = 1.5, b: float = 0.75):  # BM25 parameters
 ```
 
-### Step 2: Test RAG_MAX_CHUNKS
+Parameters:
+- `k1 = 1.5` (term frequency saturation, typical range: 1.2-2.0)
+  - Higher values give more weight to term frequency
+- `b = 0.75` (document length normalization, typical range: 0.5-1.0)
+  - 0 = no normalization, 1 = full normalization
+
+**Impact**:
+- Lower k1: Less emphasis on term frequency
+- Higher k1: More emphasis on term frequency
+- Lower b: Favors longer documents
+- Higher b: Normalizes for document length
+
+**Note**: Can now be tuned via parameter sweeps (see below)
+
+## Parameter Sweep & Optimization
+
+The `rag-test-sweep` command automatically runs tests across multiple parameter values and generates comparison charts. This replaces manual parameter tuning.
+
+### Available Parameters
+
+1. **max_chunks** (5-25): Number of chunks to retrieve
+2. **min_relevance** (0.3-0.7): Minimum similarity threshold
+3. **rrf_k** (40-100): RRF fusion constant for hybrid search
+4. **bm25_k1** (1.2-2.0): BM25 term frequency saturation
+5. **bm25_b** (0.5-1.0): BM25 document length normalization
+
+### Single Parameter Sweep
+
+Test one parameter with multiple values:
 
 ```bash
-# Edit src/lib/constants.py - try these values:
-# RAG_MAX_CHUNKS = 5, 10, 15, 20, 25
+# Sweep RAG_MAX_CHUNKS
+python -m src.cli rag-test-sweep \
+  --param max_chunks \
+  --values 5,10,15,20,25 \
+  --runs 10
 
-# For each value:
-python -m src.cli rag-test --runs 10
+# Sweep RRF constant
+python -m src.cli rag-test-sweep \
+  --param rrf_k \
+  --values 40,50,60,70,80 \
+  --runs 10
 
-# Compare MAP and Recall@5
-# Find sweet spot (higher recall without hurting precision)
+# Sweep BM25 k1 parameter
+python -m src.cli rag-test-sweep \
+  --param bm25_k1 \
+  --values 1.2,1.5,1.8,2.0 \
+  --runs 10
 ```
 
-### Step 3: Test RAG_MIN_RELEVANCE
+**Output**: Charts showing MAP, Recall@5, Precision@3, etc. vs parameter value
+
+### Grid Search (Multiple Parameters)
+
+Test all combinations of multiple parameters:
 
 ```bash
-# Edit src/lib/constants.py - try these values:
-# RAG_MIN_RELEVANCE = 0.3, 0.4, 0.45, 0.5, 0.6
+# 2D grid search
+python -m src.cli rag-test-sweep \
+  --grid \
+  --max-chunks 10,15,20 \
+  --min-relevance 0.4,0.45,0.5 \
+  --runs 5
+# Tests 3×3 = 9 configurations
 
-# For each value:
-python -m src.cli rag-test --runs 10
+# 3D grid search
+python -m src.cli rag-test-sweep \
+  --grid \
+  --max-chunks 10,15,20 \
+  --min-relevance 0.4,0.5 \
+  --rrf-k 50,60,70 \
+  --runs 3
+# Tests 3×2×3 = 18 configurations
 
-# Compare Recall@5 vs Precision@3
-# Find threshold that balances recall and precision
+# BM25 parameter optimization
+python -m src.cli rag-test-sweep \
+  --grid \
+  --bm25-k1 1.2,1.5,1.8 \
+  --bm25-b 0.5,0.75,1.0 \
+  --runs 10
+# Tests 3×3 = 9 configurations
 ```
 
-### Step 4: Test RRF Constant
+**Output**: Heatmaps (for 2D grids) showing parameter interactions
 
+### Recommended Workflow
+
+**Step 1: Quick Sweep** (find ballpark values)
 ```bash
-# Edit src/services/rag/hybrid_retriever.py line 22:
-# k = 40, 60, 80, 100
-
-# For each value:
-python -m src.cli rag-test --runs 10
-
-# Compare MAP (overall quality)
+# Test each parameter individually with fewer runs
+python -m src.cli rag-test-sweep --param max_chunks --values 5,10,15,20 --runs 3
+python -m src.cli rag-test-sweep --param rrf_k --values 40,60,80 --runs 3
+python -m src.cli rag-test-sweep --param bm25_k1 --values 1.2,1.5,1.8 --runs 3
 ```
 
-### Step 5: Test Embedding Model (Advanced)
-
+**Step 2: Fine-tune** (narrow range with more runs)
 ```bash
-# Edit src/lib/constants.py:
-# EMBEDDING_MODEL = "text-embedding-3-large"
-
-# Re-ingest documents (expensive!):
-python -m src.cli ingest extracted-rules/ --force
-
-# Run tests:
-python -m src.cli rag-test --runs 10
-
-# Compare MAP - worth the cost increase?
+# If max_chunks=15 was best, test nearby values
+python -m src.cli rag-test-sweep --param max_chunks --values 13,14,15,16,17 --runs 10
 ```
 
-### Step 6: Grid Search (Optional)
-
-Test combinations of parameters systematically:
+**Step 3: Grid Search** (find optimal combination)
 ```bash
-# Example grid:
-# RAG_MAX_CHUNKS: [10, 15, 20]
-# RAG_MIN_RELEVANCE: [0.4, 0.45, 0.5]
-# = 9 combinations
-
-# For each combination:
-python -m src.cli rag-test --runs 5
+# Test best values from Step 1-2 in combination
+python -m src.cli rag-test-sweep \
+  --grid \
+  --max-chunks 14,15,16 \
+  --min-relevance 0.4,0.45,0.5 \
+  --rrf-k 50,60,70 \
+  --runs 10
 ```
 
-### Step 7: Analyze Results
+**Step 4: Verify**
+```bash
+# Run final test with optimal parameters
+python -m src.cli rag-test --runs 30
+```
 
-Compare all test runs:
-- **Maximize MAP**: Best overall quality
-- **Maximize Recall@5**: Ensure required chunks appear
-- **Balance Precision@3**: Avoid too much noise
+### Interpreting Results
+
+**Charts Generated**:
+- `map_comparison.png`: MAP score across parameter values (maximize this)
+- `recall5_comparison.png`: Recall@5 across values
+- `precision3_comparison.png`: Precision@3 across values
+- `time_comparison.png`: Performance impact
+- `cost_comparison.png`: Cost impact
+- `multi_metric_comparison.png`: All metrics together
+- `*_heatmap.png`: Grid search heatmaps (2D only)
+
+**CSV Export**: All metrics in `comparison_metrics.csv` for statistical analysis
+
+**Best Configuration**: Automatically reported with highest MAP score
+
+### Analysis Guidelines
+
+- **Maximize MAP**: Best overall retrieval quality
+- **Maximize Recall@5**: Ensures all required chunks are found
+- **Balance Precision@3**: Reduces noise in top results
+- **Monitor Time/Cost**: Some parameters increase computational cost
 
 ## Report Structure
 
@@ -293,18 +360,21 @@ tests/rag/
 
 ### Finding Optimal Parameters
 
+Use parameter sweeps instead of manual testing:
+
 ```bash
-# 1. Create baseline
-python -m src.cli rag-test --runs 10 > baseline.txt
+# 1. Quick sweep all parameters
+python -m src.cli rag-test-sweep --param max_chunks --values 5,10,15,20,25 --runs 5
+python -m src.cli rag-test-sweep --param min_relevance --values 0.3,0.4,0.45,0.5 --runs 5
+python -m src.cli rag-test-sweep --param rrf_k --values 40,60,80 --runs 5
 
-# 2. Experiment with one parameter
-# Edit constants.py: RAG_MAX_CHUNKS = 20
-python -m src.cli rag-test --runs 10 > experiment_chunks_20.txt
+# 2. Grid search with best values
+python -m src.cli rag-test-sweep --grid --max-chunks 15,20 --rrf-k 60,80 --runs 10
 
-# 3. Compare MAP scores
-# If improved: keep new value, else revert
+# 3. Check comparison_report.md for optimal configuration
+# Charts show which values maximize MAP
 
-# 4. Repeat for other parameters
+# 4. Update constants.py with optimal values
 ```
 
 ### Evaluating Changes
@@ -349,15 +419,21 @@ python -m src.cli rag-test --runs 50
 
 ## Implementation Status
 
-✅ **Implemented**:
+✅ **Fully Implemented**:
 - Test runner with multi-run support
 - Metric calculators (MAP, Recall@k, Precision@k, MRR)
 - Report generation with comprehensive breakdowns
 - CLI command integration (`python -m src.cli rag-test`)
 - Performance tracking (timing and cost)
 - Example test cases
+- **Parameter sweep functionality** (`python -m src.cli rag-test-sweep`)
+- **Matplotlib chart generation** (line charts, bar charts, heatmaps)
+- **Grid search** for multi-parameter optimization
+- **CSV export** for external analysis
+- **BM25 parameter tuning** (k1, b)
+- **RRF parameter tuning** (k)
 
-**Note**: Charts are not yet implemented in reports
+**All RAG parameters now tunable without code modification!**
 
 ## Related Documentation
 

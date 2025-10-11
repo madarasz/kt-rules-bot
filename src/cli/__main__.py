@@ -10,6 +10,7 @@ from src.cli.run_bot import run_bot
 from src.cli.test_query import test_query
 from src.cli.quality_test import quality_test
 from src.cli.rag_test import rag_test
+from src.cli.rag_test_sweep import rag_test_sweep
 from src.cli.download_team import download_team
 from src.cli.download_all_teams import download_all_teams
 from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE
@@ -229,6 +230,67 @@ def create_parser() -> argparse.ArgumentParser:
         help="Skip confirmation prompt",
     )
 
+    # Command: rag-test-sweep
+    rag_sweep_parser = subparsers.add_parser(
+        "rag-test-sweep",
+        help="Run RAG parameter sweep for optimization",
+        description="Test multiple parameter values and generate comparison charts",
+    )
+    rag_sweep_parser.add_argument(
+        "--param",
+        "-p",
+        help="Parameter name to sweep (max_chunks, min_relevance, rrf_k, bm25_k1, bm25_b)",
+    )
+    rag_sweep_parser.add_argument(
+        "--values",
+        "-v",
+        help="Comma-separated values to test (e.g., 40,60,80)",
+    )
+    rag_sweep_parser.add_argument(
+        "--grid",
+        "-g",
+        action="store_true",
+        help="Enable grid search mode (test all parameter combinations)",
+    )
+    rag_sweep_parser.add_argument(
+        "--test",
+        "-t",
+        help="Specific test ID to run (default: all tests)",
+    )
+    rag_sweep_parser.add_argument(
+        "--runs",
+        "-n",
+        type=int,
+        default=1,
+        help="Number of times to run each configuration (default: 1)",
+    )
+    rag_sweep_parser.add_argument(
+        "--max-chunks",
+        help="Comma-separated max_chunks values for grid search (e.g., 10,15,20)",
+    )
+    rag_sweep_parser.add_argument(
+        "--min-relevance",
+        help="Comma-separated min_relevance values for grid search (e.g., 0.4,0.45,0.5)",
+    )
+    rag_sweep_parser.add_argument(
+        "--rrf-k",
+        help="Comma-separated rrf_k values for grid search (e.g., 50,60,70)",
+    )
+    rag_sweep_parser.add_argument(
+        "--bm25-k1",
+        help="Comma-separated bm25_k1 values for grid search (e.g., 1.2,1.5,1.8)",
+    )
+    rag_sweep_parser.add_argument(
+        "--bm25-b",
+        help="Comma-separated bm25_b values for grid search (e.g., 0.5,0.75,1.0)",
+    )
+    rag_sweep_parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip confirmation prompt",
+    )
+
     # Command: download-team
     download_team_parser = subparsers.add_parser(
         "download-team",
@@ -322,6 +384,21 @@ def main():
                 runs=args.runs,
                 max_chunks=args.max_chunks,
                 min_relevance=args.min_relevance,
+                yes=args.yes,
+            )
+
+        elif args.command == "rag-test-sweep":
+            rag_test_sweep(
+                param=args.param,
+                values=args.values,
+                grid=args.grid,
+                test_id=args.test,
+                runs=args.runs,
+                max_chunks=args.max_chunks,
+                min_relevance=args.min_relevance,
+                rrf_k=args.rrf_k,
+                bm25_k1=args.bm25_k1,
+                bm25_b=args.bm25_b,
                 yes=args.yes,
             )
 

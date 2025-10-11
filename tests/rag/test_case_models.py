@@ -8,6 +8,15 @@ from typing import List
 from pathlib import Path
 import yaml
 
+from src.lib.constants import (
+    RAG_MAX_CHUNKS,
+    RAG_MIN_RELEVANCE,
+    EMBEDDING_MODEL,
+    RRF_K,
+    BM25_K1,
+    BM25_B,
+)
+
 
 @dataclass
 class RAGTestCase:
@@ -90,8 +99,10 @@ class RAGTestSummary:
     std_dev_precision_at_3: float = 0.0
 
     # Configuration
-    rag_max_chunks: int = 15
-    rag_min_relevance: float = 0.45
-    embedding_model: str = "text-embedding-3-small"
-    rrf_k: int = 60
+    rag_max_chunks: int = RAG_MAX_CHUNKS
+    rag_min_relevance: float = RAG_MIN_RELEVANCE
+    embedding_model: str = EMBEDDING_MODEL
+    rrf_k: int = RRF_K
+    bm25_k1: float = BM25_K1
+    bm25_b: float = BM25_B
     hybrid_enabled: bool = True
