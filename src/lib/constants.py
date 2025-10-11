@@ -50,6 +50,17 @@ RAG_MIN_RELEVANCE = 0.45  # Minimum cosine similarity threshold
 # Note: Lowered from 0.6→0.45 relevance for better recall
 # See CHANGELOG-RETRIEVAL.md for tuning history
 
+# Hybrid search parameters
+RRF_K = 60  # RRF (Reciprocal Rank Fusion) constant for hybrid search
+            # Lower k (e.g., 40): More weight to top-ranked results
+            # Higher k (e.g., 80): More balanced fusion between vector and BM25
+
+# BM25 keyword search parameters
+BM25_K1 = 1.5  # Term frequency saturation parameter (typical range: 1.2-2.0)
+               # Higher values give more weight to term frequency
+BM25_B = 0.75  # Document length normalization parameter (typical range: 0.5-1.0)
+               # 0 = no normalization, 1 = full normalization
+
 # ============================================================================
 # Embedding & Chunking Constants
 # ============================================================================

@@ -79,6 +79,8 @@ class RAGReportGenerator:
         content.append(f"| RAG_MIN_RELEVANCE | {summary.rag_min_relevance} |")
         content.append(f"| EMBEDDING_MODEL | {summary.embedding_model} |")
         content.append(f"| RRF k | {summary.rrf_k} |")
+        content.append(f"| BM25 k1 | {summary.bm25_k1} |")
+        content.append(f"| BM25 b | {summary.bm25_b} |")
         content.append(f"| Hybrid Search | {'Enabled' if summary.hybrid_enabled else 'Disabled'} |")
         content.append("")
 
@@ -151,14 +153,12 @@ class RAGReportGenerator:
             else:
                 content.append("- (none)")
             content.append("")
-
-            content.append("**Missing** ❌:")
+         
             if first_result.missing_chunks:
+                content.append("**Missing** ❌:")
                 for chunk in first_result.missing_chunks:
                     content.append(f"- {chunk}")
-            else:
-                content.append("- (none)")
-            content.append("")
+                content.append("")
 
             # Retrieved chunks (top 10)
             content.append("**Retrieved Chunks** (top 10):")

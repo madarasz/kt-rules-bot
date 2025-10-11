@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from rank_bm25 import BM25Okapi
 
 from src.models.rag_context import DocumentChunk
+from src.lib.constants import BM25_K1, BM25_B
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -26,13 +27,22 @@ class BM25Result:
 class BM25Retriever:
     """BM25-based keyword retrieval for exact term matching."""
 
-    def __init__(self):
-        """Initialize BM25 retriever."""
+    def __init__(self, k1: float = BM25_K1, b: float = BM25_B):
+        """Initialize BM25 retriever.
+
+        Args:
+            k1: Term frequency saturation parameter (default: 1.5)
+                Higher values give more weight to term frequency
+            b: Document length normalization parameter (default: 0.75)
+                0 = no normalization, 1 = full normalization
+        """
+        self.k1 = k1
+        self.b = b
         self.bm25: BM25Okapi | None = None
         self.chunks: List[DocumentChunk] = []
         self.tokenized_corpus: List[List[str]] = []
 
-        logger.info("bm25_retriever_initialized")
+        logger.info("bm25_retriever_initialized", k1=k1, b=b)
 
     def index_chunks(self, chunks: List[DocumentChunk]) -> None:
         """Index document chunks for BM25 search.
@@ -52,13 +62,15 @@ class BM25Retriever:
             for chunk in chunks
         ]
 
-        # Build BM25 index
-        self.bm25 = BM25Okapi(self.tokenized_corpus)
+        # Build BM25 index with custom parameters
+        self.bm25 = BM25Okapi(self.tokenized_corpus, k1=self.k1, b=self.b)
 
         logger.info(
             "bm25_index_built",
             chunk_count=len(chunks),
-            avg_tokens=sum(len(t) for t in self.tokenized_corpus) / len(chunks)
+            avg_tokens=sum(len(t) for t in self.tokenized_corpus) / len(chunks),
+            k1=self.k1,
+            b=self.b
         )
 
     def search(self, query: str, top_k: int = 15) -> List[BM25Result]:
@@ -140,5 +152,7 @@ class BM25Retriever:
             "indexed": True,
             "chunk_count": len(self.chunks),
             "avg_doc_length": sum(len(t) for t in self.tokenized_corpus) / len(self.tokenized_corpus) if self.tokenized_corpus else 0,
-            "vocabulary_size": len(set(token for doc in self.tokenized_corpus for token in doc))
+            "vocabulary_size": len(set(token for doc in self.tokenized_corpus for token in doc)),
+            "k1": self.k1,
+            "b": self.b
         }
