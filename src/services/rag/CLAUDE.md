@@ -115,7 +115,8 @@ From [src/lib/constants.py](../../lib/constants.py):
 - `RAG_MAX_CHUNKS`: Maximum chunks to retrieve (default: 15)
 - `RAG_MIN_RELEVANCE`: Minimum cosine similarity (default: 0.45)
 - `EMBEDDING_MODEL`: OpenAI embedding model (text-embedding-3-small)
-- `CHUNKING_MAX_TOKENS`: Maximum tokens per chunk (8192, matches embedding limit)
+
+Note: Token limits and embedding dimensions are now determined dynamically based on `EMBEDDING_MODEL` using `get_embedding_token_limit()` and `get_embedding_dimensions()` from [src/lib/tokens.py](../../lib/tokens.py)
 
 ## Ingestion Pipeline
 
@@ -167,13 +168,13 @@ python -m src.cli rag-test -n 10
 
 Current strategy: **Semantic splitting at ## headers** (lazy splitting)
 - Splits at ## headers if document has structure
-- Keeps whole document only if no headers AND ≤ 8192 tokens
+- Keeps whole document only if no headers AND ≤ embedding model token limit (8191 for current models)
 - No overlap (clean semantic boundaries)
 
-**To adjust max tokens** in [src/lib/constants.py](../../lib/constants.py):
-```python
-CHUNKING_MAX_TOKENS = 8192  # Match embedding model limit
-```
+**To adjust chunking behavior**:
+- The max tokens for chunking is automatically determined by the embedding model's token limit
+- To change the embedding model, update `EMBEDDING_MODEL` in [src/lib/constants.py](../../lib/constants.py)
+- To add support for new models, update `get_embedding_token_limit()` and `get_embedding_dimensions()` in [src/lib/tokens.py](../../lib/tokens.py)
 
 **To change chunking logic**: Edit [chunker.py](chunker.py) `chunk()` method
 

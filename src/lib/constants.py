@@ -58,7 +58,7 @@ RRF_K = 60  # RRF (Reciprocal Rank Fusion) constant for hybrid search
 # BM25 keyword search parameters
 BM25_K1 = 1.5  # Term frequency saturation parameter (typical range: 1.2-2.0)
                # Higher values give more weight to term frequency
-BM25_B = 0.75  # Document length normalization parameter (typical range: 0.5-1.0)
+BM25_B = 0.55  # Document length normalization parameter (typical range: 0.5-1.0)
                # 0 = no normalization, 1 = full normalization
 
 # ============================================================================
@@ -68,10 +68,9 @@ BM25_B = 0.75  # Document length normalization parameter (typical range: 0.5-1.0
 # Default embedding model
 EMBEDDING_MODEL = "text-embedding-3-small"  # OpenAI embedding model
 
-# Token limits for embeddings and chunking
-EMBEDDING_MAX_TOKENS = 8192  # text-embedding-3-small token limit
-EMBEDDING_DIMENSIONS = 1536  # Embedding vector dimensions
-CHUNKING_MAX_TOKENS = 8192  # Match embedding model limit
+# Note: Token limits and dimensions are now determined dynamically by the
+# embedding model using get_embedding_token_limit() and get_embedding_dimensions()
+# from src.lib.tokens
 
 # ============================================================================
 # LLM Prompt Constants

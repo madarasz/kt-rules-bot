@@ -430,15 +430,15 @@ class ComparisonGenerator:
         # Summary table
         content.append("## Summary Table")
         content.append("")
-        content.append(f"| {param_name} | MAP | Recall@5 | Precision@3 | MRR | Avg Time (s) | Total Cost ($) |")
-        content.append("|" + "-" * 12 + "|" + "-" * 7 + "|" + "-" * 11 + "|" + "-" * 14 + "|" + "-" * 7 + "|" + "-" * 14 + "|" + "-" * 16 + "|")
+        content.append(f"| {param_name} | MAP | Recall@5 | Precision@3 | MRR | Avg Time (s) |")
+        content.append("|" + "-" * 12 + "|" + "-" * 7 + "|" + "-" * 11 + "|" + "-" * 14 + "|" + "-" * 7 + "|" + "-" * 14 + "|")
 
         for param_val, result in zip(param_values, sweep_results):
             s = result.summary
             content.append(
                 f"| {param_val} | {s.mean_map:.3f} | {s.mean_recall_at_5:.3f} | "
                 f"{s.mean_precision_at_3:.3f} | {s.mean_mrr:.3f} | "
-                f"{s.avg_retrieval_time_seconds:.3f} | ${s.total_cost_usd:.6f} |"
+                f"{s.avg_retrieval_time_seconds:.3f} |"
             )
 
         content.append("")
