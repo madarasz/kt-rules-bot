@@ -28,6 +28,11 @@ hypothesis>=6.92.0
 # Visualization
 matplotlib>=3.8.0
 
+# Admin Dashboard (optional)
+streamlit>=1.30.0
+plotly>=5.18.0
+pandas>=2.1.0
+
 # Code Quality
 ruff>=0.1.0
 mypy>=1.7.0

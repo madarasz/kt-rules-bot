@@ -23,6 +23,9 @@ python -m src.cli quality-test --test eliminator-concealed-counteract
 
 # Start bot
 python -m src.cli run --mode production
+
+# Admin dashboard (optional, if analytics DB enabled)
+streamlit run src/cli/admin_dashboard.py --server.port 8501
 ```
 
 ## Project Status
@@ -133,6 +136,44 @@ python -m src.cli quality-test          # RAG+LLM quality
 2. `ruff check .`
 3. `python -m src.cli quality-test` (if changed RAG/LLM)
 
+## Analytics Database (Optional)
+
+The bot can optionally store queries, responses, feedback, and RAG chunks in SQLite for admin review and analytics.
+
+**Enable**:
+```bash
+# In config/.env
+ENABLE_ANALYTICS_DB=true
+ADMIN_DASHBOARD_PASSWORD=your_secure_password
+```
+
+**What's stored** (30-day retention, auto-cleanup):
+- Query text, response text, LLM model, scores, latency
+- Upvote/downvote counts (from Discord reactions)
+- Retrieved chunks with similarity scores
+- Admin status (pending/approved/issues/flagged) and notes
+- Chunk relevance flags (for RAG tuning)
+
+**Admin Dashboard**:
+```bash
+streamlit run src/cli/admin_dashboard.py --server.port 8501
+# Access: http://localhost:8501
+```
+
+**Features**:
+- 📋 Query Browser: Filter/search queries, view feedback
+- 🔍 Query Detail: Review full query/response, mark chunk relevance
+- 📊 Analytics: Feedback trends, LLM model performance, top downvoted queries
+- ⚙️ Settings: Manual cleanup, export to CSV/JSON
+
+**Privacy**:
+- Username stored (not sensitive per Discord ToS)
+- Query/response text stored (users notified in bot)
+- 30-day auto-deletion (GDPR compliant)
+- Password-protected dashboard
+
+**See**: [src/lib/database.py](src/lib/database.py) for implementation
+
 ## API Documentation
 
 - Discord.py: https://discordpy.readthedocs.io/
@@ -140,6 +181,7 @@ python -m src.cli quality-test          # RAG+LLM quality
 - OpenAI: https://platform.openai.com/docs
 - Anthropic: https://docs.anthropic.com/
 - Google AI: https://ai.google.dev/docs
+- Streamlit: https://docs.streamlit.io/
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
