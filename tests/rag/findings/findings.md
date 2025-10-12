@@ -8,3 +8,7 @@
 | 0.6 | 0.773 | 0.833 | 0.500 | 0.917 | 0.428 | $0.000003 |
 | 0.65 | 0.766 | 0.778 | 0.500 | 0.917 | 0.309 | $0.000003 |
 | 0.7 | 0.683 | 0.778 | 0.500 | 0.833 | 0.293 | $0.000003 |
+
+- Reduced `max chunks` to 8
+- Changing `BM25_K1`, `rrf_k` does not seem to affect anything
+- `text-embedding-3-small` performs better than `text-embedding-3-large`
