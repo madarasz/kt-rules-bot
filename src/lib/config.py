@@ -66,6 +66,12 @@ class Config:
     max_concurrent_users: int = 5
     response_timeout_seconds: int = 30
 
+    # Analytics Database (optional)
+    enable_analytics_db: bool = False
+    analytics_db_path: str = "./data/analytics.db"
+    analytics_retention_days: int = 30
+    admin_dashboard_password: str = ""
+
     def validate(self) -> None:
         """Validate configuration.
 
@@ -148,6 +154,15 @@ class Config:
                 f"Each personality must have a personality.yaml file"
             )
 
+        # Validate analytics DB settings
+        if self.enable_analytics_db and not self.admin_dashboard_password:
+            raise ValueError(
+                "ADMIN_DASHBOARD_PASSWORD is required when ENABLE_ANALYTICS_DB=true"
+            )
+
+        if self.analytics_retention_days < 1:
+            raise ValueError("analytics_retention_days must be at least 1")
+
     @classmethod
     def from_env(cls, env_file: Optional[str] = None) -> "Config":
         """Load configuration from environment variables.
@@ -195,6 +210,11 @@ class Config:
             response_timeout_seconds=int(
                 os.getenv("RESPONSE_TIMEOUT_SECONDS", "30")
             ),
+            # Analytics Database
+            enable_analytics_db=os.getenv("ENABLE_ANALYTICS_DB", "false").lower() == "true",
+            analytics_db_path=os.getenv("ANALYTICS_DB_PATH", "./data/analytics.db"),
+            analytics_retention_days=int(os.getenv("ANALYTICS_RETENTION_DAYS", "30")),
+            admin_dashboard_password=os.getenv("ADMIN_DASHBOARD_PASSWORD", ""),
         )
 
         config.validate()
@@ -225,3 +245,12 @@ def set_config(config: Config) -> None:
     """
     global _config
     _config = config
+
+
+def load_config() -> Config:
+    """Load config from environment (alias for get_config).
+
+    Returns:
+        Config instance
+    """
+    return get_config()

@@ -5,6 +5,7 @@ from datetime import date
 import discord
 
 from src.lib.constants import LLM_GENERATION_TIMEOUT
+from src.lib.database import AnalyticsDatabase
 from src.lib.discord_utils import get_random_acknowledgement
 from src.lib.logging import get_logger
 from src.models.bot_response import BotResponse, Citation
@@ -31,6 +32,8 @@ class KillTeamBotOrchestrator:
         response_validator: ResponseValidator = None,
         rate_limiter: RateLimiter = None,
         context_manager: ConversationContextManager = None,
+        analytics_db: AnalyticsDatabase = None,
+        feedback_logger = None,
     ):
         """Initialize orchestrator with all service dependencies.
 
@@ -40,6 +43,8 @@ class KillTeamBotOrchestrator:
             response_validator: Response validation service
             rate_limiter: Rate limiting service
             context_manager: Conversation context manager
+            analytics_db: Analytics database (optional, disabled by default)
+            feedback_logger: Feedback logger for reaction tracking
         """
         self.rag = rag_retriever
         self.llm_factory = llm_provider_factory or LLMProviderFactory()
@@ -47,6 +52,8 @@ class KillTeamBotOrchestrator:
         self.validator = response_validator or ResponseValidator()
         self.rate_limiter = rate_limiter or RateLimiter()
         self.context_manager = context_manager or ConversationContextManager()
+        self.analytics_db = analytics_db or AnalyticsDatabase.from_config()
+        self.feedback_logger = feedback_logger
 
     async def process_query(
         self,
@@ -177,10 +184,86 @@ class KillTeamBotOrchestrator:
             # Step 8: Send to Discord
             sent_message = await message.channel.send(embeds=embeds)
 
-            # Step 9: Add feedback reaction buttons (👍👎)
+            # Step 9: Register response for feedback tracking
+            if self.feedback_logger:
+                self.feedback_logger.register_response(
+                    str(user_query.query_id),
+                    str(bot_response.response_id)
+                )
+
+            # Step 9b: Add feedback reaction buttons (👍👎)
             await formatter.add_feedback_reactions(sent_message)
 
-            # Step 10: Update conversation context (message history only)
+            # Step 10: Store in analytics DB (if enabled)
+            if self.analytics_db.enabled:
+                try:
+                    from datetime import datetime, timezone
+
+                    logger.info(
+                        "Storing query in analytics DB",
+                        extra={"correlation_id": correlation_id, "chunks_count": len(rag_context.document_chunks)}
+                    )
+
+                    # Insert query + response
+                    self.analytics_db.insert_query({
+                        "query_id": str(user_query.query_id),
+                        "discord_server_id": str(message.guild.id) if message.guild else "DM",
+                        "discord_server_name": message.guild.name if message.guild else "Direct Message",
+                        "channel_id": str(message.channel.id),
+                        "channel_name": message.channel.name if hasattr(message.channel, 'name') else "DM",
+                        "username": str(message.author.name),
+                        "query_text": user_query.sanitized_text,
+                        "response_text": llm_response.answer_text,
+                        "llm_model": llm_response.model_version,
+                        "confidence_score": llm_response.confidence_score,
+                        "rag_score": rag_context.avg_relevance,
+                        "validation_passed": validation_result.is_valid,
+                        "latency_ms": llm_response.latency_ms,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+
+                    # Insert retrieved chunks
+                    chunks_data = [
+                        {
+                            "query_id": str(user_query.query_id),
+                            "rank": idx + 1,
+                            "chunk_header": chunk.header,
+                            "chunk_text": chunk.text[:500],
+                            "document_name": chunk.metadata.get("source", "Unknown"),
+                            "document_type": chunk.metadata.get("doc_type", "core-rules"),
+                            "vector_similarity": chunk.metadata.get("vector_similarity"),
+                            "bm25_score": chunk.metadata.get("bm25_score"),
+                            "rrf_score": chunk.metadata.get("rrf_score"),
+                            "final_score": chunk.relevance_score,
+                        }
+                        for idx, chunk in enumerate(rag_context.document_chunks)
+                    ]
+
+                    if chunks_data:
+                        logger.info(
+                            f"Inserting {len(chunks_data)} chunks into analytics DB",
+                            extra={"correlation_id": correlation_id}
+                        )
+                        self.analytics_db.insert_chunks(str(user_query.query_id), chunks_data)
+                        logger.info(
+                            "Chunks inserted successfully",
+                            extra={"correlation_id": correlation_id}
+                        )
+                    else:
+                        logger.warning(
+                            "No chunks to insert (rag_context.document_chunks is empty)",
+                            extra={"correlation_id": correlation_id}
+                        )
+
+                except Exception as e:
+                    # Don't crash bot if DB write fails
+                    logger.error(
+                        f"Failed to write to analytics DB: {e}",
+                        extra={"correlation_id": correlation_id},
+                        exc_info=True
+                    )
+
+            # Step 11: Update conversation context (message history only)
             self.context_manager.add_message(
                 user_query.conversation_context_id,
                 role="user",

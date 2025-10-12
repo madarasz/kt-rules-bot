@@ -1,10 +1,12 @@
 """Feedback logging service for tracking user reactions."""
 
 from datetime import datetime, timezone
+from typing import Optional
 from uuid import UUID, uuid4
 
 import discord
 
+from src.lib.database import AnalyticsDatabase
 from src.lib.logging import get_logger
 from src.models.user_query import UserQuery
 
@@ -14,9 +16,15 @@ logger = get_logger(__name__)
 class FeedbackLogger:
     """Logs user feedback from reaction buttons (👍👎) for analytics."""
 
-    def __init__(self):
-        """Initialize feedback logger."""
+    def __init__(self, analytics_db: Optional[AnalyticsDatabase] = None):
+        """Initialize feedback logger.
+
+        Args:
+            analytics_db: Optional analytics database instance
+        """
         self.feedback_cache = {}  # Optional: track feedback to prevent duplicates
+        self.analytics_db = analytics_db or AnalyticsDatabase.from_config()
+        self.response_to_query_map = {}  # response_id -> query_id mapping
 
     async def on_reaction_add(
         self,
@@ -56,9 +64,31 @@ class FeedbackLogger:
             )
             return
 
+        # Map response_id to query_id (1:1 mapping)
+        query_id = self.response_to_query_map.get(str(response_id))
+
+        if not query_id:
+            logger.warning(
+                "Could not map response_id to query_id",
+                extra={"response_id": str(response_id)},
+            )
+            # Continue anyway for structured logging
+
         # Create feedback log entry
         feedback_id = uuid4()
         hashed_user_id = UserQuery.hash_user_id(str(user.id))
+
+        # Update database vote count (if enabled and query_id found)
+        if query_id and self.analytics_db.enabled:
+            try:
+                vote_type = "upvote" if reaction.emoji == "👍" else "downvote"
+                self.analytics_db.increment_vote(query_id, vote_type)
+                logger.debug(
+                    f"Vote incremented in analytics DB",
+                    extra={"query_id": query_id, "vote_type": vote_type}
+                )
+            except Exception as e:
+                logger.error(f"Failed to increment vote in DB: {e}", exc_info=True)
 
         # Log to structured logs
         logger.info(
@@ -67,6 +97,7 @@ class FeedbackLogger:
                 "event_type": "user_feedback",
                 "feedback_id": str(feedback_id),
                 "response_id": str(response_id),
+                "query_id": query_id,
                 "user_id": hashed_user_id[:16],  # Partial hash for privacy
                 "feedback_type": feedback_type,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -121,6 +152,19 @@ class FeedbackLogger:
         except Exception as e:
             logger.warning(f"Error extracting response_id: {e}")
             return None
+
+    def register_response(self, query_id: str, response_id: str) -> None:
+        """Map response_id to query_id for feedback tracking.
+
+        Args:
+            query_id: Query UUID (from UserQuery)
+            response_id: Response UUID (from BotResponse)
+        """
+        self.response_to_query_map[response_id] = query_id
+        logger.debug(
+            "Response registered for feedback tracking",
+            extra={"query_id": query_id, "response_id": response_id}
+        )
 
     def get_feedback_stats(self) -> dict:
         """Get feedback statistics from cache.
