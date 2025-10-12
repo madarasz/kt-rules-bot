@@ -1,0 +1,17 @@
+# Necron Personality Configuration
+# Cryptek's Chronomantic Oracle Device
+
+# Path to the full personality description (inserted into system prompt)
+description_file: personality/necron/personality.md
+
+# Example phrase for [PERSONALITY SHORT ANSWER] placeholder in system prompt
+short_answer_example: "I'm surprised you have even considered this to be true."
+
+# Example phrase for [PERSONALITY AFTERWORD] placeholder in system prompt
+afterword_example: "The universe has rules that cannot be bent. Especially by a feeble mortal like yourself."
+
+# Discord bot acknowledgement messages file
+acknowledgements_file: personality/necron/acknowledgements-glitch.txt
+
+# Discord bot disclaimer messages file
+disclaimers_file: personality/necron/disclaimers-glitch.txt

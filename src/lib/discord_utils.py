@@ -3,7 +3,7 @@
 import random
 from pathlib import Path
 
-from src.lib.constants import ACKNOWLEDGEMENTS_FILE_PATH, DISCLAIMERS_FILE_PATH
+from src.lib.personality import get_acknowledgements_path, get_disclaimers_path
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -11,14 +11,14 @@ logger = get_logger(__name__)
 
 def get_random_acknowledgement() -> str:
     """Get a random acknowledgement message from the acknowledgements file.
-    
+
     Returns:
         A random acknowledgement message string, or a fallback message if file cannot be read.
     """
     try:
         # Get the project root (assumes this file is in src/lib/)
         project_root = Path(__file__).parent.parent.parent
-        file_path = project_root / ACKNOWLEDGEMENTS_FILE_PATH
+        file_path = project_root / get_acknowledgements_path()
         
         if not file_path.exists():
             logger.warning(f"Acknowledgements file not found at: {file_path}")
@@ -40,14 +40,14 @@ def get_random_acknowledgement() -> str:
 
 def get_random_disclaimer() -> str:
     """Get a random disclaimer message from the disclaimers file.
-    
+
     Returns:
         A random disclaimer message string, or a fallback message if file cannot be read.
     """
     try:
         # Get the project root (assumes this file is in src/lib/)
         project_root = Path(__file__).parent.parent.parent
-        file_path = project_root / DISCLAIMERS_FILE_PATH
+        file_path = project_root / get_disclaimers_path()
         
         if not file_path.exists():
             logger.warning(f"Disclaimers file not found at: {file_path}")

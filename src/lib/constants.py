@@ -81,18 +81,11 @@ EMBEDDING_MODEL = "text-embedding-3-small"  # OpenAI embedding model
 # LLM Prompt Constants
 # ============================================================================
 
-# System prompt file path for LLM providers
-LLM_SYSTEM_PROMPT_FILE_PATH = "prompts/rule-helper-prompt-necron.md"
+# System prompt file path for LLM providers (base template)
+LLM_SYSTEM_PROMPT_FILE_PATH = "prompts/rule-helper-prompt.md"
 
-# ============================================================================
-# Discord Bot Personality Constants
-# ============================================================================
-
-# Acknowledgement messages file path
-ACKNOWLEDGEMENTS_FILE_PATH = "personality/necron/acknowledgements-glitch.txt"
-
-# Disclaimer messages file path
-DISCLAIMERS_FILE_PATH = "personality/necron/disclaimers-glitch.txt"
+# Note: Personality-specific files (acknowledgements, disclaimers) are now
+# loaded via src.lib.personality based on PERSONALITY env variable
 
 # ============================================================================
 # Notes
