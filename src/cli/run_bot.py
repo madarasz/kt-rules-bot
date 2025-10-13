@@ -6,10 +6,12 @@ import sys
 from typing import Optional
 
 from src.lib.config import Config
+from src.lib.database import AnalyticsDatabase
 from src.lib.logging import get_logger
 from src.services.discord.bot import KillTeamBotOrchestrator
 from src.services.discord.client import KillTeamBot
 from src.services.discord.context_manager import ConversationContextManager
+from src.services.discord.feedback_logger import FeedbackLogger
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.rate_limiter import RateLimiter
 from src.services.llm.validator import ResponseValidator
@@ -73,6 +75,17 @@ class BotRunner:
             context_manager = ConversationContextManager(ttl_seconds=1800)
             logger.info("✓ Conversation context manager initialized")
 
+            # Initialize analytics database (optional, env-controlled)
+            analytics_db = AnalyticsDatabase.from_config()
+            if analytics_db.enabled:
+                logger.info(f"✓ Analytics database initialized (retention: {analytics_db.retention_days} days)")
+            else:
+                logger.info("✓ Analytics database disabled")
+
+            # Initialize feedback logger
+            feedback_logger = FeedbackLogger(analytics_db=analytics_db)
+            logger.info("✓ Feedback logger initialized")
+
             # Create orchestrator
             orchestrator = KillTeamBotOrchestrator(
                 rag_retriever=rag_retriever,
@@ -80,6 +93,8 @@ class BotRunner:
                 response_validator=validator,
                 rate_limiter=rate_limiter,
                 context_manager=context_manager,
+                analytics_db=analytics_db,
+                feedback_logger=feedback_logger,
             )
             logger.info("✓ Orchestrator initialized")
 
@@ -130,6 +145,9 @@ class BotRunner:
 
             # Create Discord bot with orchestrator
             self.bot = KillTeamBot(orchestrator=orchestrator)
+
+            # Share feedback logger between client and orchestrator
+            self.bot.feedback_logger = orchestrator.feedback_logger
             logger.info("Discord bot created")
 
             # Display startup banner
