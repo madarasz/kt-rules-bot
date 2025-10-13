@@ -1,7 +1,8 @@
 """Generates markdown reports for quality tests."""
 
 import os
-from typing import List, Optional
+from typing import List, Optional, Dict
+from collections import defaultdict
 import numpy as np
 from tests.quality.reporting.report_models import (
     QualityReport,
@@ -66,11 +67,19 @@ class ReportGenerator:
         if self.report.is_multi_test_case and self.report.is_multi_model:
             content.append("\n## Detailed Test Case Reports")
             for test_id in self.report.test_cases:
-                content.append(f"- [Report for {test_id}](./report_{test_id}.md)")
+                # Calculate average score for this test case
+                if test_id in self.report.per_test_case_reports:
+                    test_case_report = self.report.per_test_case_reports[test_id]
+                    if test_case_report.results:
+                        avg_score = sum(r.score_percentage for r in test_case_report.results) / len(test_case_report.results)
+                        content.append(f"- [Report for {test_id}](./report_{test_id}.md) - {avg_score:.1f}%")
+                    else:
+                        content.append(f"- [Report for {test_id}](./report_{test_id}.md)")
+                else:
+                    content.append(f"- [Report for {test_id}](./report_{test_id}.md)")
         else:
             content.append("\n## Individual Test Results")
-            for result in self.report.results:
-                content.append(self._get_individual_test_result_section(result))
+            content.append(self._get_grouped_individual_results(self.report.results))
 
         return "\n".join(content)
 
@@ -100,8 +109,7 @@ class ReportGenerator:
              for model_name in self.report.models:
                  content.append(f"- [Report for {test_id} on {model_name}](./report_{test_id}_{model_name}.md)")
         else:
-            for result in results:
-                content.append(self._get_individual_test_result_section(result))
+            content.append(self._get_grouped_individual_results(results))
 
         return "\n".join(content)
 
@@ -187,29 +195,111 @@ class ReportGenerator:
             table.append("| " + " | ".join(row) + " |")
         return "\n".join(["\n## Summary per Test Case", table])
 
-    def _get_individual_test_result_section(self, result: IndividualTestResult, include_header: bool = True) -> str:
-        """Builds a section for a single test result."""
+    def _get_grouped_individual_results(self, results: List[IndividualTestResult]) -> str:
+        """Group test results by test_id with models as subheaders."""
+        
+        # Group results by test case ID
+        grouped_results: Dict[str, List[IndividualTestResult]] = defaultdict(list)
+        for result in results:
+            grouped_results[result.test_id].append(result)
+        
         content = []
+        for test_id, test_results in grouped_results.items():
+            # H3: Test case header
+            content.append(f"\n### {test_id}")
+            
+            # Add query (belongs to test case, not model)
+            if test_results:
+                content.append(f"\n**Query:** {test_results[0].query}")
+            
+            # Group by model within this test case
+            model_results: Dict[str, List[IndividualTestResult]] = defaultdict(list)
+            for result in test_results:
+                model_results[result.model].append(result)
+            
+            for model_name, model_test_results in model_results.items():
+                # Show each run separately for multiple runs
+                for run_idx, result in enumerate(model_test_results, 1):
+                    # H4: Model header with run number
+                    if len(model_test_results) > 1:
+                        content.append(f"\n#### {model_name} - Run #{run_idx}")
+                    else:
+                        content.append(f"\n#### {model_name}")
+                    
+                    # Status with emoji - skull for errors, warning for partial scores
+                    if result.error:
+                        status_emoji = "💀"
+                        status_text = "Error"
+                    elif result.passed:
+                        status_emoji = "✅"
+                        status_text = "Passed"
+                    elif result.score_percentage >= 50.0:
+                        status_emoji = "⚠️"
+                        status_text = "Partial"
+                    else:
+                        status_emoji = "❌"
+                        status_text = "Failed"
+                    
+                    # Use bullet points for metrics
+                    content.append(f"- **Status:** {status_emoji} {status_text}")
+                    content.append(f"- **Score:** {result.score}/{result.max_score} ({result.score_percentage:.1f}%)")
+                    content.append(f"- **Tokens:** {result.tokens}")
+                    content.append(f"- **Cost:** ${result.cost_usd:.4f}")
+                    content.append(f"- **Generation Time:** {result.generation_time_seconds:.2f}s")
+                    content.append(f"- **Output File:** [{result.output_filename}](./{result.output_filename})")
+                    
+                    if result.error:
+                        content.append(f"- **Error:** {result.error}")
+                    
+                    # Requirements per model per run
+                    if result.requirements:
+                        content.append(f"\n**Requirements:**")
+                        for req in result.requirements:
+                            # Build requirement line
+                            req_line = f"- {req.emoji} **{req.title}** ({req.type}): {req.achieved_score}/{req.max_score} points - {req.description}"
+                            content.append(req_line)
+                            
+                            # Add judge response as sub-bullet for LLM requirements
+                            if req.type == "llm" and hasattr(req, 'outcome') and req.outcome:
+                                content.append(f"  - *{req.outcome}*")
+                    
+                    content.append("")  # Add spacing between runs
+        
+        return "\n".join(content)
+
+    def _get_individual_test_result_section(self, result: IndividualTestResult, include_header: bool = True) -> str:
+        """Generate individual test result section (legacy method, kept for compatibility)."""
+        content = []
+        
         if include_header:
-            content.append(f"\n### {result.test_id}")
+            content.extend([
+                f"\n### {result.test_id}",
+                f"\n**Model:** {result.model}",
+                f"**Query:** {result.query}",
+                f"**Status:** {'Passed' if result.passed else 'Failed'}"
+            ])
+        else:
+            content.extend([
+                f"\n**Model:** {result.model}",
+                f"**Query:** {result.query}",
+                f"**Status:** {'Passed' if result.passed else 'Failed'}"
+            ])
         
-        content.extend([
-            f"- **Query**: {result.query}",
-            f"- **Model**: {result.model}",
-            f"- **Score**: {result.status_emoji} {result.score}/{result.max_score} ({result.score_percentage:.1f}%)",
-            f"- **Tokens**: {result.tokens}",
-            f"- **Cost**: ${result.cost_usd:.4f}",
-            f"- **Output Chars**: {result.output_char_count}",
-            "#### Requirements",
-        ])
-        for req in result.requirements:
-            content.append(
-                f"  - {req.emoji} **{req.title}** *{req.type}* ({req.achieved_score}/{req.max_score}): {req.description}"
-            )
-            content.append(f"    - *{req.outcome}*")
+        content.append(f"**Score:** {result.score}/{result.max_score} ({result.score_percentage:.1f}%)")
         
-        output_filename = os.path.basename(result.output_filename)
-        content.append(f"- [Output](./{output_filename})")
+        if result.error:
+            content.append(f"\n**Error:**\n{result.error}")
+        
+        content.append(f"**Tokens:** {result.tokens}")
+        content.append(f"**Cost:** ${result.cost_usd:.4f}")
+        content.append(f"**Generation Time:** {result.generation_time_seconds:.2f}s")
+        
+        # Add requirements check
+        if result.requirements:
+            content.append("\n**Requirements:**")
+            for req in result.requirements:
+                content.append(f"- {req.emoji} {req.title}: {req.description}")
+        
         return "\n".join(content)
 
     def _write_file(self, path: str, content: str):
