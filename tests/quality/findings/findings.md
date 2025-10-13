@@ -7,6 +7,10 @@
 - Gemini models often fail with RECITATION error, blocking the response
 
 # Test results
+## Converted rules headings from ALL CAPS to Title Case, implemented query keyword normalization - 2025-10-13
+- `GPT-4.1` scores dropped from 85.3% to 72.7% after Title Case headers and query keyword normalization
+- `GPT-4.1` scores 62.8% if Title Case headers are userd WITHOUT normalization
+
 ## Comparing OpenAI models - 2025-10-08
 - `GPT-4.1` is the most promising, 77% score, 6s to reply, $0.02 cost
 - `GTP-o3` is also nice, 80% score, $0.01 cost, unfortunately slower: 24s to reply

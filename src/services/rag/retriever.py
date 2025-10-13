@@ -12,7 +12,14 @@ from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.vector_db import VectorDBService
 from src.services.rag.hybrid_retriever import HybridRetriever
 from src.services.rag.keyword_extractor import KeywordExtractor
-from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE, RRF_K, BM25_K1, BM25_B
+from src.lib.constants import (
+    RAG_MAX_CHUNKS,
+    RAG_MIN_RELEVANCE,
+    RRF_K,
+    BM25_K1,
+    BM25_B,
+    RAG_ENABLE_QUERY_NORMALIZATION,
+)
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -106,8 +113,11 @@ class RAGRetriever:
         self._validate_query(request.query)
 
         try:
-            # Normalize query for better keyword matching
-            normalized_query = self.keyword_extractor.normalize_query(request.query)
+            # Normalize query for better keyword matching (if enabled)
+            if RAG_ENABLE_QUERY_NORMALIZATION:
+                normalized_query = self.keyword_extractor.normalize_query(request.query)
+            else:
+                normalized_query = request.query
 
             # Generate query embedding using normalized query
             query_embedding = self.embedding_service.embed_text(normalized_query)
