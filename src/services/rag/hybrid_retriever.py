@@ -63,6 +63,7 @@ class HybridRetriever:
         # Calculate RRF scores for each document
         rrf_scores: Dict[str, float] = defaultdict(float)
         chunk_map: Dict[str, DocumentChunk] = {}
+        bm25_score_map: Dict[str, float] = {}  # Store BM25 scores
 
         # Process vector search results (ranked by relevance_score DESC)
         for rank, chunk in enumerate(vector_chunks, start=1):
@@ -74,6 +75,7 @@ class HybridRetriever:
         for rank, result in enumerate(bm25_results, start=1):
             chunk_id = str(result.chunk.chunk_id)
             rrf_scores[chunk_id] += 1.0 / (self.k + rank)
+            bm25_score_map[chunk_id] = result.score  # Store BM25 score
             if chunk_id not in chunk_map:
                 chunk_map[chunk_id] = result.chunk
 
@@ -90,16 +92,40 @@ class HybridRetriever:
             min_rrf = rrf_scores[sorted_ids[-1]]
             rrf_range = max_rrf - min_rrf if max_rrf > min_rrf else 1.0
 
-            # Create new chunks with normalized relevance scores
+            # Create new chunks with normalized RRF fusion scores
             fused_chunks = []
             for cid in sorted_ids:
                 chunk = chunk_map[cid]
-                # Normalize RRF score to 0.45-1.0 range (matching min threshold)
-                normalized_score = 0.45 + (rrf_scores[cid] - min_rrf) / rrf_range * 0.55
 
-                # Update relevance_score for chunks that came from BM25 only
-                if chunk.relevance_score == 1.0:  # Placeholder from index
-                    chunk = replace(chunk, relevance_score=normalized_score)
+                # Store original vector similarity score
+                original_vector_score = chunk.relevance_score
+
+                # Get raw RRF score
+                raw_rrf_score = rrf_scores[cid]
+
+                # Get BM25 score if available
+                bm25_score = bm25_score_map.get(cid, None)
+
+                # Normalize RRF score to 0.45-1.0 range (matching min threshold)
+                normalized_score = 0.45 + (raw_rrf_score - min_rrf) / rrf_range * 0.55
+
+                # Store scoring details in metadata for debugging/analysis
+                updated_metadata = chunk.metadata.copy()
+                # Only store vector_similarity if it's not the 1.0 placeholder
+                if original_vector_score < 1.0:
+                    updated_metadata['vector_similarity'] = original_vector_score
+                if bm25_score is not None:
+                    updated_metadata['bm25_score'] = bm25_score
+                updated_metadata['rrf_score'] = raw_rrf_score
+                updated_metadata['rrf_normalized'] = normalized_score
+
+                # Always update relevance_score to show the RRF fusion score
+                # This ensures the displayed score matches the ranking order
+                chunk = replace(
+                    chunk,
+                    relevance_score=normalized_score,
+                    metadata=updated_metadata
+                )
 
                 fused_chunks.append(chunk)
         else:

@@ -285,7 +285,7 @@ class RAGSweepRunner:
         """
         # Create timestamped directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        sweep_dir = self.results_base_dir / f"{sweep_name}_{timestamp}"
+        sweep_dir = self.results_base_dir / f"{timestamp}_{sweep_name}"
         sweep_dir.mkdir(parents=True, exist_ok=True)
 
         # Save each configuration's results in subdirectory

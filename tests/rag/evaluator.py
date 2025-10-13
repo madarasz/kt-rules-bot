@@ -35,9 +35,11 @@ class RAGEvaluator:
         Returns:
             RAGTestResult with calculated metrics
         """
-        # Extract headers from retrieved chunks
+        # Extract headers, texts, relevance scores, and metadata from retrieved chunks
         retrieved_headers = [chunk.header for chunk in retrieved_chunks]
         retrieved_texts = [chunk.text for chunk in retrieved_chunks]
+        retrieved_scores = [chunk.relevance_score for chunk in retrieved_chunks]
+        retrieved_metadata = [chunk.metadata for chunk in retrieved_chunks]
 
         # Convert to sets for matching (case-insensitive)
         required_set = {h.strip().lower() for h in test_case.required_chunks}
@@ -74,6 +76,8 @@ class RAGEvaluator:
             required_chunks=test_case.required_chunks,
             retrieved_chunks=retrieved_headers,
             retrieved_chunk_texts=retrieved_texts,
+            retrieved_relevance_scores=retrieved_scores,
+            retrieved_chunk_metadata=retrieved_metadata,
             map_score=map_score,
             recall_at_5=recall_at_5,
             recall_at_10=recall_at_10,
