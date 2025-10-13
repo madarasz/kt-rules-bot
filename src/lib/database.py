@@ -494,6 +494,45 @@ class AnalyticsDatabase:
         except Exception as e:
             logger.error(f"Failed to update chunk relevance: {e}", exc_info=True)
 
+    def delete_query(self, query_id: str) -> bool:
+        """Delete a query and its associated chunks.
+
+        Args:
+            query_id: Query UUID
+
+        Returns:
+            True if query was deleted, False if not found or error
+        """
+        if not self.enabled:
+            return False
+
+        try:
+            with self._get_connection() as conn:
+                # Delete query (chunks will be deleted automatically due to CASCADE)
+                cursor = conn.execute("""
+                    DELETE FROM queries
+                    WHERE query_id = ?
+                """, (query_id,))
+                deleted_count = cursor.rowcount
+                conn.commit()
+
+            if deleted_count > 0:
+                logger.info(
+                    "Query deleted from analytics DB",
+                    extra={"query_id": query_id}
+                )
+                return True
+            else:
+                logger.warning(
+                    "Query not found for deletion",
+                    extra={"query_id": query_id}
+                )
+                return False
+
+        except Exception as e:
+            logger.error(f"Failed to delete query: {e}", exc_info=True)
+            return False
+
     def get_stats(self) -> Dict[str, Any]:
         """Get database statistics for dashboard.
 

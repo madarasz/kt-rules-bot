@@ -130,7 +130,7 @@ def render_query_browser(db: AnalyticsDatabase):
         st.info("No queries found matching filters.")
         return
 
-    # Display as table
+    # Display as table with delete buttons
     st.subheader(f"Found {len(queries)} queries")
 
     # Create DataFrame for display
@@ -140,23 +140,71 @@ def render_query_browser(db: AnalyticsDatabase):
     df["feedback"] = df["upvotes"].astype(str) + "👍 / " + df["downvotes"].astype(str) + "👎"
     df["confidence"] = df["confidence_score"].round(2)
 
-    # Select columns to display
-    display_df = df[[
-        "timestamp",
-        "query_preview",
-        "admin_status",
-        "feedback",
-        "llm_model",
-        "confidence",
-        "query_id",
-    ]].copy()
-
-    # Display table
-    st.dataframe(
-        display_df,
-        use_container_width=True,
-        hide_index=True,
-    )
+    # Display queries in individual rows with delete buttons
+    for idx, query in enumerate(queries):
+        with st.container():
+            col1, col2, col3, col4, col5, col6, col7 = st.columns([2, 3, 1, 1, 1, 1, 1])
+            
+            with col1:
+                st.write(f"**{pd.to_datetime(query['timestamp']).strftime('%Y-%m-%d %H:%M')}**")
+            
+            with col2:
+                preview = query["query_text"][:80] + "..." if len(query["query_text"]) > 80 else query["query_text"]
+                st.write(preview)
+            
+            with col3:
+                # Admin status with color coding
+                status_color = {
+                    "pending": "🟡",
+                    "approved": "🟢", 
+                    "reviewed": "🔵",
+                    "issues": "🟠",
+                    "flagged": "🔴"
+                }
+                st.write(f"{status_color.get(query['admin_status'], '⚪')} {query['admin_status']}")
+            
+            with col4:
+                feedback_text = f"{query['upvotes']}👍 / {query['downvotes']}👎"
+                st.write(feedback_text)
+            
+            with col5:
+                st.write(query["llm_model"])
+            
+            with col6:
+                conf_score = query.get("confidence_score")
+                if conf_score is not None:
+                    st.write(f"{conf_score:.2f}")
+                else:
+                    st.write("N/A")
+            
+            with col7:
+                # Delete button with confirmation
+                delete_key = f"delete_{query['query_id']}"
+                confirm_key = f"confirm_delete_{query['query_id']}"
+                
+                if confirm_key in st.session_state and st.session_state[confirm_key]:
+                    # Show confirmation buttons
+                    col_yes, col_no = st.columns(2)
+                    with col_yes:
+                        if st.button("✅", key=f"yes_{query['query_id']}", help="Confirm delete"):
+                            if db.delete_query(query["query_id"]):
+                                st.success("Query deleted!")
+                                # Reset confirmation state
+                                st.session_state[confirm_key] = False
+                                st.rerun()
+                            else:
+                                st.error("Failed to delete query")
+                    with col_no:
+                        if st.button("❌", key=f"no_{query['query_id']}", help="Cancel delete"):
+                            st.session_state[confirm_key] = False
+                            st.rerun()
+                else:
+                    # Show delete button
+                    if st.button("🗑️", key=delete_key, help="Delete query"):
+                        st.session_state[confirm_key] = True
+                        st.rerun()
+            
+            st.divider()
 
     # View details button
     st.subheader("View Query Details")
@@ -176,6 +224,11 @@ def render_query_browser(db: AnalyticsDatabase):
 def render_query_detail(db: AnalyticsDatabase):
     """Render the query detail page."""
     st.title("🔍 Query Detail")
+
+    # Back button
+    if st.button("⬅️ Back to Query Browser"):
+        st.session_state["current_page"] = "📋 Query Browser"
+        st.rerun()
 
     # Get query ID from URL or session state
     query_id = st.session_state.get("selected_query_id")

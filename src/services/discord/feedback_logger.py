@@ -134,20 +134,24 @@ class FeedbackLogger:
             return None
 
         try:
-            # Extract short ID from footer
-            id_part = footer_text.split("ID:")[1].split("|")[0].strip()
+            # Extract short ID from footer (first 8 chars of UUID)
+            short_id = footer_text.split("ID:")[1].split("|")[0].strip()
 
-            # NOTE: This is a shortened ID - in production you'd need a mapping
-            # from short ID to full UUID, or store full UUID in footer
-            # For now, we'll create a UUID from the short ID (hacky but works for logging)
-            # Better: Store full UUID in message or use a database lookup
+            # Search through response_to_query_map for matching UUID
+            for response_id in self.response_to_query_map.keys():
+                if response_id.startswith(short_id):
+                    logger.debug(f"Matched short ID {short_id} to full response_id")
+                    try:
+                        return UUID(response_id)
+                    except ValueError:
+                        logger.warning(f"Invalid UUID format: {response_id}")
+                        continue
 
-            # For proper implementation, you'd do:
-            # return await db.get_response_id_by_short_id(id_part)
-
-            # For now, just log the short ID
-            logger.debug(f"Extracted short response_id: {id_part}")
-            return None  # Can't reconstruct full UUID from short ID
+            logger.warning(
+                f"Could not find full response_id for short ID: {short_id}",
+                extra={"short_id": short_id}
+            )
+            return None
 
         except Exception as e:
             logger.warning(f"Error extracting response_id: {e}")
