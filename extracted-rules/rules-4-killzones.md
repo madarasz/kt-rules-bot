@@ -33,9 +33,6 @@ Operatives drop down when they move off terrain or after they've jumped. Ignore 
 ## **Jumping**
 Operatives can jump from **Vantage** terrain higher than **2"** from the killzone floor when they move off it. You can move them up to **4"** horizontally from the edge when they jump, done like any other move except in one straight-line increment. The operative must then drop or climb from there. When jumping *from* a terrain feature, if there is a rampart at the edge you would jump from, you must climb it first before doing so, but still jump from the level of the **Vantage** terrain. When jumping to a terrain feature, you can ignore its height difference of **1"** or less, including its rampart (if any).
 
-[Summary]
-Jumping allows operatives to cross horizontal gaps up to **4"** wide. From a **Vantage** higher than "2, they can also jump over objects lower than them, up to **4"** away. After the horizontal jump movement, the operative must resolve any vertical movement by dropping or climbing.
-
 # **Terrain Types**
 A terrain feature is composed of different parts, each of which is a type of terrain (one part can be more than one type). If you are using a terrain feature from a specific killzone, the type of each part of that terrain feature will be specified. If you are using a terrain feature from a killzone of your own creation, you must specify the type of each part of that terrain feature before the battle. The most common types of terrain are below, but some killzones have their own types.
 
@@ -99,19 +96,3 @@ An example of **Accessible** terrain is a doorway.
 
 ## **Ceiling**
 Operatives can move underneath Ceiling terrain regardless of the operative’s height (this takes precedence over `Terrain and Movement`). The operative must still finish the action in a location it can be placed.’
-
-## **Killzones** - Key Numerical Rules Summary
-
-| Rule/Constraint | Value |
-|:---|:---|
-| Standard Killzone Board Size | **30" x 22"** |
-| Max Horizontal Distance to Vantage to Initiate Climb | **1"** |
-| Max Vertical Distance to Vantage to Initiate Climb | **3"** |
-| Minimum Vertical Movement Cost for a Climb | **2"** |
-| Vertical Drop Distance Ignored (per action) | **2"** |
-| Maximum Horizontal Jump Distance | **4"** |
-| Max Height Difference Ignored When Jumping To Terrain | **1"** |
-| **Vantage**: Height Advantage for **Accurate 1** | At least **2"** higher |
-| **Vantage**: Height Advantage for **Accurate 2** | At least **4"** higher |
-| **Vantage**: Height Advantage to Ignore **Conceal** (Light Terrain) | At least **2"** higher |
-| Movement Cost for **Accessible** Terrain | Additional **1"** |

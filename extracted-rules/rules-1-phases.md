@@ -95,18 +95,3 @@ The player who has initiative activates a **ready** friendly operative. Once tha
 When you would activate a **ready** friendly operative, if all your operatives are **expended** but your opponent still has **ready** operatives, you can select an **expended** friendly operative with an **Engage** order to perform a 1AP action (excluding **Guard**) for free. Each operative can only **counteract** once per turning point. That operative cannot move more than 2", or must be set up wholly within 2" if it’s removed and set up again, while counteracting (this is not a change to its Move stat, and takes precedence over all other rules). Counteracting is optional, so you can choose not to. In either case, activation alternates back to your opponent afterwards.
 
 > **Designer's Commentary:** Counteracting is not an activation. This is an important distinction because it means rules like action restrictions do not apply.
-
----
-
-## **Phases** - Key Numerical Rules Summary
-
-| Rule/Constraint | Value |
-|---|---|
-| Command Points (CP) per turn (player with initiative) | **1** |
-| Command Points (CP) per turn (player without initiative, after turn 1) | **2** |
-| Strategic Gambit uses per turning point | **1** (per gambit) |
-| Action Point cost minimum | **0AP** |
-| Maximum same action per activation | **1** |
-| Counteract AP allowance | **1AP** |
-| Counteract movement restriction | **2"** maximum |
-| Counteract frequency per operative | **1** per turning point |

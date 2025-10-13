@@ -147,10 +147,6 @@ A room is defined by its boundaries: Tomb World walls and/or the killzone edge m
 
 Weapons with the **Blast**, **Torrent** and /or **x" Devastating** (i.e. Devastating with a distance requirement) weapon rule also have the **Lethal 5+** weapon rule.
 
-[Summary]
-**Condensed Environment Impact:**
-In the confined spaces of Killzone: Tomb World, area effect weapons (Blast, Torrent) and Devastating weapons with distance requirements become more lethal. They automatically gain the Lethal 5+ weapon rule, making them more likely to cause critical damage in close quarters.
-
 ---
 
 # TOMB WORLD - ACTIONS
@@ -177,10 +173,6 @@ That friendly operative can even perform the **Shoot** action while within contr
 * Worsen the Hit stat of your operative's weapons by **1**.
 * Until the end of the interrupted enemy operative's activation, your operative cannot retaliate.
 
-[Summary]
-**Guard Reactive Mechanic:**
-Guard allows an operative to wait and react to enemy actions. The operative remains on guard until triggered by specific conditions. When an enemy operative ends an action within control range, you may choose to interrupt with a free Shoot or Fight action. The on-guard state is fragile and breaks if the operative performs any action, changes order, or fails to interrupt when given the opportunity.
-
 **Point-Blank Shot Exception:**
 A guarding operative can shoot while within enemy control range, overriding the normal prohibition. However, this comes at a cost: weapons' Hit stats are worsened by 1, and the shooting operative cannot retaliate until the enemy operative's activation ends. This represents the desperate, close-quarters nature of the shot.
 
@@ -193,30 +185,3 @@ A guarding operative can shoot while within enemy control range, overriding the 
 **►** In the Select Enemy Operative step, instead select an enemy operative within **2"** of, and on the other side of, the access point of an open hatchway/breach point the active operative is touching. For the duration of that action, those operatives are treated as being within each other's control range.
 
 **◆** This action is treated as a **Fight action**. An operative cannot perform this action while within control range of an enemy operative, or if its base isn't touching the access point of an open hatchway/breach point.
-
-[Summary]
-**Hatchway Fight Mechanics:**
-This action allows operatives to engage in melee combat through open hatchways and breach points. The key requirements are: the active operative must be touching the access point, the target must be within **2"** of the access point on the opposite side, and no other enemy operative can be within control range of the active operative. During the Fight action, both operatives are treated as if within each other's control range despite the physical separation.
-
----
-
-## *Tomb World** - KEY NUMERICAL RULES SUMMARY
-
-| Rule/Constraint | Value |
-|-----------------|-------|
-| Game board dimensions | 606mm x 703mm |
-| Grid system | 6x7 |
-| Debris terrain features | 4x |
-| Other terrain features (each type) | 2x |
-| Half pillars | 16x |
-| Operate Hatch action cost | 1AP |
-| Breach action cost (standard) | 2AP |
-| Breach action cost (reduced, qualified operatives) | 1AP (minimum) |
-| Breach damage roll target | 4+ |
-| Breach damage calculation | Dice result halved (rounded up) |
-| Obscured distance threshold (open hatchway) | More than 1" |
-| Teleportation availability | From start of second turning point |
-| Hatchway Fight maximum range | 2" |
-| Point-blank shot Hit stat penalty | Worsen by 1 |
-| Guard action cost | 1AP |
-| Hatchway Fight action cost | 1AP |

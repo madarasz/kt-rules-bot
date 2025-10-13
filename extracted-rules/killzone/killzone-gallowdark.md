@@ -141,22 +141,3 @@ That friendly operative can even perform the **Shoot** action while within contr
 The **Hatchway Fight** action allows an operative to fight an enemy operative through an open hatchway without being in normal control range. The operatives must be on opposite sides of the hatchway's access point, with the active operative's base touching the access point and the enemy operative within **2"** of it. During this action, they are treated as being within each other's control range for combat purposes.
 
 > **Designer's Note:** This action allows an operative to fight across an open hatchway – useful if the enemy is obstructing it and preventing your operatives from moving through.
-
----
-
-## **Gallowdark** - KEY NUMERICAL RULES SUMMARY
-
-| Rule/Constraint | Value |
-|----------------|-------|
-| Gallowdark board dimensions | 606mm x 703mm |
-| Gallowdark grid system | 6x7 |
-| Short walls with hatchway and pillars | 4x |
-| Each other terrain feature | 2x |
-| Left pillars | 8x |
-| Right pillars | 8x |
-| Pillar caps | 30x |
-| Hatchway Fight range | Within 2" |
-| On Guard Hit stat modifier | Worsen by 1 |
-| Operate Hatch cost | 1AP |
-| Guard action cost | 1AP |
-| Hatchway Fight action cost | 1AP |
