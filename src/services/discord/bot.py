@@ -167,6 +167,13 @@ class KillTeamBotOrchestrator:
                 for chunk in rag_context.document_chunks
             ]
 
+            # If response is smalltalk, clear citations, remove "[SMALLTALK]" tag from start of answer
+            smalltalk = False
+            if llm_response.answer_text.startswith("[SMALLTALK]"):
+                llm_response.answer_text = llm_response.answer_text.replace("[SMALLTALK]", "").strip()
+                citations = []
+                smalltalk = True
+
             bot_response = BotResponse.create(
                 query_id=user_query.query_id,
                 answer_text=llm_response.answer_text,
@@ -179,7 +186,7 @@ class KillTeamBotOrchestrator:
             )
 
             # Step 7: Format response
-            embeds = formatter.format_response(bot_response, validation_result)
+            embeds = formatter.format_response(bot_response, validation_result, smalltalk=smalltalk)
 
             # Step 8: Send to Discord
             sent_message = await message.channel.send(embeds=embeds)
