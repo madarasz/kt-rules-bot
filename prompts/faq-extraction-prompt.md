@@ -19,9 +19,9 @@ Ignore all other content including:
 ## Formatting Requirements
 
 **Each Q&A pair must:**
-1. Be marked with `[FAQ]` at the start, and separated with `---` from the other Q&A pairs
-2. Format the question with `*Question*:` prefix
-3. Format the answer with `*Answer*:` prefix
+1. Use header 2 (##) and `[FAQ]` prefix for each Q&A pair
+2. Start the question with `*Question*:` prefix
+3. Start the answer with `*Answer*:` prefix
 4. **Bold** the following elements:
    - Faction/unit names (e.g., **CORSAIR VOIDSCARRED**)
    - Ability names (e.g., **Warding Shield**)
@@ -31,11 +31,8 @@ Ignore all other content including:
 
 **Example Format:**
 ```
-[FAQ]
-*Question*: In the Resolve Attack Dice step of the **Shoot** action, what order are successes resolved in? How does this interact with my rules that reduce or ignore damage from the first attack dice (e.g. **CORSAIR VOIDSCARRED** **Warding Shield**, **HERNKYN YAEGIR** **Tough Survivalists**)?
+## [FAQ] *Question*: In the Resolve Attack Dice step of the **Shoot** action, what order are successes resolved in? How does this interact with my rules that reduce or ignore damage from the first attack dice (e.g. **CORSAIR VOIDSCARRED** **Warding Shield**, **HERNKYN YAEGIR** **Tough Survivalists**)?
 *Answer*: Successes resolve simultaneously. The defender can select one of the successes being resolved to reduce or ignore (as appropriate to their rule).
-
----
 ```
 
 ## Critical Requirements
