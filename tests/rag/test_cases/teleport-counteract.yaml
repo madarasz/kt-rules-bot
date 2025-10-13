@@ -1,0 +1,7 @@
+test_id: teleport-counteract
+query: >
+  Can I use the Teleport Pad during counteract?
+
+required_chunks:
+  - "TELEPORT PAD"
+  - "COUNTERACT"

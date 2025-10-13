@@ -1,0 +1,6 @@
+test_id: multiple-shot-by-guard
+query: >
+  Can a dude get guard shot more than once during an activation?
+
+required_chunks:
+  - "On Guard"

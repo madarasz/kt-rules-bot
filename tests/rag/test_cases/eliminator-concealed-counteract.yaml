@@ -1,0 +1,9 @@
+test_id: eliminator-concealed-counteract
+query: >
+  Can the Eliminator Sniper shoot during counteract while having Conceal order?
+
+required_chunks:
+  - "ANGELS OF DEATH - ASTARTES"
+  - "ANGELS OF DEATH - ELIMINATOR SNIPER"
+  - "COUNTERACT"
+  - "Silent"
