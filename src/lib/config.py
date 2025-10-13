@@ -56,6 +56,9 @@ class Config:
     # Logging
     log_level: str = "INFO"
 
+    # Bot Personality
+    personality: str = "necron"
+
     # GDPR
     retention_days: int = 7
 
@@ -129,6 +132,22 @@ class Config:
         if self.response_timeout_seconds < 5:
             raise ValueError("response_timeout_seconds must be at least 5")
 
+        # Validate personality directory exists
+        personality_dir = Path(f"personality/{self.personality}")
+        if not personality_dir.exists():
+            raise ValueError(
+                f"Personality directory not found: {personality_dir}\n"
+                f"Available personalities should be in personality/ folder"
+            )
+
+        # Validate personality.yaml exists
+        personality_file = personality_dir / "personality.yaml"
+        if not personality_file.exists():
+            raise ValueError(
+                f"Personality configuration not found: {personality_file}\n"
+                f"Each personality must have a personality.yaml file"
+            )
+
     @classmethod
     def from_env(cls, env_file: Optional[str] = None) -> "Config":
         """Load configuration from environment variables.
@@ -167,6 +186,8 @@ class Config:
             embedding_model=os.getenv("EMBEDDING_MODEL", EMBEDDING_MODEL),
             # Logging
             log_level=os.getenv("LOG_LEVEL", "INFO"),
+            # Bot Personality
+            personality=os.getenv("PERSONALITY", "necron"),
             # GDPR
             retention_days=int(os.getenv("RETENTION_DAYS", "7")),
             # Performance

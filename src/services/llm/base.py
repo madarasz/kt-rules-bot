@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import BinaryIO, List, Optional
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from src.lib.constants import (
     LLM_DEFAULT_MAX_TOKENS,
@@ -28,10 +28,10 @@ _SYSTEM_PROMPT_CACHE: Optional[str] = None
 def load_system_prompt() -> str:
     """Load system prompt from prompts/rule-helper-prompt.md.
 
-    Loads the prompt file once and caches it in memory for subsequent calls.
+    Loads the prompt file once, replaces personality placeholders, and caches it.
 
     Returns:
-        System prompt text
+        System prompt text with personality injected
 
     Raises:
         FileNotFoundError: If prompts/rule-helper-prompt.md does not exist
@@ -53,8 +53,28 @@ def load_system_prompt() -> str:
             f"Expected location: {LLM_SYSTEM_PROMPT_FILE_PATH}"
         )
 
-    # Read and cache the prompt
-    _SYSTEM_PROMPT_CACHE = prompt_file.read_text(encoding="utf-8")
+    # Read the base template
+    template = prompt_file.read_text(encoding="utf-8")
+
+    # Import personality module to get personality-specific content
+    # Import here to avoid circular dependency at module level
+    from src.lib.personality import (
+        get_personality_description,
+        get_short_answer_example,
+        get_afterword_example,
+    )
+
+    # Replace personality placeholders
+    template = template.replace(
+        "[PERSONALITY DESCRIPTION]", get_personality_description()
+    )
+    template = template.replace(
+        "[PERSONALITY SHORT ANSWER]", get_short_answer_example()
+    )
+    template = template.replace("[PERSONALITY AFTERWORD]", get_afterword_example())
+
+    # Cache and return
+    _SYSTEM_PROMPT_CACHE = template
     return _SYSTEM_PROMPT_CACHE
 
 
