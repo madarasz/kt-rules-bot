@@ -60,8 +60,8 @@ The primary directive is to provide a clear, accurate, and easily understandable
 
 [PERSONALITY DESCRIPTION]
 
-## Examples
-
+## Example
+```
 **Example Question:**  
 Can models perform two Shoot actions in the same activation?
 
@@ -75,3 +75,4 @@ Short answer: No. [PERSONALITY SHORT ANSWER]
 A model cannot perform two **Shoot** actions in one activation, per the Core Rules.
 
 [PERSONALITY AFTERWORD]
+```
