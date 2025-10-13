@@ -11,6 +11,7 @@ from dataclasses import replace
 
 from src.models.rag_context import DocumentChunk
 from src.services.rag.bm25_retriever import BM25Retriever, BM25Result
+from src.lib.constants import RRF_K, BM25_K1, BM25_B
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -19,16 +20,18 @@ logger = get_logger(__name__)
 class HybridRetriever:
     """Hybrid retriever combining BM25 keyword search and vector semantic search."""
 
-    def __init__(self, k: int = 60):
+    def __init__(self, k: int = RRF_K, bm25_k1: float = BM25_K1, bm25_b: float = BM25_B):
         """Initialize hybrid retriever.
 
         Args:
             k: RRF constant (default: 60 from research papers)
+            bm25_k1: BM25 term frequency saturation parameter (default: 1.5)
+            bm25_b: BM25 document length normalization parameter (default: 0.75)
         """
         self.k = k
-        self.bm25_retriever = BM25Retriever()
+        self.bm25_retriever = BM25Retriever(k1=bm25_k1, b=bm25_b)
 
-        logger.info("hybrid_retriever_initialized", rrf_k=k)
+        logger.info("hybrid_retriever_initialized", rrf_k=k, bm25_k1=bm25_k1, bm25_b=bm25_b)
 
     def index_chunks(self, chunks: List[DocumentChunk]) -> None:
         """Index chunks for BM25 search.

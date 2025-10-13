@@ -11,7 +11,7 @@ import time
 from tests.rag.test_case_models import RAGTestCase, RAGTestResult, RAGTestSummary
 from tests.rag.evaluator import RAGEvaluator
 from src.services.rag.retriever import RAGRetriever, RetrieveRequest
-from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE, EMBEDDING_MODEL
+from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE, EMBEDDING_MODEL, RRF_K, BM25_K1, BM25_B
 from src.lib.tokens import estimate_embedding_cost
 from src.lib.logging import get_logger
 
@@ -25,22 +25,34 @@ class RAGTestRunner:
         self,
         test_cases_dir: Path = Path("tests/rag/test_cases"),
         results_dir: Path = Path("tests/rag/results"),
+        rrf_k: int = RRF_K,
+        bm25_k1: float = BM25_K1,
+        bm25_b: float = BM25_B,
     ):
         """Initialize test runner.
 
         Args:
             test_cases_dir: Directory containing YAML test cases
             results_dir: Directory for test results
+            rrf_k: RRF constant for hybrid fusion (default: 60)
+            bm25_k1: BM25 term frequency saturation parameter (default: 1.5)
+            bm25_b: BM25 document length normalization parameter (default: 0.75)
         """
         self.test_cases_dir = test_cases_dir
         self.results_dir = results_dir
+        self.rrf_k = rrf_k
+        self.bm25_k1 = bm25_k1
+        self.bm25_b = bm25_b
         self.evaluator = RAGEvaluator()
-        self.retriever = RAGRetriever()
+        self.retriever = RAGRetriever(rrf_k=rrf_k, bm25_k1=bm25_k1, bm25_b=bm25_b)
 
         logger.info(
             "rag_test_runner_initialized",
             test_cases_dir=str(test_cases_dir),
             results_dir=str(results_dir),
+            rrf_k=rrf_k,
+            bm25_k1=bm25_k1,
+            bm25_b=bm25_b,
         )
 
     def load_test_cases(self, test_id: Optional[str] = None) -> List[RAGTestCase]:
@@ -241,10 +253,12 @@ class RAGTestRunner:
             std_recall_5 = 0.0
             std_prec_3 = 0.0
 
-        # Get RRF k value from hybrid retriever
-        rrf_k = 60  # Default
-        if self.retriever.hybrid_retriever:
-            rrf_k = self.retriever.hybrid_retriever.k
+        # Get BM25 parameters from hybrid retriever
+        bm25_k1 = self.bm25_k1
+        bm25_b = self.bm25_b
+        if self.retriever.hybrid_retriever and self.retriever.hybrid_retriever.bm25_retriever:
+            bm25_k1 = self.retriever.hybrid_retriever.bm25_retriever.k1
+            bm25_b = self.retriever.hybrid_retriever.bm25_retriever.b
 
         return RAGTestSummary(
             total_tests=len(results),
@@ -263,6 +277,8 @@ class RAGTestRunner:
             rag_max_chunks=max_chunks,
             rag_min_relevance=min_relevance,
             embedding_model=EMBEDDING_MODEL,
-            rrf_k=rrf_k,
+            rrf_k=self.rrf_k,
+            bm25_k1=bm25_k1,
+            bm25_b=bm25_b,
             hybrid_enabled=self.retriever.enable_hybrid,
         )

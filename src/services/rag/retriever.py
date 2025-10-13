@@ -11,7 +11,7 @@ from src.models.rag_context import RAGContext, DocumentChunk
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.vector_db import VectorDBService
 from src.services.rag.hybrid_retriever import HybridRetriever
-from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE
+from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE, RRF_K, BM25_K1, BM25_B
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -48,6 +48,9 @@ class RAGRetriever:
         embedding_service: EmbeddingService | None = None,
         vector_db_service: VectorDBService | None = None,
         enable_hybrid: bool = True,
+        rrf_k: int = RRF_K,
+        bm25_k1: float = BM25_K1,
+        bm25_b: float = BM25_B,
     ):
         """Initialize RAG retriever.
 
@@ -55,6 +58,9 @@ class RAGRetriever:
             embedding_service: Embedding service (creates if None)
             vector_db_service: Vector DB service (creates if None)
             enable_hybrid: Enable hybrid search with BM25 (default: True)
+            rrf_k: RRF constant for hybrid fusion (default: 60)
+            bm25_k1: BM25 term frequency saturation parameter (default: 1.5)
+            bm25_b: BM25 document length normalization parameter (default: 0.75)
         """
         self.embedding_service = embedding_service or EmbeddingService()
         self.vector_db = vector_db_service or VectorDBService()
@@ -63,11 +69,17 @@ class RAGRetriever:
         # Initialize hybrid retriever if enabled
         self.hybrid_retriever: HybridRetriever | None = None
         if enable_hybrid:
-            self.hybrid_retriever = HybridRetriever()
+            self.hybrid_retriever = HybridRetriever(k=rrf_k, bm25_k1=bm25_k1, bm25_b=bm25_b)
             # Index all chunks from vector DB
             self._build_hybrid_index()
 
-        logger.info("rag_retriever_initialized", hybrid_enabled=enable_hybrid)
+        logger.info(
+            "rag_retriever_initialized",
+            hybrid_enabled=enable_hybrid,
+            rrf_k=rrf_k,
+            bm25_k1=bm25_k1,
+            bm25_b=bm25_b
+        )
 
     def retrieve(self, request: RetrieveRequest, query_id: UUID) -> RAGContext:
         """Retrieve relevant rule documents for a user query.
