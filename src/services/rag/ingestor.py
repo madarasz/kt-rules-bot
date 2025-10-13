@@ -12,6 +12,7 @@ from src.models.rule_document import RuleDocument
 from src.services.rag.chunker import MarkdownChunker
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.vector_db import VectorDBService
+from src.services.rag.keyword_extractor import KeywordExtractor
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -56,6 +57,7 @@ class RAGIngestor:
         chunker: MarkdownChunker | None = None,
         embedding_service: EmbeddingService | None = None,
         vector_db_service: VectorDBService | None = None,
+        keyword_extractor: KeywordExtractor | None = None,
     ):
         """Initialize RAG ingestor.
 
@@ -63,10 +65,12 @@ class RAGIngestor:
             chunker: Markdown chunker (creates if None)
             embedding_service: Embedding service (creates if None)
             vector_db_service: Vector DB service (creates if None)
+            keyword_extractor: Keyword extractor (creates if None)
         """
         self.chunker = chunker or MarkdownChunker()
         self.embedding_service = embedding_service or EmbeddingService()
         self.vector_db = vector_db_service or VectorDBService()
+        self.keyword_extractor = keyword_extractor or KeywordExtractor()
         self.document_hashes: dict[str, str] = {}  # filename -> hash mapping
 
         logger.info("rag_ingestor_initialized")
@@ -99,6 +103,7 @@ class RAGIngestor:
         embedding_count = 0
         errors: List[str] = []
         warnings: List[str] = []
+        all_chunks = []  # Collect all chunks for keyword extraction
 
         logger.info(
             "ingestion_started",
@@ -125,6 +130,9 @@ class RAGIngestor:
 
                 # Chunk the document
                 chunks = self.chunker.chunk(document.content)
+
+                # Collect chunks for keyword extraction
+                all_chunks.extend(chunks)
 
                 logger.debug(
                     "document_chunked",
@@ -209,6 +217,19 @@ class RAGIngestor:
                 )
 
         duration = time.time() - start_time
+
+        # Extract keywords from all chunks and update keyword library
+        if all_chunks:
+            keywords = self.keyword_extractor.extract_from_chunks(all_chunks)
+            added_count = self.keyword_extractor.add_keywords(keywords)
+            self.keyword_extractor.save_keywords()
+
+            logger.info(
+                "keywords_updated",
+                job_id=str(job_id),
+                new_keywords=added_count,
+                total_keywords=self.keyword_extractor.get_keyword_count()
+            )
 
         result = IngestionResult(
             job_id=job_id,

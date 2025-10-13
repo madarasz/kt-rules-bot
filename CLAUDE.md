@@ -2,7 +2,7 @@
 
 Discord bot answering Kill Team rules questions using RAG + LLM (ChromaDB + Claude/GPT/Gemini/Grok).
 
-**Last updated:** 2025-10-10
+**Last updated:** 2025-10-13
 
 ## Quick Start for Agents
 
@@ -37,7 +37,11 @@ streamlit run src/cli/admin_dashboard.py --server.port 8501
 
 **Tech Stack**: Python 3.11+, discord.py, ChromaDB, OpenAI, Anthropic, Google AI, X/Grok
 
-**RAG Pipeline**: Hybrid retrieval (vector + BM25) → ChromaDB + text-embedding-3-small
+**RAG Pipeline**:
+- Hybrid retrieval (vector + BM25) with RRF fusion
+- Query normalization for case-insensitive keyword matching
+- ChromaDB + text-embedding-3-small
+- 1300+ game-specific keywords auto-extracted from rules
 
 **LLM Providers** (via factory pattern):
 - Claude: `claude-sonnet` (default), `claude-opus`
@@ -69,6 +73,10 @@ tests/
 extracted-rules/  → Markdown source documents
 prompts/          → LLM system prompts
 config/.env       → API keys (gitignored, see .env.template)
+data/
+  chroma_db/      → Vector database (ChromaDB)
+  rag_keywords.json → Auto-extracted keyword library for query normalization
+  analytics.db    → Optional analytics database (if enabled)
 ```
 
 **Notes**:
@@ -119,7 +127,9 @@ See [src/services/llm/CLAUDE.md](src/services/llm/CLAUDE.md) for details.
 
 **Provider Pattern** (LLM): All providers implement `LLMProvider` base class → factory creates instances → swappable via config
 
-**Hybrid Retrieval** (RAG): Vector (semantic) + BM25 (lexical) → RRF fusion → top-k chunks
+**Hybrid Retrieval** (RAG): Query normalization → Vector (semantic) + BM25 (lexical) → RRF fusion → top-k chunks
+
+**Case-Insensitive Queries**: Automatic keyword normalization (e.g., "accurate 1" → "Accurate 1") enables consistent retrieval regardless of capitalization
 
 **GDPR**: Hash all user IDs, 7-day retention, support deletion via `gdpr-delete` command
 
