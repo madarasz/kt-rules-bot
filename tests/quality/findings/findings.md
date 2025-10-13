@@ -9,7 +9,11 @@
 # Test results
 ## Converted rules headings from ALL CAPS to Title Case, implemented query keyword normalization - 2025-10-13
 - `GPT-4.1` scores dropped from 85.3% to 72.7% after Title Case headers and query keyword normalization
-- `GPT-4.1` scores 62.8% if Title Case headers are userd WITHOUT normalization
+- `GPT-4.1` scores 62.8% if Title Case headers are used WITHOUT normalization
+- `GPT-4.1` scored 77.7% after returning back to ALL CAPS headers and turnin normalization OFF
+- possible reasons for perfomance drop:
+    - configurable personalities
+    - removing summaries and key numerical rules? (scored 79.4% after putting them back)
 
 ## Comparing OpenAI models - 2025-10-08
 - `GPT-4.1` is the most promising, 77% score, 6s to reply, $0.02 cost
