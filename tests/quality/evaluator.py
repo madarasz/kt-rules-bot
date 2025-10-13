@@ -6,11 +6,19 @@ Evaluates both "contains" and "llm" type requirements.
 import asyncio
 import re
 from typing import List
+from dataclasses import dataclass
 
-from tests.quality.models import (
-    TestRequirement,
-    RequirementResult,
-)
+from tests.quality.test_case_models import TestRequirement
+
+
+@dataclass
+class RequirementResult:
+    """Result of evaluating a single requirement."""
+    requirement: TestRequirement
+    passed: bool
+    points_earned: int
+    details: str = ""
+    judge_malfunction: bool = False
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.base import GenerationRequest, GenerationConfig
 from src.services.llm.retry import retry_on_content_filter
