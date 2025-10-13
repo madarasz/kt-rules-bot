@@ -155,9 +155,9 @@ The quality testing framework is organized into focused modules:
 - **[test_runner.py](test_runner.py)**: Main test execution and CLI
 - **[models.py](models.py)**: Data models for tests, results, and multi-run suites
 - **[evaluator.py](evaluator.py)**: Requirement evaluation logic (contains + LLM judge)
-- **[report_generator.py](report_generator.py)**: Markdown report generation for single runs
+- **[reporting/report_generator.py](reporting/report_generator.py)**: Markdown report generation
+- **[reporting/chart_generator.py](reporting/chart_generator.py)**: Chart generation with error bars for multi-run scenarios
 - **[aggregator.py](aggregator.py)**: Multi-run statistics aggregation
-- **[visualization.py](visualization.py)**: Single-run chart generation
 - **[multi_run_visualization.py](multi_run_visualization.py)**: Multi-run chart with error bars
 
 ## LLM Error Handling
