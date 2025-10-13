@@ -44,9 +44,17 @@ OpenAI embedding generation:
 ### BM25 Retriever ([bm25_retriever.py](bm25_retriever.py))
 Keyword-based lexical search:
 - Classic BM25 algorithm
-- Tokenization and preprocessing
+- Tokenization and preprocessing (case-insensitive)
 - Fast in-memory search
 - Complements vector search for exact matches
+
+### Keyword Extractor ([keyword_extractor.py](keyword_extractor.py))
+Automatic query normalization for case-insensitive retrieval:
+- Extracts game-specific keywords from rule headers during ingestion
+- Normalizes user queries by capitalizing known keywords (e.g., "accurate" → "Accurate")
+- Enables case-insensitive queries: "accurate 1", "Accurate 1", "ACCURATE 1" all work
+- Keyword library stored in `data/rag_keywords.json` (1300+ keywords)
+- Minimum keyword length: 4 characters (filters out short words like "FLY", "APL")
 
 ### Document Chunker ([chunker.py](chunker.py))
 Semantic chunking strategy (lazy splitting):
@@ -60,10 +68,12 @@ Semantic chunking strategy (lazy splitting):
 Ingestion pipeline for rule documents:
 - Reads markdown files from `extracted-rules/`
 - Chunks documents
+- Extracts keywords from headers (for query normalization)
 - Generates embeddings
 - Stores in vector database
 - Indexes for BM25 search
 - Tracks document versions
+- Updates keyword library automatically
 
 ### Cache ([cache.py](cache.py))
 Query result caching:
@@ -87,6 +97,8 @@ retriever.retrieve(RetrieveRequest)
     ↓
 Check cache → [Hit: return cached results]
     ↓ [Miss]
+Normalize query (keyword_extractor.py)
+    ↓ (e.g., "accurate 1" → "Accurate 1")
 Generate query embedding (embeddings.py)
     ↓
 Parallel retrieval:
@@ -112,8 +124,9 @@ From [src/models/rag_context.py](../../models/rag_context.py):
 ## Configuration
 
 From [src/lib/constants.py](../../lib/constants.py):
-- `RAG_MAX_CHUNKS`: Maximum chunks to retrieve (default: 15)
+- `RAG_MAX_CHUNKS`: Maximum chunks to retrieve (default: 8)
 - `RAG_MIN_RELEVANCE`: Minimum cosine similarity (default: 0.45)
+- `RAG_KEYWORD_CACHE_PATH`: Keyword library path (default: data/rag_keywords.json)
 - `EMBEDDING_MODEL`: OpenAI embedding model (text-embedding-3-small)
 
 Note: Token limits and embedding dimensions are now determined dynamically based on `EMBEDDING_MODEL` using `get_embedding_token_limit()` and `get_embedding_dimensions()` from [src/lib/tokens.py](../../lib/tokens.py)
@@ -132,10 +145,12 @@ python -m src.cli ingest extracted-rules/ --force
 ### Ingestion Process
 1. Read markdown files from source directory
 2. Chunk documents ([chunker.py](chunker.py))
-3. Generate embeddings ([embeddings.py](embeddings.py))
-4. Store in ChromaDB ([vector_db.py](vector_db.py))
-5. Index for BM25 ([bm25_retriever.py](bm25_retriever.py))
-6. Update metadata store
+3. Extract keywords from headers ([keyword_extractor.py](keyword_extractor.py))
+4. Generate embeddings ([embeddings.py](embeddings.py))
+5. Store in ChromaDB ([vector_db.py](vector_db.py))
+6. Index for BM25 ([bm25_retriever.py](bm25_retriever.py))
+7. Save keyword library to `data/rag_keywords.json`
+8. Update metadata store
 
 ## Common Tasks
 
@@ -190,11 +205,44 @@ python -m src.cli ingest extracted-rules/ --force
 3. Update `EMBEDDING_MODEL` in constants
 4. Re-ingest all documents
 
+### Query Normalization
+
+The system automatically normalizes queries to improve retrieval consistency:
+
+**How it works**:
+- During ingestion, game-specific keywords are extracted from rule headers
+- At query time, keywords are capitalized to match embeddings (e.g., "accurate" → "Accurate")
+- This makes queries case-insensitive: all of these work identically:
+  - `"accurate 1"` → normalized to `"Accurate 1"`
+  - `"Accurate 1"` → already correct
+  - `"ACCURATE 1"` → normalized to `"Accurate 1"`
+
+**Keyword extraction rules**:
+- Extracts from `## Header` patterns in markdown
+- Minimum length: 4 characters (filters out "FLY", "APL", etc.)
+- Patterns: "Accurate x", "Lethal 5+", "TEAM - ABILITY", etc.
+
+**View keyword library**:
+```bash
+cat data/rag_keywords.json
+```
+
+**Rebuild keywords** (run after ingestion):
+```bash
+python -m src.cli ingest extracted-rules/
+```
+
 ### Debugging Retrieval Issues
 
 **Test specific query**:
 ```bash
 python -m src.cli query "What happens when a banner carrier dies?" --max-chunks 10
+```
+
+**Check query normalization** (enable DEBUG logging):
+```bash
+# Look for "query_normalized" log entries
+python -m src.cli query "accurate 1" 2>&1 | grep query_normalized
 ```
 
 **Enable debug logging** in [src/lib/constants.py](../../lib/constants.py):

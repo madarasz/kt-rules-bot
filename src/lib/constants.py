@@ -88,6 +88,13 @@ LLM_SYSTEM_PROMPT_FILE_PATH = "prompts/rule-helper-prompt.md"
 # loaded via src.lib.personality based on PERSONALITY env variable
 
 # ============================================================================
+# RAG Keyword Normalization Constants
+# ============================================================================
+
+# Path to cached keyword library (auto-extracted from rules during ingestion)
+RAG_KEYWORD_CACHE_PATH = "data/rag_keywords.json"
+
+# ============================================================================
 # Notes
 # ============================================================================
 # - LLM_GENERATION_TIMEOUT applies to total operation including retries

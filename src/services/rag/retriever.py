@@ -11,6 +11,7 @@ from src.models.rag_context import RAGContext, DocumentChunk
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.vector_db import VectorDBService
 from src.services.rag.hybrid_retriever import HybridRetriever
+from src.services.rag.keyword_extractor import KeywordExtractor
 from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE, RRF_K, BM25_K1, BM25_B
 from src.lib.logging import get_logger
 
@@ -47,6 +48,7 @@ class RAGRetriever:
         self,
         embedding_service: EmbeddingService | None = None,
         vector_db_service: VectorDBService | None = None,
+        keyword_extractor: KeywordExtractor | None = None,
         enable_hybrid: bool = True,
         rrf_k: int = RRF_K,
         bm25_k1: float = BM25_K1,
@@ -57,6 +59,7 @@ class RAGRetriever:
         Args:
             embedding_service: Embedding service (creates if None)
             vector_db_service: Vector DB service (creates if None)
+            keyword_extractor: Keyword extractor for query normalization (creates if None)
             enable_hybrid: Enable hybrid search with BM25 (default: True)
             rrf_k: RRF constant for hybrid fusion (default: 60)
             bm25_k1: BM25 term frequency saturation parameter (default: 1.5)
@@ -64,6 +67,7 @@ class RAGRetriever:
         """
         self.embedding_service = embedding_service or EmbeddingService()
         self.vector_db = vector_db_service or VectorDBService()
+        self.keyword_extractor = keyword_extractor or KeywordExtractor()
         self.enable_hybrid = enable_hybrid
 
         # Initialize hybrid retriever if enabled
@@ -78,7 +82,8 @@ class RAGRetriever:
             hybrid_enabled=enable_hybrid,
             rrf_k=rrf_k,
             bm25_k1=bm25_k1,
-            bm25_b=bm25_b
+            bm25_b=bm25_b,
+            keywords_loaded=self.keyword_extractor.get_keyword_count()
         )
 
     def retrieve(self, request: RetrieveRequest, query_id: UUID) -> RAGContext:
@@ -101,8 +106,11 @@ class RAGRetriever:
         self._validate_query(request.query)
 
         try:
-            # Generate query embedding
-            query_embedding = self.embedding_service.embed_text(request.query)
+            # Normalize query for better keyword matching
+            normalized_query = self.keyword_extractor.normalize_query(request.query)
+
+            # Generate query embedding using normalized query
+            query_embedding = self.embedding_service.embed_text(normalized_query)
 
             logger.debug(
                 "query_embedding_generated",
@@ -119,7 +127,8 @@ class RAGRetriever:
             # Convert results to DocumentChunk objects
             chunks = self._results_to_chunks(results, request.min_relevance)
 
-            # Apply hybrid search if enabled
+            # Apply hybrid search if enabled (use original query for BM25, not normalized)
+            # BM25 lowercases internally, so normalization isn't needed for keyword search
             if request.use_hybrid and self.hybrid_retriever and chunks:
                 chunks = self.hybrid_retriever.retrieve_hybrid(
                     query=request.query,
