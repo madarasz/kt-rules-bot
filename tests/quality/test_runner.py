@@ -21,9 +21,21 @@ from src.services.llm.factory import LLMProviderFactory
 from src.services.rag.retriever import RAGRetriever, RetrieveRequest
 from src.services.rag.vector_db import VectorDBService
 from src.services.rag.embeddings import EmbeddingService
-from src.services.llm.base import GenerationRequest, GenerationConfig, ContentFilterError
-from src.services.llm.retry import retry_on_content_filter
-from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, RAG_MAX_CHUNKS, LLM_GENERATION_TIMEOUT
+from src.services.llm.base import (
+    GenerationRequest,
+    GenerationConfig,
+    ContentFilterError,
+    RateLimitError,
+    TimeoutError as LLMTimeoutError,
+    AuthenticationError,
+)
+from src.services.llm.retry import retry_with_rate_limit_backoff
+from src.lib.constants import (
+    QUALITY_TEST_JUDGE_MODEL,
+    RAG_MAX_CHUNKS,
+    LLM_GENERATION_TIMEOUT,
+    QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS,
+)
 from src.lib.config import get_config
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost
@@ -50,6 +62,8 @@ class QualityTestRunner:
             vector_db_service=self.vector_db,
             embedding_service=self.embedding_service,
         )
+        # Semaphore to limit concurrent LLM requests (prevents rate limit errors)
+        self.llm_semaphore = asyncio.Semaphore(QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS)
 
     def load_test_cases(self, test_id: Optional[str] = None) -> List[TestCase]:
         """Load test cases from YAML files."""
@@ -111,22 +125,40 @@ class QualityTestRunner:
         error_str = None
         llm_response_text = ""
         token_count = 0
-        
+
         try:
-            llm_response = await retry_on_content_filter(
-                llm_provider.generate,
-                GenerationRequest(
-                    prompt=test_case.query,
-                    context=[chunk.text for chunk in rag_context.document_chunks],
-                    config=gen_config,
-                ),
-                timeout_seconds=LLM_GENERATION_TIMEOUT,
-            )
+            # Use semaphore to limit concurrent requests and prevent rate limits
+            async with self.llm_semaphore:
+                llm_response = await retry_with_rate_limit_backoff(
+                    llm_provider.generate,
+                    GenerationRequest(
+                        prompt=test_case.query,
+                        context=[chunk.text for chunk in rag_context.document_chunks],
+                        config=gen_config,
+                    ),
+                    timeout_seconds=LLM_GENERATION_TIMEOUT,
+                )
             llm_response_text = llm_response.answer_text
             token_count = llm_response.token_count
-        except (ContentFilterError, Exception) as e:
+        except LLMTimeoutError as e:
+            logger.error(f"LLM timeout for {test_case.test_id} on {model}: {e}")
+            error_str = f"Timeout after {LLM_GENERATION_TIMEOUT}s"
+            llm_response_text = f"[LLM Timeout Error: {error_str}]"
+        except RateLimitError as e:
+            logger.error(f"LLM rate limit for {test_case.test_id} on {model}: {e}")
+            error_str = f"Rate limit exceeded: {str(e)}"
+            llm_response_text = f"[LLM Rate Limit Error: {error_str}]"
+        except ContentFilterError as e:
+            logger.error(f"LLM content filter for {test_case.test_id} on {model}: {e}")
+            error_str = f"Content filtered: {str(e)}"
+            llm_response_text = f"[LLM Content Filter Error: {error_str}]"
+        except AuthenticationError as e:
+            logger.error(f"LLM authentication error for {test_case.test_id} on {model}: {e}")
+            error_str = f"Authentication failed: {str(e)}"
+            llm_response_text = f"[LLM Authentication Error: {error_str}]"
+        except Exception as e:
             logger.error(f"LLM generation failed for {test_case.test_id} on {model}: {e}")
-            error_str = str(e)
+            error_str = f"{type(e).__name__}: {str(e)}"
             llm_response_text = f"[LLM Generation Failed: {error_str}]"
 
         generation_time = (datetime.now(timezone.utc) - start_time).total_seconds()
@@ -180,7 +212,12 @@ class QualityTestRunner:
         test_id: Optional[str] = None,
         models: Optional[List[str]] = None,
     ) -> List[IndividualTestResult]:
-        """Run all test combinations in parallel."""
+        """Run all test combinations in parallel with concurrency control.
+
+        Tests are run in parallel but LLM requests are limited by semaphore
+        to prevent rate limit errors. Maximum concurrent LLM requests is
+        controlled by QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS constant.
+        """
         test_cases = self.load_test_cases(test_id)
         if not test_cases:
             raise ValueError(f"No test cases found for test_id: {test_id}" if test_id else "No test cases found.")

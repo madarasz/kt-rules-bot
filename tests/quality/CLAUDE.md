@@ -97,10 +97,21 @@ tests/quality/
 
 In [src/lib/constants.py](../../src/lib/constants.py):
 ```python
-QUALITY_TEST_JUDGE_MODEL = "gpt-4o"         # LLM judge
-QUALITY_TEST_JUDGE_MAX_TOKENS = 200
-QUALITY_TEST_JUDGE_TEMPERATURE = 0.0        # Deterministic
+QUALITY_TEST_JUDGE_MODEL = "gpt-4.1-mini"        # LLM judge
+QUALITY_TEST_JUDGE_MAX_TOKENS = 150
+QUALITY_TEST_JUDGE_TEMPERATURE = 0.0              # Deterministic
+
+# Concurrency and rate limit handling
+QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS = 5      # Max parallel LLM requests
+QUALITY_TEST_MAX_RETRIES_ON_RATE_LIMIT = 3        # Retries when rate limited
+QUALITY_TEST_RATE_LIMIT_INITIAL_DELAY = 2.0       # Initial retry delay (doubles each retry)
 ```
+
+**Rate Limit Protection**:
+- Tests run in parallel with concurrency control via semaphore
+- Maximum concurrent LLM requests limited to prevent rate limit errors
+- Automatic exponential backoff retry on rate limit errors
+- With 5 test cases × 5 runs × 1 model = 25 tests, only 5 run concurrently
 
 ## Adding Test Cases
 
