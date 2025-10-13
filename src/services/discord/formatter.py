@@ -13,6 +13,7 @@ from src.services.llm.validator import ValidationResult
 def format_response(
     bot_response: BotResponse,
     validation_result: ValidationResult,
+    smalltalk: bool = False,
 ) -> List[discord.Embed]:
     """Format bot response as Discord embeds with citations.
 
@@ -33,6 +34,8 @@ def format_response(
     else:
         color = discord.Color.red()
         confidence_emoji = "🔴"
+    if smalltalk:
+        color = discord.Color.purple()
 
     # Create main embed
     embed = discord.Embed(
@@ -42,49 +45,21 @@ def format_response(
         timestamp=datetime.now(timezone.utc),
     )
 
-    # Add confidence field
-    embed.add_field(
-        name="Confidence",
-        value=f"{confidence_emoji} {bot_response.confidence_score:.0%}",
-        inline=True,
-    )
-
-    # Add RAG score field
-    # embed.add_field(
-    #     name="RAG Score",
-    #     value=f"{bot_response.rag_score:.0%}",
-    #     inline=True,
-    # )
-
-    # Add citations
-    # if bot_response.citations:
-    #     citations_text = "\n".join(
-    #         [
-    #             f"{i+1}. **{c.document_name}** - {c.section}"
-    #             for i, c in enumerate(bot_response.citations[:5])  # Limit to 5 citations
-    #         ]
-    #     )
-    #     embed.add_field(
-    #         name="Sources",
-    #         value=citations_text,
-    #         inline=False,
-    #     )
-
     # Add disclaimer
-    disclaimer_text = get_random_disclaimer()
-    embed.add_field(
-        name="Disclaimer",
-        value=f"*{disclaimer_text}*",
-        inline=True,
-    )
+    if not smalltalk:
+        disclaimer_text = get_random_disclaimer()
+        embed.add_field(
+            name="Disclaimer",
+            value=f"*{disclaimer_text}*",
+            inline=True,
+        )
 
     # Footer with metadata (includes response_id for feedback tracking)
-    embed.set_footer(
-        text=f"ID: {str(bot_response.response_id)[:8]} | "
-        f"Model: {bot_response.llm_model} | "
-        f"Tokens: {bot_response.token_count} | "
-        f"Latency: {bot_response.latency_ms}ms"
-    )
+    # only show confidence if not smalltalk
+    footer_content = f"ID: {str(bot_response.response_id)[:8]} | Model: {bot_response.llm_model} | Latency: {bot_response.latency_ms}ms"
+    if not smalltalk:
+        footer_content += f" | Confidence: {confidence_emoji} {bot_response.confidence_score:.0%}"
+    embed.set_footer(text=footer_content)
 
     return [embed]
 
