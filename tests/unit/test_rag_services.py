@@ -13,7 +13,8 @@ from src.services.rag.validator import DocumentValidator
 from src.services.rag.cache import RAGCache
 from src.models.rule_document import RuleDocument
 from src.models.rag_context import RAGContext, DocumentChunk
-from src.lib.constants import CHUNKING_MAX_TOKENS
+from src.lib.tokens import get_embedding_token_limit
+from src.lib.constants import EMBEDDING_MODEL
 
 
 class TestMarkdownChunker:
@@ -21,7 +22,7 @@ class TestMarkdownChunker:
 
     def test_chunk_small_document_keeps_whole(self):
         """Small document without headers should be kept whole."""
-        chunker = MarkdownChunker(max_tokens=CHUNKING_MAX_TOKENS)
+        chunker = MarkdownChunker(max_tokens=get_embedding_token_limit(EMBEDDING_MODEL))
 
         # Content without ## headers - should keep as single chunk
         content = """This is a simple rule document.

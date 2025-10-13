@@ -7,7 +7,7 @@ Based on specs/001-we-are-building/tasks.md T029
 import tiktoken
 from typing import Optional
 
-from src.lib.constants import EMBEDDING_MODEL, EMBEDDING_MAX_TOKENS
+from src.lib.constants import EMBEDDING_MODEL
 
 
 # Default encoding for OpenAI models
@@ -123,12 +123,30 @@ def get_embedding_token_limit(model: str = EMBEDDING_MODEL) -> int:
         Maximum token limit
     """
     limits = {
-        "text-embedding-3-small": EMBEDDING_MAX_TOKENS,
-        "text-embedding-3-large": EMBEDDING_MAX_TOKENS,
+        "text-embedding-3-small": 8191,
+        "text-embedding-3-large": 8191,
         "text-embedding-ada-002": 8191,  # Different model with different limit
     }
 
-    return limits.get(model, 8192)
+    return limits.get(model, 8191)
+
+
+def get_embedding_dimensions(model: str = EMBEDDING_MODEL) -> int:
+    """Get embedding dimensions for embedding model.
+
+    Args:
+        model: Embedding model name
+
+    Returns:
+        Embedding vector dimensions
+    """
+    dimensions = {
+        "text-embedding-3-small": 1536,
+        "text-embedding-3-large": 3072,
+        "text-embedding-ada-002": 1536,
+    }
+
+    return dimensions.get(model, 1536)
 
 
 def estimate_embedding_cost(text: str, model: str = EMBEDDING_MODEL) -> float:
