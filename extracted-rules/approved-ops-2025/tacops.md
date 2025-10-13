@@ -180,24 +180,3 @@ Each time a friendly operative incapacitates an enemy operative, that friendly o
 At the end of the third and fourth turning point, you can remove Dominate tokens from friendly operatives that aren't incapacitated. For each you remove, you score 1VP.
 
 You cannot score more than 3VP from this op per turning point.
-
----
-
-## **TAC OPS** - Key Numerical Rules Summary
-
-| Rule/Constraint | Value |
-|-----------------|-------|
-| Scout action minimum distance | **6"** |
-| Scout action AP cost | **1AP** |
-| Retrieve action AP cost | **1AP** |
-| Track Enemy maximum distance | **6"** |
-| Pick Up Marker action capacity (Intelligence) | 2 Intelligence markers |
-| Plant Device action AP cost | **1AP** |
-| Plant Banner action AP cost | **1AP** |
-| Plant Banner minimum distance from neutral edge | **5"** |
-| Clear action AP cost | **1AP** |
-| Route distance from drop zone | **6"** |
-| Route Wounds threshold for 2VP | **12** or more |
-| Maximum VP per turning point for TacOps: FLANK, SCOUT ENEMY MOVEMENT, TRACK ENEMY, PLANT DEVICES, MARTYRS, SWEEP & CLEAR, ROUTE | **2VP** |
-| Maximum VP per turning point for DOMINATE | **3VP** |
-| Earliest turning point for scoring VPs (excuding DOMINATE and ROUTE) | Second |

@@ -250,24 +250,3 @@ If the intended target has a Conceal order, it's a valid target if it's visible 
 ## VISIBLE
 
 For something to be visible, the operative must be able to see it. To check visibility, look from behind the operative and determine if you can draw an unobstructed straight line 1mm in diameter from its head to any part of what it's trying to see. Ignore operatives' bases when determining this. An operative is always visible to itself. The enemy operative is visible in both images below, even when partially behind the nearby ruin.
-
-[Summary]
-This completes the Key Principles section. These foundational rules establish how operatives interact with bases, control range, cover, damage tracking, distances, and visibility - forming the core mechanics that all other Kill Team rules build upon.
-
----
-
-## **Key Principles** - Key Numerical Rules Summary
-
-| Rule/Constraint | Value |
-|-----------------|-------|
-| Control Range | **1"** |
-| Cover Prevention Distance | **2"** |
-| Injured Operative Move Penalty | **-2"** |
-| Injured Operative Hit Stat Penalty | Worsen by 1 |
-| Minimum Move Stat | **4"** |
-| Max APL Change | -1 or +1 from normal |
-| Targeting Line Diameter | 1mm |
-| Objective Marker Diameter | 40mm |
-| Other Marker Diameter | 20mm |
-| Max D3 Result | 3 (roll D6 and halve, rounding up) |
-| Base Sizes | Varies (specified on datacard) |

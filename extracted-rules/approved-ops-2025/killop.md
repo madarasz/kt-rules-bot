@@ -29,12 +29,3 @@ section: killop
 | **12** | 2 | 5 | 7 | 10 | 12 |
 | **13** | 3 | 5 | 8 | 10 | 13 |
 | **14** | 3 | 6 | 8 | 11 | 14 |
-
----
-
-### **Killop - Key Numerical Rules Summary**
-
-| Rule/Constraint | Value | Notes |
-| :--- | :---: | :--- |
-| **Kill Op** VP Per Grade Increase | **1VP** | |
-| **Kill Op** End of Game Bonus VP | **1VP** | If your Kill Grade is higher |

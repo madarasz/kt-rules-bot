@@ -80,17 +80,9 @@ Whenever an operative is shooting with a weapon that has the **Blast**, **Torren
 
 > **Designer's Note:** *The Condensed Stronghold rule always relates to the target's location, so if the primary target is wholly within a stronghold, but the secondary target isn't, then this rule doesn't apply to that secondary target.*
 
-[Summary]
-**Condensed Stronghold Effect:**
-When targeting operatives positioned wholly within the ground floor of a stronghold with area-effect weapons (Blast, Torrent, or x" Devastating), those weapons gain additional lethality (Lethal 5+). This represents the concentrated destructive power of explosive and area weapons in confined stronghold interiors.
-
 ## GARRISONED STRONGHOLD
 
 When an operative wholly within a stronghold terrain feature is retaliating against an operative that isn't, the defender resolves first (this takes precedence over the normal fight resolution order).
-
-[Summary]
-**Garrisoned Stronghold Advantage:**
-Defenders positioned wholly within a stronghold gain initiative in close combat against attackers outside the stronghold, resolving their attacks first regardless of normal fight sequence rules. This represents the defensive advantage of fighting from a fortified position.
 
 ---
 
@@ -105,28 +97,3 @@ Operatives can perform the following universal action.
 * This action is treated as a **Fight** action. An operative cannot perform this action while within control range of an enemy operative, or if its base isn't touching a door.
 
 > **Designer's Note:** *This action allows an operative to fight through a door – useful if the enemy is obstructing a door and preventing your operatives from moving through.*
-
-[Summary]
-**Door Fight Mechanics:**
-The Door Fight action allows operatives to engage in close combat through doorways without needing to move through the door. Key requirements:
-- Active operative must be touching a door
-- Target must be within 2" and on the opposite side of the door
-- Cannot be used if already in control range of an enemy
-- Functions as a Fight action with special positioning rules
-
----
-
-## **Volkus** - Key Numerical Rules Summary
-
-| Rule/Constraint | Value |
-|----------------|-------|
-| Stronghold height threshold for visibility on control range | **2"** |
-| Barred terrain visibility distance | **1"** |
-| Door Fight target distance | **2"** |
-| Door Fight action cost | **1AP** |
-| Condensed Stronghold lethal bonus | **Lethal 5+** |
-| Killzone composition - Strongholds | **2x** |
-| Killzone composition - Large ruins | **2x** |
-| Killzone composition - Small ruins | **2x** |
-| Killzone composition - Heavy rubble | **2x** |
-| Killzone composition - Light rubble | **3x** |
