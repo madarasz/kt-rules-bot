@@ -48,9 +48,6 @@ No part of an operative's base can be touching a hazardous area.
 
 > **Designer's Note:** Lurking predators stop operatives from venturing too close to the ocean, while strong currents and toxic water prevent them from entering it.
 
-[Summary]
-**Movement Restriction:** Operatives are completely prohibited from entering hazardous areas. Even partial base contact is not allowed. This creates absolute no-go zones on the battlefield that must be navigated around.
-
 ## RESTRICTED TARGETING
 
 When selecting a valid target for an operative on the killzone floor, an intended target on the killzone floor is not a valid target if **4"** of hazardous area is between them.
@@ -75,31 +72,6 @@ When determining if **4"** of hazardous area blocks line of sight between two op
 **Gantry Footprint Blocking:**
 When an operative on the killzone floor targets (or is targeted by) an operative on Vantage terrain, any gantry footprint intersecting the targeting line blocks the shot — except for the gantry that either operative is standing on or within.
 
-[Summary]
-**Targeting Restriction Principles:**
-* **Floor-to-Floor:** Blocked only by **4"** of hazardous area
-* **Floor-to-Vantage or Vantage-to-Floor:** Blocked by gantry footprints (except the one they are standing on)
-* **Vantage-to-Vantage:** No restrictions from this rule
-* Always use targeting lines to determine interference
-* The operative's current position's gantry is always ignored for blocking calculations
-
----
-
 ## EQUIPMENT
 
 Equipment can be set up on Vantage terrain and within **2"** of **Accessible** terrain (this takes precedence over setting it up on the killzone floor).
-
-[Summary]
-**Equipment Placement Priority:** When determining where to place equipment, Vantage terrain positions take priority over killzone floor positions. This overrides the standard placement rules for this killzone.
-
----
-
-## **Bheta-Decima** Key Numerical Rules Summary
-
-| Rule/Constraint | Value |
-|-----------------|-------|
-| Short gantries in killzone | 2 |
-| Medium gantries in killzone | 4 |
-| Long gantries in killzone | 2 |
-| Thermometric condensers in killzone | 1 |
-| Hazardous area distance blocking floor-to-floor targeting | 4" |

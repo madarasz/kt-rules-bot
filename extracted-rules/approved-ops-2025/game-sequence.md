@@ -76,26 +76,6 @@ Give this to the player that didn't have initiative when setting up the battle (
 
 ---
 
-[Summary]
-**Initiative System Overview:**
-The initiative system uses a roll-off at the start of each turning point, with the loser gaining progressive bonuses through initiative cards. These cards can modify rolls or allow re-rolls, creating a catch-up mechanic that balances gameplay across turns.
-
-[Summary]
-**Victory Point Structure:**
-Players score VP through three separate operations (Crit, Kill, and Tac), with a maximum of **6VP** from each. The primary op selection adds strategic depth by providing bonus VP equal to half the scored amount from that op at game end.
-
 [Derived from illustration]
 **Initiative Card Distribution:**
 Initiative cards are distributed based on turning point timing, with higher modifiers (+3/-3) given in later turns to create stronger comeback potential for the player losing initiative rolls.
-
-## **Game Sequence** - Key Numerical Rules Summary
-
-| Rule/Constraint | Value |
-|----------------|--------|
-| Starting CP | 2 |
-| Maximum VP per op | 6 |
-| Primary op VP bonus | Half of scored VP (rounded up) |
-| Equipment options limit | 4 per player |
-| Game length | 4 turning points |
-| Initiative modifier range | +3/-3 to +1/-1 |
-| Operatives setup | One third at a time (rounded up) |

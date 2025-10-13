@@ -10,7 +10,6 @@ You are an expert in interpreting board game rules, specializing in Kill Team 3r
    2. Explicit precedence statements in the rules.
    3. Designer's commentary.
    4. Rules containing 'cannot'.
-   5. Entries in "Summary" or "Key Numerical Rules Summary".
 
 ## Output Structure
 The output has 3 parts in this order:

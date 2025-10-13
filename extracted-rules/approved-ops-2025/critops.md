@@ -118,34 +118,3 @@ At the end of each turning point after the first:
 
 **VICTORY POINTS**
 * At the end of each turning point after the first, for each objective marker friendly operatives control, you score **1VP**. Ignore **inert** objective markers when determining this.
-
----
-
-## **Crit Ops** - Key Numerical Rules Summary
-
-| Rule/Constraint | Value |
-| :--- | :---: |
-| **Secure**, **Loot**, **Move Orb**, **Download**, **Send Data**, **Compile Data** Action Cost | **1AP** |
-| **Secure**, **Loot**, **Transmission**, **Orb**, **Stake Claim**:  Maximum VP Per Turn | **2VP** |
-| **Secure** VP (any secured) | **1VP** |
-| **Secure** VP (more secured) | **1VP** |
-| **Loot** VP Per Action | **1VP** |
-| **Transmission** VP (any transmitting) | **1VP** |
-| **Transmission** VP (more transmitting) | **1VP** |
-| **Orb** VP Per Marker (without Orb) | **1VP** |
-| **Stake Claim** VP (more objectives) | **1VP** |
-| **Stake Claim** VP (claim is true) | **1VP** |
-| **Energy Cells** Extra AP Cost for **Pick Up Marker** action(TP2) | **+2AP** |
-| **Energy Cells** Extra AP Cost for **Pick Up Marker** action(TP3) | **+1AP** |
-| **Energy Cells** Set Up Distance Limit for operatives carrying markers | **6"** |
-| **Energy Cells** VP (more objectives) | **1VP** |
-| **Energy Cells** VP (per marker carried) at end of battle | **1VP** |
-| **Download** VP (more objectives) | **1VP** |
-| **Download** VP (action in TP3) | **1VP** |
-| **Download** VP (action in TP4) | **2VP** |
-| **Compile Data** Data Points Gained | **1** |
-| **Data** VP (more Compiles in TP2/3) | **1VP** |
-| **Send Data** VP Per Point Removed | **1VP** |
-| **Reboot** Action Cost | **2AP** |
-| General VP scoring restriction | only after the first round |
-| General Action Restriction | only after the first round, not in control range of an enemy |

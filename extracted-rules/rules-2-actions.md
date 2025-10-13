@@ -188,21 +188,3 @@ If they block, they can allocate that dice to block one of their opponent's unre
 > **Designer's Note:** Blocking doesn't stop a strike as it's happening, it stops a success that's yet to be resolved.
 
 > **Designer's Note:** You can still block even if your opponent has no unresolved successes remaining. This is useful if you don't want to incapacitate the enemy operative yet.
-
-[Summary]
-The Fight action creates a back-and-forth melee combat where both operatives attack simultaneously, but resolve their successes alternately starting with the attacker. The key strategic choice is whether to strike (inflict damage immediately) or block (prevent opponent's future strikes).
-
-## **Actions** - Key Numerical Rules Summary
-
-| Rule/Constraint | Value |
-|---|---|
-| Dash movement distance | 3" |
-| Charge additional movement | 2" |
-| Fall Back AP cost | 2AP |
-| All other Universal Actions AP cost | 1AP |
-| Distance for operative to be in cover | Within 1" |
-| Distance for Heavy terrain to obscure | Outside 1" |
-| Defence dice (standard) | 3 |
-| Critical success roll | 6 |
-| Automatic fail roll | 1 |
-| Cover save (automatic normal success) | 1 |
