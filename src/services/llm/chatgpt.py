@@ -128,15 +128,15 @@ class ChatGPTAdapter(LLMProvider):
 
             # GPT-5 sometimes returns None or empty content - check for refusal or other issues
             if not answer_text:
-                logger.warning(f"GPT-5 returned empty content. Finish reason: {choice.finish_reason}, Refusal: {getattr(choice.message, 'refusal', None)}")
+                logger.warning(f"GPT returned empty content. Finish reason: {choice.finish_reason}, Refusal: {getattr(choice.message, 'refusal', None)}")
                 # Check if there's a refusal
                 refusal = getattr(choice.message, 'refusal', None)
                 if refusal:
-                    raise ContentFilterError(f"GPT-5 refused to respond: {refusal}")
+                    raise ContentFilterError(f"GPT refused to respond: {refusal}")
                 elif choice.finish_reason == 'length':
-                    raise TokenLimitError("GPT-5 output was truncated due to max_completion_tokens limit")
+                    raise TokenLimitError("GPT output was truncated due to max_completion_tokens limit")
                 else:
-                    raise Exception(f"GPT-5 returned empty content with finish_reason: {choice.finish_reason}")
+                    raise Exception(f"GPT returned empty content with finish_reason: {choice.finish_reason}")
 
             # Check if citations are included
             citations_included = (

@@ -126,6 +126,7 @@ From [src/models/rag_context.py](../../models/rag_context.py):
 From [src/lib/constants.py](../../lib/constants.py):
 - `RAG_MAX_CHUNKS`: Maximum chunks to retrieve (default: 8)
 - `RAG_MIN_RELEVANCE`: Minimum cosine similarity (default: 0.45)
+- `RAG_ENABLE_QUERY_NORMALIZATION`: Enable/disable query keyword normalization (default: True)
 - `RAG_KEYWORD_CACHE_PATH`: Keyword library path (default: data/rag_keywords.json)
 - `EMBEDDING_MODEL`: OpenAI embedding model (text-embedding-3-small)
 
@@ -207,9 +208,16 @@ python -m src.cli ingest extracted-rules/ --force
 
 ### Query Normalization
 
-The system automatically normalizes queries to improve retrieval consistency:
+The system can automatically normalize queries to improve retrieval consistency:
 
-**How it works**:
+**Enable/Disable**:
+```python
+# In src/lib/constants.py
+RAG_ENABLE_QUERY_NORMALIZATION = True  # Enable (default)
+RAG_ENABLE_QUERY_NORMALIZATION = False # Disable
+```
+
+**How it works** (when enabled):
 - During ingestion, game-specific keywords are extracted from rule headers
 - At query time, keywords are capitalized to match embeddings (e.g., "accurate" → "Accurate")
 - This makes queries case-insensitive: all of these work identically:
@@ -221,6 +229,7 @@ The system automatically normalizes queries to improve retrieval consistency:
 - Extracts from `## Header` patterns in markdown
 - Minimum length: 4 characters (filters out "FLY", "APL", etc.)
 - Patterns: "Accurate x", "Lethal 5+", "TEAM - ABILITY", etc.
+- Keyword extraction always happens during ingestion (regardless of toggle)
 
 **View keyword library**:
 ```bash
@@ -230,6 +239,15 @@ cat data/rag_keywords.json
 **Rebuild keywords** (run after ingestion):
 ```bash
 python -m src.cli ingest extracted-rules/
+```
+
+**Testing normalization impact**:
+```bash
+# Test with normalization enabled (default)
+python -m src.cli query "accurate 1"
+
+# Disable normalization in constants.py, then test
+python -m src.cli query "accurate 1"  # Will use lowercase as-is
 ```
 
 ### Debugging Retrieval Issues

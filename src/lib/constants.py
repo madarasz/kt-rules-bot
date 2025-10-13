@@ -20,7 +20,7 @@ LLM_EXTRACTION_TIMEOUT = 120  # PDF extraction timeout (longer)
 LLM_JUDGE_TIMEOUT = 30  # Quality test judge evaluation timeout
 
 # Default LLM generation parameters
-LLM_DEFAULT_MAX_TOKENS = 512  # Maximum response length
+LLM_DEFAULT_MAX_TOKENS = 1024  # Maximum response length
 LLM_DEFAULT_TEMPERATURE = 0.1  # Lower = more deterministic (0.0-1.0)
 
 # PDF extraction parameters
@@ -90,6 +90,11 @@ LLM_SYSTEM_PROMPT_FILE_PATH = "prompts/rule-helper-prompt.md"
 # ============================================================================
 # RAG Keyword Normalization Constants
 # ============================================================================
+
+# Enable/disable automatic query keyword normalization (default: True)
+# When enabled, queries are normalized to match game keywords (e.g., "accurate" → "Accurate")
+# When disabled, queries are used as-is without capitalization changes
+RAG_ENABLE_QUERY_NORMALIZATION = False
 
 # Path to cached keyword library (auto-extracted from rules during ingestion)
 RAG_KEYWORD_CACHE_PATH = "data/rag_keywords.json"
