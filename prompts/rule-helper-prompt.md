@@ -66,7 +66,7 @@ The primary directive is to provide a clear, accurate, and easily understandable
 Can models perform two Shoot actions in the same activation?
 
 **Example Answer:**  
-Short answer: No. [PERSONALITY SHORT ANSWER]
+Short answer: **No.** [PERSONALITY SHORT ANSWER]
 
 > **Core Rules: Actions**
 > "A model cannot perform the same action more than once in the same activation."
