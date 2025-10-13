@@ -11,7 +11,7 @@ Killzone: Volkus has **2x** strongholds, **2x** large ruins, **2x** small ruins,
 
 ---
 
-## STRONGHOLD
+## Stronghold
 
 * The upper level(s) of a stronghold terrain feature is **Ceiling** and **Vantage** terrain.
 * The door is **Accessible** and **Heavy** terrain.
@@ -36,7 +36,7 @@ Stronghold terrain features are multi-level structures with distinct zones:
 
 ---
 
-## LARGE RUIN
+## Large Ruin
 
 * The upper level of a large ruin terrain feature is **Ceiling** and **Vantage** terrain. For the purposes of intervening and targeting lines, treat this level as the same height as the first upper level of a stronghold terrain feature.
 * The upper rampart is **Light** terrain.
@@ -52,19 +52,19 @@ Large ruins feature an upper level treated as equivalent height to a stronghold'
 
 ---
 
-## SMALL RUIN
+## Small Ruin
 
 * This is **Heavy** terrain.
 
 ---
 
-## HEAVY RUBBLE
+## Heavy Rubble
 
 * This is **Heavy** terrain.
 
 ---
 
-## LIGHT RUBBLE
+## Light Rubble
 
 * This is **Light** terrain.
 
@@ -74,13 +74,13 @@ Large ruins feature an upper level treated as equivalent height to a stronghold'
 
 Killzone: Volkus has the following additional rules.
 
-## CONDENSED STRONGHOLD
+## Condensed Stronghold
 
 Whenever an operative is shooting with a weapon that has the **Blast**, **Torrent** and/or **x" Devastating** (i.e. Devastating with a distance requirement) weapon rule, it also has the **Lethal 5+** weapon rule if the target is wholly within a stronghold terrain feature and on the killzone floor or a fire step.
 
 > **Designer's Note:** *The Condensed Stronghold rule always relates to the target's location, so if the primary target is wholly within a stronghold, but the secondary target isn't, then this rule doesn't apply to that secondary target.*
 
-## GARRISONED STRONGHOLD
+## Garrisoned Stronghold
 
 When an operative wholly within a stronghold terrain feature is retaliating against an operative that isn't, the defender resolves first (this takes precedence over the normal fight resolution order).
 
@@ -90,7 +90,7 @@ When an operative wholly within a stronghold terrain feature is retaliating agai
 
 Operatives can perform the following universal action.
 
-## DOOR FIGHT (1AP)
+## Door Fight (1AP)
 
 * Fight with the active operative.
 * In the Select Enemy Operative step, instead select an enemy operative on the killzone floor and within **2"** of, and on the other side of, a door the active operative is touching. For the duration of that action, those operatives are treated as being within each other's control range.

@@ -66,7 +66,7 @@ The terrain type of a hatchway's access point changes based on whether the hatch
 
 ---
 
-## OPERATE HATCH (1AP)
+## Operate Hatch (1AP)
 
 ▶ Open or close a hatchway that's access point is within the operative's control range.
 
@@ -92,7 +92,7 @@ When a hatchway is **open**, an end of the wall is intervening, making the dista
 
 Killzone: Gallowdark has the following additional rules.
 
-## CONDENSED ENVIRONMENT
+## Condensed Environment
 
 Weapons with the **Blast**, **Torrent** and **/or x" Devastating** (i.e. Devastating with a distance requirement) weapon rule also have the **Lethal 5+** weapon rule.
 
@@ -100,7 +100,7 @@ Weapons with the **Blast**, **Torrent** and **/or x" Devastating** (i.e. Devasta
 
 Operatives can perform the following universal actions.
 
-## GUARD (1AP)
+## Guard (1AP)
 
 ▶ The operative goes on guard until any of the following are true:
 * It performs any action, moves or is set up.
@@ -128,7 +128,7 @@ That friendly operative can even perform the **Shoot** action while within contr
 
 ---
 
-## HATCHWAY FIGHT (1AP)
+## Hatchway Fight (1AP)
 
 ▶ Fight with the active operative.
 

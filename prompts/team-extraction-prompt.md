@@ -6,7 +6,7 @@ Kill Team faction PDFs contain the following card types (each outlined by dashed
 
 ### 1. Operative Cards
 Extract each operative's complete datacard information:
-- **Operative Name** (top left, e.g., "SHAS'UI PATHFINDER")
+- **Operative Name** (top left, e.g., "Shas'ui Pathfinder")
 - **Core Stats:**
   - APL (Action Point Limit): numerical value
   - MOVE: distance in inches (")
@@ -24,13 +24,15 @@ Extract each operative's complete datacard information:
 
 ### 2. Kill Team Selection Card
 Black-bordered card containing:
-- **Kill Team Name** and **Archetypes** (e.g., INFILTRATION, RECON)
-- **Operative Selection Rules:** Exact composition requirements
+- **Kill Team Name** and **Archetypes** (e.g., Infiltration, Recon)
+- **Operative Selection Rules:** Exact composition requirements. Operative names should be Title Cased and in **bold** (e.g., **Sorcerer of Tempyrion**)
 - **Selection Restrictions:** Which operatives can be taken multiple times
 - **Special Definitions:** (e.g., what counts as "pulse weapons")
 
+Rewrite the text to remove footnotes and integrate their referenced information into the main text as much close to the original text as possible. Ensure that the rewritten text is clear and self-contained.
+
 ### 3. Faction Rules Card
-Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
+Team-wide special rules that affect all operatives (e.g., "Markerlights")
 
 ### 4. Ploy Cards
 - **Strategy Ploys** (exactly 4): Tactical options used during Strategy phase
@@ -45,24 +47,20 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 1. Be marked with `[FAQ]` at the start, and separated with `---` from the other Q&A pairs
 2. Format the question with `*Question*:` prefix
 3. Format the answer with `*Answer*:` prefix
-4. **Bold** the following elements:
-   - Faction/unit names (e.g., **CORSAIR VOIDSCARRED**)
-   - Ability names (e.g., **Warding Shield**)
-   - Game action names (e.g., **Shoot** action, **Guard** action)
-   - Keywords (e.g., **Blast**, **Heavy**, **Torrent**)
-   - Critical game terms when relevant (e.g., **incapacitated**, **counteract**)
+
 
 ## Extraction Rules
-1. **Verbatim Extraction Required:**
+1. ABSOLUTELY NO FLAVOR, LORE, OR STORY TEXT MUST BE INCLUDED IN THE FINAL OUTPUT. Focus solely on the mechanics and rules.
+2. **Verbatim Extraction Required:**
    - All rules text must be transcribed exactly as written
    - Preserve all numerical values, keywords, and game terms
    - Maintain all timing windows, conditions, and exceptions
 
-2. **Handle Multi-Page Cards:**
+3. **Handle Multi-Page Cards:**
    - Cards with "RULES CONTINUE ON OTHER SIDE" span multiple pages
    - Combine content from both sides into single complete entry
 
-3. **Skip/Ignore:**
+4. **Skip/Ignore:**
    - Universal Equipment cards
    - Cards containing only "NOTES:" sections
    - MARKER/TOKEN GUIDE cards
@@ -71,11 +69,17 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
    - Visual operative showcase pages
    - Page numbers and references
 
-4. **Formatting Requirements:**
+5. **Formatting Requirements:**
    - Use clear headers for each card type
    - Present weapons in table format
-   - **Bold** keywords, ability names, and important terms
+   - **Bold** the following elements:
+      - Faction/unit names (e.g., **Corsair Voidscarred**)
+      - Ability names (e.g., **Warding Shield**)
+      - Game action names (e.g., **Shoot** action, **Guard** action)
+      - Keywords (e.g., **Blast**, **Heavy**, **Torrent**)
+      - Critical game terms when relevant (e.g., **incapacitated**, **counteract**)
    - Use structured formats for complex multi-condition rules
+   - Convert any ALL CAPS phrases to Title Case (capitalize the first letter of each word only). Example: `Corsair Voidscarred` instead of `CORSAIR VOIDSCARRED`
 
 5. **Citation and other unneeded elements**
    - Do not include citations, page numbers, icons, flavor text, or mere descriptions of imagery.
@@ -83,9 +87,9 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 ## Output Structure
 
 ```markdown
-# [KILL TEAM NAME]
+# [Kill Team Name]
 
-## [KILL TEAM NAME] COMPOSITION
+## [Kill Team Name] Composition
 
 ### Operative Selection
 [Exact selection rules from black card]
@@ -93,19 +97,19 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 ### Archetypes
 - [List archetypes]
 
-# [KILL TEAM NAME] FACTION RULES
+# [Kill Team Name] Faction Rules
 
 ## [Rule Name]
 [Complete rule text]
 
-# [KILL TEAM NAME] OPERATIVES
+# [Kill Team Name] Operatives
 
-## [KILL TEAM NAME] - [OPERATIVE NAME]
+## [Kill Team Name] - [Operative Name]
 **Stats:**    
 - APL: [X]
-- Move [X]"
-- Save [X]+
-- Wounds [X]
+- Move: [X]"
+- Save: [X]+
+- Wounds: [X]
 
 **Weapons:**
 | Type | Name | ATK | HIT | DMG | Weapon Rules |
@@ -120,35 +124,36 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 
 [Repeat for each operative]
 
-# [KILL TEAM NAME] STRATEGY PLOYS
+# [Kill Team Name] Strategy Ploys
 
-## [KILL TEAM NAME] - [Ploy Name]
+## [Kill Team Name] - [Ploy Name]
 [Complete ploy text]
 
 [Exactly 4 strategy ploys]
 
-# [KILL TEAM NAME] FIREFIGHT PLOYS
+# [Kill Team Name] Firefight Ploys
 
-## [KILL TEAM NAME] - [Ploy Name]  
+## [Kill Team Name] - [Ploy Name]  
 [Complete ploy text]
 
 [Exactly 4 firefight ploys]
 
-# [KILL TEAM NAME] FACTION EQUIPMENT
+# [Kill Team Name] Faction Equipment
 
-## [KILL TEAM NAME] - [Equipment Name]
+## [Kill Team Name] - [Equipment Name]
 [Complete equipment text]
 
 [Exactly 4 faction equipment items]
 ```
 
 ## Critical Requirements
+- ZERO TOLERANCE for flavor or story text, do not include.
 - **Zero tolerance for data errors:** Every stat, keyword, and numerical value must be exact
 - **CRITICAL: Use `##` (H2) headers for all major rule sections**
   - Each header should include the team name as prefix
   - Each distinct ploy, operative, equipment, faction rule, or concept must have its own `## [Team name] - Header Name`
   - This structure is essential for document chunking and searchability
-  - Examples: `## Canoptek Circle - OBELISK NODE MATRIX`, `## Canoptek Circle -  GEOMANCER`, `## Canoptek Circle - SOULDRAIN`
+  - Examples: `## Canoptek Circle - Obelisk Node Matrix`, `## Canoptek Circle -  Geomancer`, `## Canoptek Circle - Souldrain`
   - Use `###` (H3) for sub-sections within a major element
 - **Preserve all weapon rules:** Include every special rule listed in WR column
 - **Maintain rule interactions:** Keep all cross-references between abilities

@@ -66,7 +66,7 @@ The player who has initiative activates a **ready** friendly operative. Once tha
 
 ## WHEN A FRIENDLY OPERATIVE IS ACTIVATED:
 
-### 1. DETERMINE ORDER
+### 1. Determine order
 
 • Select the operative's order (**Engage** or **Conceal**). It has this order until it's next activated.
 
@@ -74,7 +74,7 @@ The player who has initiative activates a **ready** friendly operative. Once tha
 
 **Conceal**: The operative cannot perform **Shoot** and **Charge** actions, and it cannot **counteract**. However, it's not a valid target while in cover.
 
-### 2. PERFORM ACTIONS
+### 2. Perform Actions
 
 • The operative performs actions. While an operative is doing so it's known as the **active** operative.
 
@@ -86,11 +86,11 @@ The player who has initiative activates a **ready** friendly operative. Once tha
 
 > **Designer's Note:** An operative with an APL of 2 could perform the **Reposition** (1AP) and **Shoot** (1AP) actions, totalling 2AP, but couldn't perform the **Fall Back** (2AP) and **Shoot** (1AP) actions, totalling 3AP. An order token with the darker side up shows an operative as **expended**. Counteracting isn't an activation; it's instead of activating. This difference is important; for instance, it means action restrictions won't apply.
 
-### 3. EXPENDED
+### 3. Expended
 
 • When you've finished with your operative's activation, that operative is **expended**. While **expended**, an operative is not **ready**.
 
-## COUNTERACT
+## Counteract
 
 When you would activate a **ready** friendly operative, if all your operatives are **expended** but your opponent still has **ready** operatives, you can select an **expended** friendly operative with an **Engage** order to perform a 1AP action (excluding **Guard**) for free. Each operative can only **counteract** once per turning point. That operative cannot move more than 2", or must be set up wholly within 2" if it’s removed and set up again, while counteracting (this is not a change to its Move stat, and takes precedence over all other rules). Counteracting is optional, so you can choose not to. In either case, activation alternates back to your opponent afterwards.
 

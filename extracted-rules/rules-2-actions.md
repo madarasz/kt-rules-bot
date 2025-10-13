@@ -28,7 +28,7 @@ Free actions can only be performed when another rule specifies, and the followin
 
 # Universal Actions
 
-## REPOSITION (1AP)
+## Reposition (1AP)
 
 ▶ Move the active operative up to its Move stat to a location it can be placed. This must be done in one or more straight-line increments, and increments are always rounded up to the nearest inch.
 
@@ -44,7 +44,7 @@ Free actions can only be performed when another rule specifies, and the followin
 * Increments are always rounded up (e.g., a **2.75"** increment counts as **3"**)
 * The operative must be able to be placed at the final location
 
-## DASH (1AP)
+## Dash (1AP)
 
 ▶ The same as the **Reposition** action, except don't use the active operative's Move stat – it can move up to **3"** instead. In addition, it cannot climb during this move, but it can drop and jump.
 
@@ -52,7 +52,7 @@ Free actions can only be performed when another rule specifies, and the followin
 
 > **Designer's Note:** As operatives cannot perform the same action more than once in their activation, **Dash** actions are how operatives move even further.
 
-## FALL BACK (2AP)
+## Fall Back (2AP)
 
 ▶ The same as the **Reposition** action, except the active operative can move within control range of an enemy operative, but cannot finish the move there.
 
@@ -62,7 +62,7 @@ Free actions can only be performed when another rule specifies, and the followin
 
 > **Designer's Note:** The **Charge** action allows operatives to effectively close down enemies, but as they must have an Engage order to do so, they can be vulnerable to enemy shooting later on.
 
-## CHARGE (1AP)
+## Charge (1AP)
 
 ▶ The same as the **Reposition** action, except the active operative can move an additional **2"**.
 
@@ -70,7 +70,7 @@ Free actions can only be performed when another rule specifies, and the followin
 
 ◆ An operative cannot perform this action while it has a Conceal order, if it's already within control range of an enemy operative, or during the same activation in which it performed the **Reposition**, **Dash** or **Fall Back** action.
 
-## PICK UP MARKER (1AP)
+## Pick Up Marker (1AP)
 
 ▶ Remove a marker the active operative controls that the **Pick Up Marker** action can be performed upon. That operative is now carrying, contesting and controlling that marker.
 
@@ -78,7 +78,7 @@ Free actions can only be performed when another rule specifies, and the followin
 
 > **Designer's Note:** If there are any such markers that the **Pick Up Marker** action can be performed upon, it will be specified elsewhere, e.g. your mission pack.
 
-## PLACE MARKER (1AP)
+## Place Marker (1AP)
 
 ▶ Place a marker the active operative is carrying within its control range.
 
@@ -88,7 +88,7 @@ Free actions can only be performed when another rule specifies, and the followin
 
 > **Designer's Note:** As above, if there are any markers the operative is carrying, it will be specified elsewhere.
 
-## SHOOT (1AP)
+## Shoot (1AP)
 
 ▶ Shoot with the active operative by following the sequence below. The active operative's player is the attacker. The selected enemy operative's player is the defender.
 
@@ -147,7 +147,7 @@ Any operatives that were incapacitated are removed after the active operative ha
 
 > **Designer's Note:** Some weapons shoot multiple times in one action, such as those with the Blast and Torrent weapon rules (see `weapon rules`). Therefore, operatives aren't removed until the whole action has been resolved.
 
-## FIGHT (1AP)
+## Fight (1AP)
 
 ▶ Fight with the active operative by following the sequence below. The active operative's player is the attacker. The selected enemy operative's player is the defender.
 

@@ -7,7 +7,7 @@ section: killop
 
 # Approved Ops 2025 - Kill Op Rules
 
-**HOW TO SCORE**
+**How to Score**
 * You start without a **Kill Grade**. As enemy operatives are incapacitated, your **kill grade** goes up until it reaches **5**.
 * Whenever you move to a new **kill grade**, you score **1VP**.
 * At the end of the fourth turning point, if your **kill grade** is higher than your opponent's, you score **1VP**.
@@ -15,7 +15,7 @@ section: killop
 * The table below shows how many enemy operatives must be incapacitated to reach each **kill grade**.
 * The row you use is determined by the starting number of enemy operatives.
 
-**KILL GRADE TABLE**
+**Kill Grade Table**
 
 | STARTING NUMBER OF ENEMY OPERATIVES | KILL GRADE 1 | KILL GRADE 2 | KILL GRADE 3 | KILL GRADE 4 | KILL GRADE 5 |
 | :--- | :---: | :---: | :---: | :---: | :---: |

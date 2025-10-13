@@ -5,40 +5,39 @@ document_type: team-rules
 section: deathwatch
 ---
 
-# DEATHWATCH
+# Deathwatch
 
-## DEATHWATCH COMPOSITION
+## Deathwatch Composition
 
 ### Operative Selection
-5 **DEATHWATCH** operatives selected from the following list:
-- WATCH SERGEANT
-- AEGIS
-- BLADEMASTER
-- BOMBARD
-- BREACHER
-- DEMOLISHER
-- DISRUPTOR
-- GUNNER
-- HEADTAKER
-- HORDE-SLAYER
-- MARKSMAN
+Your kill team consists of 5 **Deathwatch** operatives selected from the following list:
+- **Watch Sergeant**
+- **Aegis**
+- **Blademaster**
+- **Bombard**
+- **Breacher**
+- **Demolisher**
+- **Disruptor**
+- **Gunner**
+- **Headtaker**
+- **Horde-Slayer**
+- **Marksman**
 
-Your kill team can only include each operative on this list once, and can only include up to one **GRAVIS** operative.
+Your kill team can only include each operative on this list once, and can only include up to one **Gravis** operative.
 
 ### Archetypes
-- SEEK & DESTROY
-- SECURITY
+- Seek & Destroy
+- Security
 
-# DEATHWATCH FACTION RULES
+# Deathwatch Faction Rules
 
-## DEATHWATCH - VETERAN ASTARTES
-These genetically modified superhumans are made to wage unending war. Their skills have been honed over long years of battle and further refined with specialist knowledge through their Long Vigil.
-During each friendly **DEATHWATCH** operative's activation, it can perform either two **Shoot** actions or two **Fight** actions. If it's two **Shoot** actions and an auxiliary grenade launcher, frag cannon, heavy plasma incinerator, infernus heavy bolter, plasma pistol or stalker bolt rifle is selected for both, 1 additional AP must be spent for the second action.
-Each friendly **DEATHWATCH** operative can **counteract** regardless of its order. Whenever it does, it can perform an additional 1AP action for free during that counteraction, but both actions must be different.
+## Veteran Astartes
+During each friendly **Deathwatch** operative's activation, it can perform either two **Shoot** actions or two **Fight** actions. If it's two **Shoot** actions and an auxiliary grenade launcher, frag cannon, heavy plasma incinerator, infernus heavy bolter, plasma pistol or stalker bolt rifle is selected for both, 1 additional AP must be spent for the second action.
 
-## DEATHWATCH - SPECIAL ISSUE AMMUNITION
-The Deathwatch utilise a range of specialised ammunition in many of their weapons. Each type is designed to eliminate specific xenos foes.
-Once per turning point, when a friendly **DEATHWATCH** operative is performing the **Shoot** action, in the Select Weapon step, you can use this rule. If you do, select one of the following weapon rules for that operative's ranged weapons to have until the end of the action. This rule cannot be used with explosive grenades (see universal equipment) or melta bombs.
+Each friendly **Deathwatch** operative can counteract regardless of its order. Whenever it does, it can perform an additional 1AP action for free during that counteraction, but both actions must be different.
+
+## Special Issue Ammunition
+Once per turning point, when a friendly **Deathwatch** operative is performing the **Shoot** action, in the Select Weapon step, you can use this rule. If you do, select one of the following weapon rules for that operative's ranged weapons to have until the end of the action. This rule cannot be used with explosive grenades or melta bombs.
 - **Blast** 1" (you cannot select this if the weapon profile being used has the **Torrent** weapon rule)
 - **Devastating** 1
 - **Lethal** 5+
@@ -47,9 +46,9 @@ Once per turning point, when a friendly **DEATHWATCH** operative is performing t
 - **Saturate**
 - **Severe**
 
-# DEATHWATCH OPERATIVES
+# Deathwatch Operatives
 
-## DEATHWATCH - WATCH SERGEANT
+## Deathwatch - Watch Sergeant
 **Stats:**
 - APL: 3
 - Move: 6"
@@ -58,20 +57,20 @@ Once per turning point, when a friendly **DEATHWATCH** operative is performing t
 
 **Weapons:**
 | Type | Name | ATK | HIT | DMG | Weapon Rules |
-|--- |--- |--- |--- |--- |--- |
-| Ranged | Plasma pistol (standard) | 4 | 3+ | 3/5 | Range 8", **Piercing** 1 |
-| Ranged | Plasma pistol (supercharge) | 4 | 3+ | 4/5 | Range 8", **Hot**, **Lethal** 5+, **Piercing** 1 |
-| Melee | Power weapon | 5 | 3+ | 4/6 | **Lethal** 5+ |
+|------|------|-----|-----|-----|--------------|
+| Ranged | Plasma pistol (standard) | 4 | 3+ | 3/5 | Range 8", Piercing 1 |
+| Ranged | Plasma pistol (supercharge) | 4 | 3+ | 4/5 | Range 8", Hot, Lethal 5+, Piercing 1 |
+| Melee | Power weapon | 5 | 3+ | 4/6 | Lethal 5+ |
 
 **Abilities:**
 - **Adaptable Armoury:** You can select one additional equipment option.
 - **Strategic Command:** You can do each of the following once per battle if this operative is in the killzone:
-    - Use a **DEATHWATCH** strategy ploy for 0CP.
-    - Use a **DEATHWATCH** firefight ploy for 0CP.
+    - Use a **Deathwatch** strategy ploy for 0CP.
+    - Use a **Deathwatch** firefight ploy for 0CP.
 
 **Keywords:** DEATHWATCH, IMPERIUM, ADEPTUS ASTARTES, LEADER, WATCH SERGEANT
 
-## DEATHWATCH - AEGIS VETERAN
+## Deathwatch - Aegis Veteran
 **Stats:**
 - APL: 3
 - Move: 6"
@@ -80,9 +79,9 @@ Once per turning point, when a friendly **DEATHWATCH** operative is performing t
 
 **Weapons:**
 | Type | Name | ATK | HIT | DMG | Weapon Rules |
-|--- |--- |--- |--- |--- |--- |
+|------|------|-----|-----|-----|--------------|
 | Ranged | Bolt pistol | 4 | 3+ | 3/4 | Range 8" |
-| Melee | Power maul & storm shield | 5 | 3+ | 4/6 | **Shock**, **Shield** |
+| Melee | Power maul & storm shield | 5 | 3+ | 4/6 | Shock, Shield |
 
 **Abilities:**
 - **Shield:** Whenever this operative is fighting or retaliating with this weapon, each of your blocks can be allocated to block two unresolved successes (instead of one).
@@ -90,7 +89,7 @@ Once per turning point, when a friendly **DEATHWATCH** operative is performing t
 
 **Keywords:** DEATHWATCH, IMPERIUM, ADEPTUS ASTARTES, AEGIS
 
-## DEATHWATCH - BLADEMASTER VETERAN
+## Deathwatch - Blademaster Veteran
 **Stats:**
 - APL: 3
 - Move: 6"
@@ -99,18 +98,18 @@ Once per turning point, when a friendly **DEATHWATCH** operative is performing t
 
 **Weapons:**
 | Type | Name | ATK | HIT | DMG | Weapon Rules |
-|--- |--- |--- |--- |--- |--- |
-| Ranged | Special issue bolt pistol | 4 | 3+ | 3/4 | Range 8", **Piercing** 1 |
-| Melee | Xenophase blade (duel) | 5 | 3+ | 4/6 | **Brutal**, **Lethal** 5+ |
-| Melee | Xenophase blade (phase sweep) | 4 | 3+ | 4/6 | **Brutal**, **Lethal** 5+, **Phase Sweep** |
+|------|------|-----|-----|-----|--------------|
+| Ranged | Special issue bolt pistol | 4 | 3+ | 3/4 | Range 8", Piercing 1 |
+| Melee | Xenophase blade (duel) | 5 | 3+ | 4/6 | Brutal, Lethal 5+ |
+| Melee | Xenophase blade (phase sweep) | 4 | 3+ | 4/6 | Brutal, Lethal 5+, Phase Sweep |
 
 **Abilities:**
 - **Adaptive Swordsmanship:** You can ignore any changes to the Hit stat of this operative's xenophase blade. Whenever this operative is fighting or retaliating, you can resolve one of your successes before the normal order. If you do, that success must be used to block.
-- **Phase Sweep:** Whenever this operative performs the **Fight** action with this weapon profile, if it isn't incapacitated, it can immediately perform a free **Fight** action afterwards, but you must select this weapon profile and it can only fight against each enemy operative within its control range once per activation or counteraction using this weapon profile. This takes precedence over action restrictions, and you can continue to perform free **Fight** actions until this operative is incapacitated or has fought against every enemy operative within its control range.
+- **Phase Sweep:** Whenever this operative performs the **Fight** action with this weapon profile, if it isn't **incapacitated**, it can immediately perform a free **Fight** action afterwards, but you must select this weapon profile and it can only fight against each enemy operative within its control range once per activation or counteraction using this weapon profile. This takes precedence over action restrictions, and you can continue to perform free **Fight** actions until this operative is **incapacitated** or has fought against every enemy operative within its control range.
 
 **Keywords:** DEATHWATCH, IMPERIUM, ADEPTUS ASTARTES, BLADEMASTER
 
-## DEATHWATCH - BOMBARD VETERAN
+## Deathwatch - Bombard Veteran
 **Stats:**
 - APL: 3
 - Move: 5"
@@ -119,15 +118,15 @@ Once per turning point, when a friendly **DEATHWATCH** operative is performing t
 
 **Weapons:**
 | Type | Name | ATK | HIT | DMG | Weapon Rules |
-|--- |--- |--- |--- |--- |--- |
+|------|------|-----|-----|-----|--------------|
 | Ranged | Bolt pistol | 4 | 3+ | 3/4 | Range 8" |
-| Ranged | Frag cannon (shell) | 4 | 3+ | 5/7 | **Piercing** 1 |
-| Ranged | Frag cannon (shrapnel) | 5 | 3+ | 4/5 | **Torrent** 2" |
+| Ranged | Frag cannon (shell) | 4 | 3+ | 5/7 | Piercing 1 |
+| Ranged | Frag cannon (shrapnel) | 5 | 3+ | 4/5 | Torrent 2" |
 | Melee | Fists | 4 | 3+ | 3/4 | - |
 
 **Keywords:** DEATHWATCH, IMPERIUM, ADEPTUS ASTARTES, GRAVIS, BOMBARD
 
-## DEATHWATCH - BREACHER VETERAN
+## Deathwatch - Breacher Veteran
 **Stats:**
 - APL: 3
 - Move: 5"
@@ -136,16 +135,16 @@ Once per turning point, when a friendly **DEATHWATCH** operative is performing t
 
 **Weapons:**
 | Type | Name | ATK | HIT | DMG | Weapon Rules |
-|--- |--- |--- |--- |--- |--- |
-| Ranged | Auxiliary grenade launcher (frag) | 4 | 3+ | 2/4 | **Blast** 2" |
-| Ranged | Auxiliary grenade launcher (krak) | 4 | 3+ | 4/5 | **Piercing** 1 |
-| Ranged | Hellstorm bolt rifle | 4 | 3+ | 4/5 | **Torrent** 1" |
-| Ranged | Melta bomb | 4 | 3+ | 5/3 | Range 3", **Devastating** 3, **Heavy** (Reposition only), **Limited** 1, **Piercing** 2 |
+|------|------|-----|-----|-----|--------------|
+| Ranged | Auxiliary grenade launcher (frag) | 4 | 3+ | 2/4 | Blast 2" |
+| Ranged | Auxiliary grenade launcher (krak) | 4 | 3+ | 4/5 | Piercing 1 |
+| Ranged | Hellstorm bolt rifle | 4 | 3+ | 4/5 | Torrent 1" |
+| Ranged | Melta bomb | 4 | 3+ | 5/3 | Range 3", Devastating 3, Heavy (Reposition only), Limited 1, Piercing 2 |
 | Melee | Fists | 4 | 3+ | 3/4 | - |
 
 **Keywords:** DEATHWATCH, IMPERIUM, ADEPTUS ASTARTES, GRAVIS, BREACHER
 
-## DEATHWATCH - DEMOLISHER VETERAN
+## Deathwatch - Demolisher Veteran
 **Stats:**
 - APL: 3
 - Move: 6"
@@ -154,9 +153,9 @@ Once per turning point, when a friendly **DEATHWATCH** operative is performing t
 
 **Weapons:**
 | Type | Name | ATK | HIT | DMG | Weapon Rules |
-|--- |--- |--- |--- |--- |--- |
+|------|------|-----|-----|-----|--------------|
 | Ranged | Bolt pistol | 4 | 3+ | 3/4 | Range 8" |
-| Melee | Heavy thunder hammer | 5 | 4+ | 6/7 | **Shock**, **Stun** |
+| Melee | Heavy thunder hammer | 5 | 4+ | 6/7 | Shock, Stun |
 
 **Abilities:**
 - **Brutal Assault:** Whenever this operative is fighting, its heavy thunder hammer has the **Brutal** weapon rule. Whenever this operative performs the **Charge** action, its heavy thunder hammer has the **Ceaseless** weapon rule until the end of the activation/counteraction.
@@ -164,7 +163,7 @@ Once per turning point, when a friendly **DEATHWATCH** operative is performing t
 
 **Keywords:** DEATHWATCH, IMPERIUM, ADEPTUS ASTARTES, DEMOLISHER
 
-## DEATHWATCH - DISRUPTOR VETERAN
+## Deathwatch - Disruptor Veteran
 **Stats:**
 - APL: 3
 - Move: 7"
@@ -173,22 +172,22 @@ Once per turning point, when a friendly **DEATHWATCH** operative is performing t
 
 **Weapons:**
 | Type | Name | ATK | HIT | DMG | Weapon Rules |
-|--- |--- |--- |--- |--- |--- |
-| Ranged | Marksman bolt carbine | 4 | 3+ | 3/4 | **Lethal** 5+ |
+|------|------|-----|-----|-----|--------------|
+| Ranged | Marksman bolt carbine | 4 | 3+ | 3/4 | Lethal 5+ |
 | Melee | Fists | 4 | 3+ | 3/4 | - |
 
 **Abilities:**
-- **Advanced Omni-Scrambler:** **STRATEGIC GAMBIT**. Select one enemy operative visible to or within 6" of this operative, then roll one D6. In the following Firefight phase, that enemy operative cannot be activated or perform actions until one of the following is true:
+- **Advanced Omni-Scrambler:** STRATEGIC GAMBIT. Select one enemy operative visible to or within 6" of this operative, then roll one D6. In the following Firefight phase, that enemy operative cannot be activated or perform actions until one of the following is true:
     - Your opponent has activated a number of enemy operatives equal to the result of the D6.
     - It's the last enemy operative to be activated.
-- **Auspex Triangulation:** The **Advanced Auspex Scan** firefight ploy costs you 0CP when both of the following are true:
+- **Auspex Triangulation:** The Advanced Auspex Scan firefight ploy costs you 0CP when both of the following are true:
     - This operative isn't within control range of enemy operatives.
     - The target of that **Shoot** action (primary target, if relevant) is visible to this operative.
-Note that it doesn't have to be this operative performing the **Shoot** action.
+    Note that it doesn't have to be this operative performing the **Shoot** action.
 
 **Keywords:** DEATHWATCH, IMPERIUM, ADEPTUS ASTARTES, DISRUPTOR
 
-## DEATHWATCH - GUNNER VETERAN
+## Deathwatch - Gunner Veteran
 **Stats:**
 - APL: 3
 - Move: 6"
@@ -197,15 +196,15 @@ Note that it doesn't have to be this operative performing the **Shoot** action.
 
 **Weapons:**
 | Type | Name | ATK | HIT | DMG | Weapon Rules |
-|--- |--- |--- |--- |--- |--- |
+|------|------|-----|-----|-----|--------------|
 | Ranged | Bolt pistol | 4 | 3+ | 3/4 | Range 8" |
-| Ranged | Heavy plasma incinerator (standard) | 5 | 3+ | 4/6 | **Piercing** 1 |
-| Ranged | Heavy plasma incinerator (supercharge) | 5 | 3+ | 5/6 | **Hot**, **Lethal** 5+, **Piercing** 1 |
+| Ranged | Heavy plasma incinerator (standard) | 5 | 3+ | 4/6 | Piercing 1 |
+| Ranged | Heavy plasma incinerator (supercharge) | 5 | 3+ | 5/6 | Hot, Lethal 5+, Piercing 1 |
 | Melee | Fists | 4 | 3+ | 3/4 | - |
 
 **Keywords:** DEATHWATCH, IMPERIUM, ADEPTUS ASTARTES, GUNNER
 
-## DEATHWATCH - HEADTAKER VETERAN
+## Deathwatch - Headtaker Veteran
 **Stats:**
 - APL: 3
 - Move: 7"
@@ -214,17 +213,17 @@ Note that it doesn't have to be this operative performing the **Shoot** action.
 
 **Weapons:**
 | Type | Name | ATK | HIT | DMG | Weapon Rules |
-|--- |--- |--- |--- |--- |--- |
-| Ranged | Special issue bolt pistol | 4 | 3+ | 3/4 | Range 8", **Piercing** 1 |
+|------|------|-----|-----|-----|--------------|
+| Ranged | Special issue bolt pistol | 4 | 3+ | 3/4 | Range 8", Piercing 1 |
 | Melee | Combat knives | 5 | 3+ | 4/5 | - |
 
 **Abilities:**
 - **Grav-chute and Grapnel Launcher:** Whenever this operative is climbing, treat the vertical distance as 2" (regardless of how far the operative actually moves vertically). Whenever this operative is dropping, ignore the vertical distance.
-- **Clandestine Headtaker:** This operative can perform the **Charge** action while it has a **Conceal** order. Whenever this operative is fighting against an operative it wasn't visible to at the start of the activation/counteraction, the first time you strike during that sequence, you can immediately resolve another of your successes as a strike (before your opponent).
+- **Clandestine Headtaker:** This operative can perform the **Charge** action while it has a Conceal order. Whenever this operative is fighting against an operative it wasn't visible to at the start of the activation/counteraction, the first time you strike during that sequence, you can immediately resolve another of your successes as a strike (before your opponent).
 
 **Keywords:** DEATHWATCH, IMPERIUM, ADEPTUS ASTARTES, HEADTAKER
 
-## DEATHWATCH - HORDE-SLAYER VETERAN
+## Deathwatch - Horde-Slayer Veteran
 **Stats:**
 - APL: 3
 - Move: 5"
@@ -233,16 +232,16 @@ Note that it doesn't have to be this operative performing the **Shoot** action.
 
 **Weapons:**
 | Type | Name | ATK | HIT | DMG | Weapon Rules |
-|--- |--- |--- |--- |--- |--- |
+|------|------|-----|-----|-----|--------------|
 | Ranged | Bolt pistol | 4 | 3+ | 3/4 | Range 8" |
-| Ranged | Infernus heavy bolter (flame) | 5 | 2+ | 3/3 | Range 8", **Saturate**, **Torrent** 2" |
-| Ranged | Infernus heavy bolter (focused bolt) | 5 | 3+ | 4/5 | **Piercing Crits** 1 |
-| Ranged | Infernus heavy bolter (sweeping bolt) | 4 | 3+ | 4/5 | **Piercing Crits** 1, **Torrent** 1" |
+| Ranged | Infernus heavy bolter (flame) | 5 | 2+ | 3/3 | Range 8", Saturate, Torrent 2" |
+| Ranged | Infernus heavy bolter (focused bolt) | 5 | 3+ | 4/5 | Piercing Crits 1 |
+| Ranged | Infernus heavy bolter (sweeping bolt) | 4 | 3+ | 4/5 | Piercing Crits 1, Torrent 1" |
 | Melee | Fists | 4 | 3+ | 3/4 | - |
 
 **Keywords:** DEATHWATCH, IMPERIUM, ADEPTUS ASTARTES, GRAVIS, HORDE-SLAYER
 
-## DEATHWATCH - MARKSMAN VETERAN
+## Deathwatch - Marksman Veteran
 **Stats:**
 - APL: 3
 - Move: 6"
@@ -251,57 +250,59 @@ Note that it doesn't have to be this operative performing the **Shoot** action.
 
 **Weapons:**
 | Type | Name | ATK | HIT | DMG | Weapon Rules |
-|--- |--- |--- |--- |--- |--- |
+|------|------|-----|-----|-----|--------------|
 | Ranged | Stalker bolt rifle (mobile) | 4 | 3+ | 3/4 | - |
-| Ranged | Stalker bolt rifle (heavy) | 4 | 2+ | 3/5 | **Heavy** (Dash only), **Lethal** 5+, **Piercing Crits** 1 |
+| Ranged | Stalker bolt rifle (heavy) | 4 | 2+ | 3/5 | Heavy (Dash only), Lethal 5+, Piercing Crits 1 |
 | Melee | Fists | 4 | 3+ | 3/4 | - |
 
 **Abilities:**
-- **Vigilant Marksman:** This operative can perform the **Guard** action during its activation regardless of the killzone (see close quarters rules, Kill Team: Tomb World). When using the close quarters rules, once per turning point, after this operative performs a free **Shoot** action on guard, it can immediately perform a free **Guard** action. However, if it does, it cannot counteract (nor **Guard** twice if it's counteracted).
+- **Vigilant Marksman:** This operative can perform the **Guard** action during its activation regardless of the killzone.
+- When using the close quarters rules, once per turning point, after this operative performs a free **Shoot** action on guard, it can immediately perform a free **Guard** action. However, if it does, it cannot counteract (nor **Guard** twice if it's counteracted).
 
 **Keywords:** DEATHWATCH, IMPERIUM, ADEPTUS ASTARTES, MARKSMAN
 
-# DEATHWATCH STRATEGY PLOYS
+# Deathwatch Strategy Ploys
 
-## DEATHWATCH - MISSION TACTICS
-Select **Conceal** or **Engage**. Whenever a friendly **DEATHWATCH** operative is shooting against or fighting against an enemy operative that has that order, that friendly operative's weapons have the **Balanced** weapon rule.
+## Deathwatch - Mission Tactics
+Select Conceal or Engage. Whenever a friendly **Deathwatch** operative is shooting against or fighting against an enemy operative that has that order, that friendly operative's weapons have the **Balanced** weapon rule.
 
-## DEATHWATCH - THE LONG VIGIL
-Whenever an operative is shooting a friendly **DEATHWATCH** operative that's within your territory, you can re-roll one of your defence dice.
+## Deathwatch - The Long Vigil
+Whenever an operative is shooting a friendly **Deathwatch** operative that's within your territory, you can re-roll one of your defence dice.
 
-## DEATHWATCH - THE SHIELD THAT SLAYS
-Whenever a friendly **DEATHWATCH** operative is within your opponent's territory, Normal and Critical Dmg of 4 or more inflicts 1 less damage on it.
+## Deathwatch - The Shield That Slays
+Whenever a friendly **Deathwatch** operative is within your opponent's territory, Normal and Critical Dmg of 4 or more inflicts 1 less damage on it.
 
-## DEATHWATCH - AND THEY SHALL KNOW NO FEAR
-You can ignore any changes to the stats of friendly **DEATHWATCH** operatives from being injured (including their weapons' stats).
+## Deathwatch - And They Shall Know No Fear
+You can ignore any changes to the stats of friendly **Deathwatch** operatives from being injured (including their weapons' stats).
 
-# DEATHWATCH FIREFIGHT PLOYS
+# Deathwatch Firefight Ploys
 
-## DEATHWATCH - SUFFER NOT THE ALIEN
-Use this firefight ploy after rolling your attack dice for a friendly **DEATHWATCH** operative, if it's shooting against or fighting against an operative that doesn't have the **CHAOS** or **IMPERIUM** keyword. You can re-roll any of your attack dice.
+## Deathwatch - Suffer Not The Alien
+Use this firefight ploy after rolling your attack dice for a friendly **Deathwatch** operative, if it's shooting against or fighting against an operative that doesn't have the **Chaos** or **Imperium** keyword. You can re-roll any of your attack dice.
 
-## DEATHWATCH - AUSPICATOR TRACKING
-Use this firefight ploy when a friendly **DEATHWATCH** operative is counteracting, before it performs any actions. You can change its order.
+## Deathwatch - Auspicator Tracking
+Use this firefight ploy when a friendly **Deathwatch** operative is counteracting, before it performs any actions. You can change its order.
 
-## DEATHWATCH - ADVANCED AUSPEX SCAN
-Use this firefight ploy when a friendly **DEATHWATCH** operative performs the **Shoot** action. Until the end of the activation/counteraction, its ranged weapons have the **Saturate** weapon rule and enemy operatives cannot be obscured.
+## Deathwatch - Advanced Auspex Scan
+Use this firefight ploy when a friendly **Deathwatch** operative performs the **Shoot** action. Until the end of the activation/counteraction, its ranged weapons have the **Saturate** weapon rule and enemy operatives cannot be obscured.
 
-## DEATHWATCH - TRANSHUMAN PHYSIOLOGY
-Use this firefight ploy when an operative is shooting a friendly **DEATHWATCH** operative, in the Roll Defence Dice step. You can retain one of your normal successes as a critical success instead.
+## Deathwatch - Transhuman Physiology
+Use this firefight ploy when an operative is shooting a friendly **Deathwatch** operative, in the Roll Defence Dice step. You can retain one of your normal successes as a critical success instead.
 
-# DEATHWATCH FACTION EQUIPMENT
+# Deathwatch Faction Equipment
 
-## DEATHWATCH - DIGITAL WEAPONS
-Once per turning point, when a friendly **DEATHWATCH** operative performs the **Fight** action, at the start of the Roll Attack Dice step, you can use this rule. If you do, inflict 1 damage on the enemy operative in that sequence.
+## Deathwatch - Digital Weapons
+Once per turning point, when a friendly **Deathwatch** operative performs the **Fight** action, at the start of the Roll Attack Dice step, you can use this rule. If you do, inflict 1 damage on the enemy operative in that sequence.
 
-## DEATHWATCH - SCRUTAVORE SERVO-THRALL
-Once per turning point, during a friendly **DEATHWATCH** operative's activation, you can use this rule. If you do, during that activation, that operative can perform a mission action for 1 less AP. Having an enemy operative within its control range doesn't prevent that friendly operative from performing that mission action. However, in such an instance, after it does so, you and your opponent roll-off. If your opponent wins, you cannot use this equipment for the rest of the battle.
+## Deathwatch - Scrutavore Servo-Thrall
+Once per turning point, during a friendly **Deathwatch** operative's activation, you can use this rule. If you do, during that activation, that operative can perform a mission action for 1 less AP.
+Having an enemy operative within its control range doesn't prevent that friendly operative from performing that mission action. However, in such an instance, after it does so, you and your opponent roll-off. If your opponent wins, you cannot use this equipment for the rest of the battle.
 
-## DEATHWATCH - SANCTUS-V BIOSCRYER CUFFS
-Once during each friendly **DEATHWATCH** operative's activation, before or after it performs an action, if it's not within control range of enemy operatives, you can use this rule. If you do, select one of the following:
+## Deathwatch - Sanctus-V Bioscryer Cuffs
+Once during each friendly **Deathwatch** operative's activation, before or after it performs an action, if it's not within control range of enemy operatives, you can use this rule. If you do, select one of the following:
 - That friendly operative regains up to D3 lost wounds.
 - Remove any changes to that friendly operative's APL stat.
 - Remove one of the following tokens that friendly operative has (before that token's activation effects are resolved, if relevant): Neutron Fragment, Poison, Terrorchem.
 
-## DEATHWATCH - AMMUNITION RESERVE
-Once per battle, you can use the **Special Issue Ammunition** faction rule for up to two **Shoot** actions during one turning point, but you must select different weapon rules for both uses. This takes precedence over the normal **Special Issue Ammunition** rules.
+## Deathwatch - Ammunition Reserve
+Once per battle, you can use the Special Issue Ammunition faction rule for up to two **Shoot** actions during one turning point, but you must select different weapon rules for both uses. This takes precedence over the normal Special Issue Ammunition rules.

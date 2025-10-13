@@ -13,7 +13,7 @@ Killzone: Bheta-Decima has **2x** short gantries, **4x** medium gantries, **2x**
 
 ---
 
-## GANTRY
+## Gatry
 
 * Gantry floors are Accessible and Vantage terrain.
 * Gantry pillars are Heavy terrain.
@@ -25,7 +25,7 @@ A gantry structure consists of two distinct elements: the horizontal platform (g
 
 ---
 
-## THERMOMETRIC CONDENSER
+## Thermometric Condenser
 
 * The roof is Accessible and Vantage terrain.
 * The inner-ledge of the roof is Exposed and Insignificant terrain. In other words, ignore the slight difference in height between the outer and inner area of the roof.
@@ -38,17 +38,17 @@ The condenser features a large circular roof platform with raised decorative bat
 
 ---
 
-## HAZARDOUS AREAS
+## Hazardous Areas
 
 Killzone: Bheta-Decima has the following additional rules that use hazardous areas marked on the game board.
 
-### RESTRICTED MOVEMENT
+### Restricted Movement
 
 No part of an operative's base can be touching a hazardous area.
 
 > **Designer's Note:** Lurking predators stop operatives from venturing too close to the ocean, while strong currents and toxic water prevent them from entering it.
 
-## RESTRICTED TARGETING
+## Restricted Targeting
 
 When selecting a valid target for an operative on the killzone floor, an intended target on the killzone floor is not a valid target if **4"** of hazardous area is between them.
 
@@ -72,6 +72,6 @@ When determining if **4"** of hazardous area blocks line of sight between two op
 **Gantry Footprint Blocking:**
 When an operative on the killzone floor targets (or is targeted by) an operative on Vantage terrain, any gantry footprint intersecting the targeting line blocks the shot — except for the gantry that either operative is standing on or within.
 
-## EQUIPMENT
+## Equipment
 
 Equipment can be set up on Vantage terrain and within **2"** of **Accessible** terrain (this takes precedence over setting it up on the killzone floor).

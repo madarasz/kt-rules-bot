@@ -28,10 +28,11 @@ Ignore all other content including:
    - Game action names (e.g., **Shoot** action, **Guard** action)
    - Keywords (e.g., **Blast**, **Heavy**, **Torrent**)
    - Critical game terms when relevant (e.g., **incapacitated**, **counteract**)
+5. Convert any ALL CAPS phrases to Title Case (capitalize the first letter of each word only). Example: `Corsair Voidscarred` instead of `CORSAIR VOIDSCARRED`
 
 **Example Format:**
 ```
-## [FAQ] *Question*: In the Resolve Attack Dice step of the **Shoot** action, what order are successes resolved in? How does this interact with my rules that reduce or ignore damage from the first attack dice (e.g. **CORSAIR VOIDSCARRED** **Warding Shield**, **HERNKYN YAEGIR** **Tough Survivalists**)?
+## [FAQ] *Question*: In the Resolve Attack Dice step of the **Shoot** action, what order are successes resolved in? How does this interact with my rules that reduce or ignore damage from the first attack dice (e.g. **Corsair Voidscarred** **Warding Shield**, **Hernkyn Yaegir** **Tough Survivalists**)?
 *Answer*: Successes resolve simultaneously. The defender can select one of the successes being resolved to reduce or ignore (as appropriate to their rule).
 ```
 
