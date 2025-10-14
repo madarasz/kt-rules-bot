@@ -45,12 +45,7 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 1. Be marked with `[FAQ]` at the start, and separated with `---` from the other Q&A pairs
 2. Format the question with `*Question*:` prefix
 3. Format the answer with `*Answer*:` prefix
-4. **Bold** the following elements:
-   - Faction/unit names (e.g., **CORSAIR VOIDSCARRED**)
-   - Ability names (e.g., **Warding Shield**)
-   - Game action names (e.g., **Shoot** action, **Guard** action)
-   - Keywords (e.g., **Blast**, **Heavy**, **Torrent**)
-   - Critical game terms when relevant (e.g., **incapacitated**, **counteract**)
+4. **Bold** 
 
 ## Extraction Rules
 1. **Verbatim Extraction Required:**
@@ -74,7 +69,12 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS")
 4. **Formatting Requirements:**
    - Use clear headers for each card type
    - Present weapons in table format
-   - **Bold** keywords, ability names, and important terms
+   - **Bold** the following elements:
+      - Faction/unit names (e.g., **CORSAIR VOIDSCARRED**)
+      - Ability names (e.g., **Warding Shield**)
+      - Game action names (e.g., **Shoot** action, **Guard** action)
+      - Keywords (e.g., **Blast**, **Heavy**, **Torrent**)
+      - Critical game terms when relevant (e.g., **incapacitated**, **counteract**, **visible**, **wholly within x"**, **control range**, **in cover**)
    - Use structured formats for complex multi-condition rules
 
 5. **Citation and other unneeded elements**
