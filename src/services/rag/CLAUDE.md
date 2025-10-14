@@ -56,6 +56,15 @@ Automatic query normalization for case-insensitive retrieval:
 - Keyword library stored in `data/rag_keywords.json` (1300+ keywords)
 - Minimum keyword length: 4 characters (filters out short words like "FLY", "APL")
 
+### Query Expander ([query_expander.py](query_expander.py))
+Synonym-based query expansion for better BM25 keyword matching:
+- Maps user-friendly terms to official Kill Team terminology
+- Expands queries by appending official terms (e.g., "heal" → "heal regain wounds")
+- Improves BM25 recall for informal queries without affecting vector search
+- Synonym dictionary stored in `data/rag_synonyms.json`
+- Supports multi-word phrases and single-word synonyms
+- Case-insensitive matching with word boundary detection
+
 ### Document Chunker ([chunker.py](chunker.py))
 Semantic chunking strategy (lazy splitting):
 - **ALWAYS splits at ## headers** if document has structured sections (better semantic granularity)
@@ -99,11 +108,13 @@ Check cache → [Hit: return cached results]
     ↓ [Miss]
 Normalize query (keyword_extractor.py)
     ↓ (e.g., "accurate 1" → "Accurate 1")
-Generate query embedding (embeddings.py)
+Expand query (query_expander.py)
+    ↓ (e.g., "heal" → "heal regain wounds")
+Generate query embedding (embeddings.py) ← uses NORMALIZED query
     ↓
 Parallel retrieval:
-    ├→ Vector search (vector_db.py)
-    └→ BM25 search (bm25_retriever.py)
+    ├→ Vector search (vector_db.py) ← uses NORMALIZED query
+    └→ BM25 search (bm25_retriever.py) ← uses EXPANDED query
     ↓
 Hybrid fusion (hybrid_retriever.py)
     ↓
@@ -128,6 +139,8 @@ From [src/lib/constants.py](../../lib/constants.py):
 - `RAG_MIN_RELEVANCE`: Minimum cosine similarity (default: 0.45)
 - `RAG_ENABLE_QUERY_NORMALIZATION`: Enable/disable query keyword normalization (default: True)
 - `RAG_KEYWORD_CACHE_PATH`: Keyword library path (default: data/rag_keywords.json)
+- `RAG_ENABLE_QUERY_EXPANSION`: Enable/disable synonym-based query expansion (default: True)
+- `RAG_SYNONYM_DICT_PATH`: Synonym dictionary path (default: data/rag_synonyms.json)
 - `EMBEDDING_MODEL`: OpenAI embedding model (text-embedding-3-small)
 
 Note: Token limits and embedding dimensions are now determined dynamically based on `EMBEDDING_MODEL` using `get_embedding_token_limit()` and `get_embedding_dimensions()` from [src/lib/tokens.py](../../lib/tokens.py)
@@ -249,6 +262,68 @@ python -m src.cli query "accurate 1"
 # Disable normalization in constants.py, then test
 python -m src.cli query "accurate 1"  # Will use lowercase as-is
 ```
+
+### Query Expansion with Synonyms
+
+The system can expand user queries with official game terminology to improve BM25 keyword matching:
+
+**Enable/Disable**:
+```python
+# In src/lib/constants.py
+RAG_ENABLE_QUERY_EXPANSION = True  # Enable (default)
+RAG_ENABLE_QUERY_EXPANSION = False # Disable
+```
+
+**How it works** (when enabled):
+- Maps user-friendly terms to official Kill Team terminology
+- Expands queries by appending official terms (preserves original query)
+- Only affects BM25 keyword search (vector search handles synonyms semantically)
+- Examples:
+  - `"Can I heal my operative?"` → `"Can I heal my operative? regain wounds"`
+  - `"Does the model die?"` → `"Does the model die? incapacitated"`
+  - `"melee range"` → `"melee range control range"`
+
+**Synonym dictionary format** (`data/rag_synonyms.json`):
+```json
+{
+  "regain wounds": ["heal", "healing", "restore health", "recover hp"],
+  "incapacitated": ["died", "killed", "destroyed", "eliminated"],
+  "control range": ["melee range", "base contact", "engaged"]
+}
+```
+
+**View synonym dictionary**:
+```bash
+cat data/rag_synonyms.json
+```
+
+**Add custom synonyms**:
+Edit `data/rag_synonyms.json` and add your mappings. Format:
+```json
+{
+  "official_term": ["user_synonym1", "user_synonym2", ...]
+}
+```
+
+**Testing expansion impact**:
+```bash
+# Test with expansion enabled (default)
+python -m src.cli query "Can I heal my operative?"
+
+# Check logs for query_expanded event (enable DEBUG logging)
+# Look for: query_expanded: original="...", expanded="...", added_terms=[...]
+```
+
+**When to use**:
+- ✅ User queries with informal terminology (heal, kill, melee range)
+- ✅ Multi-language communities using translated terms
+- ✅ New players unfamiliar with official terminology
+- ❌ Queries already using official terms (expansion has no effect)
+
+**Performance**:
+- No ingestion required (query-time expansion)
+- Minimal latency impact (~1ms per query)
+- Improves BM25 recall without affecting vector search quality
 
 ### Debugging Retrieval Issues
 

@@ -60,7 +60,8 @@ tests/rag/results/
 dmypy.json
 
 # Project specific
-data/
+data/*
+!data/rag_synonyms.json
 logs/
 *.log
 git-tool.sh
