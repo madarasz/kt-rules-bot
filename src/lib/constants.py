@@ -61,9 +61,9 @@ RRF_K = 60  # RRF (Reciprocal Rank Fusion) constant for hybrid search
             # Higher k (e.g., 80): More balanced fusion between vector and BM25
 
 # BM25 keyword search parameters
-BM25_K1 = 1.5  # Term frequency saturation parameter (typical range: 1.2-2.0)
+BM25_K1 = 1.6  # Term frequency saturation parameter (typical range: 1.2-2.0)
                # Higher values give more weight to term frequency
-BM25_B = 0.55  # Document length normalization parameter (typical range: 0.5-1.0)
+BM25_B = 0.8  # Document length normalization parameter (typical range: 0.5-1.0)
                # 0 = no normalization, 1 = full normalization
 
 # ============================================================================
@@ -94,10 +94,22 @@ LLM_SYSTEM_PROMPT_FILE_PATH = "prompts/rule-helper-prompt.md"
 # Enable/disable automatic query keyword normalization (default: True)
 # When enabled, queries are normalized to match game keywords (e.g., "accurate" → "Accurate")
 # When disabled, queries are used as-is without capitalization changes
-RAG_ENABLE_QUERY_NORMALIZATION = False
+RAG_ENABLE_QUERY_NORMALIZATION = True
 
 # Path to cached keyword library (auto-extracted from rules during ingestion)
 RAG_KEYWORD_CACHE_PATH = "data/rag_keywords.json"
+
+# ============================================================================
+# RAG Query Expansion Constants
+# ============================================================================
+
+# Enable/disable query expansion with synonym dictionary (default: True)
+# When enabled, user-friendly terms are expanded with official game terminology
+# Example: "heal" → "heal regain wounds" (improves BM25 keyword matching)
+RAG_ENABLE_QUERY_EXPANSION = True
+
+# Path to synonym dictionary mapping user terms to official terminology
+RAG_SYNONYM_DICT_PATH = "data/rag_synonyms.json"
 
 # ============================================================================
 # Notes
