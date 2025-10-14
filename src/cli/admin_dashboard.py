@@ -19,10 +19,14 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from src.lib.database import AnalyticsDatabase
 from src.lib.config import load_config
+
+
+# Constants
+ADMIN_STATUS_OPTIONS = ["pending", "approved", "reviewed", "issues", "flagged", "RAG issue", "LLM issue"]
 
 
 # Page configuration
@@ -91,7 +95,7 @@ def render_query_browser(db: AnalyticsDatabase):
     with col2:
         admin_status = st.selectbox(
             "Admin Status",
-            ["All", "pending", "approved", "reviewed", "issues", "flagged"],
+            ["All"] + ADMIN_STATUS_OPTIONS,
         )
 
     with col3:
@@ -159,7 +163,9 @@ def render_query_browser(db: AnalyticsDatabase):
                     "approved": "🟢",
                     "reviewed": "🔵",
                     "issues": "🟠",
-                    "flagged": "🔴"
+                    "flagged": "🔴",
+                    "RAG issue": "🟣",
+                    "LLM issue": "🟤",
                 }
                 st.write(f"{status_color.get(query['admin_status'], '⚪')} {query['admin_status']}")
 
@@ -374,8 +380,8 @@ def render_query_detail(db: AnalyticsDatabase):
     with col1:
         new_status = st.selectbox(
             "Admin Status",
-            ["pending", "approved", "reviewed", "issues", "flagged"],
-            index=["pending", "approved", "reviewed", "issues", "flagged"].index(
+            ADMIN_STATUS_OPTIONS,
+            index=ADMIN_STATUS_OPTIONS.index(
                 st.session_state[f"admin_status_{query_id}"]
             ),
             key=f"status_select_{query_id}",
@@ -553,6 +559,98 @@ def render_analytics(db: AnalyticsDatabase):
         st.info(f"📈 Relevance Rate: {relevance_rate:.1%} (of reviewed chunks)")
 
 
+def render_rag_tests(db: AnalyticsDatabase):
+    """Render the RAG tests page."""
+    st.title("🧪 RAG Tests")
+
+    st.write("""
+    Generate RAG test cases from queries with relevant chunks marked by admin.
+    Test cases are ordered by timestamp (newest first).
+    """)
+
+    # Fetch queries with relevant chunks
+    queries_with_chunks = db.get_queries_with_relevant_chunks(limit=500)
+
+    if not queries_with_chunks:
+        st.info("No queries with relevant chunks found. Mark chunks as relevant in Query Detail to generate test cases.")
+        return
+
+    st.success(f"Found {len(queries_with_chunks)} queries with relevant chunks")
+
+    # Generate YAML
+    def generate_test_id(query_text: str) -> str:
+        """Generate test_id from first 3 words of query."""
+        words = query_text.lower().split()[:3]
+        return "-".join(word.strip(".,!?;:") for word in words)
+
+    def generate_yaml(queries_data: List[Dict[str, Any]]) -> str:
+        """Generate YAML content for test cases."""
+        yaml_lines = []
+
+        for query_data in queries_data:
+            test_id = generate_test_id(query_data["query_text"])
+            query_text = query_data["query_text"]
+
+            # Get chunk headers (required_chunks)
+            chunk_headers = [
+                chunk["chunk_header"] or "No header"
+                for chunk in query_data["relevant_chunks"]
+            ]
+
+            # Format YAML entry
+            yaml_lines.append(f"- test_id: {test_id}")
+            yaml_lines.append(f"  query: >")
+
+            # Format multi-line query text (indent by 4 spaces)
+            for line in query_text.split("\n"):
+                yaml_lines.append(f"    {line}")
+
+            yaml_lines.append(f"  required_chunks:")
+            for header in chunk_headers:
+                # Escape quotes in header
+                escaped_header = header.replace('"', '\\"')
+                yaml_lines.append(f'    - "{escaped_header}"')
+
+        return "\n".join(yaml_lines)
+
+    yaml_content = generate_yaml(queries_with_chunks)
+
+    # Display YAML preview
+    st.subheader("📄 Generated YAML")
+    st.code(yaml_content, language="yaml")
+
+    # Download button
+    st.download_button(
+        label="⬇️ Download YAML file",
+        data=yaml_content,
+        file_name=f"rag_test_cases_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.yaml",
+        mime="text/yaml",
+    )
+
+    # Display table of test cases
+    st.subheader("📊 Test Cases Preview")
+
+    test_cases_data = []
+    for query_data in queries_with_chunks:
+        test_id = generate_test_id(query_data["query_text"])
+        chunk_count = len(query_data["relevant_chunks"])
+        chunk_headers = ", ".join([
+            chunk["chunk_header"] or "No header"
+            for chunk in query_data["relevant_chunks"]
+        ])
+
+        test_cases_data.append({
+            "Test ID": test_id,
+            "Query": query_data["query_text"][:100] + "..." if len(query_data["query_text"]) > 100 else query_data["query_text"],
+            "Timestamp": query_data["timestamp"],
+            "Relevant Chunks": chunk_count,
+            "Chunk Headers": chunk_headers[:100] + "..." if len(chunk_headers) > 100 else chunk_headers,
+        })
+
+    df = pd.DataFrame(test_cases_data)
+    st.dataframe(df, use_container_width=True, hide_index=True)
+
+
 def render_settings(db: AnalyticsDatabase):
     """Render the settings page."""
     st.title("⚙️ Settings")
@@ -640,7 +738,7 @@ def main():
     # Use sidebar buttons instead of radio to have better control
     st.sidebar.write("**Navigation**")
 
-    pages = ["📋 Query Browser", "🔍 Query Detail", "📊 Analytics", "⚙️ Settings"]
+    pages = ["📋 Query Browser", "🔍 Query Detail", "📊 Analytics", "🧪 RAG Tests", "⚙️ Settings"]
 
     for page_option in pages:
         # Highlight current page
@@ -658,6 +756,8 @@ def main():
         render_query_detail(db)
     elif page == "📊 Analytics":
         render_analytics(db)
+    elif page == "🧪 RAG Tests":
+        render_rag_tests(db)
     elif page == "⚙️ Settings":
         render_settings(db)
 
