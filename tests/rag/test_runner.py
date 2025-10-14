@@ -76,14 +76,16 @@ class RAGTestRunner:
             raise ValueError(f"No YAML test case files found in {self.test_cases_dir}")
 
         for yaml_file in yaml_files:
-            test_case = RAGTestCase.from_yaml(yaml_file)
+            # from_yaml now returns a list (supports both single and multiple tests per file)
+            loaded_test_cases = RAGTestCase.from_yaml(yaml_file)
 
-            # Filter by test_id if specified
-            if test_id and test_case.test_id != test_id:
-                continue
+            for test_case in loaded_test_cases:
+                # Filter by test_id if specified
+                if test_id and test_case.test_id != test_id:
+                    continue
 
-            test_cases.append(test_case)
-            logger.debug("test_case_loaded", test_id=test_case.test_id, file=yaml_file.name)
+                test_cases.append(test_case)
+                logger.debug("test_case_loaded", test_id=test_case.test_id, file=yaml_file.name)
 
         if test_id and not test_cases:
             raise ValueError(f"Test case not found: {test_id}")

@@ -174,6 +174,7 @@ streamlit run src/cli/admin_dashboard.py --server.port 8501
 - 📋 Query Browser: Filter/search queries, view feedback
 - 🔍 Query Detail: Review full query/response, mark chunk relevance
 - 📊 Analytics: Feedback trends, LLM model performance, top downvoted queries
+- 🧪 RAG Tests: Generate RAG test cases from queries with relevant chunks (YAML export)
 - ⚙️ Settings: Manual cleanup, export to CSV/JSON
 
 **Privacy**:

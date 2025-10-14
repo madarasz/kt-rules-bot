@@ -601,6 +601,77 @@ class AnalyticsDatabase:
             logger.error(f"Failed to get stats: {e}", exc_info=True)
             return {}
 
+    def get_queries_with_relevant_chunks(
+        self,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """Get queries that have at least one chunk marked as relevant.
+
+        Returns queries ordered by timestamp descending, with their relevant chunks.
+
+        Args:
+            limit: Maximum number of queries to return
+
+        Returns:
+            List of dictionaries with query info and relevant chunks:
+            [
+                {
+                    "query_id": str,
+                    "query_text": str,
+                    "timestamp": str,
+                    "relevant_chunks": [
+                        {"chunk_header": str, "rank": int, ...},
+                        ...
+                    ]
+                },
+                ...
+            ]
+        """
+        if not self.enabled:
+            return []
+
+        try:
+            with self._get_connection() as conn:
+                # Get queries that have at least one relevant chunk
+                cursor = conn.execute("""
+                    SELECT DISTINCT q.query_id, q.query_text, q.timestamp
+                    FROM queries q
+                    INNER JOIN retrieved_chunks rc ON q.query_id = rc.query_id
+                    WHERE rc.relevant = 1
+                    ORDER BY q.timestamp DESC
+                    LIMIT ?
+                """, (limit,))
+
+                query_rows = cursor.fetchall()
+
+                results = []
+                for query_row in query_rows:
+                    query_id = query_row["query_id"]
+
+                    # Get all relevant chunks for this query
+                    chunk_cursor = conn.execute("""
+                        SELECT chunk_header, rank, chunk_text,
+                               vector_similarity, bm25_score, rrf_score, final_score
+                        FROM retrieved_chunks
+                        WHERE query_id = ? AND relevant = 1
+                        ORDER BY rank ASC
+                    """, (query_id,))
+
+                    chunks = [dict(row) for row in chunk_cursor.fetchall()]
+
+                    results.append({
+                        "query_id": query_id,
+                        "query_text": query_row["query_text"],
+                        "timestamp": query_row["timestamp"],
+                        "relevant_chunks": chunks,
+                    })
+
+                return results
+
+        except Exception as e:
+            logger.error(f"Failed to get queries with relevant chunks: {e}", exc_info=True)
+            return []
+
     @classmethod
     def from_config(cls) -> "AnalyticsDatabase":
         """Create AnalyticsDatabase from config.
