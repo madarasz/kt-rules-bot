@@ -11,21 +11,21 @@ Tasks:
 - After the verbatim rules extraction, you may add **derived rules from visual elements, or designer-style notes**—these must be formatted distinctly and never replace the main rules text.
 
 ## Steps to Follow
-1. **Verbatim Rule Extraction**
+1. ABSOLUTELY NO FLAVOR, LORE, OR STORY TEXT MUST BE INCLUDED IN THE FINAL OUTPUT. Focus solely on the mechanics and rules.
+2. **Verbatim Rule Extraction**
     - Transcribe all written rules exactly as presented, preserving formatting, structure, and terminology.
     - Do not paraphrase. Do not condense or merge sentences. Do not alter phrasing.
     - Include all numerical values, stats, timing windows, constraints, keywords, and exceptions without modification.
     - Include all designer notes
-2. **Section Reordering**
+3. **Section Reordering**
     - Group related rules into logical sequences and sections, improving clarity for the reader.
     - If a new ordering improves the document’s usability, reorganize as required.
-3. **Interpretation & Summarization (Secondary)**
-    - After all verbatim rules are presented, summarize them in your own words to aid understanding.
-    - **All summaries, derived interpretations, or principles must be clearly separated** from verbatim content.
+4. **Interpretation & Summarization (Secondary)**
+    - **All derived interpretations, or principles must be clearly separated** from verbatim content.
     - Use `[Derived from illustration]` and blockquotes (`> **Designer's Note:** ...`) to format all non-verbatim content.
     - Interpret visual elements, only extract the underlying rule or mechanic, not a literal description.
     - When summarizing, cite the specific principle or mechanic illustrated by diagrams, not example context.
-4. **Final Verification and Numerical Table**
+5. **Final Verification**
     - Double-check all values and keywords against the source.
 
 ## Critical Instruction for Visual Elements
@@ -65,12 +65,13 @@ Ask yourself: "What rule or mechanic is this image teaching me?" Extract that pr
   - This structure is essential for document chunking and searchability
   - Examples: `## Movement Phase`, `## Shooting Action`, `## Valid Target`, `## Vantage Terrain`
   - Use `###` (H3) for sub-sections within a major rule
-- Immediately after each rule or section, add `[Derived from illustration]` and/or `> **Designer's Note:** ...` blocks as appropriate for summaries or visual rule extractions.
+- Immediately after each rule or section, add `[Derived from illustration]` and/or `> **Designer's Note:** ...` blocks as appropriate for notes or visual rule extractions.
 - **Bold** the following elements:
-  - Key game terms when first introduced (e.g., **control range**, **wounded**)
-  - Keywords (e.g., **Dash** action, **STRATEGIC GAMBIT**)
+  - Key game terms (e.g., **control range**, **wounded**, **Heavy** terrain, **incapacitated**, **visible**, **control range**, **in cover**)
+  - Keywords (e.g., **Dash** action, **STRATEGIC GAMBIT**, **counteract**, **Blast**,)
   - Critical rule distinctions (e.g., **within** vs **wholly within**)
   - Important numerical values when stating rules (e.g., **1"**, **2"**)
+  - Faction/unit names, ability names (e.g., **Corsair Voidscarred**, **Warding Shield**)
   - Rule section headers within paragraphs
 - For complex rules with multiple conditions, use structured formats:
   ```
@@ -82,6 +83,7 @@ Ask yourself: "What rule or mechanic is this image teaching me?" Extract that pr
 - Nested bullets and numbered lists for complex and sequential rules.
 - Do not use emojis
 - Remove page number references (e.g.: `(see damage on pg 47)`)
+- No citations
 
 ## Example
 **Correct output structure with proper headers:**
@@ -112,4 +114,4 @@ An operative can move up to **6"** during its activation.
 ## Use Cases
 - Accurate extraction and documentation of board game rules for digital or reference manuals.
 - Preparing comprehensive rulebooks for both game learners and LLM-based rules assistants.
-- Ensuring zero deviation from original rule text while providing accessible clarifications and logic-based summaries.
+- Ensuring zero deviation from original rule text.
