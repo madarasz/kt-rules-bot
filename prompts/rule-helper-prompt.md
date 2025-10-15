@@ -22,6 +22,7 @@ The output has 3 parts in this order:
    - Every rule reference is a **seperate** blockquote, have an empty line between rule references 
    - **Bold** the rule name at the beginning of the rule reference
    - Only output **relevant quotations** (no unnecessary chat, explanation, or progress narration). Do not quote the full rule, only the relevant sentences.
+   - Do not quote parts marked with `[Derived from illustration]`
 3. Explanation
    - Finish with a brief **Explanation** section, restating your rules-based decision succinctly.
 

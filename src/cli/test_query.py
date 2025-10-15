@@ -83,10 +83,10 @@ def test_query(query: str, provider: str = None, max_chunks: int = RAG_MAX_CHUNK
         print()
 
         if rag_context.document_chunks:
-            print("Top chunks:")
-            for i, chunk in enumerate(rag_context.document_chunks[:3], 1):
+            print("Chunks:")
+            for i, chunk in enumerate(rag_context.document_chunks, 1):
                 print(f"\n{i}. {chunk.header} (relevance: {chunk.relevance_score:.2f})")
-                print(f"   Source: {chunk.metadata.get('source', 'unknown')}")
+                #print(f"   Source: {chunk.metadata.get('source', 'unknown')}")
                 print(f"   Text: {chunk.text[:200]}...")
 
     except Exception as e:

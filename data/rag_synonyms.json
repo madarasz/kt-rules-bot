@@ -1,11 +1,14 @@
 {
-  "regain wounds": [
+  "regain regains wounds": [
     "heal",
+    "heals",
     "healing",
     "healed",
     "restore health",
+    "restores health",
     "restoring health",
     "recover health",
+    "recovers health",
     "recovering health",
     "recover hp",
     "restore hp",
@@ -15,7 +18,7 @@
     "regeneration",
     "gain health"
   ],
-  "incapacitated": [
+  "incapacitated incapacitate incapacitates": [
     "died",
     "dies",
     "dead",
@@ -153,5 +156,11 @@
     "re roll",
     "roll again",
     "rerolling"
+  ],
+  "classified": [
+    "tournament legal",
+    "tournament legal team",
+    "legal for tournaments",
+    "legal for tournament play"
   ]
 }
