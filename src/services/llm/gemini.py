@@ -10,9 +10,11 @@ from typing import BinaryIO
 from uuid import uuid4
 
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google import genai as genai_types
 except ImportError:
     genai = None
+    genai_types = None
 
 from src.services.llm.base import (
     LLMProvider,
@@ -45,12 +47,12 @@ class GeminiAdapter(LLMProvider):
 
         if genai is None:
             raise ImportError(
-                "google-generativeai package not installed. "
-                "Run: pip install google-generativeai"
+                "google-genai package not installed. "
+                "Run: pip install google-genai"
             )
 
-        genai.configure(api_key=api_key)
-        self.client = genai.GenerativeModel(model)
+        self.client = genai.Client(api_key=api_key)
+        self.model = model
         logger.info(f"Initialized Gemini adapter with model {model}")
 
     async def generate(self, request: GenerationRequest) -> LLMResponse:
@@ -74,20 +76,21 @@ class GeminiAdapter(LLMProvider):
         full_prompt = f"{request.config.system_prompt}\n\n{self._build_prompt(request.prompt, request.context)}"
 
         try:
-            # Configure generation
-            generation_config = genai.types.GenerationConfig(
-                max_output_tokens=request.config.max_tokens,
-                temperature=request.config.temperature,
-            )
+            # Configure generation for new API
+            generation_config = {
+                "max_output_tokens": request.config.max_tokens,
+                "temperature": request.config.temperature,
+            }
 
-            # Call Gemini API with timeout
-            # Note: google-generativeai doesn't have native async support yet
+            # Call Gemini API with timeout using new API
+            # Note: google-genai doesn't have native async support yet
             # We wrap it in asyncio.to_thread for async compatibility
             response = await asyncio.wait_for(
                 asyncio.to_thread(
-                    self.client.generate_content,
-                    full_prompt,
-                    generation_config=generation_config,
+                    self.client.models.generate_content,
+                    model=self.model,
+                    contents=full_prompt,
+                    config=generation_config,
                 ),
                 timeout=request.config.timeout_seconds,
             )
@@ -95,9 +98,7 @@ class GeminiAdapter(LLMProvider):
             latency_ms = int((time.time() - start_time) * 1000)
 
             # Check finish_reason before accessing text
-            # Gemini FinishReason enum values:
-            # FINISH_REASON_UNSPECIFIED = 0, STOP = 1, MAX_TOKENS = 2
-            # SAFETY = 3, RECITATION = 4, LANGUAGE = 6, OTHER = 5
+            # New API uses enum strings: STOP, MAX_TOKENS, SAFETY, RECITATION, etc.
             if hasattr(response, 'candidates') and response.candidates:
                 candidate = response.candidates[0]
                 finish_reason = candidate.finish_reason
@@ -105,28 +106,27 @@ class GeminiAdapter(LLMProvider):
                 # Log finish_reason for debugging
                 logger.debug(f"Gemini finish_reason: {finish_reason}")
 
+                # Get finish_reason as string for comparison (handles both enum and string)
+                finish_reason_str = str(finish_reason).split('.')[-1] if hasattr(finish_reason, 'value') else str(finish_reason)
+
                 # Check if response was blocked
-                # Note: finish_reason=2 with no parts means RECITATION block, not MAX_TOKENS
-                if finish_reason in [3, 4]:  # SAFETY or RECITATION
-                    finish_reason_names = {3: "SAFETY", 4: "RECITATION"}
-                    reason_name = finish_reason_names.get(finish_reason, str(finish_reason))
-                    logger.warning(f"Gemini content blocked: finish_reason={reason_name}")
+                if finish_reason_str in ['SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'IMAGE_SAFETY', 'IMAGE_PROHIBITED_CONTENT']:
+                    logger.warning(f"Gemini content blocked: finish_reason={finish_reason_str}")
                     raise ContentFilterError(
-                        f"Gemini blocked content due to {reason_name} filters. "
+                        f"Gemini blocked content due to {finish_reason_str} filter. "
                         "This query may contain content flagged by safety filters. "
                         "Try rephrasing or use a different model (--provider claude-sonnet)."
                     )
-                elif finish_reason == 2 and not candidate.content.parts:
-                    # finish_reason=2 with no parts typically means RECITATION
-                    logger.warning(f"Gemini blocked content: finish_reason=2 (likely RECITATION)")
+                elif finish_reason_str == 'MAX_TOKENS' and not candidate.content.parts:
+                    # MAX_TOKENS with no parts typically means truncation/blocking
+                    logger.warning(f"Gemini content blocked: finish_reason=MAX_TOKENS (no parts)")
                     raise ContentFilterError(
-                        "Gemini blocked content (likely due to RECITATION filter). "
-                        "The response may be too similar to training data. "
+                        "Gemini response was truncated or blocked (MAX_TOKENS with no content). "
                         "Try rephrasing or use a different model (--provider claude-sonnet)."
                     )
-                elif finish_reason == 2:  # MAX_TOKENS with parts
+                elif finish_reason_str == 'MAX_TOKENS':  # MAX_TOKENS with parts
                     logger.warning(f"Gemini response truncated: finish_reason=MAX_TOKENS")
-                elif finish_reason not in [1]:  # Not STOP
+                elif finish_reason_str not in ['STOP', 'FINISH_REASON_UNSPECIFIED']:  # Not normal completion
                     logger.warning(f"Gemini unexpected finish_reason: {finish_reason}")
 
             # Extract answer text (may raise exception if no valid parts)
@@ -143,13 +143,17 @@ class GeminiAdapter(LLMProvider):
             # Check if citations are included
             citations_included = (
                 request.config.include_citations
+                and answer_text is not None
                 and "According to" in answer_text
             )
 
             # Map safety ratings to confidence
-            confidence = self._safety_to_confidence(
-                getattr(response, "safety_ratings", None)
-            )
+            # In new API, safety_ratings are on the candidate, not the response
+            safety_ratings = None
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                safety_ratings = getattr(candidate, "safety_ratings", None)
+            confidence = self._safety_to_confidence(safety_ratings)
 
             # Token count from usage metadata
             token_count = (
@@ -223,28 +227,38 @@ class GeminiAdapter(LLMProvider):
         start_time = time.time()
 
         try:
-            # Read PDF bytes
+            # Get file path from the file handle
+            # request.pdf_file is a BinaryIO, but upload_file expects a path
+            if hasattr(request.pdf_file, 'name'):
+                pdf_path = request.pdf_file.name
+            else:
+                raise PDFParseError("PDF file handle does not have a path attribute")
+
+            # Read PDF bytes for validation
             pdf_bytes = request.pdf_file.read()
 
             if len(pdf_bytes) == 0:
                 raise PDFParseError("PDF file is empty")
 
-            # Upload PDF to Gemini
-            # Gemini can process PDFs directly
-            pdf_file = genai.upload_file(request.pdf_file, mime_type="application/pdf")
-
-            # Configure generation
-            generation_config = genai.types.GenerationConfig(
-                max_output_tokens=request.config.max_tokens,
-                temperature=request.config.temperature,
+            # Upload PDF to Gemini using new API
+            uploaded_file = await asyncio.to_thread(
+                self.client.files.upload,
+                file=pdf_path
             )
 
-            # Call Gemini API with PDF and extraction prompt
+            # Configure generation
+            generation_config = {
+                "max_output_tokens": request.config.max_tokens,
+                "temperature": request.config.temperature,
+            }
+
+            # Call Gemini API with PDF and extraction prompt using new API
             response = await asyncio.wait_for(
                 asyncio.to_thread(
-                    self.client.generate_content,
-                    [request.extraction_prompt, pdf_file],
-                    generation_config=generation_config,
+                    self.client.models.generate_content,
+                    model=self.model,
+                    contents=[request.extraction_prompt, uploaded_file],
+                    config=generation_config,
                 ),
                 timeout=request.config.timeout_seconds,
             )
