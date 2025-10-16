@@ -102,7 +102,7 @@ This project uses the [Spec Kit](https://github.com/github/spec-kit) workflow fo
 
 ## Licence
 
-MIT License
+[Apache 2.0 Licence](LICENSE)
 
 **DISCLAIMER: This is an unofficial fan-made project and is in no way affiliated with, endorsed, or sponsored by Games Workshop Limited. It is a non-commercial project for personal use only.**
 

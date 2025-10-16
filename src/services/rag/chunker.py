@@ -1,6 +1,7 @@
-"""Markdown chunking service with hierarchical header splitting.
+"""Markdown chunking service with configurable header splitting.
 
-Splits documents at all markdown headers (#, ##, ###, ####).
+Splits documents at all header levels from ## up to the specified level.
+For example, level 3 chunks at both ## and ### headers.
 """
 
 import re
@@ -8,8 +9,8 @@ from dataclasses import dataclass
 from typing import List
 from uuid import UUID, uuid4
 
-from src.lib.tokens import count_tokens, get_embedding_token_limit
-from src.lib.constants import EMBEDDING_MODEL
+from src.lib.tokens import count_tokens
+from src.lib.constants import MARKDOWN_CHUNK_HEADER_LEVEL
 
 
 @dataclass
@@ -25,25 +26,27 @@ class MarkdownChunk:
 
 
 class MarkdownChunker:
-    """Chunks markdown documents at header boundaries (#, ##, ###, ####)."""
+    """Chunks markdown documents at multiple header levels up to a configured maximum."""
 
-    def __init__(self, max_tokens: int | None = None, model: str = "gpt-3.5-turbo"):
+    def __init__(self, chunk_level: int | None = None, model: str = "gpt-3.5-turbo"):
         """Initialize chunker.
 
         Args:
-            max_tokens: Maximum tokens per chunk (default: determined by EMBEDDING_MODEL)
+            chunk_level: Maximum header level to chunk at (2-4 for ##-####, default from constants)
+                        Chunks at all levels from ## up to and including this level
             model: Model name for token counting
         """
-        self.max_tokens = max_tokens if max_tokens is not None else get_embedding_token_limit(EMBEDDING_MODEL)
+        self.chunk_level = chunk_level if chunk_level is not None else MARKDOWN_CHUNK_HEADER_LEVEL
         self.model = model
+        
+        if self.chunk_level < 2 or self.chunk_level > 4:
+            raise ValueError("chunk_level must be 2, 3, or 4 (for ##, ###, or #### headers)")
 
     def chunk(self, content: str) -> List[MarkdownChunk]:
-        """Chunk markdown content at all header levels (#, ##, ###, ####).
+        """Chunk markdown content at the configured header level and above.
 
-        Strategy:
-        1. Split recursively at each header level (# -> ## -> ### -> ####)
-        2. Keep whole document only if no headers AND within token limit
-        3. No overlap between chunks (clean semantic boundaries)
+        Chunks at all header levels from 2 (##) up to and including the configured level.
+        For example, if chunk_level=3, it will chunk at both ## and ### headers.
 
         Args:
             content: Markdown content
@@ -51,11 +54,13 @@ class MarkdownChunker:
         Returns:
             List of MarkdownChunk objects
         """
-        # Try to find any headers (starting from #)
-        has_headers = bool(re.search(r"^#{1,4} ", content, flags=re.MULTILINE))
+        # Create regex pattern for all header levels from 2 up to target level
+        header_patterns = [rf"(^{'#' * level} .+$)" for level in range(2, self.chunk_level + 1)]
+        combined_pattern = "|".join(header_patterns)
 
-        if not has_headers:
-            # No headers: return whole document if within limit
+        # Check if content has headers at any of the target levels
+        if not re.search(combined_pattern, content, flags=re.MULTILINE):
+            # No headers at target levels: return whole document as single chunk
             total_tokens = count_tokens(content, model=self.model)
             return [
                 MarkdownChunk(
@@ -68,85 +73,87 @@ class MarkdownChunker:
                 )
             ]
 
-        # Split at headers recursively, starting at level 1 (#)
-        return self._split_at_header_level(content, level=1, parent_header="", base_position=0)
+        # Split at all target header levels
+        return self._split_at_multiple_levels(content)
 
-    def _split_at_header_level(
-        self, content: str, level: int, parent_header: str, base_position: int
-    ) -> List[MarkdownChunk]:
-        """Recursively split content at specific header level.
+    def _split_at_multiple_levels(self, content: str) -> List[MarkdownChunk]:
+        """Split content at multiple header levels (from ## up to configured level).
 
         Args:
             content: Markdown content
-            level: Header level to split at (1-4 for #-####)
-            parent_header: Parent header path
-            base_position: Base position in document
 
         Returns:
             List of chunks
         """
-        if level > 4:
-            # No more header levels to split at
-            return [self._create_leaf_chunk(content, parent_header, level - 1, base_position)]
-
-        # Create regex pattern for current header level
-        header_pattern = rf"(^{'#' * level} .+$)"
-
-        # Check if content has headers at this level
-        if not re.search(header_pattern, content, flags=re.MULTILINE):
-            # No headers at this level, try next level down
-            return self._split_at_header_level(content, level + 1, parent_header, base_position)
-
-        # Split at this header level
-        sections = re.split(header_pattern, content, flags=re.MULTILINE)
-
+        # Find all headers and their positions
+        lines = content.split('\n')
         chunks: List[MarkdownChunk] = []
-        current_header = parent_header
-        current_text = ""
+        current_header = ""
+        current_header_level = 0
+        current_lines = []
         position = 0
 
-        for section in sections:
-            section = section.strip()
-            if not section:
-                continue
-
-            # Check if this is a header line at current level
-            if section.startswith('#' * level + ' ') and not section.startswith('#' * (level + 1)):
+        for line in lines:
+            # Check if this line is a header at any target level
+            header_level = self._get_header_level(line)
+            if header_level and 2 <= header_level <= self.chunk_level:
                 # Save previous section if exists
-                if current_text:
-                    # Recursively split at next header level
-                    sub_chunks = self._split_at_header_level(
-                        current_text, level + 1, current_header, base_position + position
-                    )
-                    chunks.extend(sub_chunks)
+                if current_lines:
+                    current_text = '\n'.join(current_lines)
+                    chunks.append(self._create_chunk_with_level(
+                        current_text, current_header, current_header_level, position
+                    ))
                     position += 1
 
                 # Start new section
-                header_text = section[level + 1:].strip()  # Remove "# " prefix
-                current_header = f"{parent_header} > {header_text}" if parent_header else header_text
-                current_text = section + "\n"
+                header_text = line[header_level + 1:].strip()  # Remove "### " prefix
+                current_header = header_text
+                current_header_level = header_level
+                current_lines = [line]
             else:
-                # Add content to current section
-                current_text += section + "\n"
+                # Add line to current section
+                current_lines.append(line)
 
         # Don't forget last section
-        if current_text:
-            sub_chunks = self._split_at_header_level(
-                current_text, level + 1, current_header, base_position + position
-            )
-            chunks.extend(sub_chunks)
+        if current_lines:
+            current_text = '\n'.join(current_lines)
+            chunks.append(self._create_chunk_with_level(
+                current_text, current_header, current_header_level, position
+            ))
 
         return chunks
 
-    def _create_leaf_chunk(
-        self, text: str, header: str, header_level: int, position: int
-    ) -> MarkdownChunk:
-        """Create a leaf chunk (no more splitting).
+    def _get_header_level(self, text: str) -> int:
+        """Get the header level of a text line.
+
+        Args:
+            text: Text line to check
+
+        Returns:
+            Header level (1-6) or 0 if not a header
+        """
+        if not text.startswith('#'):
+            return 0
+        
+        # Count consecutive # characters
+        level = 0
+        for char in text:
+            if char == '#':
+                level += 1
+            elif char == ' ':
+                break
+            else:
+                return 0  # Not a valid header
+        
+        return level if level <= 6 else 0
+
+    def _create_chunk_with_level(self, text: str, header: str, header_level: int, position: int) -> MarkdownChunk:
+        """Create a chunk from text with specific header level.
 
         Args:
             text: Chunk text
-            header: Section header path
-            header_level: Header level
+            header: Section header
+            header_level: Actual header level of this chunk
             position: Position in document
 
         Returns:

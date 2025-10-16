@@ -66,12 +66,13 @@ Synonym-based query expansion for better BM25 keyword matching:
 - Case-insensitive matching with word boundary detection
 
 ### Document Chunker ([chunker.py](chunker.py))
-Semantic chunking strategy (hierarchical splitting):
-- **Recursively splits at all header levels** (#, ##, ###, ####) if present
-- Creates hierarchical header paths (e.g., "Section > Subsection > Detail")
-- Keeps whole document only if no headers AND within token limit
+Semantic chunking strategy (configurable multi-level splitting):
+- **Splits at multiple header levels** from ## up to configured maximum (e.g., ## and ### for level 3)
+- Configurable via `MARKDOWN_CHUNK_HEADER_LEVEL` constant (2-4)
+- Creates simple header names (e.g., "Subsection A1")
+- Keeps whole document only if no headers at target levels
 - **No overlap** between chunks (clean semantic boundaries)
-- Metadata: header path, position, token count, header level (1-4)
+- Metadata: header name, position, token count, actual header level (2-4)
 
 ### Ingestor ([ingestor.py](ingestor.py))
 Ingestion pipeline for rule documents:
@@ -195,16 +196,21 @@ python -m src.cli rag-test -n 10
 
 ### Modifying Chunking Strategy
 
-Current strategy: **Recursive hierarchical splitting at all header levels**
-- Recursively splits at all markdown headers (#, ##, ###, ####)
-- Creates hierarchical header paths for context (e.g., "Phase > Action > Detail")
-- Keeps whole document only if no headers AND ≤ embedding model token limit (8191 for current models)
+Current strategy: **Multi-level header splitting**
+- Splits at all header levels from ## up to configured maximum
+- Configured via `MARKDOWN_CHUNK_HEADER_LEVEL` in [src/lib/constants.py](../../lib/constants.py)
+- Level 2: chunks at ## only
+- Level 3: chunks at ## and ### 
+- Level 4: chunks at ##, ###, and ####
+- Creates simple header names (no hierarchical paths)
+- Keeps whole document only if no headers at target levels
 - No overlap (clean semantic boundaries)
 
 **To adjust chunking behavior**:
-- The max tokens for chunking is automatically determined by the embedding model's token limit
-- To change the embedding model, update `EMBEDDING_MODEL` in [src/lib/constants.py](../../lib/constants.py)
-- To add support for new models, update `get_embedding_token_limit()` and `get_embedding_dimensions()` in [src/lib/tokens.py](../../lib/tokens.py)
+- Change `MARKDOWN_CHUNK_HEADER_LEVEL` in [src/lib/constants.py](../../lib/constants.py)
+- Valid values: 2, 3, or 4
+- Higher values create smaller, more granular chunks
+- Lower values create larger, more contextual chunks
 
 **To change chunking logic**: Edit [chunker.py](chunker.py) `chunk()` method
 
