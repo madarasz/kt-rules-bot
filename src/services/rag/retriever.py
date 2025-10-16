@@ -12,6 +12,7 @@ from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.vector_db import VectorDBService
 from src.services.rag.hybrid_retriever import HybridRetriever
 from src.services.rag.keyword_extractor import KeywordExtractor
+from src.services.rag.query_expander import QueryExpander
 from src.lib.constants import (
     RAG_MAX_CHUNKS,
     RAG_MIN_RELEVANCE,
@@ -19,6 +20,8 @@ from src.lib.constants import (
     BM25_K1,
     BM25_B,
     RAG_ENABLE_QUERY_NORMALIZATION,
+    RAG_ENABLE_QUERY_EXPANSION,
+    RAG_SYNONYM_DICT_PATH,
 )
 from src.lib.logging import get_logger
 
@@ -56,6 +59,7 @@ class RAGRetriever:
         embedding_service: EmbeddingService | None = None,
         vector_db_service: VectorDBService | None = None,
         keyword_extractor: KeywordExtractor | None = None,
+        query_expander: QueryExpander | None = None,
         enable_hybrid: bool = True,
         rrf_k: int = RRF_K,
         bm25_k1: float = BM25_K1,
@@ -67,6 +71,7 @@ class RAGRetriever:
             embedding_service: Embedding service (creates if None)
             vector_db_service: Vector DB service (creates if None)
             keyword_extractor: Keyword extractor for query normalization (creates if None)
+            query_expander: Query expander for synonym expansion (creates if None)
             enable_hybrid: Enable hybrid search with BM25 (default: True)
             rrf_k: RRF constant for hybrid fusion (default: 60)
             bm25_k1: BM25 term frequency saturation parameter (default: 1.5)
@@ -75,6 +80,7 @@ class RAGRetriever:
         self.embedding_service = embedding_service or EmbeddingService()
         self.vector_db = vector_db_service or VectorDBService()
         self.keyword_extractor = keyword_extractor or KeywordExtractor()
+        self.query_expander = query_expander or QueryExpander(RAG_SYNONYM_DICT_PATH)
         self.enable_hybrid = enable_hybrid
 
         # Initialize hybrid retriever if enabled
@@ -90,7 +96,8 @@ class RAGRetriever:
             rrf_k=rrf_k,
             bm25_k1=bm25_k1,
             bm25_b=bm25_b,
-            keywords_loaded=self.keyword_extractor.get_keyword_count()
+            keywords_loaded=self.keyword_extractor.get_keyword_count(),
+            synonyms_loaded=self.query_expander.get_stats()["total_synonyms"]
         )
 
     def retrieve(self, request: RetrieveRequest, query_id: UUID) -> RAGContext:
@@ -119,7 +126,15 @@ class RAGRetriever:
             else:
                 normalized_query = request.query
 
-            # Generate query embedding using normalized query
+            # Expand query with synonyms for BM25 (if enabled)
+            # This happens AFTER normalization, and is used only for BM25 keyword search
+            if RAG_ENABLE_QUERY_EXPANSION:
+                expanded_query = self.query_expander.expand_query(normalized_query)
+            else:
+                expanded_query = normalized_query
+
+            # Generate query embedding using normalized query (NOT expanded)
+            # Vector search handles semantic synonyms naturally
             query_embedding = self.embedding_service.embed_text(normalized_query)
 
             logger.debug(
@@ -137,11 +152,11 @@ class RAGRetriever:
             # Convert results to DocumentChunk objects
             chunks = self._results_to_chunks(results, request.min_relevance)
 
-            # Apply hybrid search if enabled (use original query for BM25, not normalized)
-            # BM25 lowercases internally, so normalization isn't needed for keyword search
+            # Apply hybrid search if enabled
+            # Use EXPANDED query for BM25 to catch user-friendly synonyms
             if request.use_hybrid and self.hybrid_retriever and chunks:
                 chunks = self.hybrid_retriever.retrieve_hybrid(
-                    query=request.query,
+                    query=expanded_query,
                     vector_chunks=chunks,
                     top_k=request.max_chunks
                 )

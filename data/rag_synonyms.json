@@ -1,0 +1,157 @@
+{
+  "regain wounds": [
+    "heal",
+    "healing",
+    "healed",
+    "restore health",
+    "restoring health",
+    "recover health",
+    "recovering health",
+    "recover hp",
+    "restore hp",
+    "get health back",
+    "hp regen",
+    "regenerate",
+    "regeneration",
+    "gain health"
+  ],
+  "incapacitated": [
+    "died",
+    "dies",
+    "dead",
+    "killed",
+    "kills",
+    "kill",
+    "destroyed",
+    "destroy",
+    "destroys",
+    "eliminated",
+    "eliminate",
+    "eliminates",
+    "taken out",
+    "removed from play",
+    "slain",
+    "defeated"
+  ],
+  "control range": [
+    "melee range",
+    "in melee",
+    "close combat range",
+    "engagement range"
+  ],
+  "Shoot action": [
+    "shoot",
+    "shoots",
+    "shooting",
+    "fire",
+    "fires",
+    "firing",
+    "ranged attack",
+    "ranged attacks",
+    "gun attack"
+  ],
+  "Fight action": [
+    "fight",
+    "fights",
+    "fighting",
+    "melee attack",
+    "melee attacks",
+    "close combat",
+    "hand to hand",
+    "cqc"
+  ],
+  "Dash action": [
+    "dash",
+    "dashing"
+  ],
+  "Conceal order": [
+    "concealed",
+    "concealing",
+    "hiding"
+  ],
+  "Engage order": [
+    "engaged",
+    "engaging"
+  ],
+  "cover": [
+    "behind terrain"
+  ],
+  "Vantage": [
+    "vantage point",
+    "high ground",
+    "elevated",
+    "elevation",
+    "higher position",
+    "height advantage"
+  ],
+  "valid target": [
+    "can target",
+    "can shoot at",
+    "can attack",
+    "legal target",
+    "allowed to target",
+    "targetable"
+  ],
+  "visible": [
+    "can see",
+    "in sight",
+    "line of sight",
+    "los",
+    "has los"
+  ],
+  "Critical Hit": [
+    "crit",
+    "crits",
+    "critical",
+    "criticals"
+  ],
+  "Normal Hit": [
+    "normal success",
+    "regular hit",
+    "regular success",
+    "standard hit"
+  ],
+  "APL": [
+    "action points",
+    "actions per activation",
+    "number of actions",
+    "action limit"
+  ],
+  "operative": [
+    "model",
+    "models",
+    "unit",
+    "units",
+    "mini",
+    "minis",
+    "miniature",
+    "miniatures",
+    "figure",
+    "figures"
+  ],
+  "turning point": [
+    "round",
+    "rounds",
+    "game round",
+    "turn",
+    "battle round"
+  ],
+  "activation": [
+    "operatives turn",
+    "models turn",
+    "units turn"
+  ],
+  "charge": [
+    "charging",
+    "charges",
+    "assault",
+    "assaulting",
+    "rush into melee"
+  ],
+  "re-roll": [
+    "reroll",
+    "re roll",
+    "roll again",
+    "rerolling"
+  ]
+}
