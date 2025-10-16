@@ -143,45 +143,52 @@ def render_query_browser(db: AnalyticsDatabase):
     # Display queries in individual rows with delete buttons
     for idx, query in enumerate(queries):
         with st.container():
-            col1, col2, col3, col4, col5, col6, col7 = st.columns([2, 3, 1, 1, 1, 1, 1])
-            
+            col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([2, 3, 1, 1, 1, 1, 1, 0.5])
+
             with col1:
                 st.write(f"**{pd.to_datetime(query['timestamp']).strftime('%Y-%m-%d %H:%M')}**")
-            
+
             with col2:
                 preview = query["query_text"][:80] + "..." if len(query["query_text"]) > 80 else query["query_text"]
                 st.write(preview)
-            
+
             with col3:
                 # Admin status with color coding
                 status_color = {
                     "pending": "🟡",
-                    "approved": "🟢", 
+                    "approved": "🟢",
                     "reviewed": "🔵",
                     "issues": "🟠",
                     "flagged": "🔴"
                 }
                 st.write(f"{status_color.get(query['admin_status'], '⚪')} {query['admin_status']}")
-            
+
             with col4:
                 feedback_text = f"{query['upvotes']}👍 / {query['downvotes']}👎"
                 st.write(feedback_text)
-            
+
             with col5:
                 st.write(query["llm_model"])
-            
+
             with col6:
                 conf_score = query.get("confidence_score")
                 if conf_score is not None:
                     st.write(f"{conf_score:.2f}")
                 else:
                     st.write("N/A")
-            
+
             with col7:
+                # View button to navigate to detail
+                if st.button("👁️", key=f"view_{query['query_id']}", help="View details"):
+                    st.session_state["selected_query_id"] = query['query_id']
+                    st.session_state["current_page"] = "🔍 Query Detail"
+                    st.rerun()
+
+            with col8:
                 # Delete button with confirmation
                 delete_key = f"delete_{query['query_id']}"
                 confirm_key = f"confirm_delete_{query['query_id']}"
-                
+
                 if confirm_key in st.session_state and st.session_state[confirm_key]:
                     # Show confirmation buttons
                     col_yes, col_no = st.columns(2)
@@ -203,7 +210,7 @@ def render_query_browser(db: AnalyticsDatabase):
                     if st.button("🗑️", key=delete_key, help="Delete query"):
                         st.session_state[confirm_key] = True
                         st.rerun()
-            
+
             st.divider()
 
     # View details button
@@ -278,8 +285,22 @@ def render_query_detail(db: AnalyticsDatabase):
 
     if chunks:
         for chunk in chunks:
+            # Initialize session state for chunk relevance if needed (for icon display)
+            chunk_rel_key = f"chunk_relevance_{chunk['id']}"
+            if chunk_rel_key not in st.session_state:
+                st.session_state[chunk_rel_key] = chunk['relevant']
+
+            # Determine status icon based on relevance
+            current_rel = st.session_state[chunk_rel_key]
+            if current_rel == 1:
+                status_icon = "✅"
+            elif current_rel == 0:
+                status_icon = "❌"
+            else:
+                status_icon = "⍰"
+
             with st.expander(
-                f"Rank {chunk['rank']}: {chunk['chunk_header'] or 'No header'} "
+                f"{status_icon} Rank {chunk['rank']}: {chunk['chunk_header'] or 'No header'} "
                 f"(Score: {chunk['final_score']:.2f})"
             ):
                 col1, col2 = st.columns([3, 1])
@@ -301,37 +322,52 @@ def render_query_detail(db: AnalyticsDatabase):
                     st.write(f"**RRF:** {chunk['rrf_score']:.3f}" if chunk['rrf_score'] else "N/A")
                     st.write(f"**Final:** {chunk['final_score']:.3f}")
 
-                    # Relevance buttons
-                    st.write("**Relevant?**")
-                    col_a, col_b, col_c = st.columns(3)
-                    with col_a:
-                        if st.button("✓", key=f"rel_yes_{chunk['id']}"):
-                            db.update_chunk_relevance(chunk['id'], True)
-                            st.success("Marked relevant")
-                            st.rerun()
-                    with col_b:
-                        if st.button("✗", key=f"rel_no_{chunk['id']}"):
-                            db.update_chunk_relevance(chunk['id'], False)
-                            st.success("Marked not relevant")
-                            st.rerun()
-                    with col_c:
-                        if st.button("?", key=f"rel_none_{chunk['id']}"):
-                            db.update_chunk_relevance(chunk['id'], None)
-                            st.success("Cleared relevance")
-                            st.rerun()
-
-                    # Show current relevance
-                    if chunk['relevant'] == 1:
+                    # Show current relevance status first (already initialized above)
+                    current_rel = st.session_state[chunk_rel_key]
+                    st.write("**Status:**")
+                    if current_rel == 1:
                         st.success("✓ Relevant")
-                    elif chunk['relevant'] == 0:
+                    elif current_rel == 0:
                         st.error("✗ Not relevant")
                     else:
                         st.info("? Not reviewed")
+
+                    # Relevance buttons - use unique keys per chunk
+                    st.write("**Mark as:**")
+                    col_a, col_b, col_c = st.columns(3)
+
+                    # Check which button was clicked in this render cycle
+                    button_clicked_key = f"chunk_button_clicked_{chunk['id']}"
+
+                    with col_a:
+                        if st.button("✓", key=f"rel_yes_{chunk['id']}", help="Mark as relevant", type="primary" if current_rel == 1 else "secondary"):
+                            db.update_chunk_relevance(chunk['id'], True)
+                            st.session_state[chunk_rel_key] = 1
+                            st.session_state[button_clicked_key] = True
+                            st.rerun()
+                    with col_b:
+                        if st.button("✗", key=f"rel_no_{chunk['id']}", help="Mark as not relevant", type="primary" if current_rel == 0 else "secondary"):
+                            db.update_chunk_relevance(chunk['id'], False)
+                            st.session_state[chunk_rel_key] = 0
+                            st.session_state[button_clicked_key] = True
+                            st.rerun()
+                    with col_c:
+                        if st.button("?", key=f"rel_none_{chunk['id']}", help="Clear relevance", type="primary" if current_rel is None else "secondary"):
+                            db.update_chunk_relevance(chunk['id'], None)
+                            st.session_state[chunk_rel_key] = None
+                            st.session_state[button_clicked_key] = True
+                            st.rerun()
     else:
         st.info("No chunks retrieved for this query.")
 
     # Admin controls
     st.subheader("🗒️ Admin Controls")
+
+    # Initialize session state for admin fields if not present
+    if f"admin_status_{query_id}" not in st.session_state:
+        st.session_state[f"admin_status_{query_id}"] = query["admin_status"]
+    if f"admin_notes_{query_id}" not in st.session_state:
+        st.session_state[f"admin_notes_{query_id}"] = query["admin_notes"] or ""
 
     col1, col2 = st.columns(2)
 
@@ -339,24 +375,48 @@ def render_query_detail(db: AnalyticsDatabase):
         new_status = st.selectbox(
             "Admin Status",
             ["pending", "approved", "reviewed", "issues", "flagged"],
-            index=["pending", "approved", "reviewed", "issues", "flagged"].index(query["admin_status"]),
+            index=["pending", "approved", "reviewed", "issues", "flagged"].index(
+                st.session_state[f"admin_status_{query_id}"]
+            ),
+            key=f"status_select_{query_id}",
         )
+        # Update session state when selectbox changes
+        st.session_state[f"admin_status_{query_id}"] = new_status
 
     with col2:
         new_notes = st.text_area(
             "Admin Notes",
-            value=query["admin_notes"] or "",
+            value=st.session_state[f"admin_notes_{query_id}"],
             height=100,
+            key=f"notes_area_{query_id}",
         )
+        # Update session state when text area changes
+        st.session_state[f"admin_notes_{query_id}"] = new_notes
 
-    if st.button("💾 Save Changes"):
-        db.update_query_admin_fields(
-            query_id=query_id,
-            admin_status=new_status,
-            admin_notes=new_notes,
-        )
-        st.success("Changes saved!")
-        st.rerun()
+    # Show save button if there are changes
+    has_changes = (
+        new_status != query["admin_status"]
+        or new_notes != (query["admin_notes"] or "")
+    )
+
+    col_save, col_reset = st.columns([1, 4])
+    with col_save:
+        if st.button("💾 Save Changes", type="primary", disabled=not has_changes):
+            db.update_query_admin_fields(
+                query_id=query_id,
+                admin_status=new_status,
+                admin_notes=new_notes,
+            )
+            # Update the session state to reflect saved values
+            st.session_state[f"admin_status_{query_id}"] = new_status
+            st.session_state[f"admin_notes_{query_id}"] = new_notes
+            st.success("✅ Changes saved successfully!")
+            # Force reload of query data by removing session state for this query
+            # (this will refresh the query on next rerun)
+            # Don't navigate away, just show success message
+
+    if has_changes:
+        st.info("💡 You have unsaved changes. Click 'Save Changes' to persist them.")
 
 
 def render_analytics(db: AnalyticsDatabase):
@@ -573,17 +633,23 @@ def main():
     st.sidebar.title("🤖 Kill Team Bot")
     st.sidebar.write("Admin Dashboard")
 
-    # Check if page navigation was triggered programmatically
-    if "current_page" in st.session_state:
-        page = st.session_state["current_page"]
-        # Clear the programmatic navigation after using it
-        del st.session_state["current_page"]
-    else:
-        page = st.sidebar.radio(
-            "Navigation",
-            ["📋 Query Browser", "🔍 Query Detail", "📊 Analytics", "⚙️ Settings"],
-            key="page_selector",
-        )
+    # Initialize current_page in session state if not present
+    if "current_page" not in st.session_state:
+        st.session_state["current_page"] = "📋 Query Browser"
+
+    # Use sidebar buttons instead of radio to have better control
+    st.sidebar.write("**Navigation**")
+
+    pages = ["📋 Query Browser", "🔍 Query Detail", "📊 Analytics", "⚙️ Settings"]
+
+    for page_option in pages:
+        # Highlight current page
+        button_type = "primary" if st.session_state["current_page"] == page_option else "secondary"
+        if st.sidebar.button(page_option, key=f"nav_{page_option}", type=button_type, use_container_width=True):
+            st.session_state["current_page"] = page_option
+            st.rerun()
+
+    page = st.session_state["current_page"]
 
     # Render selected page
     if page == "📋 Query Browser":

@@ -19,13 +19,12 @@ requirements:
   - check: Correct identification of roles
     type: llm
     description: >
-      The operative with the blast weapon is the shooter, the target within 2" is the primary target,
+      My operative with the blast weapon is the shooter, the target within 2" is the primary target,
       and other operatives visible within 2" of the primary target are secondary targets. My operative
       is trying to avoid being a secondary target.
     points: 10
   - check: Reasoning clarity
     type: llm
     description: >
-      The reasoning is clear and easy to follow. The explanation states that
-      not being visible to primary target allows the operative to avoid being hit by the blast.
+      The explanation states that not being visible to primary target allows my operative to avoid being hit by the blast.
     points: 10
