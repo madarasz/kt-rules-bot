@@ -41,30 +41,31 @@ class RAGEvaluator:
         retrieved_scores = [chunk.relevance_score for chunk in retrieved_chunks]
         retrieved_metadata = [chunk.metadata for chunk in retrieved_chunks]
 
-        # Convert to sets for matching (case-insensitive)
-        required_set = {h.strip().lower() for h in test_case.required_chunks}
-        retrieved_set = {h.strip().lower() for h in retrieved_headers}
-
         # Find which required chunks were found
+        # Use SUBSTRING matching: required chunk text must be CONTAINED in retrieved header (case-insensitive)
         found = []
         missing = []
         ranks_of_required = []
 
         for req_chunk in test_case.required_chunks:
             req_lower = req_chunk.strip().lower()
-            if req_lower in retrieved_set:
-                found.append(req_chunk)
-                # Find rank (1-indexed)
-                for i, retr_header in enumerate(retrieved_headers, start=1):
-                    if retr_header.strip().lower() == req_lower:
-                        ranks_of_required.append(i)
-                        break
-            else:
+            found_match = False
+
+            # Check if required chunk is contained in any retrieved header
+            for i, retr_header in enumerate(retrieved_headers, start=1):
+                if req_lower in retr_header.strip().lower():
+                    found.append(req_chunk)
+                    ranks_of_required.append(i)
+                    found_match = True
+                    break  # Only count first match
+
+            if not found_match:
                 missing.append(req_chunk)
 
         # Calculate metrics
         map_score = self._calculate_map(ranks_of_required, len(test_case.required_chunks))
         recall_at_5 = self._calculate_recall_at_k(ranks_of_required, len(test_case.required_chunks), k=5)
+        recall_at_all = self._calculate_recall_at_all(len(found), len(test_case.required_chunks))
         recall_at_10 = self._calculate_recall_at_k(ranks_of_required, len(test_case.required_chunks), k=10)
         precision_at_3 = self._calculate_precision_at_k(ranks_of_required, k=3)
         precision_at_5 = self._calculate_precision_at_k(ranks_of_required, k=5)
@@ -80,6 +81,7 @@ class RAGEvaluator:
             retrieved_chunk_metadata=retrieved_metadata,
             map_score=map_score,
             recall_at_5=recall_at_5,
+            recall_at_all=recall_at_all,
             recall_at_10=recall_at_10,
             precision_at_3=precision_at_3,
             precision_at_5=precision_at_5,
@@ -146,6 +148,23 @@ class RAGEvaluator:
         relevant_in_top_k = sum(1 for rank in ranks if rank <= k)
 
         return relevant_in_top_k / total_relevant
+
+    def _calculate_recall_at_all(self, found_count: int, total_relevant: int) -> float:
+        """Calculate Recall@All (percentage of required chunks found, regardless of position).
+
+        Recall@All = (# of relevant docs found) / (total relevant docs)
+
+        Args:
+            found_count: Number of required chunks that were found
+            total_relevant: Total number of relevant documents
+
+        Returns:
+            Recall@All score (0-1)
+        """
+        if total_relevant == 0:
+            return 0.0
+
+        return found_count / total_relevant
 
     def _calculate_precision_at_k(self, ranks: List[int], k: int) -> float:
         """Calculate Precision@k.

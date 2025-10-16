@@ -152,6 +152,7 @@ class RAGTestRunner:
             run=run_number,
             map=f"{result.map_score:.3f}",
             recall_at_5=f"{result.recall_at_5:.3f}",
+            recall_at_all=f"{result.recall_at_all:.3f}",
             precision_at_3=f"{result.precision_at_3:.3f}",
             duration=f"{retrieval_time:.2f}s",
             cost=f"${embedding_cost:.6f}",
@@ -219,6 +220,7 @@ class RAGTestRunner:
                 total_tests=0,
                 mean_map=0.0,
                 mean_recall_at_5=0.0,
+                mean_recall_at_all=0.0,
                 mean_recall_at_10=0.0,
                 mean_precision_at_3=0.0,
                 mean_precision_at_5=0.0,
@@ -243,6 +245,7 @@ class RAGTestRunner:
         test_case_means = {
             'map': [],
             'recall_5': [],
+            'recall_all': [],
             'recall_10': [],
             'prec_3': [],
             'prec_5': [],
@@ -251,6 +254,7 @@ class RAGTestRunner:
         test_case_stds = {
             'map': [],
             'recall_5': [],
+            'recall_all': [],
             'prec_3': [],
         }
 
@@ -258,6 +262,7 @@ class RAGTestRunner:
             # Calculate mean for this test case across all runs
             test_case_means['map'].append(sum(r.map_score for r in test_results) / len(test_results))
             test_case_means['recall_5'].append(sum(r.recall_at_5 for r in test_results) / len(test_results))
+            test_case_means['recall_all'].append(sum(r.recall_at_all for r in test_results) / len(test_results))
             test_case_means['recall_10'].append(sum(r.recall_at_10 for r in test_results) / len(test_results))
             test_case_means['prec_3'].append(sum(r.precision_at_3 for r in test_results) / len(test_results))
             test_case_means['prec_5'].append(sum(r.precision_at_5 for r in test_results) / len(test_results))
@@ -267,15 +272,18 @@ class RAGTestRunner:
             if len(test_results) > 1:
                 test_case_stds['map'].append(statistics.stdev([r.map_score for r in test_results]))
                 test_case_stds['recall_5'].append(statistics.stdev([r.recall_at_5 for r in test_results]))
+                test_case_stds['recall_all'].append(statistics.stdev([r.recall_at_all for r in test_results]))
                 test_case_stds['prec_3'].append(statistics.stdev([r.precision_at_3 for r in test_results]))
             else:
                 test_case_stds['map'].append(0.0)
                 test_case_stds['recall_5'].append(0.0)
+                test_case_stds['recall_all'].append(0.0)
                 test_case_stds['prec_3'].append(0.0)
 
         # Overall means (average of per-test-case means)
         mean_map = sum(test_case_means['map']) / len(test_case_means['map'])
         mean_recall_5 = sum(test_case_means['recall_5']) / len(test_case_means['recall_5'])
+        mean_recall_all = sum(test_case_means['recall_all']) / len(test_case_means['recall_all'])
         mean_recall_10 = sum(test_case_means['recall_10']) / len(test_case_means['recall_10'])
         mean_prec_3 = sum(test_case_means['prec_3']) / len(test_case_means['prec_3'])
         mean_prec_5 = sum(test_case_means['prec_5']) / len(test_case_means['prec_5'])
@@ -285,6 +293,7 @@ class RAGTestRunner:
         # This represents the typical variance across runs for a single test case
         std_map = sum(test_case_stds['map']) / len(test_case_stds['map'])
         std_recall_5 = sum(test_case_stds['recall_5']) / len(test_case_stds['recall_5'])
+        std_recall_all = sum(test_case_stds['recall_all']) / len(test_case_stds['recall_all'])
         std_prec_3 = sum(test_case_stds['prec_3']) / len(test_case_stds['prec_3'])
 
         # Calculate performance metrics
@@ -302,12 +311,14 @@ class RAGTestRunner:
             total_tests=len(results),
             mean_map=mean_map,
             mean_recall_at_5=mean_recall_5,
+            mean_recall_at_all=mean_recall_all,
             mean_recall_at_10=mean_recall_10,
             mean_precision_at_3=mean_prec_3,
             mean_precision_at_5=mean_prec_5,
             mean_mrr=mean_mrr,
             std_dev_map=std_map,
             std_dev_recall_at_5=std_recall_5,
+            std_dev_recall_at_all=std_recall_all,
             std_dev_precision_at_3=std_prec_3,
             total_time_seconds=total_time_seconds,
             avg_retrieval_time_seconds=avg_retrieval_time,

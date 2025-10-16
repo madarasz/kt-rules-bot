@@ -76,6 +76,7 @@ def rag_test(
         print(f"Total Tests: {summary.total_tests}")
         print(f"Mean MAP: {summary.mean_map:.3f}")
         print(f"Recall@5: {summary.mean_recall_at_5:.3f} ({summary.mean_recall_at_5*100:.1f}%)")
+        print(f"Recall@All: {summary.mean_recall_at_all:.3f} ({summary.mean_recall_at_all*100:.1f}%)")
         print(f"Precision@3: {summary.mean_precision_at_3:.3f} ({summary.mean_precision_at_3*100:.1f}%)")
         #print(f"MRR: {summary.mean_mrr:.3f}")
 
@@ -83,6 +84,7 @@ def rag_test(
             print("")
             print(f"MAP std dev: ±{summary.std_dev_map:.3f}")
             print(f"Recall@5 std dev: ±{summary.std_dev_recall_at_5:.3f}")
+            print(f"Recall@All std dev: ±{summary.std_dev_recall_at_all:.3f}")
 
         print("")
         print("=" * 80)

@@ -41,7 +41,7 @@ python -m src.cli rag-test-sweep --grid \
 Verifies RAG retrieval quality using standard Information Retrieval metrics:
 - **Mean Average Precision (MAP)**: Overall retrieval quality across all test queries
 - **Recall@5**: % of required chunks found in top 5 results
-- **Recall@10**: % of required chunks found in top 10 results
+- **Recall@All**: % of required chunks found, regardless of position (total coverage)
 - **Precision@3**: % of top 3 retrieved chunks that are relevant
 - **Precision@5**: % of top 5 retrieved chunks that are relevant
 - **MRR (Mean Reciprocal Rank)**: Average 1/rank of first required chunk
@@ -89,7 +89,13 @@ required_chunks:
 
 **Recall@k**:
 - What % of required chunks appear in top-k results
-- Recall@5 and Recall@10 recommended (matches typical RAG_MAX_CHUNKS)
+- Recall@5 and Recall@All recommended (matches typical RAG_MAX_CHUNKS)
+- Range: 0-1 (higher is better)
+
+**Recall@All**:
+- What % of required chunks were found, regardless of rank position
+- Measures total coverage: did we find the chunks at all?
+- Useful for debugging when Recall@5 is low but chunks exist further down
 - Range: 0-1 (higher is better)
 
 **Precision@k**:
@@ -304,7 +310,7 @@ Each test run generates:
 ### Main Report (`report.md`)
 - **Overall Metrics**:
   - Mean MAP across all tests
-  - Average Recall@5, Recall@10
+  - Average Recall@5, Recall@All
   - Average Precision@3, Precision@5
   - Average MRR
 
@@ -335,7 +341,7 @@ Each test run generates:
 
 ### Charts
 - MAP comparison across tests
-- Recall@5 and Recall@10 per test
+- Recall@5 and Recall@All per test
 - Precision@3 and Precision@5 per test
 - MRR distribution
 - Multi-run consistency plots

@@ -89,7 +89,7 @@
   ],
   "valid target": [
     "can target",
-    "can shoot at",
+    "can shoot",
     "can attack",
     "legal target",
     "allowed to target",

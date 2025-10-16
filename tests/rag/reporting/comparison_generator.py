@@ -144,12 +144,14 @@ class ComparisonGenerator:
                 param_name,
                 'mean_map',
                 'mean_recall_at_5',
+                'mean_recall_at_all',
                 'mean_recall_at_10',
                 'mean_precision_at_3',
                 'mean_precision_at_5',
                 'mean_mrr',
                 'std_dev_map',
                 'std_dev_recall_at_5',
+                'std_dev_recall_at_all',
                 'std_dev_precision_at_3',
                 'total_time_seconds',
                 'avg_retrieval_time_seconds',
@@ -165,12 +167,14 @@ class ComparisonGenerator:
                     param_name: param_value,
                     'mean_map': result.summary.mean_map,
                     'mean_recall_at_5': result.summary.mean_recall_at_5,
+                    'mean_recall_at_all': result.summary.mean_recall_at_all,
                     'mean_recall_at_10': result.summary.mean_recall_at_10,
                     'mean_precision_at_3': result.summary.mean_precision_at_3,
                     'mean_precision_at_5': result.summary.mean_precision_at_5,
                     'mean_mrr': result.summary.mean_mrr,
                     'std_dev_map': result.summary.std_dev_map,
                     'std_dev_recall_at_5': result.summary.std_dev_recall_at_5,
+                    'std_dev_recall_at_all': result.summary.std_dev_recall_at_all,
                     'std_dev_precision_at_3': result.summary.std_dev_precision_at_3,
                     'total_time_seconds': result.summary.total_time_seconds,
                     'avg_retrieval_time_seconds': result.summary.avg_retrieval_time_seconds,
@@ -192,6 +196,7 @@ class ComparisonGenerator:
             fieldnames = param_names + [
                 'mean_map',
                 'mean_recall_at_5',
+                'mean_recall_at_all',
                 'mean_recall_at_10',
                 'mean_precision_at_3',
                 'mean_precision_at_5',
@@ -211,6 +216,7 @@ class ComparisonGenerator:
                 row.update({
                     'mean_map': result.summary.mean_map,
                     'mean_recall_at_5': result.summary.mean_recall_at_5,
+                    'mean_recall_at_all': result.summary.mean_recall_at_all,
                     'mean_recall_at_10': result.summary.mean_recall_at_10,
                     'mean_precision_at_3': result.summary.mean_precision_at_3,
                     'mean_precision_at_5': result.summary.mean_precision_at_5,
@@ -259,6 +265,22 @@ class ComparisonGenerator:
             title=f'Recall@5 vs {param_name}',
             output_path=charts_dir / 'recall5_comparison.png',
             y_errors=recall5_errors,
+            y_min=0.0,
+            y_max=1.0,
+        )
+
+        # Recall@All
+        recall_all_values = [r.summary.mean_recall_at_all for r in sweep_results]
+        recall_all_errors = [r.summary.std_dev_recall_at_all for r in sweep_results] if sweep_results[0].summary.std_dev_recall_at_all > 0 else None
+
+        create_line_chart(
+            x_values=param_values,
+            y_values=recall_all_values,
+            x_label=param_name,
+            y_label='Recall@All',
+            title=f'Recall@All vs {param_name}',
+            output_path=charts_dir / 'recall_all_comparison.png',
+            y_errors=recall_all_errors,
             y_min=0.0,
             y_max=1.0,
         )
@@ -332,6 +354,7 @@ class ComparisonGenerator:
         values_dict = {
             'MAP': [r.summary.mean_map for r in sweep_results],
             'Recall@5': [r.summary.mean_recall_at_5 for r in sweep_results],
+            'Recall@All': [r.summary.mean_recall_at_all for r in sweep_results],
             'Precision@3': [r.summary.mean_precision_at_3 for r in sweep_results],
             'MRR': [r.summary.mean_mrr for r in sweep_results],
         }
@@ -363,6 +386,7 @@ class ComparisonGenerator:
         metrics = {
             'map': ('MAP Score', 'map_heatmap.png'),
             'recall_at_5': ('Recall@5', 'recall5_heatmap.png'),
+            'recall_at_all': ('Recall@All', 'recall_all_heatmap.png'),
             'precision_at_3': ('Precision@3', 'precision3_heatmap.png'),
             'mrr': ('MRR', 'mrr_heatmap.png'),
         }
@@ -430,14 +454,14 @@ class ComparisonGenerator:
         # Summary table
         content.append("## Summary Table")
         content.append("")
-        content.append(f"| {param_name} | MAP | Recall@5 | Precision@3 | MRR | Avg Time (s) |")
-        content.append("|" + "-" * 12 + "|" + "-" * 7 + "|" + "-" * 11 + "|" + "-" * 14 + "|" + "-" * 7 + "|" + "-" * 14 + "|")
+        content.append(f"| {param_name} | MAP | Recall@5 | Recall@All | Precision@3 | MRR | Avg Time (s) |")
+        content.append("|" + "-" * 12 + "|" + "-" * 7 + "|" + "-" * 11 + "|" + "-" * 13 + "|" + "-" * 14 + "|" + "-" * 7 + "|" + "-" * 14 + "|")
 
         for param_val, result in zip(param_values, sweep_results):
             s = result.summary
             content.append(
                 f"| {param_val} | {s.mean_map:.3f} | {s.mean_recall_at_5:.3f} | "
-                f"{s.mean_precision_at_3:.3f} | {s.mean_mrr:.3f} | "
+                f"{s.mean_recall_at_all:.3f} | {s.mean_precision_at_3:.3f} | {s.mean_mrr:.3f} | "
                 f"{s.avg_retrieval_time_seconds:.3f} |"
             )
 
@@ -453,6 +477,7 @@ class ComparisonGenerator:
         content.append(f"**{param_name}**: {best_param_val}")
         content.append(f"- MAP: {best_result.summary.mean_map:.3f}")
         content.append(f"- Recall@5: {best_result.summary.mean_recall_at_5:.3f}")
+        content.append(f"- Recall@All: {best_result.summary.mean_recall_at_all:.3f}")
         content.append(f"- Precision@3: {best_result.summary.mean_precision_at_3:.3f}")
         content.append(f"- MRR: {best_result.summary.mean_mrr:.3f}")
         content.append("")
@@ -465,6 +490,9 @@ class ComparisonGenerator:
         content.append("")
         content.append("### Recall@5 Comparison")
         content.append(f"![Recall@5 vs {param_name}](charts/recall5_comparison.png)")
+        content.append("")
+        content.append("### Recall@All Comparison")
+        content.append(f"![Recall@All vs {param_name}](charts/recall_all_comparison.png)")
         content.append("")
         content.append("### Precision@3 Comparison")
         content.append(f"![Precision@3 vs {param_name}](charts/precision3_comparison.png)")
@@ -480,7 +508,8 @@ class ComparisonGenerator:
         content.append("")
         content.append("Consider the following trade-offs:")
         content.append("- **MAP**: Overall retrieval quality")
-        content.append("- **Recall@5**: Ensures all required chunks are found")
+        content.append("- **Recall@5**: Ensures all required chunks are found in top 5 results")
+        content.append("- **Recall@All**: Percentage of required chunks found regardless of position")
         content.append("- **Precision@3**: Reduces noise in top results")
         content.append("")
 
@@ -535,6 +564,7 @@ class ComparisonGenerator:
         content.append(f"**Results**:")
         content.append(f"- MAP: {best_result.summary.mean_map:.3f}")
         content.append(f"- Recall@5: {best_result.summary.mean_recall_at_5:.3f}")
+        content.append(f"- Recall@All: {best_result.summary.mean_recall_at_all:.3f}")
         content.append(f"- Precision@3: {best_result.summary.mean_precision_at_3:.3f}")
         content.append(f"- MRR: {best_result.summary.mean_mrr:.3f}")
         content.append("")
@@ -549,12 +579,15 @@ class ComparisonGenerator:
             content.append("### Recall@5 Heatmap")
             content.append("![Recall@5 Heatmap](charts/recall5_heatmap.png)")
             content.append("")
+            content.append("### Recall@All Heatmap")
+            content.append("![Recall@All Heatmap](charts/recall_all_heatmap.png)")
+            content.append("")
 
         # Full results table
         content.append("## All Configurations")
         content.append("")
-        header = "| " + " | ".join(param_names) + " | MAP | Recall@5 | Precision@3 | MRR |"
-        separator = "|" + "|".join(["-" * 12 for _ in range(len(param_names) + 4)]) + "|"
+        header = "| " + " | ".join(param_names) + " | MAP | Recall@5 | Recall@All | Precision@3 | MRR |"
+        separator = "|" + "|".join(["-" * 12 for _ in range(len(param_names) + 5)]) + "|"
         content.append(header)
         content.append(separator)
 
@@ -564,7 +597,7 @@ class ComparisonGenerator:
                 row += f"{getattr(result.config, param_name)} | "
             row += (
                 f"{result.summary.mean_map:.3f} | {result.summary.mean_recall_at_5:.3f} | "
-                f"{result.summary.mean_precision_at_3:.3f} | {result.summary.mean_mrr:.3f} |"
+                f"{result.summary.mean_recall_at_all:.3f} | {result.summary.mean_precision_at_3:.3f} | {result.summary.mean_mrr:.3f} |"
             )
             content.append(row)
 

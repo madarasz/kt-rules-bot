@@ -82,7 +82,8 @@ def create_parser() -> argparse.ArgumentParser:
         help="Query text to test",
     )
     query_parser.add_argument(
-        "--provider",
+        "--model",
+        "-m",
         choices=[
             "claude-sonnet",
             "claude-opus",
@@ -104,6 +105,11 @@ def create_parser() -> argparse.ArgumentParser:
         type=int,
         default=5,
         help="Maximum RAG chunks to retrieve (default: 5)",
+    )
+    query_parser.add_argument(
+        "--rag-only",
+        action="store_true",
+        help="Stop after RAG retrieval, do not call LLM",
     )
 
     # Command: health
@@ -340,8 +346,9 @@ def main():
         elif args.command == "query":
             test_query(
                 query=args.query,
-                provider=args.provider,
+                model=args.model,
                 max_chunks=args.max_chunks,
+                rag_only=args.rag_only,
             )
 
         elif args.command == "health":

@@ -1,7 +1,6 @@
-"""Markdown chunking service with lazy splitting strategy.
+"""Markdown chunking service with hierarchical header splitting.
 
-Only splits documents when they exceed the embedding model's token limit (8192).
-Based on specs/001-we-are-building/research.md Decision 2a.
+Splits documents at all markdown headers (#, ##, ###, ####).
 """
 
 import re
@@ -19,14 +18,14 @@ class MarkdownChunk:
 
     chunk_id: UUID
     text: str
-    header: str  # Section header (e.g., "Movement Phase")
-    header_level: int  # 0 for whole doc, 2 for ##, 3 for ###
+    header: str  # Section header path (e.g., "Movement Phase > Declare Actions")
+    header_level: int  # 0 for whole doc, 1-4 for #-####
     position: int  # Position in original document
     token_count: int
 
 
 class MarkdownChunker:
-    """Chunks markdown documents using lazy splitting strategy."""
+    """Chunks markdown documents at header boundaries (#, ##, ###, ####)."""
 
     def __init__(self, max_tokens: int | None = None, model: str = "gpt-3.5-turbo"):
         """Initialize chunker.
@@ -39,14 +38,12 @@ class MarkdownChunker:
         self.model = model
 
     def chunk(self, content: str) -> List[MarkdownChunk]:
-        """Chunk markdown content using semantic splitting strategy.
+        """Chunk markdown content at all header levels (#, ##, ###, ####).
 
         Strategy:
-        1. ALWAYS split at ## headers if document has structured sections
-        2. This creates focused semantic chunks even for small documents
-        3. If single ## section > max_tokens, split at ### boundaries
-        4. Only keep whole document if no ## headers AND ≤ max_tokens
-        5. No overlap between chunks
+        1. Split recursively at each header level (# -> ## -> ### -> ####)
+        2. Keep whole document only if no headers AND within token limit
+        3. No overlap between chunks (clean semantic boundaries)
 
         Args:
             content: Markdown content
@@ -54,18 +51,12 @@ class MarkdownChunker:
         Returns:
             List of MarkdownChunk objects
         """
-        # Check if document has ## header structure
-        has_h2_headers = bool(re.search(r"^## ", content, flags=re.MULTILINE))
+        # Try to find any headers (starting from #)
+        has_headers = bool(re.search(r"^#{1,4} ", content, flags=re.MULTILINE))
 
-        # ALWAYS split at ## headers if they exist (better semantic granularity)
-        if has_h2_headers:
-            return self._split_at_headers(content)
-
-        # Count tokens for entire document (no headers found)
-        total_tokens = count_tokens(content, model=self.model)
-
-        # Keep whole document only if no structure AND within limit
-        if total_tokens <= self.max_tokens:
+        if not has_headers:
+            # No headers: return whole document if within limit
+            total_tokens = count_tokens(content, model=self.model)
             return [
                 MarkdownChunk(
                     chunk_id=uuid4(),
@@ -77,48 +68,62 @@ class MarkdownChunker:
                 )
             ]
 
-        # Document too large without headers: emergency split at ### or paragraphs
-        return self._split_at_headers(content)
+        # Split at headers recursively, starting at level 1 (#)
+        return self._split_at_header_level(content, level=1, parent_header="", base_position=0)
 
-    def _split_at_headers(self, content: str) -> List[MarkdownChunk]:
-        """Split content at ## header boundaries.
+    def _split_at_header_level(
+        self, content: str, level: int, parent_header: str, base_position: int
+    ) -> List[MarkdownChunk]:
+        """Recursively split content at specific header level.
 
         Args:
             content: Markdown content
+            level: Header level to split at (1-4 for #-####)
+            parent_header: Parent header path
+            base_position: Base position in document
 
         Returns:
             List of chunks
         """
+        if level > 4:
+            # No more header levels to split at
+            return [self._create_leaf_chunk(content, parent_header, level - 1, base_position)]
+
+        # Create regex pattern for current header level
+        header_pattern = rf"(^{'#' * level} .+$)"
+
+        # Check if content has headers at this level
+        if not re.search(header_pattern, content, flags=re.MULTILINE):
+            # No headers at this level, try next level down
+            return self._split_at_header_level(content, level + 1, parent_header, base_position)
+
+        # Split at this header level
+        sections = re.split(header_pattern, content, flags=re.MULTILINE)
+
         chunks: List[MarkdownChunk] = []
-
-        # Split at ## headers (H2)
-        # Pattern captures the header line and everything until the next ## or end
-        sections = re.split(r"(^## .+$)", content, flags=re.MULTILINE)
-
-        current_header = ""
+        current_header = parent_header
         current_text = ""
         position = 0
 
-        for i, section in enumerate(sections):
+        for section in sections:
             section = section.strip()
             if not section:
                 continue
 
-            # Check if this is a header line
-            if section.startswith("## "):
+            # Check if this is a header line at current level
+            if section.startswith('#' * level + ' ') and not section.startswith('#' * (level + 1)):
                 # Save previous section if exists
                 if current_text:
-                    chunk = self._create_chunk_with_subsplit(
-                        current_text, current_header, 2, position
+                    # Recursively split at next header level
+                    sub_chunks = self._split_at_header_level(
+                        current_text, level + 1, current_header, base_position + position
                     )
-                    if isinstance(chunk, list):
-                        chunks.extend(chunk)
-                    else:
-                        chunks.append(chunk)
+                    chunks.extend(sub_chunks)
                     position += 1
 
                 # Start new section
-                current_header = section[3:].strip()  # Remove "## "
+                header_text = section[level + 1:].strip()  # Remove "# " prefix
+                current_header = f"{parent_header} > {header_text}" if parent_header else header_text
                 current_text = section + "\n"
             else:
                 # Add content to current section
@@ -126,110 +131,36 @@ class MarkdownChunker:
 
         # Don't forget last section
         if current_text:
-            chunk = self._create_chunk_with_subsplit(
-                current_text, current_header, 2, position
+            sub_chunks = self._split_at_header_level(
+                current_text, level + 1, current_header, base_position + position
             )
-            if isinstance(chunk, list):
-                chunks.extend(chunk)
-            else:
-                chunks.append(chunk)
+            chunks.extend(sub_chunks)
 
         return chunks
 
-    def _create_chunk_with_subsplit(
+    def _create_leaf_chunk(
         self, text: str, header: str, header_level: int, position: int
-    ) -> MarkdownChunk | List[MarkdownChunk]:
-        """Create chunk, splitting at ### if necessary.
+    ) -> MarkdownChunk:
+        """Create a leaf chunk (no more splitting).
 
         Args:
             text: Chunk text
-            header: Section header
-            header_level: Header level (2 or 3)
+            header: Section header path
+            header_level: Header level
             position: Position in document
 
         Returns:
-            Single chunk or list of sub-chunks
+            MarkdownChunk
         """
         token_count = count_tokens(text, model=self.model)
-
-        # If within limit, return single chunk
-        if token_count <= self.max_tokens:
-            return MarkdownChunk(
-                chunk_id=uuid4(),
-                text=text.strip(),
-                header=header,
-                header_level=header_level,
-                position=position,
-                token_count=token_count,
-            )
-
-        # Section too large: split at ### boundaries
-        return self._split_at_subsections(text, header, position)
-
-    def _split_at_subsections(
-        self, content: str, parent_header: str, base_position: int
-    ) -> List[MarkdownChunk]:
-        """Split content at ### header boundaries.
-
-        Args:
-            content: Section content
-            parent_header: Parent ## header
-            base_position: Base position in document
-
-        Returns:
-            List of sub-chunks
-        """
-        chunks: List[MarkdownChunk] = []
-
-        # Split at ### headers (H3)
-        subsections = re.split(r"(^### .+$)", content, flags=re.MULTILINE)
-
-        current_subheader = parent_header
-        current_text = ""
-        sub_position = 0
-
-        for section in subsections:
-            section = section.strip()
-            if not section:
-                continue
-
-            if section.startswith("### "):
-                # Save previous subsection if exists
-                if current_text:
-                    token_count = count_tokens(current_text, model=self.model)
-                    chunks.append(
-                        MarkdownChunk(
-                            chunk_id=uuid4(),
-                            text=current_text.strip(),
-                            header=current_subheader,
-                            header_level=3,
-                            position=base_position + sub_position,
-                            token_count=token_count,
-                        )
-                    )
-                    sub_position += 1
-
-                # Start new subsection
-                current_subheader = f"{parent_header} > {section[4:].strip()}"
-                current_text = section + "\n"
-            else:
-                current_text += section + "\n"
-
-        # Last subsection
-        if current_text:
-            token_count = count_tokens(current_text, model=self.model)
-            chunks.append(
-                MarkdownChunk(
-                    chunk_id=uuid4(),
-                    text=current_text.strip(),
-                    header=current_subheader,
-                    header_level=3,
-                    position=base_position + sub_position,
-                    token_count=token_count,
-                )
-            )
-
-        return chunks
+        return MarkdownChunk(
+            chunk_id=uuid4(),
+            text=text.strip(),
+            header=header,
+            header_level=header_level,
+            position=position,
+            token_count=token_count,
+        )
 
     def get_chunk_stats(self, chunks: List[MarkdownChunk]) -> dict:
         """Get statistics about chunks.
