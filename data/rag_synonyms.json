@@ -79,6 +79,9 @@
   "cover": [
     "behind terrain"
   ],
+  "barricade": [
+    "barricades"
+  ],
   "Vantage": [
     "vantage point",
     "high ground",

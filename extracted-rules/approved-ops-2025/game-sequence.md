@@ -5,8 +5,6 @@ document_type: ops
 section: game sequence
 ---
 
-# Approved Ops & Game Sequence
-
 ## APPROVED OPS (2025)
 
 ### HOW TO USE THESE CARDS
@@ -59,23 +57,3 @@ As a **Strategic Gambit** in the first turning point, each player secretly selec
 * The battle ends after four turning points have been completed. If one player has no operatives in the killzone but the battle hasn't ended, the other player plays out each remaining turning point until it does.
 * At the end of the battle, the players reveal their primary ops simultaneously. They score additional VP equal to half of what they scored from that op (rounding up).
 * The player with the most VP is the winner. If the players are tied, it's a draw.
-
-## Initiative Cards
-
-### +3/-3 TO YOUR INITIATIVE ROLL
-Give this to the player that lost the initiative roll during the third turning point. They can use it once in a subsequent Strategy phase.
-
-### +2/-2 TO YOUR INITIATIVE ROLL
-Give this to the player that lost the initiative roll during the second turning point. They can use it once in a subsequent Strategy phase.
-
-### +1/-1 TO YOUR INITIATIVE ROLL
-Give this to the player that lost the initiative roll during the first turning point. They can use it once in a subsequent Strategy phase.
-
-### RE-ROLL YOUR INITIATIVE ROLL
-Give this to the player that didn't have initiative when setting up the battle (i.e. didn't select drop zones). They can use it once in a subsequent Strategy phase.
-
----
-
-[Derived from illustration]
-**Initiative Card Distribution:**
-Initiative cards are distributed based on turning point timing, with higher modifiers (+3/-3) given in later turns to create stronger comeback potential for the player losing initiative rolls.

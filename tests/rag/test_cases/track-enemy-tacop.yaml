@@ -5,6 +5,6 @@ query: >
   tracked enemy operative?
 
 required_chunks:
-  - "TRACK ENEMY"
+  - "TRACK ENEMY - INFILTRATION"
   - "**Vantage**"
   - "Seek"

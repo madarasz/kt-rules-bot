@@ -4,5 +4,5 @@ query: >
   who places the banner, me or my opponent?
 
 required_chunks:
-  - "PLANT BANNER"
-  - "Place Marker"
+  - "PLANT BANNER - SECURITY"
+  - "PLACE MARKER (1AP)"

@@ -189,10 +189,10 @@ Operatives are the Citadel miniatures used in the game. Your operatives are frie
 
 ## ORDERS
 
-### Engage
+### ORDERS - Engage
 **Engage:** The operative can perform actions as normal and can counteract.
 
-### Conceal
+### ORDERS - Conceal
 **Conceal:** The operative cannot perform Shoot and Charge actions, and it cannot counteract. However, it's not a valid target while it's in cover.
 
 Operatives are given a Conceal order when they are set up before the battle. You can change an operative's order whenever it's activated.

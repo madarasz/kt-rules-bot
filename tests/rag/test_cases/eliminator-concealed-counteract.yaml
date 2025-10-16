@@ -3,6 +3,6 @@ query: >
   Can the Eliminator Sniper shoot during counteract while having Conceal order?
 
 required_chunks:
-  - "ANGELS OF DEATH - ASTARTES"
-  - "ANGELS OF DEATH - ELIMINATOR SNIPER"
+  - "ANGELS OF DEATH - Faction Rule - ASTARTES"
+  - "ANGELS OF DEATH - Operatives - ELIMINATOR SNIPER"
   - "Silent"

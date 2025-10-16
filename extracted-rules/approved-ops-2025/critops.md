@@ -5,8 +5,6 @@ document_type: ops
 section: critops
 ---
 
-# Approved Ops 2025 - Crit Op Rules
-
 ## **CRIT OP 1: SECURE**
 
 **MISSION ACTION: SECURE (1AP)**

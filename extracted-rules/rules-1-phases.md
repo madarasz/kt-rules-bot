@@ -40,19 +40,19 @@ Then repeat from step 1 until battle ends.
 
 # STRATEGY PHASE
 
-## 1. INITIATIVE
+## STRATEGY PHASE - 1. INITIATIVE
 
 • The player with initiative activates first in the turning point and decides the order of resolution for rules that would happen at the same time. In the first turning point, the player with initiative is determined by the game sequence of your mission pack. In subsequent turning points, the players roll-off and the winner decides who has initiative. However, if the roll-off is a tie, the player who didn't have initiative in the previous turning point decides who has initiative (this takes precedence over roll-offs and ties).
 
 > **Designer's Commentary:** In some mission packs, you will also determine initiative when setting up the battle. The player with initiative decides the order for resolving simultaneous rules that happen before the battle begins.
 
-## 2. READY
+## STRATEGY PHASE - 2. READY
 
 • Each player gains 1 Command point (CP); in each turning point after the first, the player who doesn't have initiative gains 2CP instead. Players keep CP until spent.
 
 • Each player readies all friendly operatives.
 
-## 3. GAMBIT
+## STRATEGY PHASE - 3. GAMBIT
 
 • Starting with the player who has initiative, each player alternates either using a **STRATEGIC GAMBIT** or passing. The players repeat this process until they have both passed in succession. Strategy ploys are the most common **STRATEGIC GAMBIT**, but any rule labelled **STRATEGIC GAMBIT** can be used. You cannot use each **STRATEGIC GAMBIT** more than once per turning point.
 
@@ -66,7 +66,7 @@ The player who has initiative activates a **ready** friendly operative. Once tha
 
 ## WHEN A FRIENDLY OPERATIVE IS ACTIVATED:
 
-### 1. DETERMINE ORDER
+### OPERATIVE ACTIVATION - 1. DETERMINE ORDER
 
 • Select the operative's order (**Engage** or **Conceal**). It has this order until it's next activated.
 
@@ -74,7 +74,7 @@ The player who has initiative activates a **ready** friendly operative. Once tha
 
 **Conceal**: The operative cannot perform **Shoot** and **Charge** actions, and it cannot **counteract**. However, it's not a valid target while in cover.
 
-### 2. PERFORM ACTIONS
+### OPERATIVE ACTIVATION - 2. PERFORM ACTIONS
 
 • The operative performs actions. While an operative is doing so it's known as the **active** operative.
 
@@ -86,7 +86,7 @@ The player who has initiative activates a **ready** friendly operative. Once tha
 
 > **Designer's Note:** An operative with an APL of 2 could perform the **Reposition** (1AP) and **Shoot** (1AP) actions, totalling 2AP, but couldn't perform the **Fall Back** (2AP) and **Shoot** (1AP) actions, totalling 3AP. An order token with the darker side up shows an operative as **expended**. Counteracting isn't an activation; it's instead of activating. This difference is important; for instance, it means action restrictions won't apply.
 
-### 3. EXPENDED
+### OPERATIVE ACTIVATION - 3. EXPENDED
 
 • When you've finished with your operative's activation, that operative is **expended**. While **expended**, an operative is not **ready**.
 
