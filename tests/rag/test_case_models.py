@@ -27,23 +27,45 @@ class RAGTestCase:
     required_chunks: List[str]  # List of chunk headers that must be retrieved
 
     @classmethod
-    def from_yaml(cls, file_path: Path) -> "RAGTestCase":
-        """Load test case from YAML file.
+    def from_yaml(cls, file_path: Path) -> List["RAGTestCase"]:
+        """Load test case(s) from YAML file.
+
+        Supports both formats:
+        1. Single test case (dict with test_id, query, required_chunks)
+        2. Multiple test cases (list of dicts)
 
         Args:
             file_path: Path to YAML file
 
         Returns:
-            RAGTestCase instance
+            List of RAGTestCase instances (even if single test)
         """
         with open(file_path, "r") as f:
             data = yaml.safe_load(f)
 
-        return cls(
-            test_id=data["test_id"],
-            query=data["query"],
-            required_chunks=data["required_chunks"],
-        )
+        # Handle both single test case (dict) and multiple test cases (list)
+        if isinstance(data, dict):
+            # Single test case format
+            return [cls(
+                test_id=data["test_id"],
+                query=data["query"],
+                required_chunks=data["required_chunks"],
+            )]
+        elif isinstance(data, list):
+            # Multiple test cases format
+            return [
+                cls(
+                    test_id=test_case["test_id"],
+                    query=test_case["query"],
+                    required_chunks=test_case["required_chunks"],
+                )
+                for test_case in data
+            ]
+        else:
+            raise ValueError(
+                f"Invalid YAML format in {file_path}. "
+                "Expected dict (single test) or list (multiple tests)."
+            )
 
 
 @dataclass
