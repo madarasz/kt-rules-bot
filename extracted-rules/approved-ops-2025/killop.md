@@ -5,7 +5,7 @@ document_type: ops
 section: killop
 ---
 
-# Approved Ops 2025 - Kill Op Rules
+## Approved Ops 2025 - Kill Op Rules
 
 **HOW TO SCORE**
 * You start without a **Kill Grade**. As enemy operatives are incapacitated, your **kill grade** goes up until it reaches **5**.
