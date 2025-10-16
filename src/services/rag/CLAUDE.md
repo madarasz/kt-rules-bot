@@ -66,12 +66,12 @@ Synonym-based query expansion for better BM25 keyword matching:
 - Case-insensitive matching with word boundary detection
 
 ### Document Chunker ([chunker.py](chunker.py))
-Semantic chunking strategy (lazy splitting):
-- **ALWAYS splits at ## headers** if document has structured sections (better semantic granularity)
-- Keeps whole document only if no ## headers AND ≤ 8192 tokens
-- Falls back to ### headers if single section exceeds limit
+Semantic chunking strategy (hierarchical splitting):
+- **Recursively splits at all header levels** (#, ##, ###, ####) if present
+- Creates hierarchical header paths (e.g., "Section > Subsection > Detail")
+- Keeps whole document only if no headers AND within token limit
 - **No overlap** between chunks (clean semantic boundaries)
-- Metadata: header, position, token count
+- Metadata: header path, position, token count, header level (1-4)
 
 ### Ingestor ([ingestor.py](ingestor.py))
 Ingestion pipeline for rule documents:
@@ -195,8 +195,9 @@ python -m src.cli rag-test -n 10
 
 ### Modifying Chunking Strategy
 
-Current strategy: **Semantic splitting at ## headers** (lazy splitting)
-- Splits at ## headers if document has structure
+Current strategy: **Recursive hierarchical splitting at all header levels**
+- Recursively splits at all markdown headers (#, ##, ###, ####)
+- Creates hierarchical header paths for context (e.g., "Phase > Action > Detail")
 - Keeps whole document only if no headers AND ≤ embedding model token limit (8191 for current models)
 - No overlap (clean semantic boundaries)
 

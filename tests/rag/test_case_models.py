@@ -84,6 +84,7 @@ class RAGTestResult:
     map_score: float  # Mean Average Precision
     recall_at_5: float  # Recall@5
     recall_at_10: float  # Recall@10
+    recall_at_all: float  # Recall@All (percentage of required chunks found, regardless of position)
     precision_at_3: float  # Precision@3
     precision_at_5: float  # Precision@5
     mrr: float  # Mean Reciprocal Rank
@@ -107,6 +108,7 @@ class RAGTestSummary:
     total_tests: int
     mean_map: float
     mean_recall_at_5: float
+    mean_recall_at_all: float
     mean_recall_at_10: float
     mean_precision_at_3: float
     mean_precision_at_5: float
@@ -120,6 +122,7 @@ class RAGTestSummary:
     # Multi-run statistics (if applicable)
     std_dev_map: float = 0.0
     std_dev_recall_at_5: float = 0.0
+    std_dev_recall_at_all: float = 0.0
     std_dev_precision_at_3: float = 0.0
 
     # Configuration
