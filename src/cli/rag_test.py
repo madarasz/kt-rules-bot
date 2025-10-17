@@ -88,6 +88,20 @@ def rag_test(
 
         print("")
         print("=" * 80)
+        print("MISSING CHUNKS")
+        print("=" * 80)
+        missing_chunks_found = False
+        for result in results:
+            if result.missing_chunks:
+                missing_chunks_found = True
+                for missing_chunk in result.missing_chunks:
+                    print(f"- {result.test_id}: {missing_chunk}")
+        
+        if not missing_chunks_found:
+            print("No missing chunks - all required chunks were retrieved!")
+
+        print("")
+        print("=" * 80)
         print("PERFORMANCE METRICS")
         print("=" * 80)
         print(f"Total Time: {summary.total_time_seconds:.2f}s")
