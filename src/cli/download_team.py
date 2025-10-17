@@ -11,10 +11,11 @@ from pathlib import Path
 from typing import Optional, Tuple
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
-from datetime import date
+from datetime import date, datetime
 
 from src.lib.config import get_config
 from src.lib.logging import get_logger
+from src.lib.constants import PDF_EXTRACTION_PROVIDERS
 from src.services.llm.gemini import GeminiAdapter
 from src.services.llm.base import ExtractionConfig, ExtractionRequest
 
@@ -535,7 +536,7 @@ def main():
     parser.add_argument(
         "--model",
         default="gemini-2.5-pro",
-        choices=["gemini-2.5-pro", "gemini-2.5-flash"],
+        choices=PDF_EXTRACTION_PROVIDERS,
         help="LLM model to use for extraction (default: gemini-2.5-pro)",
     )
     parser.add_argument(

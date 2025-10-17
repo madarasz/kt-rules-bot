@@ -5,32 +5,12 @@ Based on specs/001-we-are-building/tasks.md T026
 """
 
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Optional
 from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-from src.lib.constants import EMBEDDING_MODEL, DEFAULT_LLM_PROVIDER
-
-
-LLMProvider = Literal[
-    "claude-sonnet",
-    "claude-opus",
-    "gemini-2.5-pro",
-    "gemini-2.5-flash",
-    "gpt-5",
-    "gpt-5-mini",
-    "gpt-4.1",
-    "gpt-4.1-mini",
-    "gpt-4o",
-    "o3",
-    "o3-mini",
-    "o4-mini",
-    "grok-4-fast-reasoning",
-    "grok-4-0709",
-    "grok-3",
-    "grok-3-mini",
-]
+from src.lib.constants import EMBEDDING_MODEL, DEFAULT_LLM_PROVIDER, LLM_PROVIDERS_LITERAL
 
 
 @dataclass
@@ -45,9 +25,10 @@ class Config:
     openai_api_key: Optional[str] = None
     google_api_key: Optional[str] = None
     x_api_key: Optional[str] = None
+    dial_api_key: Optional[str] = None
 
     # LLM Selection
-    default_llm_provider: LLMProvider = os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER) 
+    default_llm_provider: LLM_PROVIDERS_LITERAL = os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER) 
 
     # RAG Configuration
     vector_db_path: str = "./data/chroma_db"
@@ -89,6 +70,7 @@ class Config:
                 self.openai_api_key,
                 self.google_api_key,
                 self.x_api_key,
+                self.dial_api_key,
             ]
         )
         if not has_provider:
@@ -112,6 +94,20 @@ class Config:
             "grok-4-0709": self.x_api_key,
             "grok-3": self.x_api_key,
             "grok-3-mini": self.x_api_key,
+            "dial-gpt-4o": self.dial_api_key,
+            "dial-gpt-4.1": self.dial_api_key,
+            "dial-gpt-5": self.dial_api_key,
+            "dial-gpt-5-chat": self.dial_api_key,
+            "dial-gpt-5-mini": self.dial_api_key,
+            "dial-gpt-o3": self.dial_api_key,
+            "dial-sonet-4.5": self.dial_api_key,
+            "dial-sonet-4.5-thinking": self.dial_api_key,
+            "dial-opus-4.1": self.dial_api_key,
+            "dial-opus-4.1-thinking": self.dial_api_key,
+            "dial-amazon-nova-pro": self.dial_api_key,
+            "dial-amazon-titan": self.dial_api_key,
+            "dial-gemini-2.5-pro": self.dial_api_key,
+            "dial-gemini-2.5-flash": self.dial_api_key,
         }
 
         if not provider_key_mapping.get(self.default_llm_provider):
@@ -194,6 +190,7 @@ class Config:
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             google_api_key=os.getenv("GOOGLE_API_KEY"),
             x_api_key=os.getenv("X_API_KEY"),
+            dial_api_key=os.getenv("DIAL_API_KEY"),
             # LLM Selection
             default_llm_provider=os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER),  # type: ignore
             # RAG

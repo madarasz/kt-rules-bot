@@ -11,9 +11,8 @@ from tests.quality.test_runner import QualityTestRunner
 from tests.quality.reporting.report_models import QualityReport
 from tests.quality.reporting.aggregator import aggregate_results
 from tests.quality.reporting.report_generator import ReportGenerator
-from src.services.llm.factory import LLMProviderFactory
 from src.lib.logging import get_logger
-from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
+from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_PROVIDERS
 
 logger = get_logger(__name__)
 
@@ -29,7 +28,7 @@ def quality_test(
     """Run quality tests for RAG + LLM pipeline."""
     models_to_run: List[str]
     if all_models:
-        models_to_run = LLMProviderFactory.get_quality_test_models()
+        models_to_run = QUALITY_TEST_PROVIDERS
     elif model:
         models_to_run = [model]
     else:

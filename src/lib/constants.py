@@ -3,10 +3,71 @@
 This is the single source of truth for all tunable parameters.
 Modify values here to change behavior across the entire application.
 """
+from typing import Literal, get_args
 
 # ============================================================================
 # LLM Generation Constants
 # ============================================================================
+
+# All available LLM providers (complete list)
+LLM_PROVIDERS_LITERAL = Literal[
+    "claude-sonnet",
+    "claude-opus",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-4o",
+    "o3",
+    "o3-mini",
+    "o4-mini",
+    "grok-4-fast-reasoning",
+    "grok-4-0709",
+    "grok-3",
+    "grok-3-mini",
+    "dial-gpt-4o",
+    "dial-gpt-4.1",
+    "dial-gpt-5",
+    "dial-gpt-5-chat",
+    "dial-gpt-5-mini",
+    "dial-gpt-o3",
+    "dial-sonet-4.5",
+    "dial-sonet-4.5-thinking",
+    "dial-opus-4.1",
+    "dial-opus-4.1-thinking",
+    "dial-amazon-nova-pro",
+    "dial-amazon-titan",
+    "dial-gemini-2.5-pro",
+    "dial-gemini-2.5-flash",
+]
+
+ALL_LLM_PROVIDERS = list(get_args(LLM_PROVIDERS_LITERAL))
+
+# PDF extraction providers (models that support PDF processing)
+PDF_EXTRACTION_PROVIDERS = [
+    "gemini-2.5-pro", 
+    "gemini-2.5-flash",
+]
+
+# Quality test providers (curated list for --all-models testing)
+QUALITY_TEST_PROVIDERS = [
+    "dial-gpt-4o",
+    # "dial-gpt-4.1",  # denied WHY??
+    # "dial-gpt-5",    # denied
+    # "dial-gpt-5-chat",  # denied
+    "dial-gpt-5-mini",
+    # "dial-gpt-o3",   # denied
+    # "dial-sonet-4.5",  # denied
+    # "dial-sonet-4.5-thinking",  # denied
+    # "dial-opus-4.1",  # denied
+    # "dial-opus-4.1-thinking",  # denied
+    # "dial-amazon-nova-pro",  # denied
+    # "dial-amazon-titan",  # denied
+    "dial-gemini-2.5-pro",
+    "dial-gemini-2.5-flash"
+]
 
 # Default LLM provider for generation
 DEFAULT_LLM_PROVIDER = "gpt-4.1"  # Default model for Discord bot and CLI
@@ -48,7 +109,7 @@ QUALITY_TEST_RATE_LIMIT_INITIAL_DELAY = 10.0  # Initial retry delay in seconds (
 # ============================================================================
 
 # Default retrieval parameters (used everywhere including Discord bot)
-RAG_MAX_CHUNKS = 8  # Maximum document chunks to retrieve
+RAG_MAX_CHUNKS = 12  # Maximum document chunks to retrieve
 RAG_MIN_RELEVANCE = 0.45  # Minimum cosine similarity threshold
 
 # Note: Increased from 5→15 chunks for better multi-hop queries
@@ -72,6 +133,9 @@ BM25_B = 0.8  # Document length normalization parameter (typical range: 0.5-1.0)
 
 # Default embedding model
 EMBEDDING_MODEL = "text-embedding-3-small"  # OpenAI embedding model
+
+# Markdown chunking configuration
+MARKDOWN_CHUNK_HEADER_LEVEL = 4  # Max header level to chunk at: chunks at ## up to this level
 
 # Note: Token limits and dimensions are now determined dynamically by the
 # embedding model using get_embedding_token_limit() and get_embedding_dimensions()
