@@ -135,7 +135,7 @@ BM25_B = 0.8  # Document length normalization parameter (typical range: 0.5-1.0)
 EMBEDDING_MODEL = "text-embedding-3-small"  # OpenAI embedding model
 
 # Markdown chunking configuration
-MARKDOWN_CHUNK_HEADER_LEVEL = 4  # Max header level to chunk at: chunks at ## up to this level
+MARKDOWN_CHUNK_HEADER_LEVEL = 2  # Max header level to chunk at: chunks at ## up to this level
 
 # Note: Token limits and dimensions are now determined dynamically by the
 # embedding model using get_embedding_token_limit() and get_embedding_dimensions()

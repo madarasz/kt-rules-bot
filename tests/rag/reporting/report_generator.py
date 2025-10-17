@@ -51,6 +51,20 @@ class RAGReportGenerator:
         content.append(f"| **MRR** | {summary.mean_mrr:.3f} |")
         content.append("")
 
+        # Missing chunks analysis
+        content.append("## Missing Chunks")
+        content.append("")
+        missing_chunks_found = False
+        for result in results:
+            if result.missing_chunks:
+                missing_chunks_found = True
+                for missing_chunk in result.missing_chunks:
+                    content.append(f"- **{result.test_id}**: *{missing_chunk}*")
+        
+        if not missing_chunks_found:
+            content.append("No missing chunks - all required chunks were retrieved!")
+        content.append("")
+
         # Performance metrics
         content.append("## Performance Metrics")
         content.append("")

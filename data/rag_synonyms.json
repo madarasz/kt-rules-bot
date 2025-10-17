@@ -162,5 +162,10 @@
     "tournament legal team",
     "legal for tournaments",
     "legal for tournament play"
+  ],
+  "TELEPORT PAD": [
+    "teleport",
+    "teleports",
+    "teleporting"
   ]
 }

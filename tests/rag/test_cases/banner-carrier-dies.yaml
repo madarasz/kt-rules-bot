@@ -5,4 +5,4 @@ query: >
 
 required_chunks:
   - "PLANT BANNER"
-  - "Place Marker"
+  - "Place Marker (1AP)" # Missing

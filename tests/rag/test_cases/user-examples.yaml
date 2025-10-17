@@ -1,32 +1,32 @@
-- test_id: team-validity
+- test_id: team-validity # FAILS
   query: >
     which teams are tournament legal currently?
   required_chunks:
-    - "Classified Format"
-    - "Classified Rotation"
+    - "When planning your tournament, you must determine if it will be using the Classified format."
+    - "The full list of Classified kill teams can be found below."
 - test_id: team-rotation
   query: >
     Which teams are rotating out soon?
   required_chunks:
-    - "Classified Rotation > Octarius Season"
+    - "The full list of Classified kill teams can be found below."
 - test_id: cp-lost-cancelled
   query: >
     Would the Curtain Falls firefight ploy still cost CP even after the Nemesis Claw chain snare 
     equipment potenatially would block the free fall back action?
   required_chunks:
-    - "VOID-DANCER TROUPE - Firefight Ploy - THE CURTAIN FALLS"
-    - "NEMESIS CLAW - Faction Equipment - CHAIN SNARE"
-- test_id: return-to-darkness-teleport
+    - "THE CURTAIN FALLS"
+    - "Whenever an enemy operative would perform the Fall Back action while within control range of a friendly NEMESIS CLAW operative"
+- test_id: return-to-darkness-teleport # Only works with RAG_ENABLE_QUERY_EXPANSION = True
   query: >
     can I use return to darkness ploy with nemesis claw operative to use the teleport on tomb world map?
   required_chunks:
-    - "NEMESIS CLAW - Strategy Ploy - RETURN TO DARKNESS"
+    - "RETURN TO DARKNESS"
     - "TELEPORT PAD"
-- test_id: nemesis-midnight-clad-barricade
+- test_id: nemesis-midnight-clad-barricade # Barricade is not found
   query: >
     Can a nemesis claw operative use light barricade as cover and be obscured as well if its more than 8 inches away from the enemy operative?
   required_chunks:
-    - "NEMESIS CLAW - Faction Rule - IN MIDNIGHT CLAD"
+    - "IN MIDNIGHT CLAD"
     - "UNIVERSAL EQUIPMENT - 2X LIGHT BARRICADES"
 - test_id: track-enemy-melee
   query: >
@@ -43,13 +43,13 @@
   query: >
     can the route tacop be scored with killing a canoptek warrior?
   required_chunks:
-    - "CANOPTEK CIRCLE - Operatives - CANOPTEK MACROCYTE WARRIOR"
-    - "ROUTE"
+    - "MACROCYTE WARRIOR"
+    - "Whenever a friendly operative incapacitates an enemy operative, if that friendly operative is within 6"
 - test_id: vantage-usage
   query: >
     Please tell me what rules can we use, when an operatíve in vantage (2"+) shoot his target, and the target is in light cover?
   required_chunks:
-    - "**Vantage**"
+    - "Vantage terrain is the upper levels of the killzone areas operatives can be placed upon" # Missing
     - "VALID TARGET"
 - test_id: crit-ops-initiative
   query: >
@@ -60,24 +60,24 @@
   query: >
     could a canoptek geomancer use the geomantic disturbance on a barricade which is 7" away from it, behind the barricade is a kommando grot, within 2". Does the kommando grot take damage, if the roll with 2d6 is 10?
   required_chunks:
-    - "CANOPTEK CIRCLE - Operatives - GEOMANCER - GEOMANTIC DISTURBANCE"
-    - "KOMMANDOS - Operatives - KOMMANDO GROT - Sneaky Zogger"
+    - "GEOMANTIC DISTURBANCE"
+    - "Sneaky Zogger"
 - test_id: geomancer-shoot-grot
   query: >
     Can a Geomancer shoot a kommando grot with conceal order behind a light a barricade?
   required_chunks:
-    - "KOMMANDOS - Operatives - KOMMANDO GROT - Sneaky Zogger"
+    - "Sneaky Zogger"
 - test_id: canoptek-tombcrawler-shoot-grot
   query: >
     does canoptek tomb crawler can shoot kommando grot with conceal order behind a light a barricade?
   required_chunks:
-    - "CANOPTEK CIRCLE - Operatives - CANOPTEK TOMB CRAWLER"
-    - "KOMMANDOS - Operatives - KOMMANDO GROT - Sneaky Zogger"
+    - "CANOPTEK TOMB CRAWLER"
+    - "Sneaky Zogger"
 - test_id: how-do-you-climb-barricade
   query: >
     How do you climb over a barricade?
   required_chunks:
-    - "**Climbing**"
+    - "Climbing"
 - test_id: if-an-operative
   query: >
     if an operative has accurate 1 from two different sources, does that count as accurate 2?
