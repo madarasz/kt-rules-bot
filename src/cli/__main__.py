@@ -13,7 +13,7 @@ from src.cli.rag_test import rag_test
 from src.cli.rag_test_sweep import rag_test_sweep
 from src.cli.download_team import download_team
 from src.cli.download_all_teams import download_all_teams
-from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE
+from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE, ALL_LLM_PROVIDERS, PDF_EXTRACTION_PROVIDERS
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -84,20 +84,7 @@ def create_parser() -> argparse.ArgumentParser:
     query_parser.add_argument(
         "--model",
         "-m",
-        choices=[
-            "claude-sonnet",
-            "claude-opus",
-            "gemini-2.5-pro",
-            "gemini-2.5-flash",
-            "gpt-5",
-            "gpt-5-mini",
-            "gpt-4.1",
-            "gpt-4.1-mini",
-            "gpt-4o",
-            "o3",
-            "o3-mini",
-            "o4-mini",
-        ],
+        choices=ALL_LLM_PROVIDERS,
         help="LLM model to use (default: from config)",
     )
     query_parser.add_argument(
@@ -159,20 +146,7 @@ def create_parser() -> argparse.ArgumentParser:
     quality_parser.add_argument(
         "--model",
         "-m",
-        choices=[
-            "claude-sonnet",
-            "claude-opus",
-            "gemini-2.5-pro",
-            "gemini-2.5-flash",
-            "gpt-5",
-            "gpt-5-mini",
-            "gpt-4.1",
-            "gpt-4.1-mini",
-            "gpt-4o",
-            "o3",
-            "o3-mini",
-            "o4-mini",
-        ],
+        choices=ALL_LLM_PROVIDERS,
         help="Specific model to test (default: from config)",
     )
     quality_parser.add_argument(
@@ -298,7 +272,7 @@ def create_parser() -> argparse.ArgumentParser:
     download_team_parser.add_argument(
         "--model",
         default="gemini-2.5-pro",
-        choices=["gemini-2.5-pro", "gemini-2.5-flash"],
+        choices=PDF_EXTRACTION_PROVIDERS,
         help="LLM model to use for extraction (default: gemini-2.5-pro)",
     )
     download_team_parser.add_argument(
