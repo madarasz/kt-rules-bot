@@ -15,6 +15,7 @@ from src.lib.constants import (
     RRF_K,
     BM25_K1,
     BM25_B,
+    BM25_WEIGHT,
     RAG_ENABLE_QUERY_NORMALIZATION,
     RAG_ENABLE_QUERY_EXPANSION,
 )
@@ -164,6 +165,8 @@ class RAGTestSummary:
     rrf_k: int = RRF_K
     bm25_k1: float = BM25_K1
     bm25_b: float = BM25_B
+    bm25_weight: float = BM25_WEIGHT
+    vector_weight: float = 1.0 - BM25_WEIGHT
     hybrid_enabled: bool = True
     query_normalization_enabled: bool = RAG_ENABLE_QUERY_NORMALIZATION
     query_expansion_enabled: bool = RAG_ENABLE_QUERY_EXPANSION

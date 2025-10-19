@@ -109,7 +109,7 @@ QUALITY_TEST_RATE_LIMIT_INITIAL_DELAY = 10.0  # Initial retry delay in seconds (
 # ============================================================================
 
 # Default retrieval parameters (used everywhere including Discord bot)
-RAG_MAX_CHUNKS = 12  # Maximum document chunks to retrieve
+RAG_MAX_CHUNKS = 5  # Maximum document chunks to retrieve
 RAG_MIN_RELEVANCE = 0.45  # Minimum cosine similarity threshold
 
 # Note: Increased from 5→15 chunks for better multi-hop queries
@@ -117,15 +117,21 @@ RAG_MIN_RELEVANCE = 0.45  # Minimum cosine similarity threshold
 # See CHANGELOG-RETRIEVAL.md for tuning history
 
 # Hybrid search parameters
+BM25_WEIGHT = 0.5  # Weight for BM25 keyword search in hybrid fusion (0.0-1.0)
+                   # Higher values (e.g., 0.7): Prefer exact keyword matching
+                   # Lower values (e.g., 0.3): Prefer semantic similarity
+                   # Vector weight is automatically 1.0 - BM25_WEIGHT
+
+# BM25 keyword search parameters
+BM25_K1 = 1.8  # Term frequency saturation parameter (typical range: 1.2-2.0)
+               # Higher values give more weight to term frequency
+BM25_B = 0.85  # Document length normalization parameter (typical range: 0.5-1.0)
+               # 0 = no normalization, 1 = full normalization
+
 RRF_K = 60  # RRF (Reciprocal Rank Fusion) constant for hybrid search
             # Lower k (e.g., 40): More weight to top-ranked results
             # Higher k (e.g., 80): More balanced fusion between vector and BM25
-
-# BM25 keyword search parameters
-BM25_K1 = 1.6  # Term frequency saturation parameter (typical range: 1.2-2.0)
-               # Higher values give more weight to term frequency
-BM25_B = 0.8  # Document length normalization parameter (typical range: 0.5-1.0)
-               # 0 = no normalization, 1 = full normalization
+            # DOES NOT AFFECT ANYTHING because we  RRK scores are normalized
 
 # ============================================================================
 # Embedding & Chunking Constants
@@ -174,6 +180,27 @@ RAG_ENABLE_QUERY_EXPANSION = True
 
 # Path to synonym dictionary mapping user terms to official terminology
 RAG_SYNONYM_DICT_PATH = "data/rag_synonyms.json"
+
+# ============================================================================
+# Ragas Evaluation Framework Constants
+# ============================================================================
+
+# Enable/disable Ragas metrics in RAG tests (default: False for gradual rollout)
+# When enabled, both custom and Ragas metrics are calculated and reported
+RAGAS_ENABLED = True
+
+# Model used for Ragas internal LLM-based evaluation (context precision, faithfulness, etc.)
+# Note: For retrieval tests with substring matching, this is not used
+# For generation tests, this model acts as the "judge" for faithfulness and relevancy
+RAGAS_JUDGE_MODEL = "gpt-4o"
+
+# Ragas retrieval metrics to calculate (used in RAG tests)
+# Available: context_precision, context_recall, context_entities_recall, noise_sensitivity
+RAGAS_METRICS_RETRIEVAL = ["context_precision", "context_recall"]
+
+# Ragas generation metrics to calculate (used in Quality tests)
+# Available: faithfulness, answer_relevancy, response_groundedness
+RAGAS_METRICS_GENERATION = ["faithfulness", "answer_relevancy"]
 
 # ============================================================================
 # Notes
