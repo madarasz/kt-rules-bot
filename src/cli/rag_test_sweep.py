@@ -28,6 +28,7 @@ def rag_test_sweep(
     rrf_k: str | None = None,
     bm25_k1: str | None = None,
     bm25_b: str | None = None,
+    bm25_weight: str | None = None,
     use_ragas: bool = False,
 ) -> None:
     """Run RAG parameter sweep tests.
@@ -43,6 +44,7 @@ def rag_test_sweep(
         rrf_k: Comma-separated rrf_k values (grid mode)
         bm25_k1: Comma-separated bm25_k1 values (grid mode)
         bm25_b: Comma-separated bm25_b values (grid mode)
+        bm25_weight: Comma-separated bm25_weight values (grid mode)
         use_ragas: Calculate Ragas metrics alongside custom metrics
     """
     # Validate arguments
@@ -63,6 +65,7 @@ def rag_test_sweep(
                 rrf_k=rrf_k,
                 bm25_k1=bm25_k1,
                 bm25_b=bm25_b,
+                bm25_weight=bm25_weight,
             )
 
             if not param_grid:
@@ -233,7 +236,7 @@ def _parse_parameter_values(param_name: str, values_str: str) -> List:
     if param_name in ['max_chunks', 'rrf_k']:
         # Integer parameters
         return [int(v) for v in values_list]
-    elif param_name in ['min_relevance', 'bm25_k1', 'bm25_b']:
+    elif param_name in ['min_relevance', 'bm25_k1', 'bm25_b', 'bm25_weight']:
         # Float parameters
         return [float(v) for v in values_list]
     else:
@@ -246,6 +249,7 @@ def _parse_grid_params(
     rrf_k: str | None,
     bm25_k1: str | None,
     bm25_b: str | None,
+    bm25_weight: str | None,
 ) -> Dict[str, List]:
     """Parse grid search parameters.
 
@@ -255,6 +259,7 @@ def _parse_grid_params(
         rrf_k: Comma-separated rrf_k values
         bm25_k1: Comma-separated bm25_k1 values
         bm25_b: Comma-separated bm25_b values
+        bm25_weight: Comma-separated bm25_weight values
 
     Returns:
         Dictionary mapping parameter names to value lists
@@ -278,5 +283,8 @@ def _parse_grid_params(
 
     if bm25_b:
         param_grid['bm25_b'] = [float(v.strip()) for v in bm25_b.split(',')]
+
+    if bm25_weight:
+        param_grid['bm25_weight'] = [float(v.strip()) for v in bm25_weight.split(',')]
 
     return param_grid

@@ -19,6 +19,7 @@ from src.lib.constants import (
     RRF_K,
     BM25_K1,
     BM25_B,
+    BM25_WEIGHT,
     RAG_ENABLE_QUERY_NORMALIZATION,
     RAG_ENABLE_QUERY_EXPANSION,
     RAG_SYNONYM_DICT_PATH,
@@ -64,6 +65,7 @@ class RAGRetriever:
         rrf_k: int = RRF_K,
         bm25_k1: float = BM25_K1,
         bm25_b: float = BM25_B,
+        bm25_weight: float = BM25_WEIGHT,
     ):
         """Initialize RAG retriever.
 
@@ -76,6 +78,7 @@ class RAGRetriever:
             rrf_k: RRF constant for hybrid fusion (default: 60)
             bm25_k1: BM25 term frequency saturation parameter (default: 1.5)
             bm25_b: BM25 document length normalization parameter (default: 0.75)
+            bm25_weight: Weight for BM25 in fusion (default: 0.5, vector gets 1-bm25_weight)
         """
         self.embedding_service = embedding_service or EmbeddingService()
         self.vector_db = vector_db_service or VectorDBService()
@@ -86,7 +89,12 @@ class RAGRetriever:
         # Initialize hybrid retriever if enabled
         self.hybrid_retriever: HybridRetriever | None = None
         if enable_hybrid:
-            self.hybrid_retriever = HybridRetriever(k=rrf_k, bm25_k1=bm25_k1, bm25_b=bm25_b)
+            self.hybrid_retriever = HybridRetriever(
+                k=rrf_k,
+                bm25_k1=bm25_k1,
+                bm25_b=bm25_b,
+                bm25_weight=bm25_weight,
+            )
             # Index all chunks from vector DB
             self._build_hybrid_index()
 
@@ -96,6 +104,7 @@ class RAGRetriever:
             rrf_k=rrf_k,
             bm25_k1=bm25_k1,
             bm25_b=bm25_b,
+            bm25_weight=bm25_weight,
             keywords_loaded=self.keyword_extractor.get_keyword_count(),
             synonyms_loaded=self.query_expander.get_stats()["total_synonyms"]
         )

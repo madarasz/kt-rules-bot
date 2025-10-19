@@ -11,7 +11,7 @@ import itertools
 
 from tests.rag.test_runner import RAGTestRunner
 from tests.rag.test_case_models import RAGTestResult, RAGTestSummary
-from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE, RRF_K, BM25_K1, BM25_B
+from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE, RRF_K, BM25_K1, BM25_B, BM25_WEIGHT
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -26,6 +26,7 @@ class ParameterConfig:
     rrf_k: int = RRF_K
     bm25_k1: float = BM25_K1
     bm25_b: float = BM25_B
+    bm25_weight: float = BM25_WEIGHT
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -38,7 +39,8 @@ class ParameterConfig:
             f"mr{self.min_relevance:.2f}_"
             f"rrf{self.rrf_k}_"
             f"bm25k1{self.bm25_k1:.1f}_"
-            f"bm25b{self.bm25_b:.2f}"
+            f"bm25b{self.bm25_b:.2f}_"
+            f"bm25w{self.bm25_weight:.2f}"
         )
 
     def get_description(self) -> str:
@@ -48,7 +50,8 @@ class ParameterConfig:
             f"min_relevance={self.min_relevance}, "
             f"rrf_k={self.rrf_k}, "
             f"bm25_k1={self.bm25_k1}, "
-            f"bm25_b={self.bm25_b}"
+            f"bm25_b={self.bm25_b}, "
+            f"bm25_weight={self.bm25_weight}"
         )
 
 
@@ -248,6 +251,7 @@ class RAGSweepRunner:
             rrf_k=config.rrf_k,
             bm25_k1=config.bm25_k1,
             bm25_b=config.bm25_b,
+            bm25_weight=config.bm25_weight,
             use_ragas=self.use_ragas,
         )
 
