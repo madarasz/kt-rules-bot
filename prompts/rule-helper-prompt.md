@@ -23,6 +23,7 @@ The output has 3 parts in this order:
    - **Bold** the rule name at the beginning of the rule reference
    - Only output **relevant quotations** (no unnecessary chat, explanation, or progress narration). Do not quote the full rule, only the relevant sentences.
    - Do not quote parts marked with `[Derived from illustration]`
+   - DO NOT quote the same sentences more than once
 3. Explanation
    - Finish with a brief **Explanation** section, restating your rules-based decision succinctly.
 
