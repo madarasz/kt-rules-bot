@@ -10,8 +10,9 @@ import time
 
 from tests.rag.test_case_models import RAGTestCase, RAGTestResult, RAGTestSummary
 from tests.rag.evaluator import RAGEvaluator
+from tests.rag.ragas_evaluator import RagasRAGEvaluator, add_ragas_metrics_to_result
 from src.services.rag.retriever import RAGRetriever, RetrieveRequest
-from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE, EMBEDDING_MODEL, RRF_K, BM25_K1, BM25_B
+from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE, EMBEDDING_MODEL, RRF_K, BM25_K1, BM25_B, RAGAS_ENABLED
 from src.lib.tokens import estimate_embedding_cost
 from src.lib.logging import get_logger
 
@@ -28,6 +29,7 @@ class RAGTestRunner:
         rrf_k: int = RRF_K,
         bm25_k1: float = BM25_K1,
         bm25_b: float = BM25_B,
+        use_ragas: bool = RAGAS_ENABLED,
     ):
         """Initialize test runner.
 
@@ -37,13 +39,16 @@ class RAGTestRunner:
             rrf_k: RRF constant for hybrid fusion (default: 60)
             bm25_k1: BM25 term frequency saturation parameter (default: 1.5)
             bm25_b: BM25 document length normalization parameter (default: 0.75)
+            use_ragas: Whether to calculate Ragas metrics (default: RAGAS_ENABLED from constants)
         """
         self.test_cases_dir = test_cases_dir
         self.results_dir = results_dir
         self.rrf_k = rrf_k
         self.bm25_k1 = bm25_k1
         self.bm25_b = bm25_b
+        self.use_ragas = use_ragas
         self.evaluator = RAGEvaluator()
+        self.ragas_evaluator = RagasRAGEvaluator() if use_ragas else None
         self.retriever = RAGRetriever(rrf_k=rrf_k, bm25_k1=bm25_k1, bm25_b=bm25_b)
 
         logger.info(
@@ -53,6 +58,7 @@ class RAGTestRunner:
             rrf_k=rrf_k,
             bm25_k1=bm25_k1,
             bm25_b=bm25_b,
+            use_ragas=use_ragas,
         )
 
     def load_test_cases(self, test_id: Optional[str] = None) -> List[RAGTestCase]:
@@ -137,7 +143,7 @@ class RAGTestRunner:
         rag_context = self.retriever.retrieve(request, query_id)
         retrieval_time = time.time() - start_time
 
-        # Evaluate
+        # Evaluate with custom metrics
         result = self.evaluator.evaluate(
             test_case=test_case,
             retrieved_chunks=rag_context.document_chunks,
@@ -146,17 +152,37 @@ class RAGTestRunner:
             run_number=run_number,
         )
 
-        logger.info(
-            "rag_test_completed",
-            test_id=test_case.test_id,
-            run=run_number,
-            map=f"{result.map_score:.3f}",
-            recall_at_5=f"{result.recall_at_5:.3f}",
-            recall_at_all=f"{result.recall_at_all:.3f}",
-            precision_at_3=f"{result.precision_at_3:.3f}",
-            duration=f"{retrieval_time:.2f}s",
-            cost=f"${embedding_cost:.6f}",
-        )
+        # Evaluate with Ragas metrics (if enabled)
+        ragas_metrics = None
+        if self.use_ragas and self.ragas_evaluator:
+            ragas_metrics = self.ragas_evaluator.evaluate(
+                test_case=test_case,
+                retrieved_chunks=rag_context.document_chunks,
+                use_ragas=True,
+            )
+            # Add Ragas metrics to result
+            result = add_ragas_metrics_to_result(result, ragas_metrics)
+
+        # Log results
+        log_data = {
+            "test_id": test_case.test_id,
+            "run": run_number,
+            "map": f"{result.map_score:.3f}",
+            "recall_at_5": f"{result.recall_at_5:.3f}",
+            "recall_at_all": f"{result.recall_at_all:.3f}",
+            "precision_at_3": f"{result.precision_at_3:.3f}",
+            "duration": f"{retrieval_time:.2f}s",
+            "cost": f"${embedding_cost:.6f}",
+        }
+
+        # Add Ragas metrics to log if available
+        if ragas_metrics:
+            if ragas_metrics.context_precision is not None:
+                log_data["ragas_context_precision"] = f"{ragas_metrics.context_precision:.3f}"
+            if ragas_metrics.context_recall is not None:
+                log_data["ragas_context_recall"] = f"{ragas_metrics.context_recall:.3f}"
+
+        logger.info("rag_test_completed", **log_data)
 
         return result
 
@@ -250,12 +276,16 @@ class RAGTestRunner:
             'prec_3': [],
             'prec_5': [],
             'mrr': [],
+            'ragas_context_precision': [],
+            'ragas_context_recall': [],
         }
         test_case_stds = {
             'map': [],
             'recall_5': [],
             'recall_all': [],
             'prec_3': [],
+            'ragas_context_precision': [],
+            'ragas_context_recall': [],
         }
 
         for test_id, test_results in results_by_test.items():
@@ -268,17 +298,39 @@ class RAGTestRunner:
             test_case_means['prec_5'].append(sum(r.precision_at_5 for r in test_results) / len(test_results))
             test_case_means['mrr'].append(sum(r.mrr for r in test_results) / len(test_results))
 
+            # Calculate Ragas means (only if available)
+            ragas_context_precision_values = [r.ragas_context_precision for r in test_results if r.ragas_context_precision is not None]
+            ragas_context_recall_values = [r.ragas_context_recall for r in test_results if r.ragas_context_recall is not None]
+
+            if ragas_context_precision_values:
+                test_case_means['ragas_context_precision'].append(sum(ragas_context_precision_values) / len(ragas_context_precision_values))
+            if ragas_context_recall_values:
+                test_case_means['ragas_context_recall'].append(sum(ragas_context_recall_values) / len(ragas_context_recall_values))
+
             # Calculate standard deviation for this test case (only if multiple runs)
             if len(test_results) > 1:
                 test_case_stds['map'].append(statistics.stdev([r.map_score for r in test_results]))
                 test_case_stds['recall_5'].append(statistics.stdev([r.recall_at_5 for r in test_results]))
                 test_case_stds['recall_all'].append(statistics.stdev([r.recall_at_all for r in test_results]))
                 test_case_stds['prec_3'].append(statistics.stdev([r.precision_at_3 for r in test_results]))
+
+                # Ragas standard deviations
+                if len(ragas_context_precision_values) > 1:
+                    test_case_stds['ragas_context_precision'].append(statistics.stdev(ragas_context_precision_values))
+                else:
+                    test_case_stds['ragas_context_precision'].append(0.0)
+
+                if len(ragas_context_recall_values) > 1:
+                    test_case_stds['ragas_context_recall'].append(statistics.stdev(ragas_context_recall_values))
+                else:
+                    test_case_stds['ragas_context_recall'].append(0.0)
             else:
                 test_case_stds['map'].append(0.0)
                 test_case_stds['recall_5'].append(0.0)
                 test_case_stds['recall_all'].append(0.0)
                 test_case_stds['prec_3'].append(0.0)
+                test_case_stds['ragas_context_precision'].append(0.0)
+                test_case_stds['ragas_context_recall'].append(0.0)
 
         # Overall means (average of per-test-case means)
         mean_map = sum(test_case_means['map']) / len(test_case_means['map'])
@@ -289,12 +341,28 @@ class RAGTestRunner:
         mean_prec_5 = sum(test_case_means['prec_5']) / len(test_case_means['prec_5'])
         mean_mrr = sum(test_case_means['mrr']) / len(test_case_means['mrr'])
 
+        # Ragas overall means (if available)
+        mean_ragas_context_precision = None
+        mean_ragas_context_recall = None
+        if test_case_means['ragas_context_precision']:
+            mean_ragas_context_precision = sum(test_case_means['ragas_context_precision']) / len(test_case_means['ragas_context_precision'])
+        if test_case_means['ragas_context_recall']:
+            mean_ragas_context_recall = sum(test_case_means['ragas_context_recall']) / len(test_case_means['ragas_context_recall'])
+
         # Overall standard deviations (average of per-test-case standard deviations)
         # This represents the typical variance across runs for a single test case
         std_map = sum(test_case_stds['map']) / len(test_case_stds['map'])
         std_recall_5 = sum(test_case_stds['recall_5']) / len(test_case_stds['recall_5'])
         std_recall_all = sum(test_case_stds['recall_all']) / len(test_case_stds['recall_all'])
         std_prec_3 = sum(test_case_stds['prec_3']) / len(test_case_stds['prec_3'])
+
+        # Ragas overall standard deviations
+        std_ragas_context_precision = 0.0
+        std_ragas_context_recall = 0.0
+        if test_case_stds['ragas_context_precision']:
+            std_ragas_context_precision = sum(test_case_stds['ragas_context_precision']) / len(test_case_stds['ragas_context_precision'])
+        if test_case_stds['ragas_context_recall']:
+            std_ragas_context_recall = sum(test_case_stds['ragas_context_recall']) / len(test_case_stds['ragas_context_recall'])
 
         # Calculate performance metrics
         avg_retrieval_time = sum(r.retrieval_time_seconds for r in results) / len(results)
@@ -320,6 +388,10 @@ class RAGTestRunner:
             std_dev_recall_at_5=std_recall_5,
             std_dev_recall_at_all=std_recall_all,
             std_dev_precision_at_3=std_prec_3,
+            mean_ragas_context_precision=mean_ragas_context_precision,
+            mean_ragas_context_recall=mean_ragas_context_recall,
+            std_dev_ragas_context_precision=std_ragas_context_precision,
+            std_dev_ragas_context_recall=std_ragas_context_recall,
             total_time_seconds=total_time_seconds,
             avg_retrieval_time_seconds=avg_retrieval_time,
             total_cost_usd=total_cost,

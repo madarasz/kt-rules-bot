@@ -17,6 +17,12 @@ python -m src.cli rag-test --runs 10
 
 # Custom retrieval parameters
 python -m src.cli rag-test --max-chunks 10
+
+# Calculate both custom and Ragas metrics
+python -m src.cli rag-test --use-ragas
+
+# Calculate only Ragas metrics (for comparison)
+python -m src.cli rag-test --ragas-only
 ```
 
 ### Parameter Sweep (Find Optimal Parameters)
@@ -29,6 +35,9 @@ python -m src.cli rag-test-sweep --grid \
   --max-chunks 10,15,20 \
   --min-relevance 0.4,0.45,0.5 \
   --runs 5
+
+# Parameter sweep with Ragas metrics
+python -m src.cli rag-test-sweep --param rrf_k --values 40,60,80 --use-ragas
 ```
 
 **Results**:
@@ -38,7 +47,10 @@ python -m src.cli rag-test-sweep --grid \
 
 ## What It Tests
 
-Verifies RAG retrieval quality using standard Information Retrieval metrics:
+Verifies RAG retrieval quality using two evaluation frameworks:
+
+### Custom IR Metrics (Default)
+Standard Information Retrieval metrics based on chunk header matching:
 - **Mean Average Precision (MAP)**: Overall retrieval quality across all test queries
 - **Recall@5**: % of required chunks found in top 5 results
 - **Recall@All**: % of required chunks found, regardless of position (total coverage)
@@ -46,6 +58,13 @@ Verifies RAG retrieval quality using standard Information Retrieval metrics:
 - **Precision@5**: % of top 5 retrieved chunks that are relevant
 - **MRR (Mean Reciprocal Rank)**: Average 1/rank of first required chunk
 - **Consistency**: Variance across multiple runs
+
+### Ragas Metrics (Optional, with `--use-ragas`)
+Industry-standard RAG evaluation framework using substring matching:
+- **Context Precision**: Proportion of retrieved chunks containing ground truth information
+- **Context Recall**: Proportion of ground truth information found in retrieved chunks
+
+**Note**: Ragas metrics use `required_chunks` as ground truth contexts by default, enabling seamless evaluation without modifying test cases.
 
 **Performance Tracking**:
 - **Total Time**: Total time for all tests
@@ -107,6 +126,37 @@ required_chunks:
 - How quickly does the first relevant chunk appear
 - 1/rank of first relevant chunk, averaged across queries
 - Range: 0-1 (higher is better)
+
+### Ragas Metrics
+
+**Context Precision**:
+- Measures what proportion of retrieved chunks contain ground truth information
+- Uses substring matching: checks if `required_chunks` appear in retrieved chunk text
+- Higher is better (range: 0-1)
+- Formula: (# retrieved chunks containing ground truth) / (total retrieved chunks)
+
+**Context Recall**:
+- Measures what proportion of ground truth information was found
+- Checks if each `required_chunk` substring appears in ANY retrieved chunk
+- Higher is better (range: 0-1)
+- Formula: (# ground truth substrings found) / (total ground truth substrings)
+
+**Key Difference from Custom Metrics**:
+- Custom metrics: Match chunk **headers** (exact or substring)
+- Ragas metrics: Match chunk **text content** (substring search)
+- Ragas often shows lower precision because it searches full chunk text, not just headers
+
+**Configuration**:
+```python
+# File: src/lib/constants.py
+RAGAS_ENABLED = False  # Global default (override with --use-ragas)
+RAGAS_JUDGE_MODEL = "gpt-4o"  # LLM for future Ragas features
+```
+
+**Installation**:
+```bash
+pip install ragas>=0.1.0
+```
 
 ## Tunable RAG Parameters
 
