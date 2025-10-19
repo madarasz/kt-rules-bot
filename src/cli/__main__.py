@@ -203,6 +203,16 @@ def create_parser() -> argparse.ArgumentParser:
         default=RAG_MIN_RELEVANCE,
         help=f"Minimum relevance threshold (default: {RAG_MIN_RELEVANCE})",
     )
+    rag_parser.add_argument(
+        "--use-ragas",
+        action="store_true",
+        help="Calculate both custom and Ragas metrics (requires ground_truth_contexts in test cases)",
+    )
+    rag_parser.add_argument(
+        "--ragas-only",
+        action="store_true",
+        help="Calculate only Ragas metrics (implies --use-ragas)",
+    )
 
     # Command: rag-test-sweep
     rag_sweep_parser = subparsers.add_parser(
@@ -257,6 +267,11 @@ def create_parser() -> argparse.ArgumentParser:
     rag_sweep_parser.add_argument(
         "--bm25-b",
         help="Comma-separated bm25_b values for grid search (e.g., 0.5,0.75,1.0)",
+    )
+    rag_sweep_parser.add_argument(
+        "--use-ragas",
+        action="store_true",
+        help="Calculate both custom and Ragas metrics (uses required_chunks as ground truth)",
     )
 
     # Command: download-team
@@ -352,7 +367,9 @@ def main():
                 test_id=args.test,
                 runs=args.runs,
                 max_chunks=args.max_chunks,
-                min_relevance=args.min_relevance
+                min_relevance=args.min_relevance,
+                use_ragas=args.use_ragas,
+                ragas_only=args.ragas_only,
             )
 
         elif args.command == "rag-test-sweep":
@@ -366,7 +383,8 @@ def main():
                 min_relevance=args.min_relevance,
                 rrf_k=args.rrf_k,
                 bm25_k1=args.bm25_k1,
-                bm25_b=args.bm25_b
+                bm25_b=args.bm25_b,
+                use_ragas=args.use_ragas,
             )
 
         elif args.command == "download-team":
