@@ -40,19 +40,19 @@ Integrate the ragas framework to replace custom evaluation metrics with industry
 
 ## Proposed Implementation
 
-### Phase 1: Setup & Dependencies (Est: 30 min)
+### Phase 1: Setup & Dependencies (Est: 30 min) ✅
 
-**1.1 Add ragas to requirements.txt**
+**1.1 Add ragas to requirements.txt** ✅
 ```python
 ragas>=0.1.0  # RAG evaluation framework
 ```
 
-**1.2 Create adapter module: `src/lib/ragas_adapter.py`**
+**1.2 Create adapter module: `src/lib/ragas_adapter.py`** ✅
 - Wrapper functions to convert our data formats to ragas format
 - Configuration for ragas LLM judge (reuse existing LLM providers)
 - Helper functions for metric calculation
 
-**1.3 Update constants.py**
+**1.3 Update constants.py** ✅
 ```python
 # Ragas Configuration
 RAGAS_ENABLED = False  # Feature flag for gradual rollout
@@ -61,9 +61,9 @@ RAGAS_METRICS_RETRIEVAL = ["context_precision", "context_recall"]
 RAGAS_METRICS_GENERATION = ["faithfulness", "answer_relevancy"]
 ```
 
-### Phase 2: Refactor RAG-Test (Retrieval Only) (Est: 3 hours)
+### Phase 2: Refactor RAG-Test (Retrieval Only) (Est: 3 hours) ✅
 
-**2.1 Extend test case models** ([test_case_models.py](test_case_models.py))
+**2.1 Extend test case models** ([test_case_models.py](test_case_models.py)) ✅
 
 Add optional fields for ragas (backward compatible):
 ```python
@@ -76,7 +76,7 @@ class RAGTestCase:
     ground_truth_contexts: Optional[List[str]] = None  # Full text of expected chunks
 ```
 
-**2.2 Update YAML format** (backward compatible)
+**2.2 Update YAML format** (backward compatible) ✅
 
 Existing format still works:
 ```yaml
@@ -98,7 +98,7 @@ ground_truth_contexts:  # Add for ragas metrics
   - "Full chunk text 2..."
 ```
 
-**2.3 Create ragas evaluator** (new file: `ragas_evaluator.py`)
+**2.3 Create ragas evaluator** (new file: `ragas_evaluator.py`) ✅
 
 New module:
 ```python
@@ -127,7 +127,7 @@ class RagasRAGEvaluator:
         )
 ```
 
-**2.4 Update RAGTestResult model**
+**2.4 Update RAGTestResult model** ✅
 
 Add optional ragas fields:
 ```python
@@ -144,11 +144,11 @@ class RAGTestResult:
     ragas_noise_sensitivity: Optional[float] = None
 ```
 
-**2.5 Update test runner** ([test_runner.py](test_runner.py))
+**2.5 Update test runner** ([test_runner.py](test_runner.py)) ✅
 
 Add `--use-ragas` flag support, integrate ragas evaluator
 
-**2.6 Update reports** ([reporting/](reporting/))
+**2.6 Update reports** ([reporting/](reporting/)) ✅
 
 Add ragas metrics to markdown and charts (when available)
 
@@ -234,9 +234,9 @@ Integrate ragas evaluation alongside existing evaluation
 
 Show both custom and ragas scores in reports
 
-### Phase 4: CLI Integration (Est: 1 hour)
+### Phase 4: CLI Integration (Est: 1 hour) 
 
-**4.1 Update rag-test command**
+**4.1 Update rag-test command** ✅
 
 Add flags:
 ```bash
@@ -252,26 +252,26 @@ python -m src.cli quality-test --use-ragas
 python -m src.cli quality-test --ragas-only
 ```
 
-**4.3 Update sweep commands**
+**4.3 Update sweep commands** ✅
 
 Support ragas metrics in parameter sweeps
 
 ### Phase 5: Reporting & Visualization (Est: 2 hours)
 
-**5.1 Update report generators**
+**5.1 Update report generators** ✅
 
 Both test frameworks:
 - Add ragas metrics section to markdown reports
 - Show comparison table (custom vs ragas)
 - Add interpretation guide for ragas metrics
 
-**5.2 Update chart generators**
+**5.2 Update chart generators** ✅
 
 - Add ragas metric charts
 - Add comparison charts (custom vs ragas side-by-side)
 - Update multi-metric comparisons
 
-**5.3 Update CSV/JSON exports**
+**5.3 Update CSV/JSON exports** ✅
 
 Include ragas metrics in exports for analysis
 

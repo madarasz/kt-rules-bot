@@ -116,14 +116,18 @@ def rag_test(
         print("MISSING CHUNKS")
         print("=" * 80)
         missing_chunks_found = False
+        count_missing_chunks = 0
         for result in results:
             if result.missing_chunks:
                 missing_chunks_found = True
                 for missing_chunk in result.missing_chunks:
                     print(f"- {result.test_id}: {missing_chunk}")
+                    count_missing_chunks += 1
         
         if not missing_chunks_found:
             print("No missing chunks - all required chunks were retrieved!")
+        else:
+            print(f"\n### Number of missing chunks**: {count_missing_chunks}")
 
         print("")
         print("=" * 80)
