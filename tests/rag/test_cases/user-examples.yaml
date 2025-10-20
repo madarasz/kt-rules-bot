@@ -1,3 +1,39 @@
+- test_id: can-squig-guard
+  query: >
+    Is Guard is treated as a Shoot action? If so, can a Wrecka Squig do a Guard action?
+  required_chunks:
+    - "This action is treated as a Shoot action."
+    - "WRECKA BOMB SQUIG - Stoopid"
+- test_id: largest-wrecka-blast
+  query: >
+    what is the largest blast radius the Wrecka Crew can get?
+  required_chunks:
+    - "WRECKA KREW - KABOOM!"
+    - "WRECKA KREW - TANKBUSTA ROKKITEER"
+- test_id: fight-through-wall
+  query: >
+    can two operatives fight even if not visible to each other on two different sides of a stronghold wall?
+  required_chunks:
+    - "Visibility cannot be determined over or through Wall terrain."
+    - "Something is within an operative's control range if it's visible to and within 1\" of that operative."
+- test_id: door-difference
+  query: >
+    is there a difference between the doors on the strongholds and large ruins ruleswise?
+  required_chunks:
+    - "The upper level of a large ruin terrain feature is"
+    - "The upper level(s) of a stronghold terrain feature is"
+- test_id: climbing-ladder
+  query: >
+    how  do you measure the distance needed to climb up to the second story of volkus map while using a ladder?
+  required_chunks:
+    - "An operative must be within 1\" horizontally and 3\" vertically of terrain that's visible to them to climb it."
+    - "UNIVERSAL EQUIPMENT - 2X LADDERS"
+- test_id: blast-vs-torrent
+  query: >
+    what is the difference between blast and torrent
+  required_chunks:
+    - "Torrent x"
+    - "The target you select is the primary target. After shooting the primary target, shoot with this weapon against each secondary target in an order of your choice (roll each sequence separately)."
 - test_id: team-validity # FAILS
   query: >
     which teams are tournament legal currently?

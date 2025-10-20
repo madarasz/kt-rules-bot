@@ -67,11 +67,14 @@ class RAGReportGenerator:
         content.append("## Missing Chunks")
         content.append("")
         missing_chunks_found = False
+        count_missing_chunks = 0
         for result in results:
             if result.missing_chunks:
                 missing_chunks_found = True
                 for missing_chunk in result.missing_chunks:
                     content.append(f"- **{result.test_id}**: *{missing_chunk}*")
+                    count_missing_chunks += 1
+        content.append(f"\n\n**Number of missing chunks**: {count_missing_chunks}")
         
         if not missing_chunks_found:
             content.append("No missing chunks - all required chunks were retrieved!")
@@ -201,11 +204,14 @@ class RAGReportGenerator:
             if first_result.found_chunks:
                 for chunk in first_result.found_chunks:
                     # Find rank, relevance, and metadata (use substring matching)
-                    chunk_lower = chunk.strip().lower()
+                    # Match logic from evaluator.py: check header first, then text
+                    chunk_lower = chunk.strip().lower().replace("*", "")
                     rank = None
                     relevance = None
                     metadata = None
-                    for i, (retr, score, meta) in enumerate(
+
+                    # Check headers first
+                    for i, (retr_header, score, meta) in enumerate(
                         zip(
                             first_result.retrieved_chunks,
                             first_result.retrieved_relevance_scores,
@@ -214,11 +220,27 @@ class RAGReportGenerator:
                         start=1
                     ):
                         # Use substring matching (consistent with evaluator)
-                        if chunk_lower in retr.strip().lower():
+                        if chunk_lower in retr_header.strip().lower().replace("*", ""):
                             rank = i
                             relevance = score
                             metadata = meta
                             break
+
+                    # If not found in headers, check chunk text
+                    if rank is None:
+                        for i, (retr_text, score, meta) in enumerate(
+                            zip(
+                                first_result.retrieved_chunk_texts,
+                                first_result.retrieved_relevance_scores,
+                                first_result.retrieved_chunk_metadata
+                            ),
+                            start=1
+                        ):
+                            if chunk_lower in retr_text.strip().lower().replace("*", ""):
+                                rank = i
+                                relevance = score
+                                metadata = meta
+                                break
 
                     # Build score display
                     score_parts = []
