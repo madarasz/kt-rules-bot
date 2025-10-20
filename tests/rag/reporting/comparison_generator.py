@@ -634,6 +634,12 @@ class ComparisonGenerator:
         content.append(f"- Recall@All: {best_result.summary.mean_recall_at_all:.3f}")
         content.append(f"- Precision@3: {best_result.summary.mean_precision_at_3:.3f}")
         content.append(f"- MRR: {best_result.summary.mean_mrr:.3f}")
+
+        # Add Ragas metrics if available
+        if best_result.summary.mean_ragas_context_precision is not None:
+            content.append(f"- Ragas Context Precision: {best_result.summary.mean_ragas_context_precision:.3f}")
+            content.append(f"- Ragas Context Recall: {best_result.summary.mean_ragas_context_recall:.3f}")
+
         content.append("")
 
         # Heatmaps (if 2D grid)
@@ -650,11 +656,28 @@ class ComparisonGenerator:
             content.append("![Recall@All Heatmap](charts/recall_all_heatmap.png)")
             content.append("")
 
+            # Add Ragas heatmaps if available
+            if sweep_results[0].summary.mean_ragas_context_precision is not None:
+                content.append("### Ragas Context Precision Heatmap")
+                content.append("![Ragas Context Precision Heatmap](charts/ragas_context_precision_heatmap.png)")
+                content.append("")
+                content.append("### Ragas Context Recall Heatmap")
+                content.append("![Ragas Context Recall Heatmap](charts/ragas_context_recall_heatmap.png)")
+                content.append("")
+
         # Full results table
         content.append("## All Configurations")
         content.append("")
-        header = "| " + " | ".join(param_names) + " | MAP | Recall@5 | Recall@All | Precision@3 | MRR |"
-        separator = "|" + "|".join(["-" * 12 for _ in range(len(param_names) + 5)]) + "|"
+
+        # Build table header with Ragas columns if available
+        has_ragas = sweep_results[0].summary.mean_ragas_context_precision is not None
+        if has_ragas:
+            header = "| " + " | ".join(param_names) + " | MAP | Recall@5 | Recall@All | Precision@3 | MRR | Ragas Prec | Ragas Rec |"
+            separator = "|" + "|".join(["-" * 12 for _ in range(len(param_names) + 7)]) + "|"
+        else:
+            header = "| " + " | ".join(param_names) + " | MAP | Recall@5 | Recall@All | Precision@3 | MRR |"
+            separator = "|" + "|".join(["-" * 12 for _ in range(len(param_names) + 5)]) + "|"
+
         content.append(header)
         content.append(separator)
 
@@ -666,6 +689,11 @@ class ComparisonGenerator:
                 f"{result.summary.mean_map:.3f} | {result.summary.mean_recall_at_5:.3f} | "
                 f"{result.summary.mean_recall_at_all:.3f} | {result.summary.mean_precision_at_3:.3f} | {result.summary.mean_mrr:.3f} |"
             )
+
+            # Add Ragas columns if available
+            if has_ragas:
+                row += f" {result.summary.mean_ragas_context_precision:.3f} | {result.summary.mean_ragas_context_recall:.3f} |"
+
             content.append(row)
 
         content.append("")
