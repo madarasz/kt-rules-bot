@@ -3,6 +3,11 @@
 Usage:
     python -m src.cli rag-test-sweep --param rrf_k --values 40,60,80 --runs 10
     python -m src.cli rag-test-sweep --grid --max-chunks 10,15,20 --min-relevance 0.4,0.5
+    python -m src.cli rag-test-sweep --param embedding_model --values text-embedding-3-small,text-embedding-3-large
+    python -m src.cli rag-test-sweep --param chunk_header_level --values 2,3,4
+
+Note: Changes to embedding_model or chunk_header_level will automatically reset the
+      vector database and re-ingest all documents with the new settings.
 """
 
 import sys
@@ -29,6 +34,8 @@ def rag_test_sweep(
     bm25_k1: str | None = None,
     bm25_b: str | None = None,
     bm25_weight: str | None = None,
+    embedding_model: str | None = None,
+    chunk_header_level: str | None = None,
     use_ragas: bool = False,
 ) -> None:
     """Run RAG parameter sweep tests.
@@ -45,6 +52,8 @@ def rag_test_sweep(
         bm25_k1: Comma-separated bm25_k1 values (grid mode)
         bm25_b: Comma-separated bm25_b values (grid mode)
         bm25_weight: Comma-separated bm25_weight values (grid mode)
+        embedding_model: Comma-separated embedding_model values (grid mode)
+        chunk_header_level: Comma-separated chunk_header_level values (grid mode)
         use_ragas: Calculate Ragas metrics alongside custom metrics
     """
     # Validate arguments
@@ -66,6 +75,8 @@ def rag_test_sweep(
                 bm25_k1=bm25_k1,
                 bm25_b=bm25_b,
                 bm25_weight=bm25_weight,
+                embedding_model=embedding_model,
+                chunk_header_level=chunk_header_level,
             )
 
             if not param_grid:
@@ -225,7 +236,7 @@ def _parse_parameter_values(param_name: str, values_str: str) -> List:
         values_str: Comma-separated values string
 
     Returns:
-        List of parsed values (int or float depending on parameter)
+        List of parsed values (int, float, or str depending on parameter)
 
     Raises:
         ValueError: If values cannot be parsed
@@ -233,12 +244,15 @@ def _parse_parameter_values(param_name: str, values_str: str) -> List:
     values_list = [v.strip() for v in values_str.split(',')]
 
     # Determine type based on parameter name
-    if param_name in ['max_chunks', 'rrf_k']:
+    if param_name in ['max_chunks', 'rrf_k', 'chunk_header_level']:
         # Integer parameters
         return [int(v) for v in values_list]
     elif param_name in ['min_relevance', 'bm25_k1', 'bm25_b', 'bm25_weight']:
         # Float parameters
         return [float(v) for v in values_list]
+    elif param_name in ['embedding_model']:
+        # String parameters
+        return values_list
     else:
         raise ValueError(f"Unknown parameter: {param_name}")
 
@@ -250,6 +264,8 @@ def _parse_grid_params(
     bm25_k1: str | None,
     bm25_b: str | None,
     bm25_weight: str | None,
+    embedding_model: str | None,
+    chunk_header_level: str | None,
 ) -> Dict[str, List]:
     """Parse grid search parameters.
 
@@ -260,6 +276,8 @@ def _parse_grid_params(
         bm25_k1: Comma-separated bm25_k1 values
         bm25_b: Comma-separated bm25_b values
         bm25_weight: Comma-separated bm25_weight values
+        embedding_model: Comma-separated embedding_model values
+        chunk_header_level: Comma-separated chunk_header_level values
 
     Returns:
         Dictionary mapping parameter names to value lists
@@ -286,5 +304,11 @@ def _parse_grid_params(
 
     if bm25_weight:
         param_grid['bm25_weight'] = [float(v.strip()) for v in bm25_weight.split(',')]
+
+    if embedding_model:
+        param_grid['embedding_model'] = [v.strip() for v in embedding_model.split(',')]
+
+    if chunk_header_level:
+        param_grid['chunk_header_level'] = [int(v.strip()) for v in chunk_header_level.split(',')]
 
     return param_grid

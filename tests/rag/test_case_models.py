@@ -12,6 +12,7 @@ from src.lib.constants import (
     RAG_MAX_CHUNKS,
     RAG_MIN_RELEVANCE,
     EMBEDDING_MODEL,
+    MARKDOWN_CHUNK_HEADER_LEVEL,
     RRF_K,
     BM25_K1,
     BM25_B,
@@ -162,6 +163,7 @@ class RAGTestSummary:
     rag_max_chunks: int = RAG_MAX_CHUNKS
     rag_min_relevance: float = RAG_MIN_RELEVANCE
     embedding_model: str = EMBEDDING_MODEL
+    chunk_header_level: int = MARKDOWN_CHUNK_HEADER_LEVEL
     rrf_k: int = RRF_K
     bm25_k1: float = BM25_K1
     bm25_b: float = BM25_B
