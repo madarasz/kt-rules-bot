@@ -38,7 +38,7 @@ streamlit run src/cli/admin_dashboard.py --server.port 8501
 
 ## Architecture
 
-**Tech Stack**: Python 3.11+, discord.py, ChromaDB, OpenAI, Anthropic, Google AI, X/Grok
+**Tech Stack**: Python 3.11+, discord.py, ChromaDB, OpenAI, Anthropic, Google AI, X/Grok, DeepSeek
 
 **RAG Pipeline**:
 - Hybrid retrieval (vector + BM25) with RRF fusion
@@ -51,6 +51,7 @@ streamlit run src/cli/admin_dashboard.py --server.port 8501
 - Gemini: `gemini-2.5-pro`, `gemini-2.5-flash`
 - GPT: `gpt-5`, `gpt-4.1`, `gpt-4o`, `o3`, `o4-mini` + variants
 - Grok: `grok-4-fast-reasoning`, `grok-3` + variants
+- DeepSeek: `deepseek-chat`, `deepseek-reasoner`
 
 **See**: [src/services/CLAUDE.md](src/services/CLAUDE.md) for detailed architecture
 
