@@ -40,20 +40,7 @@ class RAGReportGenerator:
         content.append(f"**Total Tests**: {summary.total_tests}")
         content.append("")
 
-        # Main metrics table
-        content.append("### Custom IR Metrics")
-        content.append("")
-        content.append("| Metric | Value |")
-        content.append("|--------|-------|")
-        content.append(f"| **Mean MAP** | {summary.mean_map:.3f} |")
-        content.append(f"| **Recall@5** | {summary.mean_recall_at_5:.3f} ({summary.mean_recall_at_5*100:.1f}%) |")
-        content.append(f"| **Recall@All** | {summary.mean_recall_at_all:.3f} ({summary.mean_recall_at_all*100:.1f}%) |")
-        content.append(f"| **Precision@3** | {summary.mean_precision_at_3:.3f} ({summary.mean_precision_at_3*100:.1f}%) |")
-        content.append(f"| **Precision@5** | {summary.mean_precision_at_5:.3f} ({summary.mean_precision_at_5*100:.1f}%) |")
-        content.append(f"| **MRR** | {summary.mean_mrr:.3f} |")
-        content.append("")
-
-        # Ragas metrics (if available)
+        # Ragas metrics
         if summary.mean_ragas_context_precision is not None:
             content.append("### Ragas Metrics")
             content.append("")
@@ -91,24 +78,12 @@ class RAGReportGenerator:
         content.append("")
 
         # Multi-run statistics
-        if summary.std_dev_map > 0:
+        if summary.mean_ragas_context_precision is not None and summary.std_dev_ragas_context_precision > 0:
             content.append("### Multi-Run Statistics")
             content.append("")
-            content.append("**Custom Metrics:**")
+            content.append(f"- **Context Precision**: {summary.mean_ragas_context_precision:.3f} ± {summary.std_dev_ragas_context_precision:.3f}")
+            content.append(f"- **Context Recall**: {summary.mean_ragas_context_recall:.3f} ± {summary.std_dev_ragas_context_recall:.3f}")
             content.append("")
-            content.append(f"- **MAP**: {summary.mean_map:.3f} ± {summary.std_dev_map:.3f}")
-            content.append(f"- **Recall@5**: {summary.mean_recall_at_5:.3f} ± {summary.std_dev_recall_at_5:.3f}")
-            content.append(f"- **Recall@All**: {summary.mean_recall_at_all:.3f} ± {summary.std_dev_recall_at_all:.3f}")
-            content.append(f"- **Precision@3**: {summary.mean_precision_at_3:.3f} ± {summary.std_dev_precision_at_3:.3f}")
-            content.append("")
-
-            # Ragas multi-run statistics
-            if summary.mean_ragas_context_precision is not None and summary.std_dev_ragas_context_precision > 0:
-                content.append("**Ragas Metrics:**")
-                content.append("")
-                content.append(f"- **Context Precision**: {summary.mean_ragas_context_precision:.3f} ± {summary.std_dev_ragas_context_precision:.3f}")
-                content.append(f"- **Context Recall**: {summary.mean_ragas_context_recall:.3f} ± {summary.std_dev_ragas_context_recall:.3f}")
-                content.append("")
 
         # Configuration
         content.append("## Configuration")
@@ -148,10 +123,6 @@ class RAGReportGenerator:
 
             # Metrics (averaged if multiple runs)
             if len(test_results) > 1:
-                avg_map = sum(r.map_score for r in test_results) / len(test_results)
-                avg_recall5 = sum(r.recall_at_5 for r in test_results) / len(test_results)
-                avg_recall_all = sum(r.recall_at_all for r in test_results) / len(test_results)
-                avg_prec3 = sum(r.precision_at_3 for r in test_results) / len(test_results)
                 avg_time = sum(r.retrieval_time_seconds for r in test_results) / len(test_results)
                 total_cost = sum(r.embedding_cost_usd for r in test_results)
 
@@ -162,34 +133,21 @@ class RAGReportGenerator:
                 content.append(f"**Runs**: {len(test_results)}")
                 content.append("")
                 content.append("**Average Metrics**:")
-                content.append(f"- MAP: {avg_map:.3f}")
-                content.append(f"- Recall@5: {avg_recall5:.3f}")
-                content.append(f"- Recall@All: {avg_recall_all:.3f}")
-                content.append(f"- Precision@3: {avg_prec3:.3f}")
 
                 if ragas_cp_values:
                     avg_ragas_cp = sum(ragas_cp_values) / len(ragas_cp_values)
                     avg_ragas_cr = sum(ragas_cr_values) / len(ragas_cr_values)
-                    content.append(f"- Ragas Context Precision: {avg_ragas_cp:.3f}")
-                    content.append(f"- Ragas Context Recall: {avg_ragas_cr:.3f}")
+                    content.append(f"- Context Precision: {avg_ragas_cp:.3f}")
+                    content.append(f"- Context Recall: {avg_ragas_cr:.3f}")
 
                 content.append(f"- Avg Retrieval Time: {avg_time:.3f}s")
                 content.append(f"- Total Cost: ${total_cost:.6f}")
             else:
                 content.append("**Metrics**:")
-                content.append(f"- MAP: {first_result.map_score:.3f}")
-                content.append(f"- Recall@5: {first_result.recall_at_5:.3f}")
-                content.append(f"- Recall@All: {first_result.recall_at_all:.3f}")
-                content.append(f"- Precision@3: {first_result.precision_at_3:.3f}")
-                content.append(f"- Precision@5: {first_result.precision_at_5:.3f}")
 
                 if first_result.ragas_context_precision is not None:
-                    content.append(f"- Ragas Context Precision: {first_result.ragas_context_precision:.3f}")
-                    content.append(f"- Ragas Context Recall: {first_result.ragas_context_recall:.3f}")
-
-                #content.append(f"- MRR: {first_result.mrr:.3f}")
-                #content.append(f"- Retrieval Time: {first_result.retrieval_time_seconds:.3f}s")
-                #content.append(f"- Embedding Cost: ${first_result.embedding_cost_usd:.6f}")
+                    content.append(f"- Context Precision: {first_result.ragas_context_precision:.3f}")
+                    content.append(f"- Context Recall: {first_result.ragas_context_recall:.3f}")
 
             content.append("")
 

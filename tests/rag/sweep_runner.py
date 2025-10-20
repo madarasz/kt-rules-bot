@@ -96,28 +96,27 @@ class RAGSweepRunner:
         self,
         test_cases_dir: Path = Path("tests/rag/test_cases"),
         results_base_dir: Path = Path("tests/rag/results"),
-        use_ragas: bool = False,
     ):
         """Initialize sweep runner.
 
         Args:
             test_cases_dir: Directory containing YAML test cases
             results_base_dir: Base directory for results
-            use_ragas: Whether to calculate Ragas metrics
         """
         self.test_cases_dir = test_cases_dir
         self.results_base_dir = results_base_dir
-        self.use_ragas = use_ragas
 
         # Track last ingested configuration to avoid unnecessary reingestion
         self.last_ingested_embedding_model: Optional[str] = None
         self.last_ingested_chunk_header_level: Optional[int] = None
 
+        # Track if we're sweeping embedding/chunking parameters (determines if re-ingestion is needed)
+        self.sweeping_embedding_or_chunking = False
+
         logger.info(
             "rag_sweep_runner_initialized",
             test_cases_dir=str(test_cases_dir),
             results_base_dir=str(results_base_dir),
-            use_ragas=use_ragas,
         )
 
     def sweep_parameter(
@@ -143,12 +142,16 @@ class RAGSweepRunner:
         if base_config is None:
             base_config = ParameterConfig()
 
+        # Check if we're sweeping embedding_model or chunk_header_level
+        self.sweeping_embedding_or_chunking = param_name in ("embedding_model", "chunk_header_level")
+
         logger.info(
             "starting_parameter_sweep",
             param_name=param_name,
             values=param_values,
             test_id=test_id,
             runs=runs,
+            sweeping_embedding_or_chunking=self.sweeping_embedding_or_chunking,
         )
 
         sweep_results = []
@@ -178,7 +181,7 @@ class RAGSweepRunner:
                 "sweep_config_completed",
                 param_name=param_name,
                 value=value,
-                map_score=result.summary.mean_map,
+                context_precision=result.summary.mean_ragas_context_precision,
             )
 
         logger.info(
@@ -213,12 +216,16 @@ class RAGSweepRunner:
 
         total_configs = len(combinations)
 
+        # Check if we're sweeping embedding_model or chunk_header_level
+        self.sweeping_embedding_or_chunking = ("embedding_model" in param_names or "chunk_header_level" in param_names)
+
         logger.info(
             "starting_grid_search",
             parameters=param_names,
             combinations=total_configs,
             test_id=test_id,
             runs=runs,
+            sweeping_embedding_or_chunking=self.sweeping_embedding_or_chunking,
         )
 
         sweep_results = []
@@ -247,7 +254,7 @@ class RAGSweepRunner:
             logger.info(
                 "grid_config_completed",
                 progress=f"{i}/{total_configs}",
-                map_score=result.summary.mean_map,
+                context_precision=result.summary.mean_ragas_context_precision,
             )
 
         logger.info(
@@ -274,13 +281,18 @@ class RAGSweepRunner:
             SweepResult
         """
         # Check if we need to reset and reingest due to embedding or chunking changes
-        # Compare against last ingested config, not constants.py values
-        needs_reingest = (
-            self.last_ingested_embedding_model is None
-            or self.last_ingested_chunk_header_level is None
-            or config.embedding_model != self.last_ingested_embedding_model
-            or config.chunk_header_level != self.last_ingested_chunk_header_level
-        )
+        # Only check if we're actually sweeping embedding_model or chunk_header_level
+        if self.sweeping_embedding_or_chunking:
+            # Compare against last ingested config, not constants.py values
+            needs_reingest = (
+                self.last_ingested_embedding_model is None
+                or self.last_ingested_chunk_header_level is None
+                or config.embedding_model != self.last_ingested_embedding_model
+                or config.chunk_header_level != self.last_ingested_chunk_header_level
+            )
+        else:
+            # Not sweeping embedding/chunking params - skip re-ingestion, use existing DB
+            needs_reingest = False
 
         if needs_reingest:
             logger.info(
@@ -318,7 +330,6 @@ class RAGSweepRunner:
             bm25_b=config.bm25_b,
             bm25_weight=config.bm25_weight,
             embedding_model=config.embedding_model,
-            use_ragas=self.use_ragas,
         )
 
         # Run tests

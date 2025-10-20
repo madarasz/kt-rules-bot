@@ -128,9 +128,9 @@ BM25_WEIGHT = 0.5  # Weight for BM25 keyword search in hybrid fusion (0.0-1.0)
                    # Vector weight is automatically 1.0 - BM25_WEIGHT
 
 # BM25 keyword search parameters
-BM25_K1 = 1.8  # Term frequency saturation parameter (typical range: 1.2-2.0)
+BM25_K1 = 1.6  # Term frequency saturation parameter (typical range: 1.2-2.0)
                # Higher values give more weight to term frequency
-BM25_B = 0.85  # Document length normalization parameter (typical range: 0.5-1.0)
+BM25_B = 0.8  # Document length normalization parameter (typical range: 0.5-1.0)
                # 0 = no normalization, 1 = full normalization
 
 RRF_K = 60  # RRF (Reciprocal Rank Fusion) constant for hybrid search
@@ -143,7 +143,8 @@ RRF_K = 60  # RRF (Reciprocal Rank Fusion) constant for hybrid search
 # ============================================================================
 
 # Default embedding model
-EMBEDDING_MODEL = "text-embedding-3-small"  # OpenAI embedding model
+EMBEDDING_MODEL = "text-embedding-ada-002"  # OpenAI embedding model
+                                            # text-embedding-3-small, text-embedding-3-large, text-embedding-ada-002
 
 # Markdown chunking configuration
 MARKDOWN_CHUNK_HEADER_LEVEL = 2  # Max header level to chunk at: chunks at ## up to this level

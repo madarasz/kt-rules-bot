@@ -36,9 +36,8 @@ def rag_test_sweep(
     bm25_weight: str | None = None,
     embedding_model: str | None = None,
     chunk_header_level: str | None = None,
-    use_ragas: bool = False,
 ) -> None:
-    """Run RAG parameter sweep tests.
+    """Run RAG parameter sweep tests using Ragas evaluation.
 
     Args:
         param: Parameter name to sweep (single-parameter mode)
@@ -54,7 +53,6 @@ def rag_test_sweep(
         bm25_weight: Comma-separated bm25_weight values (grid mode)
         embedding_model: Comma-separated embedding_model values (grid mode)
         chunk_header_level: Comma-separated chunk_header_level values (grid mode)
-        use_ragas: Calculate Ragas metrics alongside custom metrics
     """
     # Validate arguments
     if not grid and (not param or not values):
@@ -112,7 +110,7 @@ def rag_test_sweep(
     print("")
 
     # Initialize runners
-    sweep_runner = RAGSweepRunner(use_ragas=use_ragas)
+    sweep_runner = RAGSweepRunner()
     comparison_gen = ComparisonGenerator()
 
     try:
@@ -123,14 +121,12 @@ def rag_test_sweep(
                 parameters=list(param_grid.keys()),
                 test_id=test_id,
                 runs=runs,
-                use_ragas=use_ragas,
             )
 
             print(f"\nRunning grid search...")
             print(f"Parameters: {list(param_grid.keys())}")
             print(f"Total configurations: {total_configs}")
-            if use_ragas:
-                print(f"Evaluation mode: Custom + Ragas metrics")
+            print(f"Evaluation: Ragas metrics")
             print("")
 
             sweep_results = sweep_runner.grid_search(
@@ -158,14 +154,12 @@ def rag_test_sweep(
                 values=param_values,
                 test_id=test_id,
                 runs=runs,
-                use_ragas=use_ragas,
             )
 
             print(f"\nRunning parameter sweep...")
             print(f"Parameter: {param}")
             print(f"Values: {param_values}")
-            if use_ragas:
-                print(f"Evaluation mode: Custom + Ragas metrics")
+            print(f"Evaluation: Ragas metrics")
             print("")
 
             sweep_results = sweep_runner.sweep_parameter(
@@ -191,15 +185,17 @@ def rag_test_sweep(
         print("SWEEP COMPLETED")
         print("=" * 80)
 
-        # Find best configuration
-        best_result = max(sweep_results, key=lambda r: r.summary.mean_map)
+        # Find best configuration (based on Ragas Context Precision)
+        if sweep_results[0].summary.mean_ragas_context_precision is not None:
+            best_result = max(sweep_results, key=lambda r: r.summary.mean_ragas_context_precision)
+        else:
+            best_result = sweep_results[0]
 
         print(f"Best configuration:")
         print(f"  {best_result.config.get_description()}")
-        print(f"  MAP: {best_result.summary.mean_map:.3f}")
-        print(f"  Recall@5: {best_result.summary.mean_recall_at_5:.3f}")
-        print(f"  Recall@All: {best_result.summary.mean_recall_at_all:.3f}")
-        print(f"  Precision@3: {best_result.summary.mean_precision_at_3:.3f}")
+        if best_result.summary.mean_ragas_context_precision is not None:
+            print(f"  Context Precision: {best_result.summary.mean_ragas_context_precision:.3f}")
+            print(f"  Context Recall: {best_result.summary.mean_ragas_context_recall:.3f}")
         print("")
 
         print(f"Report saved to: {output_dir / 'comparison_report.md'}")
@@ -210,7 +206,7 @@ def rag_test_sweep(
         logger.info(
             "sweep_completed",
             output_dir=str(output_dir),
-            best_map=best_result.summary.mean_map,
+            best_context_precision=best_result.summary.mean_ragas_context_precision if best_result.summary.mean_ragas_context_precision else 0.0,
         )
 
     except FileNotFoundError as e:

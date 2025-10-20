@@ -142,19 +142,8 @@ class ComparisonGenerator:
         with open(output_path, 'w', newline='') as csvfile:
             fieldnames = [
                 param_name,
-                'mean_map',
-                'mean_recall_at_5',
-                'mean_recall_at_all',
-                'mean_recall_at_10',
-                'mean_precision_at_3',
-                'mean_precision_at_5',
-                'mean_mrr',
                 'mean_ragas_context_precision',
                 'mean_ragas_context_recall',
-                'std_dev_map',
-                'std_dev_recall_at_5',
-                'std_dev_recall_at_all',
-                'std_dev_precision_at_3',
                 'std_dev_ragas_context_precision',
                 'std_dev_ragas_context_recall',
                 'total_time_seconds',
@@ -169,19 +158,8 @@ class ComparisonGenerator:
                 param_value = getattr(result.config, param_name)
                 writer.writerow({
                     param_name: param_value,
-                    'mean_map': result.summary.mean_map,
-                    'mean_recall_at_5': result.summary.mean_recall_at_5,
-                    'mean_recall_at_all': result.summary.mean_recall_at_all,
-                    'mean_recall_at_10': result.summary.mean_recall_at_10,
-                    'mean_precision_at_3': result.summary.mean_precision_at_3,
-                    'mean_precision_at_5': result.summary.mean_precision_at_5,
-                    'mean_mrr': result.summary.mean_mrr,
                     'mean_ragas_context_precision': result.summary.mean_ragas_context_precision,
                     'mean_ragas_context_recall': result.summary.mean_ragas_context_recall,
-                    'std_dev_map': result.summary.std_dev_map,
-                    'std_dev_recall_at_5': result.summary.std_dev_recall_at_5,
-                    'std_dev_recall_at_all': result.summary.std_dev_recall_at_all,
-                    'std_dev_precision_at_3': result.summary.std_dev_precision_at_3,
                     'std_dev_ragas_context_precision': result.summary.std_dev_ragas_context_precision,
                     'std_dev_ragas_context_recall': result.summary.std_dev_ragas_context_recall,
                     'total_time_seconds': result.summary.total_time_seconds,
@@ -202,13 +180,6 @@ class ComparisonGenerator:
 
         with open(output_path, 'w', newline='') as csvfile:
             fieldnames = param_names + [
-                'mean_map',
-                'mean_recall_at_5',
-                'mean_recall_at_all',
-                'mean_recall_at_10',
-                'mean_precision_at_3',
-                'mean_precision_at_5',
-                'mean_mrr',
                 'mean_ragas_context_precision',
                 'mean_ragas_context_recall',
                 'total_time_seconds',
@@ -224,13 +195,6 @@ class ComparisonGenerator:
                     row[param_name] = getattr(result.config, param_name)
 
                 row.update({
-                    'mean_map': result.summary.mean_map,
-                    'mean_recall_at_5': result.summary.mean_recall_at_5,
-                    'mean_recall_at_all': result.summary.mean_recall_at_all,
-                    'mean_recall_at_10': result.summary.mean_recall_at_10,
-                    'mean_precision_at_3': result.summary.mean_precision_at_3,
-                    'mean_precision_at_5': result.summary.mean_precision_at_5,
-                    'mean_mrr': result.summary.mean_mrr,
                     'mean_ragas_context_precision': result.summary.mean_ragas_context_precision,
                     'mean_ragas_context_recall': result.summary.mean_ragas_context_recall,
                     'total_time_seconds': result.summary.total_time_seconds,
@@ -249,109 +213,7 @@ class ComparisonGenerator:
         charts_dir: Path,
     ) -> None:
         """Generate individual line charts for each metric."""
-        # MAP
-        map_values = [r.summary.mean_map for r in sweep_results]
-        map_errors = [r.summary.std_dev_map for r in sweep_results] if sweep_results[0].summary.std_dev_map > 0 else None
-
-        create_line_chart(
-            x_values=param_values,
-            y_values=map_values,
-            x_label=param_name,
-            y_label='MAP Score',
-            title=f'Mean Average Precision vs {param_name}',
-            output_path=charts_dir / 'map_comparison.png',
-            y_errors=map_errors,
-            y_min=0.0,
-            y_max=1.0,
-        )
-
-        # Recall@5
-        recall5_values = [r.summary.mean_recall_at_5 for r in sweep_results]
-        recall5_errors = [r.summary.std_dev_recall_at_5 for r in sweep_results] if sweep_results[0].summary.std_dev_recall_at_5 > 0 else None
-
-        create_line_chart(
-            x_values=param_values,
-            y_values=recall5_values,
-            x_label=param_name,
-            y_label='Recall@5',
-            title=f'Recall@5 vs {param_name}',
-            output_path=charts_dir / 'recall5_comparison.png',
-            y_errors=recall5_errors,
-            y_min=0.0,
-            y_max=1.0,
-        )
-
-        # Recall@All
-        recall_all_values = [r.summary.mean_recall_at_all for r in sweep_results]
-        recall_all_errors = [r.summary.std_dev_recall_at_all for r in sweep_results] if sweep_results[0].summary.std_dev_recall_at_all > 0 else None
-
-        create_line_chart(
-            x_values=param_values,
-            y_values=recall_all_values,
-            x_label=param_name,
-            y_label='Recall@All',
-            title=f'Recall@All vs {param_name}',
-            output_path=charts_dir / 'recall_all_comparison.png',
-            y_errors=recall_all_errors,
-            y_min=0.0,
-            y_max=1.0,
-        )
-
-        # Precision@3
-        prec3_values = [r.summary.mean_precision_at_3 for r in sweep_results]
-        prec3_errors = [r.summary.std_dev_precision_at_3 for r in sweep_results] if sweep_results[0].summary.std_dev_precision_at_3 > 0 else None
-
-        create_line_chart(
-            x_values=param_values,
-            y_values=prec3_values,
-            x_label=param_name,
-            y_label='Precision@3',
-            title=f'Precision@3 vs {param_name}',
-            output_path=charts_dir / 'precision3_comparison.png',
-            y_errors=prec3_errors,
-            y_min=0.0,
-            y_max=1.0,
-        )
-
-        # MRR
-        mrr_values = [r.summary.mean_mrr for r in sweep_results]
-
-        create_line_chart(
-            x_values=param_values,
-            y_values=mrr_values,
-            x_label=param_name,
-            y_label='MRR',
-            title=f'Mean Reciprocal Rank vs {param_name}',
-            output_path=charts_dir / 'mrr_comparison.png',
-            y_min=0.0,
-            y_max=1.0,
-        )
-
-        # Time
-        time_values = [r.summary.avg_retrieval_time_seconds for r in sweep_results]
-
-        create_line_chart(
-            x_values=param_values,
-            y_values=time_values,
-            x_label=param_name,
-            y_label='Time (seconds)',
-            title=f'Avg Retrieval Time vs {param_name}',
-            output_path=charts_dir / 'time_comparison.png',
-        )
-
-        # Cost
-        cost_values = [r.summary.total_cost_usd for r in sweep_results]
-
-        create_line_chart(
-            x_values=param_values,
-            y_values=cost_values,
-            x_label=param_name,
-            y_label='Cost (USD)',
-            title=f'Total Cost vs {param_name}',
-            output_path=charts_dir / 'cost_comparison.png',
-        )
-
-        # Ragas Metrics (if available) - combined chart first
+        # Ragas Metrics - combined chart
         if sweep_results[0].summary.mean_ragas_context_precision is not None:
             ragas_cp_values = [r.summary.mean_ragas_context_precision for r in sweep_results]
             ragas_cr_values = [r.summary.mean_ragas_context_recall for r in sweep_results]
@@ -378,27 +240,10 @@ class ComparisonGenerator:
         param_name: str,
         charts_dir: Path,
     ) -> None:
-        """Generate grouped bar chart comparing multiple metrics."""
-        categories = [str(v) for v in param_values]
-
-        values_dict = {
-            'MAP': [r.summary.mean_map for r in sweep_results],
-            'Recall@5': [r.summary.mean_recall_at_5 for r in sweep_results],
-            'Recall@All': [r.summary.mean_recall_at_all for r in sweep_results],
-            'Precision@3': [r.summary.mean_precision_at_3 for r in sweep_results],
-            'MRR': [r.summary.mean_mrr for r in sweep_results],
-        }
-
-        create_grouped_bar_chart(
-            categories=categories,
-            values_dict=values_dict,
-            x_label=param_name,
-            y_label='Score',
-            title=f'All Metrics Comparison: {param_name}',
-            output_path=charts_dir / 'multi_metric_comparison.png',
-        )
-
-        logger.info("multi_metric_chart_generated")
+        """Generate grouped bar chart comparing Ragas metrics."""
+        # This method is kept for backwards compatibility but now only handles Ragas
+        # The actual Ragas chart is already generated in _generate_metric_charts
+        logger.info("multi_metric_chart_skipped_ragas_already_generated")
 
     def _generate_heatmaps(
         self,
@@ -412,16 +257,8 @@ class ComparisonGenerator:
         param1_values = param_grid[param1_name]
         param2_values = param_grid[param2_name]
 
-        # Create data matrices for each metric
-        metrics = {
-            'map': ('MAP Score', 'map_heatmap.png'),
-            'recall_at_5': ('Recall@5', 'recall5_heatmap.png'),
-            'recall_at_all': ('Recall@All', 'recall_all_heatmap.png'),
-            'precision_at_3': ('Precision@3', 'precision3_heatmap.png'),
-            'mrr': ('MRR', 'mrr_heatmap.png'),
-        }
-
-        # Add Ragas metrics if available
+        # Create data matrices for Ragas metrics only
+        metrics = {}
         if sweep_results[0].summary.mean_ragas_context_precision is not None:
             metrics['ragas_context_precision'] = ('Ragas Context Precision', 'ragas_context_precision_heatmap.png')
             metrics['ragas_context_recall'] = ('Ragas Context Recall', 'ragas_context_recall_heatmap.png')
@@ -494,33 +331,33 @@ class ComparisonGenerator:
         has_ragas = sweep_results[0].summary.mean_ragas_context_precision is not None
 
         if has_ragas:
-            content.append(f"| {param_name} | Ragas CP | Ragas CR | MAP | Recall@5 | Recall@All | Precision@3 | MRR | Avg Time (s) |")
-            content.append("|" + "-" * 12 + "|" + "-" * 11 + "|" + "-" * 11 + "|" + "-" * 7 + "|" + "-" * 11 + "|" + "-" * 13 + "|" + "-" * 14 + "|" + "-" * 7 + "|" + "-" * 14 + "|")
+            content.append(f"| {param_name} | Context Precision | Context Recall | Avg Time (s) | Cost (USD) |")
+            content.append("|" + "-" * 12 + "|" + "-" * 19 + "|" + "-" * 16 + "|" + "-" * 14 + "|" + "-" * 12 + "|")
 
             for param_val, result in zip(param_values, sweep_results):
                 s = result.summary
                 content.append(
                     f"| {param_val} | {s.mean_ragas_context_precision:.3f} | {s.mean_ragas_context_recall:.3f} | "
-                    f"{s.mean_map:.3f} | {s.mean_recall_at_5:.3f} | "
-                    f"{s.mean_recall_at_all:.3f} | {s.mean_precision_at_3:.3f} | {s.mean_mrr:.3f} | "
-                    f"{s.avg_retrieval_time_seconds:.3f} |"
+                    f"{s.avg_retrieval_time_seconds:.3f} | ${s.total_cost_usd:.6f} |"
                 )
         else:
-            content.append(f"| {param_name} | MAP | Recall@5 | Recall@All | Precision@3 | MRR | Avg Time (s) |")
-            content.append("|" + "-" * 12 + "|" + "-" * 7 + "|" + "-" * 11 + "|" + "-" * 13 + "|" + "-" * 14 + "|" + "-" * 7 + "|" + "-" * 14 + "|")
+            content.append(f"| {param_name} | Avg Time (s) | Cost (USD) |")
+            content.append("|" + "-" * 12 + "|" + "-" * 14 + "|" + "-" * 12 + "|")
 
             for param_val, result in zip(param_values, sweep_results):
                 s = result.summary
                 content.append(
-                    f"| {param_val} | {s.mean_map:.3f} | {s.mean_recall_at_5:.3f} | "
-                    f"{s.mean_recall_at_all:.3f} | {s.mean_precision_at_3:.3f} | {s.mean_mrr:.3f} | "
-                    f"{s.avg_retrieval_time_seconds:.3f} |"
+                    f"| {param_val} | {s.avg_retrieval_time_seconds:.3f} | ${s.total_cost_usd:.6f} |"
                 )
 
         content.append("")
 
-        # Best configuration
-        best_idx = max(range(len(sweep_results)), key=lambda i: sweep_results[i].summary.mean_map)
+        # Best configuration (based on Ragas Context Precision)
+        if has_ragas:
+            best_idx = max(range(len(sweep_results)), key=lambda i: sweep_results[i].summary.mean_ragas_context_precision)
+        else:
+            best_idx = 0  # Fallback if no metrics available
+
         best_result = sweep_results[best_idx]
         best_param_val = param_values[best_idx]
 
@@ -534,14 +371,6 @@ class ComparisonGenerator:
             content.append(f"- Context Precision: {best_result.summary.mean_ragas_context_precision:.3f}")
             content.append(f"- Context Recall: {best_result.summary.mean_ragas_context_recall:.3f}")
             content.append("")
-            content.append("**Custom IR Metrics:**")
-
-        content.append(f"- MAP: {best_result.summary.mean_map:.3f}")
-        content.append(f"- Recall@5: {best_result.summary.mean_recall_at_5:.3f}")
-        content.append(f"- Recall@All: {best_result.summary.mean_recall_at_all:.3f}")
-        content.append(f"- Precision@3: {best_result.summary.mean_precision_at_3:.3f}")
-        content.append(f"- MRR: {best_result.summary.mean_mrr:.3f}")
-        content.append("")
 
         # Charts
         content.append("## Charts")
@@ -550,34 +379,18 @@ class ComparisonGenerator:
         if has_ragas:
             content.append("### Ragas Metrics Comparison")
             content.append(f"![Ragas Metrics vs {param_name}](charts/ragas_metrics_comparison.png)")
-            content.append("")
-
-        content.append("### MAP Comparison")
-        content.append(f"![MAP vs {param_name}](charts/map_comparison.png)")
-        content.append("")
-        content.append("### Recall@5 Comparison")
-        content.append(f"![Recall@5 vs {param_name}](charts/recall5_comparison.png)")
-        content.append("")
-        content.append("### Recall@All Comparison")
-        content.append(f"![Recall@All vs {param_name}](charts/recall_all_comparison.png)")
-        content.append("")
-        content.append("### Precision@3 Comparison")
-        content.append(f"![Precision@3 vs {param_name}](charts/precision3_comparison.png)")
-        content.append("")
-        content.append("### Multi-Metric Comparison")
-        content.append("![All Metrics](charts/multi_metric_comparison.png)")
-        content.append("")
 
         # Recommendations
         content.append("## Recommendations")
         content.append("")
-        content.append(f"Based on MAP scores, the optimal value for **{param_name}** is **{best_param_val}**.")
-        content.append("")
-        content.append("Consider the following trade-offs:")
-        content.append("- **MAP**: Overall retrieval quality")
-        content.append("- **Recall@5**: Ensures all required chunks are found in top 5 results")
-        content.append("- **Recall@All**: Percentage of required chunks found regardless of position")
-        content.append("- **Precision@3**: Reduces noise in top results")
+        if has_ragas:
+            content.append(f"Based on Ragas Context Precision, the optimal value for **{param_name}** is **{best_param_val}**.")
+            content.append("")
+            content.append("**Ragas Metrics:**")
+            content.append("- **Context Precision**: Proportion of retrieved contexts containing ground truth information")
+            content.append("- **Context Recall**: Proportion of ground truth information found in retrieved contexts")
+        else:
+            content.append(f"Optimal value for **{param_name}**: **{best_param_val}**")
         content.append("")
 
         # Write report
@@ -618,8 +431,13 @@ class ComparisonGenerator:
         content.append(f"- **Average cost per configuration**: ${total_cost/len(sweep_results):.6f}")
         content.append("")
 
-        # Best configuration
-        best_idx = max(range(len(sweep_results)), key=lambda i: sweep_results[i].summary.mean_map)
+        # Best configuration (based on Ragas Context Precision if available)
+        has_ragas = sweep_results[0].summary.mean_ragas_context_precision is not None
+        if has_ragas:
+            best_idx = max(range(len(sweep_results)), key=lambda i: sweep_results[i].summary.mean_ragas_context_precision)
+        else:
+            best_idx = 0
+
         best_result = sweep_results[best_idx]
 
         content.append("## Best Configuration")
@@ -628,73 +446,58 @@ class ComparisonGenerator:
             param_val = getattr(best_result.config, param_name)
             content.append(f"- **{param_name}**: {param_val}")
         content.append("")
-        content.append(f"**Results**:")
-        content.append(f"- MAP: {best_result.summary.mean_map:.3f}")
-        content.append(f"- Recall@5: {best_result.summary.mean_recall_at_5:.3f}")
-        content.append(f"- Recall@All: {best_result.summary.mean_recall_at_all:.3f}")
-        content.append(f"- Precision@3: {best_result.summary.mean_precision_at_3:.3f}")
-        content.append(f"- MRR: {best_result.summary.mean_mrr:.3f}")
 
-        # Add Ragas metrics if available
-        if best_result.summary.mean_ragas_context_precision is not None:
-            content.append(f"- Ragas Context Precision: {best_result.summary.mean_ragas_context_precision:.3f}")
-            content.append(f"- Ragas Context Recall: {best_result.summary.mean_ragas_context_recall:.3f}")
-
-        content.append("")
+        if has_ragas:
+            content.append(f"**Ragas Metrics:**")
+            content.append(f"- Context Precision: {best_result.summary.mean_ragas_context_precision:.3f}")
+            content.append(f"- Context Recall: {best_result.summary.mean_ragas_context_recall:.3f}")
+            content.append("")
 
         # Heatmaps (if 2D grid)
-        if len(param_names) == 2:
+        if len(param_names) == 2 and has_ragas:
             content.append("## Heatmaps")
             content.append("")
-            content.append("### MAP Heatmap")
-            content.append("![MAP Heatmap](charts/map_heatmap.png)")
+            content.append("### Ragas Context Precision Heatmap")
+            content.append("![Ragas Context Precision Heatmap](charts/ragas_context_precision_heatmap.png)")
             content.append("")
-            content.append("### Recall@5 Heatmap")
-            content.append("![Recall@5 Heatmap](charts/recall5_heatmap.png)")
+            content.append("### Ragas Context Recall Heatmap")
+            content.append("![Ragas Context Recall Heatmap](charts/ragas_context_recall_heatmap.png)")
             content.append("")
-            content.append("### Recall@All Heatmap")
-            content.append("![Recall@All Heatmap](charts/recall_all_heatmap.png)")
-            content.append("")
-
-            # Add Ragas heatmaps if available
-            if sweep_results[0].summary.mean_ragas_context_precision is not None:
-                content.append("### Ragas Context Precision Heatmap")
-                content.append("![Ragas Context Precision Heatmap](charts/ragas_context_precision_heatmap.png)")
-                content.append("")
-                content.append("### Ragas Context Recall Heatmap")
-                content.append("![Ragas Context Recall Heatmap](charts/ragas_context_recall_heatmap.png)")
-                content.append("")
 
         # Full results table
         content.append("## All Configurations")
         content.append("")
 
         # Build table header with Ragas columns if available
-        has_ragas = sweep_results[0].summary.mean_ragas_context_precision is not None
         if has_ragas:
-            header = "| " + " | ".join(param_names) + " | MAP | Recall@5 | Recall@All | Precision@3 | MRR | Ragas Prec | Ragas Rec |"
-            separator = "|" + "|".join(["-" * 12 for _ in range(len(param_names) + 7)]) + "|"
+            header = "| " + " | ".join(param_names) + " | Context Prec | Context Rec | Time (s) | Cost (USD) |"
+            separator = "|" + "|".join(["-" * 12 for _ in range(len(param_names) + 4)]) + "|"
+
+            content.append(header)
+            content.append(separator)
+
+            for result in sorted(sweep_results, key=lambda r: r.summary.mean_ragas_context_precision, reverse=True):
+                row = "| "
+                for param_name in param_names:
+                    row += f"{getattr(result.config, param_name)} | "
+                row += (
+                    f"{result.summary.mean_ragas_context_precision:.3f} | {result.summary.mean_ragas_context_recall:.3f} | "
+                    f"{result.summary.avg_retrieval_time_seconds:.3f} | ${result.summary.total_cost_usd:.6f} |"
+                )
+                content.append(row)
         else:
-            header = "| " + " | ".join(param_names) + " | MAP | Recall@5 | Recall@All | Precision@3 | MRR |"
-            separator = "|" + "|".join(["-" * 12 for _ in range(len(param_names) + 5)]) + "|"
+            header = "| " + " | ".join(param_names) + " | Time (s) | Cost (USD) |"
+            separator = "|" + "|".join(["-" * 12 for _ in range(len(param_names) + 2)]) + "|"
 
-        content.append(header)
-        content.append(separator)
+            content.append(header)
+            content.append(separator)
 
-        for result in sorted(sweep_results, key=lambda r: r.summary.mean_map, reverse=True):
-            row = "| "
-            for param_name in param_names:
-                row += f"{getattr(result.config, param_name)} | "
-            row += (
-                f"{result.summary.mean_map:.3f} | {result.summary.mean_recall_at_5:.3f} | "
-                f"{result.summary.mean_recall_at_all:.3f} | {result.summary.mean_precision_at_3:.3f} | {result.summary.mean_mrr:.3f} |"
-            )
-
-            # Add Ragas columns if available
-            if has_ragas:
-                row += f" {result.summary.mean_ragas_context_precision:.3f} | {result.summary.mean_ragas_context_recall:.3f} |"
-
-            content.append(row)
+            for result in sweep_results:
+                row = "| "
+                for param_name in param_names:
+                    row += f"{getattr(result.config, param_name)} | "
+                row += f"{result.summary.avg_retrieval_time_seconds:.3f} | ${result.summary.total_cost_usd:.6f} |"
+                content.append(row)
 
         content.append("")
 

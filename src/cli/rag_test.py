@@ -22,33 +22,22 @@ def rag_test(
     runs: int = 1,
     max_chunks: int = RAG_MAX_CHUNKS,
     min_relevance: float = RAG_MIN_RELEVANCE,
-    use_ragas: bool = False,
-    ragas_only: bool = False,
 ) -> None:
-    """Run RAG retrieval tests.
+    """Run RAG retrieval tests using Ragas evaluation framework.
 
     Args:
         test_id: Specific test ID to run (otherwise run all)
         runs: Number of times to run each test
         max_chunks: Maximum chunks to retrieve
         min_relevance: Minimum relevance threshold
-        use_ragas: Calculate both custom and Ragas metrics
-        ragas_only: Calculate only Ragas metrics (implies use_ragas=True)
     """
-    # ragas_only implies use_ragas
-    if ragas_only:
-        use_ragas = True
-
     test_desc = f"test '{test_id}'" if test_id else "all tests"
     print(f"Running {test_desc} with {runs} run(s)")
     print(f"Configuration: max_chunks={max_chunks}, min_relevance={min_relevance}")
-
-    if use_ragas:
-        mode = "Ragas-only" if ragas_only else "Custom + Ragas"
-        print(f"Evaluation mode: {mode}")
+    print(f"Evaluation: Ragas metrics")
 
     # Initialize runner
-    runner = RAGTestRunner(use_ragas=use_ragas)
+    runner = RAGTestRunner()
     report_gen = RAGReportGenerator()
 
     try:
@@ -82,27 +71,12 @@ def rag_test(
 
         # Print summary to console
         print("\n" + "=" * 80)
-        print("OVERALL METRICS")
+        print("RAGAS METRICS")
         print("=" * 80)
         print(f"Total Tests: {summary.total_tests}")
 
-        if not ragas_only:
-            print(f"Mean MAP: {summary.mean_map:.3f}")
-            print(f"Recall@5: {summary.mean_recall_at_5:.3f} ({summary.mean_recall_at_5*100:.1f}%)")
-            print(f"Recall@All: {summary.mean_recall_at_all:.3f} ({summary.mean_recall_at_all*100:.1f}%)")
-            print(f"Precision@3: {summary.mean_precision_at_3:.3f} ({summary.mean_precision_at_3*100:.1f}%)")
-            #print(f"MRR: {summary.mean_mrr:.3f}")
-
-            if summary.std_dev_map > 0:
-                print("")
-                print(f"MAP std dev: ±{summary.std_dev_map:.3f}")
-                print(f"Recall@5 std dev: ±{summary.std_dev_recall_at_5:.3f}")
-                print(f"Recall@All std dev: ±{summary.std_dev_recall_at_all:.3f}")
-
-        # Print Ragas metrics if available
-        if use_ragas and summary.mean_ragas_context_precision is not None:
-            print("")
-            print("--- Ragas Metrics ---")
+        # Print Ragas metrics
+        if summary.mean_ragas_context_precision is not None:
             print(f"Context Precision: {summary.mean_ragas_context_precision:.3f}")
             print(f"Context Recall: {summary.mean_ragas_context_recall:.3f}")
 

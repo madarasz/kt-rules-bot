@@ -42,7 +42,6 @@ class RAGTestRunner:
         bm25_b: float = BM25_B,
         bm25_weight: float = BM25_WEIGHT,
         embedding_model: str = EMBEDDING_MODEL,
-        use_ragas: bool = RAGAS_ENABLED,
     ):
         """Initialize test runner.
 
@@ -54,7 +53,6 @@ class RAGTestRunner:
             bm25_b: BM25 document length normalization parameter (default: 0.75)
             bm25_weight: Weight for BM25 in fusion (default: 0.5, vector gets 1-bm25_weight)
             embedding_model: Embedding model to use for queries (default: EMBEDDING_MODEL from constants)
-            use_ragas: Whether to calculate Ragas metrics (default: RAGAS_ENABLED from constants)
         """
         self.test_cases_dir = test_cases_dir
         self.results_dir = results_dir
@@ -63,9 +61,10 @@ class RAGTestRunner:
         self.bm25_b = bm25_b
         self.bm25_weight = bm25_weight
         self.embedding_model = embedding_model
-        self.use_ragas = use_ragas
+
+        # Create evaluators
         self.evaluator = RAGEvaluator()
-        self.ragas_evaluator = RagasRAGEvaluator() if use_ragas else None
+        self.ragas_evaluator = RagasRAGEvaluator()
 
         # Create embedding service with custom model
         embedding_service = EmbeddingService(model=embedding_model)
@@ -87,8 +86,7 @@ class RAGTestRunner:
             bm25_k1=bm25_k1,
             bm25_b=bm25_b,
             bm25_weight=bm25_weight,
-            embedding_model=embedding_model,
-            use_ragas=use_ragas,
+            embedding_model=embedding_model
         )
 
     def load_test_cases(self, test_id: Optional[str] = None) -> List[RAGTestCase]:
@@ -182,30 +180,23 @@ class RAGTestRunner:
             run_number=run_number,
         )
 
-        # Evaluate with Ragas metrics (if enabled)
-        ragas_metrics = None
-        if self.use_ragas and self.ragas_evaluator:
-            ragas_metrics = self.ragas_evaluator.evaluate(
-                test_case=test_case,
-                retrieved_chunks=rag_context.document_chunks,
-                use_ragas=True,
-            )
-            # Add Ragas metrics to result
-            result = add_ragas_metrics_to_result(result, ragas_metrics)
+        # Evaluate with Ragas metrics
+        ragas_metrics = self.ragas_evaluator.evaluate(
+            test_case=test_case,
+            retrieved_chunks=rag_context.document_chunks
+        )
+        # Add Ragas metrics to result
+        result = add_ragas_metrics_to_result(result, ragas_metrics)
 
         # Log results
         log_data = {
             "test_id": test_case.test_id,
             "run": run_number,
-            "map": f"{result.map_score:.3f}",
-            "recall_at_5": f"{result.recall_at_5:.3f}",
-            "recall_at_all": f"{result.recall_at_all:.3f}",
-            "precision_at_3": f"{result.precision_at_3:.3f}",
             "duration": f"{retrieval_time:.2f}s",
             "cost": f"${embedding_cost:.6f}",
         }
 
-        # Add Ragas metrics to log if available
+        # Add Ragas metrics to log
         if ragas_metrics:
             if ragas_metrics.context_precision is not None:
                 log_data["ragas_context_precision"] = f"{ragas_metrics.context_precision:.3f}"
