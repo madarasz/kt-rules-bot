@@ -10,6 +10,7 @@ from src.services.llm.chatgpt import ChatGPTAdapter
 from src.services.llm.gemini import GeminiAdapter
 from src.services.llm.grok import GrokAdapter
 from src.services.llm.dial import DialAdapter
+from src.services.llm.deepseek import DeepSeekAdapter
 from src.lib.config import get_config
 from src.lib.logging import get_logger
 from src.lib.constants import LLM_PROVIDERS_LITERAL
@@ -37,6 +38,8 @@ class LLMProviderFactory:
         "grok-4-0709": (GrokAdapter, "grok-4-0709", "x"),
         "grok-3": (GrokAdapter, "grok-3", "x"),
         "grok-3-mini": (GrokAdapter, "grok-3-mini", "x"),
+        "deepseek-chat": (DeepSeekAdapter, "deepseek-chat", "deepseek"),
+        "deepseek-reasoner": (DeepSeekAdapter, "deepseek-reasoner", "deepseek"),
         "dial-gpt-4o": (DialAdapter, "gpt-4o", "dial"),
         "dial-gpt-4.1": (DialAdapter, "gpt-4.1-2025-04-14", "dial"),
         "dial-gpt-5": (DialAdapter, "gpt-5-2025-08-07", "dial"),
@@ -91,6 +94,7 @@ class LLMProviderFactory:
             "google": config.google_api_key,
             "x": config.x_api_key,
             "dial": config.dial_api_key,
+            "deepseek": config.deepseek_api_key,
         }
 
         api_key = api_key_map[api_key_type]
@@ -102,6 +106,7 @@ class LLMProviderFactory:
                 "google": "GOOGLE_API_KEY",
                 "x": "X_API_KEY",
                 "dial": "DIAL_API_KEY",
+                "deepseek": "DEEPSEEK_API_KEY",
             }
             raise KeyError(
                 f"API key not found: {api_key_env_map[api_key_type]}. "
