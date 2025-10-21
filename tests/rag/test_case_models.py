@@ -28,32 +28,14 @@ class RAGTestCase:
 
     test_id: str
     query: str
-    required_chunks: List[str]  # List of chunk headers that must be retrieved (legacy)
-
-    # Optional Ragas fields (backward compatible)
-    ground_truth_contexts: Optional[List[str]] = None  # Substrings of expected chunks for Ragas evaluation
-
-    def get_ground_truth_contexts(self) -> List[str]:
-        """Get ground truth contexts for Ragas evaluation.
-
-        Falls back to required_chunks if ground_truth_contexts is not explicitly set.
-        This allows using the same test cases for both custom IR metrics and Ragas metrics.
-
-        Returns:
-            List of ground truth context strings
-        """
-        if self.ground_truth_contexts is not None:
-            return self.ground_truth_contexts
-        else:
-            # Fall back to required_chunks
-            return self.required_chunks
+    ground_truth_contexts: List[str]  # Substrings of expected chunks for evaluation
 
     @classmethod
     def from_yaml(cls, file_path: Path) -> List["RAGTestCase"]:
         """Load test case(s) from YAML file.
 
         Supports both formats:
-        1. Single test case (dict with test_id, query, required_chunks)
+        1. Single test case (dict with test_id, query, ground_truth_contexts)
         2. Multiple test cases (list of dicts)
 
         Args:
@@ -71,8 +53,7 @@ class RAGTestCase:
             return [cls(
                 test_id=data["test_id"],
                 query=data["query"],
-                required_chunks=data["required_chunks"],
-                ground_truth_contexts=data.get("ground_truth_contexts"),  # Optional
+                ground_truth_contexts=data["ground_truth_contexts"],
             )]
         elif isinstance(data, list):
             # Multiple test cases format
@@ -80,8 +61,7 @@ class RAGTestCase:
                 cls(
                     test_id=test_case["test_id"],
                     query=test_case["query"],
-                    required_chunks=test_case["required_chunks"],
-                    ground_truth_contexts=test_case.get("ground_truth_contexts"),  # Optional
+                    ground_truth_contexts=test_case["ground_truth_contexts"],
                 )
                 for test_case in data
             ]
@@ -98,7 +78,7 @@ class RAGTestResult:
 
     test_id: str
     query: str
-    required_chunks: List[str]
+    ground_truth_contexts: List[str]
     retrieved_chunks: List[str]  # Headers of retrieved chunks in order
     retrieved_chunk_texts: List[str]  # Full text of retrieved chunks
     retrieved_relevance_scores: List[float]  # Relevance scores for each retrieved chunk
@@ -108,15 +88,15 @@ class RAGTestResult:
     map_score: float  # Mean Average Precision
     recall_at_5: float  # Recall@5
     recall_at_10: float  # Recall@10
-    recall_at_all: float  # Recall@All (percentage of required chunks found, regardless of position)
+    recall_at_all: float  # Recall@All (percentage of ground_truth_contexts found, regardless of position)
     precision_at_3: float  # Precision@3
     precision_at_5: float  # Precision@5
     mrr: float  # Mean Reciprocal Rank
 
     # Details
-    found_chunks: List[str]  # Which required chunks were found
-    missing_chunks: List[str]  # Which required chunks were not found
-    ranks_of_required: List[int]  # Rank positions of required chunks (1-indexed)
+    found_chunks: List[str]  # Which ground_truth_contexts were found
+    missing_chunks: List[str]  # Which ground_truth_contexts were not found
+    ranks_of_required: List[int]  # Rank positions of ground_truth_contexts (1-indexed)
 
     # Performance
     retrieval_time_seconds: float  # Time taken for retrieval

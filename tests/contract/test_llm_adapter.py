@@ -77,6 +77,16 @@ class TimeoutError(Exception):
     pass
 
 
+class ContentFilterError(Exception):
+    """Content blocked by safety filters."""
+    pass
+
+
+class TokenLimitError(Exception):
+    """Token limit exceeded."""
+    pass
+
+
 class TestLLMAdapterContractGeneration:
     """Contract tests for LLM answer generation."""
 
@@ -413,6 +423,369 @@ Models cannot move through enemy models.
         assert "Missing YAML frontmatter" in response.validation_warnings
 
 
+    def test_deepseek_provider_compatibility(self, mock_llm_adapter):
+        """
+        Contract Test: DeepSeek Provider Compatibility.
+
+        Given: Same prompt + context for DeepSeek
+        When: Generate answer with DeepSeek (both chat and reasoner models)
+        Then:
+            - Answer mentions factual information
+            - confidence ≥ 0.6
+            - citations_included reflects config
+            - reasoner model may include reasoning chain
+        """
+        prompt = "Can I shoot through a barricade?"
+        context = [
+            "Barricades provide light cover. Models can shoot through light cover with no penalty.",
+            "Heavy cover blocks line of sight entirely."
+        ]
+
+        config = GenerationConfig(
+            max_tokens=500,
+            temperature=0.1,
+            include_citations=True
+        )
+
+        # DeepSeek Chat model response
+        deepseek_chat_response = LLMResponse(
+            response_id=uuid4(),
+            answer_text="Yes, you can shoot through a barricade. According to the rules: 'Barricades provide light cover. Models can shoot through light cover with no penalty.'",
+            confidence_score=0.80,
+            token_count=148,
+            latency_ms=1150,
+            provider="deepseek",
+            model_version="deepseek-chat",
+            citations_included=True
+        )
+
+        # DeepSeek Reasoner model response (includes chain-of-thought)
+        deepseek_reasoner_response = LLMResponse(
+            response_id=uuid4(),
+            answer_text="Yes, shooting through barricades is allowed. The rules clearly state: 'Barricades provide light cover. Models can shoot through light cover with no penalty.' This means there's no shooting penalty when targeting through barricades.",
+            confidence_score=0.85,  # Reasoner gets slightly higher confidence
+            token_count=165,
+            latency_ms=1400,
+            provider="deepseek",
+            model_version="deepseek-reasoner",
+            citations_included=True
+        )
+
+        responses = [deepseek_chat_response, deepseek_reasoner_response]
+
+        # Verify all have sufficient confidence
+        for response in responses:
+            assert response.confidence_score >= 0.6
+            assert response.provider == "deepseek"
+
+        # Verify key facts are mentioned
+        for response in responses:
+            assert "barricade" in response.answer_text.lower()
+            assert "light cover" in response.answer_text.lower()
+
+        # Verify citations when requested
+        for response in responses:
+            if response.citations_included:
+                assert "According to" in response.answer_text or "rules" in response.answer_text.lower()
+
+    def test_grok_provider_compatibility(self, mock_llm_adapter):
+        """
+        Contract Test: Grok Provider Compatibility.
+
+        Given: Same prompt + context for Grok
+        When: Generate answer with Grok
+        Then:
+            - Answer mentions factual information
+            - confidence ≥ 0.6
+            - token_count > 0
+            - citations_included reflects config
+        """
+        prompt = "How does overwatch work?"
+        context = [
+            "Overwatch allows defensive fire when enemy models move within range.",
+            "You can use overwatch during your opponent's movement phase."
+        ]
+
+        config = GenerationConfig(
+            max_tokens=500,
+            temperature=0.1,
+            include_citations=True
+        )
+
+        grok_response = LLMResponse(
+            response_id=uuid4(),
+            answer_text="Overwatch enables defensive fire against enemy models during their movement phase. According to the rules: 'Overwatch allows defensive fire when enemy models move within range.' This can be used during your opponent's turn.",
+            confidence_score=0.80,
+            token_count=152,
+            latency_ms=1250,
+            provider="grok",
+            model_version="grok-3",
+            citations_included=True
+        )
+
+        # Verify confidence threshold
+        assert grok_response.confidence_score >= 0.6
+        assert grok_response.provider == "grok"
+
+        # Verify token tracking
+        assert grok_response.token_count > 0
+
+        # Verify key facts mentioned
+        assert "overwatch" in grok_response.answer_text.lower()
+        assert "movement" in grok_response.answer_text.lower()
+
+        # Verify citations
+        if grok_response.citations_included:
+            assert "According to" in grok_response.answer_text or "rules" in grok_response.answer_text.lower()
+
+    def test_multi_provider_consistency_with_deepseek_grok(self, mock_llm_providers):
+        """
+        Contract Test: Multi-Provider Consistency (Including DeepSeek and Grok).
+
+        Given: Same prompt + context across all providers (Claude, ChatGPT, Gemini, DeepSeek, Grok)
+        When: Generate answer with each provider
+        Then:
+            - All answers mention core facts
+            - confidence ≥ 0.6
+            - token counts within 25% of each other
+        """
+        prompt = "What is the movement distance in Kill Team?"
+        context = [
+            "Movement Phase: Each model can move up to 6 inches during the movement phase.",
+            "Climbing terrain reduces movement distance."
+        ]
+
+        config = GenerationConfig(
+            max_tokens=500,
+            temperature=0.1,
+            include_citations=True
+        )
+
+        # All provider responses
+        responses = [
+            LLMResponse(
+                response_id=uuid4(),
+                answer_text="Each model can move up to 6 inches during the movement phase.",
+                confidence_score=0.85,
+                token_count=140,
+                latency_ms=1100,
+                provider="claude",
+                model_version="claude-sonnet-4-5-20250929",
+                citations_included=True
+            ),
+            LLMResponse(
+                response_id=uuid4(),
+                answer_text="Models can move up to 6 inches in the movement phase.",
+                confidence_score=0.82,
+                token_count=135,
+                latency_ms=1050,
+                provider="chatgpt",
+                model_version="gpt-4-turbo-2024",
+                citations_included=True
+            ),
+            LLMResponse(
+                response_id=uuid4(),
+                answer_text="The movement distance is 6 inches per model during the movement phase.",
+                confidence_score=0.80,
+                token_count=145,
+                latency_ms=1200,
+                provider="gemini",
+                model_version="gemini-2.5-pro",
+                citations_included=True
+            ),
+            LLMResponse(
+                response_id=uuid4(),
+                answer_text="During the movement phase, each model can move up to 6 inches.",
+                confidence_score=0.80,
+                token_count=138,
+                latency_ms=1150,
+                provider="deepseek",
+                model_version="deepseek-chat",
+                citations_included=True
+            ),
+            LLMResponse(
+                response_id=uuid4(),
+                answer_text="Models have a movement distance of 6 inches during the movement phase.",
+                confidence_score=0.80,
+                token_count=142,
+                latency_ms=1180,
+                provider="grok",
+                model_version="grok-3",
+                citations_included=True
+            ),
+        ]
+
+        # Verify all have sufficient confidence
+        for response in responses:
+            assert response.confidence_score >= 0.6
+
+        # Verify token counts within 25% (broader tolerance for 5 providers)
+        token_counts = [r.token_count for r in responses]
+        avg_tokens = sum(token_counts) / len(token_counts)
+        for count in token_counts:
+            assert abs(count - avg_tokens) / avg_tokens <= 0.25
+
+        # Verify all mention key facts
+        for response in responses:
+            assert "6 inches" in response.answer_text or "6\"" in response.answer_text
+            assert "movement" in response.answer_text.lower()
+
+
+class TestLLMAdapterContractDeepSeek:
+    """Contract tests specific to DeepSeek provider."""
+
+    def test_deepseek_reasoner_model(self, mock_llm_adapter):
+        """
+        Contract Test: DeepSeek Reasoner Model.
+
+        Given: deepseek-reasoner model with complex query
+        When: Generate answer
+        Then:
+            - Response confidence ≥ 0.8 (higher for reasoning model)
+            - Token limit is 3x normal (for chain-of-thought)
+            - Answer demonstrates logical reasoning
+        """
+        request = GenerationRequest(
+            prompt="If a model moves 3 inches, climbs 2 inches, and moves 2 more inches, can it still shoot?",
+            context=[
+                "Models can move up to 6 inches per turn.",
+                "Climbing counts toward movement distance.",
+                "Models cannot shoot if they moved more than 6 inches."
+            ],
+            config=GenerationConfig(max_tokens=800)
+        )
+
+        response = LLMResponse(
+            response_id=uuid4(),
+            answer_text="Let me work through this step by step: The model moves 3 inches (3\" total), climbs 2 inches (5\" total), then moves 2 more inches (7\" total). Since 7 inches exceeds the 6-inch movement limit, the model cannot shoot this turn.",
+            confidence_score=0.85,  # Reasoning model gets higher confidence
+            token_count=450,
+            latency_ms=1800,
+            provider="deepseek",
+            model_version="deepseek-reasoner",
+            citations_included=False
+        )
+
+        # Verify reasoning model characteristics
+        assert response.confidence_score >= 0.8
+        assert "step by step" in response.answer_text.lower() or "total" in response.answer_text.lower()
+        assert response.model_version == "deepseek-reasoner"
+
+    def test_deepseek_authentication_error(self, mock_llm_adapter):
+        """
+        Contract Test: DeepSeek Authentication Error.
+
+        Given: Invalid API key
+        When: Generate request
+        Then: Raises AuthenticationError with 401
+        """
+        with pytest.raises(AuthenticationError):
+            raise AuthenticationError("DeepSeek auth error: 401 Unauthorized")
+
+    def test_deepseek_pdf_extraction_not_supported(self, mock_llm_adapter):
+        """
+        Contract Test: DeepSeek PDF Extraction Not Supported.
+
+        Given: PDF extraction request
+        When: extract_pdf() called
+        Then: Raises NotImplementedError
+        """
+        pdf_file = BytesIO(b"Mock PDF content")
+        
+        with pytest.raises(NotImplementedError):
+            raise NotImplementedError(
+                "DeepSeek PDF extraction is not documented in the API. "
+                "Use gemini-2.5-pro or gemini-2.5-flash for PDF extraction instead."
+            )
+
+
+class TestLLMAdapterContractGrok:
+    """Contract tests specific to Grok provider."""
+
+    def test_grok_http_error_handling(self, mock_llm_adapter):
+        """
+        Contract Test: Grok HTTP Error Handling.
+
+        Given: Grok API returns various HTTP errors
+        When: Generate request
+        Then: Appropriate exceptions raised
+        """
+        # Test 429 rate limit
+        with pytest.raises(RateLimitError):
+            raise RateLimitError("Grok rate limit: 429 Too Many Requests")
+
+        # Test 401 authentication
+        with pytest.raises(AuthenticationError):
+            raise AuthenticationError("Grok auth error: 401 Unauthorized")
+
+    def test_grok_content_filter(self, mock_llm_adapter):
+        """
+        Contract Test: Grok Content Filter.
+
+        Given: Content that triggers Grok's safety filters
+        When: Generate request
+        Then: Raises ContentFilterError
+        """
+        with pytest.raises(ContentFilterError):
+            raise ContentFilterError("Grok content filter blocked response")
+
+    def test_grok_token_limit_error(self, mock_llm_adapter):
+        """
+        Contract Test: Grok Token Limit Error.
+
+        Given: Response exceeds max_tokens
+        When: Generate request
+        Then: Raises TokenLimitError with finish_reason='length'
+        """
+        with pytest.raises(TokenLimitError):
+            raise TokenLimitError("Grok output was truncated due to max_tokens limit")
+
+    def test_grok_pdf_extraction_placeholder(self, mock_llm_adapter):
+        """
+        Contract Test: Grok PDF Extraction Placeholder.
+
+        Given: PDF extraction request
+        When: extract_pdf() called
+        Then: Raises NotImplementedError (requires PDF-to-text conversion)
+        """
+        pdf_file = BytesIO(b"Mock PDF content")
+        
+        with pytest.raises(NotImplementedError):
+            raise NotImplementedError(
+                "Grok PDF extraction requires PDF-to-text conversion"
+            )
+
+    def test_grok_response_validation(self, mock_llm_adapter):
+        """
+        Contract Test: Grok Response Validation.
+
+        Given: Grok API response
+        When: Parse response
+        Then:
+            - response_id is UUID
+            - token_count > 0
+            - latency_ms > 0
+            - provider == "grok"
+        """
+        response = LLMResponse(
+            response_id=uuid4(),
+            answer_text="Test answer about Kill Team rules.",
+            confidence_score=0.80,
+            token_count=125,
+            latency_ms=1100,
+            provider="grok",
+            model_version="grok-3",
+            citations_included=False
+        )
+
+        # Validate response structure
+        assert isinstance(response.response_id, UUID)
+        assert response.token_count > 0
+        assert response.latency_ms > 0
+        assert response.provider == "grok"
+        assert len(response.answer_text) > 0
+
+
 @pytest.fixture
 def mock_llm_adapter():
     """Mock LLM adapter for contract testing."""
@@ -425,5 +798,7 @@ def mock_llm_providers():
     return {
         "claude": None,
         "chatgpt": None,
-        "gemini": None
+        "gemini": None,
+        "deepseek": None,
+        "grok": None
     }

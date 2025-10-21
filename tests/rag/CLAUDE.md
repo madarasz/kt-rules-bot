@@ -45,7 +45,7 @@ Industry-standard RAG evaluation framework using substring matching:
 - **Context Precision**: Proportion of retrieved chunks containing ground truth information
 - **Context Recall**: Proportion of ground truth information found in retrieved chunks
 
-**Note**: Ragas metrics use `required_chunks` as ground truth contexts by default, enabling seamless evaluation without modifying test cases.
+**Note**: Ragas metrics use `ground_truth_contexts` as ground truth contexts, enabling seamless evaluation with standardized test cases.
 
 **Performance Tracking**:
 - **Total Time**: Total time for all tests
@@ -54,7 +54,7 @@ Industry-standard RAG evaluation framework using substring matching:
 
 ## Test Case Format
 
-**Ultra-simple YAML** - just list the chunk headers that should be retrieved:
+**Ultra-simple YAML** - just list the ground truth context substrings that should be found:
 
 ```yaml
 test_id: banner-carrier-placement
@@ -62,7 +62,7 @@ query: >
   If my plant banner is picked up by my opponent and the carrier dies,
   who places the banner, me or my opponent?
 
-required_chunks:
+ground_truth_contexts:
   - "Place Marker"
   - "Marker Rules"
 ```
@@ -71,13 +71,13 @@ required_chunks:
 test_id: overwatch-against-charge
 query: "Can I use overwatch against a charge?"
 
-required_chunks:
+ground_truth_contexts:
   - "Overwatch"
   - "Charge"
   - "Fight Phase"
 ```
 
-**That's it!** The test framework matches retrieved chunks by their header field.
+**That's it!** The test framework matches retrieved chunks by substring matching.
 
 ## Evaluation Metrics Explained
 
@@ -85,19 +85,19 @@ required_chunks:
 
 **Context Precision**:
 - Measures what proportion of retrieved chunks contain ground truth information
-- Uses substring matching: checks if `required_chunks` appear in retrieved chunk text
+- Uses substring matching: checks if `ground_truth_contexts` appear in retrieved chunk text
 - Higher is better (range: 0-1)
 - Formula: (# retrieved chunks containing ground truth) / (total retrieved chunks)
 
 **Context Recall**:
 - Measures what proportion of ground truth information was found
-- Checks if each `required_chunk` substring appears in ANY retrieved chunk
+- Checks if each `ground_truth_context` substring appears in ANY retrieved chunk
 - Higher is better (range: 0-1)
 - Formula: (# ground truth substrings found) / (total ground truth substrings)
 
 **How It Works**:
 - Ragas uses substring matching on chunk **text content** (not just headers)
-- Automatically uses `required_chunks` from test cases as ground truth contexts
+- Uses `ground_truth_contexts` from test cases as ground truth contexts
 - Provides industry-standard RAG evaluation metrics
 
 **Configuration**:
@@ -317,14 +317,14 @@ Each test run generates:
   - Total embedding cost (USD)
 
 - **Missing Chunks Analysis**:
-  - Lists all required chunks that were not retrieved
+  - Lists all ground truth contexts that were not retrieved
   - Helps identify gaps in retrieval
 
 - **Per-Test Breakdown**:
   - Test ID and query
-  - Required chunks (headers)
+  - Ground truth contexts (headers)
   - Retrieved chunks (top-k with ranks and scores)
-  - Which required chunks were found/missed
+  - Which ground truth contexts were found/missed
   - Ragas metrics for this test
 
 - **Configuration Used**:

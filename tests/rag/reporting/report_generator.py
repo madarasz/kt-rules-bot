@@ -151,9 +151,9 @@ class RAGReportGenerator:
 
             content.append("")
 
-            # Required chunks
-            content.append("**Required Chunks**:")
-            for chunk in first_result.required_chunks:
+            # Ground truth contexts
+            content.append("**Ground Truth Contexts**:")
+            for chunk in first_result.ground_truth_contexts:
                 content.append(f"- {chunk}")
             content.append("")
 
