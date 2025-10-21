@@ -43,6 +43,8 @@ class IndividualTestResult:
     requirements: List[RequirementResult]
     output_filename: str
     error: Optional[str] = None
+    json_formatted: bool = False  # True if response was valid JSON
+    structured_quotes_count: int = 0  # Number of quotes in structured response
 
     @property
     def score_percentage(self) -> float:
