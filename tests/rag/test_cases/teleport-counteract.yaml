@@ -2,6 +2,6 @@ test_id: teleport-counteract
 query: >
   Can I use the Teleport Pad during counteract?
 
-required_chunks:
+ground_truth_contexts:
   - "TELEPORT PAD"
   - "COUNTERACT"

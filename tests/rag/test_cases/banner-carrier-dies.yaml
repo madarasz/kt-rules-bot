@@ -3,6 +3,6 @@ query: >
   If my plant banner is picked up by my opponent and the carrier dies,
   who places the banner, me or my opponent?
 
-required_chunks:
+ground_truth_contexts:
   - "PLANT BANNER"
   - "Place Marker (1AP)" # Missing
