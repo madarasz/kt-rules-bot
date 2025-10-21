@@ -156,10 +156,9 @@ async def test_basic_query_flow_end_to_end(mock_rag_retriever, mock_llm_provider
 
     embed = embeds[0]
 
-    # 4. Confidence displayed
-    confidence_field = next((f for f in embed.fields if f.name == "Confidence"), None)
-    assert confidence_field is not None, "Confidence field missing"
-    assert "%" in confidence_field.value, "Confidence not displayed as percentage"
+    # 4. Confidence displayed in footer
+    assert "Confidence:" in embed.footer.text, "Confidence missing from footer"
+    assert "%" in embed.footer.text, "Confidence not displayed as percentage"
 
     # 5. Citations included (Sources field - currently commented out in formatter)
     # sources_field = next((f for f in embed.fields if f.name == "Sources"), None)

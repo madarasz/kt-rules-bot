@@ -242,19 +242,23 @@ class RAGReportGenerator:
             content.append("| Rank | Chunk | Final | Vector | BM25 | RRF |")
             content.append("|------|-------|-------|--------|------|-----|")
 
-            for i, (chunk_header, relevance, metadata) in enumerate(
+            for i, (chunk_header, chunk_text, relevance, metadata) in enumerate(
                 zip(
                     first_result.retrieved_chunks,
+                    first_result.retrieved_chunk_texts,
                     first_result.retrieved_relevance_scores,
                     first_result.retrieved_chunk_metadata
                 ),
                 start=1
             ):
-                # Mark if it's a required chunk (use substring matching)
+                # Mark if it's a required chunk (use substring matching - consistent with evaluator)
                 marker = ""
-                chunk_header_lower = chunk_header.strip().lower()
+                chunk_header_lower = chunk_header.strip().lower().replace("*", "")
+                chunk_text_lower = chunk_text.strip().lower().replace("*", "")
                 for found_chunk in first_result.found_chunks:
-                    if found_chunk.strip().lower() in chunk_header_lower:
+                    # Check if found_chunk is contained IN chunk_header OR chunk_text (consistent with evaluator.py)
+                    found_chunk_lower = found_chunk.strip().lower().replace("*", "")
+                    if found_chunk_lower in chunk_header_lower or found_chunk_lower in chunk_text_lower:
                         marker = " ✅"
                         break
 
@@ -306,11 +310,14 @@ class RAGReportGenerator:
         content.append("")
 
         for i, (header, text) in enumerate(zip(result.retrieved_chunks, result.retrieved_chunk_texts), start=1):
-            # Use substring matching to mark required chunks
+            # Use substring matching to mark required chunks (same logic as evaluator)
             marker = ""
-            header_lower = header.strip().lower()
+            header_lower = header.strip().lower().replace("*", "")
+            text_lower = text.strip().lower().replace("*", "")
             for found_chunk in result.found_chunks:
-                if found_chunk.strip().lower() in header_lower:
+                # Check if found_chunk is contained IN header or text (consistent with evaluator.py)
+                found_chunk_lower = found_chunk.strip().lower().replace("*", "")
+                if found_chunk_lower in header_lower or found_chunk_lower in text_lower:
                     marker = "✅ REQUIRED"
                     break
             content.append(f"[{i}] {header} {marker}")
