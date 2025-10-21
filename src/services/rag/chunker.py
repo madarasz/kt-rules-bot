@@ -54,6 +54,9 @@ class MarkdownChunker:
         Returns:
             List of MarkdownChunk objects
         """
+        # Strip YAML front matter before processing
+        content = self._strip_yaml_frontmatter(content)
+        
         # Create regex pattern for all header levels from 2 up to target level
         header_patterns = [rf"(^{'#' * level} .+$)" for level in range(2, self.chunk_level + 1)]
         combined_pattern = "|".join(header_patterns)
@@ -75,6 +78,43 @@ class MarkdownChunker:
 
         # Split at all target header levels
         return self._split_at_multiple_levels(content)
+
+    def _strip_yaml_frontmatter(self, content: str) -> str:
+        """Remove YAML front matter from markdown content.
+
+        Args:
+            content: Markdown content that may contain YAML front matter
+
+        Returns:
+            Content with YAML front matter removed
+        """
+        # Check if content starts with YAML front matter delimiter
+        if not content.strip().startswith('---'):
+            return content
+        
+        lines = content.split('\n')
+        
+        # Find the closing --- delimiter
+        in_frontmatter = False
+        content_start_line = 0
+        
+        for i, line in enumerate(lines):
+            if i == 0 and line.strip() == '---':
+                in_frontmatter = True
+                continue
+            elif in_frontmatter and line.strip() == '---':
+                # Found closing delimiter, content starts after this line
+                content_start_line = i + 1
+                break
+        
+        # If we found valid front matter, return content without it
+        if content_start_line > 0:
+            content_after_frontmatter = '\n'.join(lines[content_start_line:])
+            # Strip leading whitespace/empty lines
+            return content_after_frontmatter.lstrip()
+        
+        # No valid front matter found, return original content
+        return content
 
     def _split_at_multiple_levels(self, content: str) -> List[MarkdownChunk]:
         """Split content at multiple header levels (from ## up to configured level).

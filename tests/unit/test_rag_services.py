@@ -22,7 +22,7 @@ class TestMarkdownChunker:
 
     def test_chunk_small_document_keeps_whole(self):
         """Small document without headers should be kept whole."""
-        chunker = MarkdownChunker(max_tokens=get_embedding_token_limit(EMBEDDING_MODEL))
+        chunker = MarkdownChunker()
 
         # Content without ## headers - should keep as single chunk
         content = """This is a simple rule document.
@@ -38,26 +38,27 @@ Models can shoot at visible enemy models."""
         assert chunks[0].header_level == 0
         assert "simple rule document" in chunks[0].text
 
-    def test_chunk_large_document_splits_at_headers(self):
-        """Large document should split at ## headers."""
-        chunker = MarkdownChunker(max_tokens=100)  # Small limit for testing
+    def test_chunk_document_splits_at_headers(self):
+        """Document with ## headers should split into chunks."""
+        chunker = MarkdownChunker(chunk_level=2)
 
         content = """## Movement Phase
 
-""" + ("Lorem ipsum dolor sit amet. " * 50) + """
+During the movement phase, each model in your kill team can move.
 
 ## Shooting Phase
 
-""" + ("Lorem ipsum dolor sit amet. " * 50)
+During the shooting phase, models can shoot at visible enemy models."""
 
         chunks = chunker.chunk(content)
 
-        # Should split into multiple chunks
-        assert len(chunks) >= 2
+        # Should split into multiple chunks at ## headers
+        assert len(chunks) == 2
 
         # Headers should be preserved
-        headers = [chunk.header for chunk in chunks if chunk.header]
-        assert "Movement Phase" in headers or "Shooting Phase" in headers
+        headers = [chunk.header for chunk in chunks]
+        assert "Movement Phase" in headers
+        assert "Shooting Phase" in headers
 
     def test_chunk_stats(self):
         """Test chunk statistics calculation."""
@@ -77,6 +78,75 @@ Content 2."""
         assert stats["count"] == len(chunks)
         assert stats["total_tokens"] > 0
         assert stats["avg_tokens"] > 0
+
+    def test_yaml_frontmatter_stripped(self):
+        """YAML front matter should be stripped from chunks."""
+        chunker = MarkdownChunker()
+
+        content = """---
+source: "Core Rules: Update Log"
+last_update_date: 2025-09-10
+document_type: faq
+section: faq
+---
+
+## [FAQ] Question 1
+
+This is the first FAQ answer.
+
+## [FAQ] Question 2
+
+This is the second FAQ answer."""
+
+        chunks = chunker.chunk(content)
+
+        # Ensure no chunk contains YAML front matter
+        for chunk in chunks:
+            assert "---" not in chunk.text or "source:" not in chunk.text
+            assert "document_type:" not in chunk.text
+            assert "last_update_date:" not in chunk.text
+
+        # Ensure first chunk starts with actual content, not YAML
+        assert len(chunks) > 0
+        assert chunks[0].text.startswith("## [FAQ] Question 1")
+
+    def test_yaml_frontmatter_only_stripped_if_valid(self):
+        """Only valid YAML front matter should be stripped."""
+        chunker = MarkdownChunker()
+
+        # Content with --- in the middle (not front matter)
+        content = """## Section 1
+
+Some content with --- in the middle.
+
+---
+
+More content after the dashes."""
+
+        chunks = chunker.chunk(content)
+
+        # Should keep the content as-is since it's not valid front matter
+        assert len(chunks) == 1
+        assert "---" in chunks[0].text
+        assert "Some content with --- in the middle" in chunks[0].text
+
+    def test_content_without_yaml_frontmatter_unchanged(self):
+        """Content without YAML front matter should be processed normally."""
+        chunker = MarkdownChunker()
+
+        content = """## Section 1
+
+Regular content without front matter.
+
+## Section 2
+
+More regular content."""
+
+        chunks = chunker.chunk(content)
+
+        assert len(chunks) == 2
+        assert chunks[0].header == "Section 1"
+        assert chunks[1].header == "Section 2"
 
 
 class TestDocumentValidator:
