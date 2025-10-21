@@ -4,6 +4,7 @@ Runs quality tests against the RAG + LLM pipeline.
 """
 
 import asyncio
+import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,6 +17,7 @@ from tests.quality.reporting.report_models import (
     IndividualTestResult,
     RequirementResult as ReportRequirementResult,
 )
+from src.models.structured_response import StructuredLLMResponse
 from tests.quality.evaluator import RequirementEvaluator
 from src.services.llm.factory import LLMProviderFactory
 from src.services.rag.retriever import RAGRetriever, RetrieveRequest
@@ -34,6 +36,7 @@ from src.lib.constants import (
     QUALITY_TEST_JUDGE_MODEL,
     RAG_MAX_CHUNKS,
     LLM_GENERATION_TIMEOUT,
+    LLM_USE_STRUCTURED_OUTPUT,
     QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS,
 )
 from src.lib.config import get_config
@@ -119,12 +122,17 @@ class QualityTestRunner:
             )
 
         llm_provider = LLMProviderFactory.create(model)
-        gen_config = GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT)
+        gen_config = GenerationConfig(
+            timeout_seconds=LLM_GENERATION_TIMEOUT,
+            use_structured_output=LLM_USE_STRUCTURED_OUTPUT
+        )
         output_filename = report_dir / f"output_{test_case.test_id}_{model}_{run_num}.md"
-        
+
         error_str = None
         llm_response_text = ""
         token_count = 0
+        json_formatted = False
+        structured_quotes_count = 0
 
         try:
             # Use semaphore to limit concurrent requests and prevent rate limits
@@ -140,6 +148,26 @@ class QualityTestRunner:
                 )
             llm_response_text = llm_response.answer_text
             token_count = llm_response.token_count
+
+            # Try to parse structured JSON response
+            if llm_response_text.strip().startswith("{"):
+                try:
+                    structured_data = StructuredLLMResponse.from_json(llm_response_text)
+                    structured_data.validate()
+                    json_formatted = True
+                    structured_quotes_count = len(structured_data.quotes)
+                    logger.debug(
+                        f"Parsed structured JSON for {test_case.test_id}: "
+                        f"{structured_quotes_count} quotes, smalltalk={structured_data.smalltalk}"
+                    )
+                    # Convert to markdown for evaluation
+                    llm_response_text = structured_data.to_markdown()
+                except (ValueError, json.JSONDecodeError) as e:
+                    logger.warning(
+                        f"Failed to parse structured JSON for {test_case.test_id}: {e}"
+                    )
+                    json_formatted = False
+
         except LLMTimeoutError as e:
             logger.error(f"LLM timeout for {test_case.test_id} on {model}: {e}")
             error_str = f"Timeout after {LLM_GENERATION_TIMEOUT}s"
@@ -203,6 +231,8 @@ class QualityTestRunner:
             requirements=report_reqs,
             output_filename=str(output_filename),
             error=error_str,
+            json_formatted=json_formatted,
+            structured_quotes_count=structured_quotes_count,
         )
 
     async def run_tests_in_parallel(
