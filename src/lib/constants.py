@@ -114,7 +114,7 @@ QUALITY_TEST_RATE_LIMIT_INITIAL_DELAY = 10.0  # Initial retry delay in seconds (
 # ============================================================================
 
 # Default retrieval parameters (used everywhere including Discord bot)
-RAG_MAX_CHUNKS = 5  # Maximum document chunks to retrieve
+RAG_MAX_CHUNKS = 7  # Maximum document chunks to retrieve
 RAG_MIN_RELEVANCE = 0.45  # Minimum cosine similarity threshold
 
 # Note: Increased from 5→15 chunks for better multi-hop queries
