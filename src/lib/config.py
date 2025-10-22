@@ -80,8 +80,9 @@ class Config:
 
         # Validate default provider has API key
         provider_key_mapping = {
-            "claude-sonnet": self.anthropic_api_key,
-            "claude-opus": self.anthropic_api_key,
+            "claude-4.5-sonnet": self.anthropic_api_key,
+            "claude-4.1-opus": self.anthropic_api_key,
+            "claude-4.5-haiku": self.anthropic_api_key,
             "gemini-2.5-pro": self.google_api_key,
             "gemini-2.5-flash": self.google_api_key,
             "gpt-5": self.openai_api_key,

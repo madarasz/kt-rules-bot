@@ -6,10 +6,11 @@ Usage:
 
 import argparse
 import sys
+import json
 from datetime import datetime, timezone
 
 from src.lib.config import get_config
-from src.lib.constants import LLM_GENERATION_TIMEOUT, LLM_USE_STRUCTURED_OUTPUT, RAG_MAX_CHUNKS, ALL_LLM_PROVIDERS
+from src.lib.constants import LLM_GENERATION_TIMEOUT, RAG_MAX_CHUNKS, ALL_LLM_PROVIDERS
 from src.lib.logging import get_logger
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.validator import ResponseValidator
@@ -126,8 +127,7 @@ def test_query(query: str, model: str = None, max_chunks: int = RAG_MAX_CHUNKS, 
                     prompt=query,
                     context=[chunk.text for chunk in rag_context.document_chunks],
                     config=GenerationConfig(
-                        timeout_seconds=LLM_GENERATION_TIMEOUT,
-                        use_structured_output=LLM_USE_STRUCTURED_OUTPUT
+                        timeout_seconds=LLM_GENERATION_TIMEOUT
                     ),
                 ),
                 timeout_seconds=LLM_GENERATION_TIMEOUT
@@ -144,7 +144,12 @@ def test_query(query: str, model: str = None, max_chunks: int = RAG_MAX_CHUNKS, 
 
         print("Answer:")
         print("-" * 60)
-        print(llm_response.answer_text)
+        try:
+            parsed_json = json.loads(llm_response.answer_text)
+            print(json.dumps(parsed_json, indent=2))
+        except (json.JSONDecodeError, TypeError):
+            # Not JSON or can't parse, print as-is
+            print(llm_response.answer_text)
 
     except Exception as e:
         logger.error(f"LLM generation failed: {e}", exc_info=True)

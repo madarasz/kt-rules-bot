@@ -121,7 +121,7 @@ class TokenLimitError(LLMError):
     pass
 
 
-# Structured output schema for JSON responses
+# Structured output schema for JSON responses (OpenAI/Claude/Grok/DeepSeek)
 STRUCTURED_OUTPUT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -176,18 +176,74 @@ STRUCTURED_OUTPUT_SCHEMA = {
     "additionalProperties": False
 }
 
+# Gemini-compatible schema (no additionalProperties field - not supported by Gemini API)
+STRUCTURED_OUTPUT_SCHEMA_GEMINI = {
+    "type": "object",
+    "properties": {
+        "smalltalk": {
+            "type": "boolean",
+            "description": "True if this is casual conversation (not rules-related), False if answering a rules question"
+        },
+        "short_answer": {
+            "type": "string",
+            "description": "Direct, short answer (e.g., 'Yes.')"
+        },
+        "persona_short_answer": {
+            "type": "string",
+            "description": "Short condescending phrase after the direct answer (e.g., 'The affirmative is undeniable.')"
+        },
+        "quotes": {
+            "type": "array",
+            "description": "Relevant rule quotations from Kill Team 3rd Edition rules",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "quote_title": {
+                        "type": "string",
+                        "description": "Rule name (e.g., 'Core Rules: Actions')"
+                    },
+                    "quote_text": {
+                        "type": "string",
+                        "description": "Relevant excerpt from the rule"
+                    }
+                },
+                "required": ["quote_title", "quote_text"]
+            }
+        },
+        "explanation": {
+            "type": "string",
+            "description": "Brief rules-based explanation using official Kill Team terminology"
+        },
+        "persona_afterword": {
+            "type": "string",
+            "description": "Dismissive concluding sentence (e.g., 'The logic is unimpeachable.')"
+        }
+    },
+    "required": [
+        "smalltalk",
+        "short_answer",
+        "persona_short_answer",
+        "quotes",
+        "explanation",
+        "persona_afterword"
+    ]
+}
+
 
 # Data classes for generation
 @dataclass
 class GenerationConfig:
-    """Configuration for answer generation."""
+    """Configuration for answer generation.
+
+    All LLM providers must return structured JSON responses conforming to
+    STRUCTURED_OUTPUT_SCHEMA. Markdown mode is no longer supported.
+    """
 
     max_tokens: int = LLM_DEFAULT_MAX_TOKENS  # Maximum response length
     temperature: float = LLM_DEFAULT_TEMPERATURE  # Lower = more deterministic
     system_prompt: str = field(default_factory=load_system_prompt)
     include_citations: bool = True
     timeout_seconds: int = LLM_GENERATION_TIMEOUT  # Must respond within timeout
-    use_structured_output: bool = False  # Enable JSON structured output
 
 
 @dataclass
