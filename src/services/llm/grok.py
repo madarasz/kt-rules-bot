@@ -27,8 +27,10 @@ from src.services.llm.base import (
     ContentFilterError,
     PDFParseError,
     TokenLimitError,
+    STRUCTURED_OUTPUT_SCHEMA,
 )
 from src.lib.logging import get_logger
+import json
 
 logger = get_logger(__name__)
 
@@ -77,7 +79,7 @@ class GrokAdapter(LLMProvider):
         full_prompt = self._build_prompt(request.prompt, request.context)
 
         try:
-            # Build API request payload
+            # Build API request payload with structured output (Grok supports OpenAI-compatible function calling)
             payload = {
                 "model": self.model,
                 "messages": [
@@ -87,6 +89,18 @@ class GrokAdapter(LLMProvider):
                 "max_tokens": request.config.max_tokens,
                 "temperature": request.config.temperature,
                 "stream": False,
+                "tools": [{
+                    "type": "function",
+                    "function": {
+                        "name": "format_kill_team_answer",
+                        "description": "Format Kill Team rules answer with quotes and explanation",
+                        "parameters": STRUCTURED_OUTPUT_SCHEMA,
+                    }
+                }],
+                "tool_choice": {
+                    "type": "function",
+                    "function": {"name": "format_kill_team_answer"}
+                },
             }
 
             # Call Grok API with timeout
@@ -112,30 +126,46 @@ class GrokAdapter(LLMProvider):
 
             # Parse response
             response_data = response.json()
-            
-            # Extract answer text
+
+            # Extract structured JSON from tool calls
             if not response_data.get("choices") or len(response_data["choices"]) == 0:
                 raise Exception("Grok returned no choices in response")
-                
-            choice = response_data["choices"][0]
-            answer_text = choice.get("message", {}).get("content")
 
-            if not answer_text:
+            choice = response_data["choices"][0]
+            message = choice.get("message", {})
+
+            # Check for tool calls (structured output)
+            tool_calls = message.get("tool_calls")
+            if not tool_calls or len(tool_calls) == 0:
+                # Check finish_reason for errors
                 finish_reason = choice.get("finish_reason")
-                logger.warning(f"Grok returned empty content. Finish reason: {finish_reason}")
-                
+                logger.warning(f"Grok returned no tool calls. Finish reason: {finish_reason}")
+
                 if finish_reason == "content_filter":
                     raise ContentFilterError("Grok content filter blocked response")
                 elif finish_reason == "length":
                     raise TokenLimitError("Grok output was truncated due to max_tokens limit")
                 else:
-                    raise Exception(f"Grok returned empty content with finish_reason: {finish_reason}")
+                    raise Exception(f"Expected structured output via tool calls but none returned (finish_reason: {finish_reason})")
 
-            # Check if citations are included
-            citations_included = (
-                request.config.include_citations
-                and "According to" in answer_text
-            )
+            # Extract JSON from tool call
+            tool_call = tool_calls[0]
+            function_args = tool_call.get("function", {}).get("arguments", "")
+
+            if not function_args:
+                raise Exception("Grok tool call has empty arguments")
+
+            # Parse and validate JSON
+            try:
+                json.loads(function_args)  # Validate JSON is parseable
+                answer_text = function_args  # JSON string
+                logger.debug(f"Extracted structured JSON from Grok tool call: {len(answer_text)} chars")
+            except json.JSONDecodeError as e:
+                logger.error(f"Grok returned invalid JSON in tool call: {e}")
+                raise ValueError(f"Grok returned invalid JSON: {e}")
+
+            # Check if citations are included (always true for structured output with quotes)
+            citations_included = request.config.include_citations
 
             # Default confidence (Grok doesn't provide logprobs yet)
             confidence = 0.8

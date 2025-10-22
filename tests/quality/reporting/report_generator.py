@@ -318,11 +318,24 @@ class ReportGenerator:
         content.append(f"Total queries: {self.report.total_queries}")
         content.append(f"Total time: {self.report.total_time_seconds:.2f}s")
         content.append(f"Total cost: ${self.report.total_cost_usd:.4f}")
-        
+
+        # Calculate JSON formatting statistics
+        json_formatted_count = sum(1 for r in self.report.results if r.json_formatted)
+        total_responses = len([r for r in self.report.results if not r.error])
+        json_success_rate = (json_formatted_count / total_responses * 100) if total_responses > 0 else 0
+
+        content.append(f"JSON formatted: {json_formatted_count}/{total_responses} ({json_success_rate:.1f}%)")
+
+        # Calculate average quotes per response (for successfully formatted JSON)
+        json_results = [r for r in self.report.results if r.json_formatted]
+        if json_results:
+            avg_quotes = np.mean([r.structured_quotes_count for r in json_results])
+            content.append(f"Avg quotes per JSON response: {avg_quotes:.1f}")
+
         if self.report.is_multi_model or self.report.is_multi_run:
             avg_score = np.mean([r.score_percentage for r in self.report.results])
             content.append(f"Average score: {avg_score:.1f}%")
-        
+
         content.append("=" * 60)
 
         if self.report.is_multi_model:

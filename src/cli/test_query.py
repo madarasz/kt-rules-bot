@@ -6,6 +6,7 @@ Usage:
 
 import argparse
 import sys
+import json
 from datetime import datetime, timezone
 
 from src.lib.config import get_config
@@ -27,7 +28,7 @@ def test_query(query: str, model: str = None, max_chunks: int = RAG_MAX_CHUNKS, 
 
     Args:
         query: User question to test
-        model: LLM model to use (claude-sonnet, gemini-2.5-pro, gpt-4o, etc.)
+        model: LLM model to use (claude-4.5-sonnet, gemini-2.5-pro, gpt-4o, etc.)
         max_chunks: Maximum chunks to retrieve
         rag_only: If True, stop after RAG retrieval (no LLM call)
     """
@@ -125,7 +126,9 @@ def test_query(query: str, model: str = None, max_chunks: int = RAG_MAX_CHUNKS, 
                 GenerationRequest(
                     prompt=query,
                     context=[chunk.text for chunk in rag_context.document_chunks],
-                    config=GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT),
+                    config=GenerationConfig(
+                        timeout_seconds=LLM_GENERATION_TIMEOUT
+                    ),
                 ),
                 timeout_seconds=LLM_GENERATION_TIMEOUT
             )
@@ -141,7 +144,12 @@ def test_query(query: str, model: str = None, max_chunks: int = RAG_MAX_CHUNKS, 
 
         print("Answer:")
         print("-" * 60)
-        print(llm_response.answer_text)
+        try:
+            parsed_json = json.loads(llm_response.answer_text)
+            print(json.dumps(parsed_json, indent=2))
+        except (json.JSONDecodeError, TypeError):
+            # Not JSON or can't parse, print as-is
+            print(llm_response.answer_text)
 
     except Exception as e:
         logger.error(f"LLM generation failed: {e}", exc_info=True)

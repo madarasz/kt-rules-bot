@@ -27,8 +27,10 @@ from src.services.llm.base import (
     TimeoutError as LLMTimeoutError,
     ContentFilterError,
     PDFParseError,
+    STRUCTURED_OUTPUT_SCHEMA_GEMINI,
 )
 from src.lib.logging import get_logger
+import json
 
 logger = get_logger(__name__)
 
@@ -76,10 +78,13 @@ class GeminiAdapter(LLMProvider):
         full_prompt = f"{request.config.system_prompt}\n\n{self._build_prompt(request.prompt, request.context)}"
 
         try:
-            # Configure generation for new API
+            # Configure generation with JSON mode for structured output
+            # Gemini requires schema without additionalProperties field
             generation_config = {
                 "max_output_tokens": request.config.max_tokens,
                 "temperature": request.config.temperature,
+                "response_mime_type": "application/json",
+                "response_schema": STRUCTURED_OUTPUT_SCHEMA_GEMINI
             }
 
             # Call Gemini API with timeout using new API
@@ -115,21 +120,21 @@ class GeminiAdapter(LLMProvider):
                     raise ContentFilterError(
                         f"Gemini blocked content due to {finish_reason_str} filter. "
                         "This query may contain content flagged by safety filters. "
-                        "Try rephrasing or use a different model (--provider claude-sonnet)."
+                        "Try rephrasing or use a different model (--provider claude-4.5-sonnet)."
                     )
                 elif finish_reason_str == 'MAX_TOKENS' and not candidate.content.parts:
                     # MAX_TOKENS with no parts typically means truncation/blocking
                     logger.warning(f"Gemini content blocked: finish_reason=MAX_TOKENS (no parts)")
                     raise ContentFilterError(
                         "Gemini response was truncated or blocked (MAX_TOKENS with no content). "
-                        "Try rephrasing or use a different model (--provider claude-sonnet)."
+                        "Try rephrasing or use a different model (--provider claude-4.5-sonnet)."
                     )
                 elif finish_reason_str == 'MAX_TOKENS':  # MAX_TOKENS with parts
                     logger.warning(f"Gemini response truncated: finish_reason=MAX_TOKENS")
                 elif finish_reason_str not in ['STOP', 'FINISH_REASON_UNSPECIFIED']:  # Not normal completion
                     logger.warning(f"Gemini unexpected finish_reason: {finish_reason}")
 
-            # Extract answer text (may raise exception if no valid parts)
+            # Extract JSON answer text (response.text is already JSON string with JSON mode)
             try:
                 answer_text = response.text
             except ValueError as e:
@@ -137,15 +142,26 @@ class GeminiAdapter(LLMProvider):
                 logger.error(f"Gemini response has no valid text parts: {e}")
                 raise ContentFilterError(
                     "Gemini response was blocked. The query may have triggered safety filters. "
-                    "Try rephrasing or use a different model (--provider claude-sonnet)."
+                    "Try rephrasing or use a different model (--provider claude-4.5-sonnet)."
                 )
 
-            # Check if citations are included
-            citations_included = (
-                request.config.include_citations
-                and answer_text is not None
-                and "According to" in answer_text
-            )
+            # Validate JSON is parseable (Gemini can sometimes return invalid JSON)
+            try:
+                json.loads(answer_text)
+                logger.debug(f"Extracted structured JSON from Gemini: {len(answer_text)} chars")
+            except json.JSONDecodeError as e:
+                logger.error(f"Gemini returned invalid JSON: {e}")
+                raise ValueError(
+                    f"Gemini returned invalid JSON despite JSON mode. "
+                    f"Response may be malformed. Error: {e}"
+                )
+
+            # Validate it's not empty
+            if not answer_text or not answer_text.strip():
+                raise Exception("Gemini returned empty JSON")
+
+            # Check if citations are included (always true for structured output with quotes)
+            citations_included = request.config.include_citations
 
             # Map safety ratings to confidence
             # In new API, safety_ratings are on the candidate, not the response
