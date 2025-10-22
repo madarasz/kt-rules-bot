@@ -46,7 +46,7 @@ python -m src.cli ingest extracted-rules/ --force
 Test RAG + LLM pipeline locally without Discord.
 ```bash
 # Full pipeline (RAG + LLM)
-python -m src.cli query "Can I use overwatch against a charge?" --model claude-sonnet --max-chunks 10
+python -m src.cli query "Can I use overwatch against a charge?" --model claude-4.5-sonnet --max-chunks 10
 
 # RAG-only mode (no LLM call)
 python -m src.cli query "Can I shoot during conceal order?" --rag-only
@@ -98,7 +98,7 @@ python -m src.cli download-all-teams --dry-run
 ## Supported LLM Providers
 
 Available across `query` and `quality-test` commands:
-- `claude-sonnet`, `claude-opus`
+- `claude-4.5-sonnet`, `claude-4.1-opus`, `claude-4.5-haiku`
 - `gemini-2.5-pro`, `gemini-2.5-flash`
 - `gpt-5`, `gpt-5-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4o`
 - `o3`, `o3-mini`, `o4-mini`

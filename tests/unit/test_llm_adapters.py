@@ -342,8 +342,8 @@ class TestLLMProviderFactory:
         """Test getting list of available models."""
         providers = LLMProviderFactory.get_available_providers()
 
-        assert "claude-sonnet" in providers
-        assert "claude-opus" in providers
+        assert "claude-4.5-sonnet" in providers
+        assert "claude-4.1-opus" in providers
         assert "gemini-2.5-pro" in providers
         assert "gpt-4.1" in providers
         assert "grok-4-fast-reasoning" in providers

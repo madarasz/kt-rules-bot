@@ -14,7 +14,7 @@ from src.models.structured_response import StructuredLLMResponse
 
 # All providers that must support structured output
 PROVIDERS_TO_TEST = [
-    "claude-sonnet",
+    "claude-4.5-sonnet",
     "gpt-4.1",
     "gemini-2.5-flash",
     "grok-3",

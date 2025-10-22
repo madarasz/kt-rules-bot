@@ -28,7 +28,7 @@ def test_query(query: str, model: str = None, max_chunks: int = RAG_MAX_CHUNKS, 
 
     Args:
         query: User question to test
-        model: LLM model to use (claude-sonnet, gemini-2.5-pro, gpt-4o, etc.)
+        model: LLM model to use (claude-4.5-sonnet, gemini-2.5-pro, gpt-4o, etc.)
         max_chunks: Maximum chunks to retrieve
         rag_only: If True, stop after RAG retrieval (no LLM call)
     """
