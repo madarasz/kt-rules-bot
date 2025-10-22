@@ -120,14 +120,14 @@ class GeminiAdapter(LLMProvider):
                     raise ContentFilterError(
                         f"Gemini blocked content due to {finish_reason_str} filter. "
                         "This query may contain content flagged by safety filters. "
-                        "Try rephrasing or use a different model (--provider claude-sonnet)."
+                        "Try rephrasing or use a different model (--provider claude-4.5-sonnet)."
                     )
                 elif finish_reason_str == 'MAX_TOKENS' and not candidate.content.parts:
                     # MAX_TOKENS with no parts typically means truncation/blocking
                     logger.warning(f"Gemini content blocked: finish_reason=MAX_TOKENS (no parts)")
                     raise ContentFilterError(
                         "Gemini response was truncated or blocked (MAX_TOKENS with no content). "
-                        "Try rephrasing or use a different model (--provider claude-sonnet)."
+                        "Try rephrasing or use a different model (--provider claude-4.5-sonnet)."
                     )
                 elif finish_reason_str == 'MAX_TOKENS':  # MAX_TOKENS with parts
                     logger.warning(f"Gemini response truncated: finish_reason=MAX_TOKENS")
@@ -142,7 +142,7 @@ class GeminiAdapter(LLMProvider):
                 logger.error(f"Gemini response has no valid text parts: {e}")
                 raise ContentFilterError(
                     "Gemini response was blocked. The query may have triggered safety filters. "
-                    "Try rephrasing or use a different model (--provider claude-sonnet)."
+                    "Try rephrasing or use a different model (--provider claude-4.5-sonnet)."
                 )
 
             # Validate JSON is parseable (Gemini can sometimes return invalid JSON)

@@ -226,7 +226,7 @@ async def test_query_pipeline():
 - Test error handling contracts
 
 ```python
-@pytest.mark.parametrize("provider", ["claude-sonnet", "gpt-4.1", "gemini-2.5-pro"])
+@pytest.mark.parametrize("provider", ["claude-4.5-sonnet", "gpt-4.1", "gemini-2.5-pro"])
 async def test_llm_generation_contract(provider):
     """All LLM providers must implement generate() correctly."""
     llm = LLMProviderFactory.create(provider)
