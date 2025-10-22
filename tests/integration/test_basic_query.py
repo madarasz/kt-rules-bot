@@ -61,19 +61,28 @@ def mock_rag_retriever():
 @pytest.fixture
 def mock_llm_provider():
     """Mock LLM provider with high-confidence response."""
+    import json
     provider = AsyncMock()
 
     async def mock_generate(request: GenerationRequest) -> LLMResponse:
-        # Simulate LLM response about movement phase
+        # Simulate LLM response with structured JSON output
+        structured_json = json.dumps({
+            "smalltalk": False,
+            "short_answer": "Yes.",
+            "persona_short_answer": "Obviously.",
+            "quotes": [
+                {
+                    "quote_title": "Movement Phase Rules",
+                    "quote_text": "During the Movement Phase, operatives can perform Move, Dash, or Climb/Traverse actions."
+                }
+            ],
+            "explanation": "During the Movement Phase, your operatives can perform several actions including Move (up to Movement characteristic), Dash (free action to move further), and Climb/Traverse (navigate terrain). You can also perform equipment actions during this phase.",
+            "persona_afterword": "Elementary tactical options, really."
+        })
+
         return LLMResponse(
             response_id=uuid4(),
-            answer_text=(
-                "During the Movement Phase, your operatives can perform several actions:\n"
-                "1. **Move**: Move up to their Movement characteristic distance\n"
-                "2. **Dash**: Perform a free Dash action to move further\n"
-                "3. **Climb/Traverse**: Navigate terrain features\n\n"
-                "You can also perform equipment actions during this phase."
-            ),
+            answer_text=structured_json,
             confidence_score=0.88,
             token_count=125,
             latency_ms=1850,
@@ -160,17 +169,18 @@ async def test_basic_query_flow_end_to_end(mock_rag_retriever, mock_llm_provider
     assert "Confidence:" in embed.footer.text, "Confidence missing from footer"
     assert "%" in embed.footer.text, "Confidence not displayed as percentage"
 
-    # 5. Citations included (Sources field - currently commented out in formatter)
-    # sources_field = next((f for f in embed.fields if f.name == "Sources"), None)
-    # assert sources_field is not None, "Sources field missing"
-    # assert "core-rules" in sources_field.value, "Citation missing from sources"
-    
-    # Instead, check that disclaimer field is present
+    # 5. Disclaimer field is present (for non-smalltalk)
     disclaimer_field = next((f for f in embed.fields if f.name == "Disclaimer"), None)
     assert disclaimer_field is not None, "Disclaimer field missing"
 
     # 6. Response contains movement phase information
-    assert "Movement" in embed.description or "move" in embed.description.lower()
+    # In structured format, description has short answer + persona
+    assert embed.description, "Embed description is empty"
+
+    # Check that explanation field exists and contains relevant info
+    explanation_field = next((f for f in embed.fields if f.name == "Explanation"), None)
+    assert explanation_field is not None, "Explanation field missing"
+    assert "movement" in explanation_field.value.lower() or "Move" in explanation_field.value, "Movement info missing from explanation"
 
     print(f"✅ Basic query test passed (response time: {response_time:.2f}s)")
 

@@ -43,9 +43,25 @@ class TestClaudeAdapter:
 
     async def test_generate_success(self, claude_adapter):
         """Test successful generation."""
-        # Mock API response
+        # Mock API response with tool use block (structured JSON output)
+        mock_tool_use = Mock()
+        mock_tool_use.type = 'tool_use'
+        mock_tool_use.input = {
+            "smalltalk": False,
+            "short_answer": "Yes.",
+            "persona_short_answer": "Obviously.",
+            "quotes": [
+                {
+                    "quote_title": "Core Rules: Movement",
+                    "quote_text": "Operatives can move 6 inches"
+                }
+            ],
+            "explanation": "Movement is 6 inches per the core rules.",
+            "persona_afterword": "Simple enough."
+        }
+
         mock_response = Mock()
-        mock_response.content = [Mock(text="According to Core Rules: Movement is 6 inches")]
+        mock_response.content = [mock_tool_use]
         mock_response.usage = Mock(input_tokens=100, output_tokens=50)
 
         claude_adapter.client.messages.create = AsyncMock(return_value=mock_response)
@@ -66,7 +82,9 @@ class TestClaudeAdapter:
         assert response.confidence_score == 0.8  # Claude default
         assert response.token_count == 150
         assert response.citations_included is True
-        assert "According to" in response.answer_text
+        # Response should be JSON string
+        assert "smalltalk" in response.answer_text
+        assert "short_answer" in response.answer_text
 
     async def test_generate_rate_limit(self, claude_adapter):
         """Test rate limit error handling."""
@@ -113,14 +131,30 @@ class TestChatGPTAdapter:
         return adapter
 
     async def test_generate_success(self, chatgpt_adapter):
-        """Test successful generation with logprobs."""
-        # Mock API response with logprobs
+        """Test successful generation with tool calls (structured output)."""
+        # Mock API response with tool call (structured JSON output)
+        import json
+
+        structured_json = json.dumps({
+            "smalltalk": False,
+            "short_answer": "Yes.",
+            "persona_short_answer": "Obviously.",
+            "quotes": [
+                {
+                    "quote_title": "Core Rules: Movement",
+                    "quote_text": "Operatives can move 6 inches"
+                }
+            ],
+            "explanation": "Movement is 6 inches per the core rules.",
+            "persona_afterword": "Simple enough."
+        })
+
+        mock_tool_call = Mock()
+        mock_tool_call.function.arguments = structured_json
+
         mock_choice = Mock()
-        mock_choice.message.content = "According to Core Rules: Movement is 6 inches"
-        mock_choice.logprobs.content = [
-            Mock(logprob=-0.1),  # exp(-0.1) ≈ 0.9
-            Mock(logprob=-0.2),  # exp(-0.2) ≈ 0.82
-        ]
+        mock_choice.message.tool_calls = [mock_tool_call]
+        mock_choice.logprobs = None  # Not available with tool use
 
         mock_response = Mock()
         mock_response.choices = [mock_choice]
@@ -140,9 +174,12 @@ class TestChatGPTAdapter:
 
         assert isinstance(response, LLMResponse)
         assert response.provider == "chatgpt"
-        assert 0.8 <= response.confidence_score <= 0.9  # Based on logprobs
+        assert response.confidence_score == 0.8  # Default confidence (logprobs not available with structured output)
         assert response.token_count == 150
-        assert response.citations_included is True
+        assert response.citations_included is True  # Based on config.include_citations
+        # Response should be JSON string
+        assert "smalltalk" in response.answer_text
+        assert "short_answer" in response.answer_text
 
     async def test_calculate_confidence(self, chatgpt_adapter):
         """Test confidence calculation from logprobs."""
@@ -177,14 +214,30 @@ class TestGeminiAdapter:
 
     async def test_generate_success(self, gemini_adapter):
         """Test successful generation."""
-        # Mock API response with candidates
+        # Mock API response with candidates (JSON mode)
+        import json
+
+        structured_json = json.dumps({
+            "smalltalk": False,
+            "short_answer": "Yes.",
+            "persona_short_answer": "Obviously.",
+            "quotes": [
+                {
+                    "quote_title": "Core Rules: Movement",
+                    "quote_text": "Operatives can move 6 inches"
+                }
+            ],
+            "explanation": "Movement is 6 inches per the core rules.",
+            "persona_afterword": "Simple enough."
+        })
+
         mock_candidate = Mock()
         mock_candidate.finish_reason = "STOP"  # Proper finish reason string
         mock_candidate.content = Mock()
         mock_candidate.content.parts = [Mock()]  # Has valid parts
 
         mock_response = Mock()
-        mock_response.text = "According to Core Rules: Movement is 6 inches"
+        mock_response.text = structured_json  # JSON mode returns JSON string
         mock_response.candidates = [mock_candidate]
         mock_response.usage_metadata = Mock(total_token_count=150)
 
@@ -208,6 +261,9 @@ class TestGeminiAdapter:
         assert response.provider == "gemini"
         assert 0.8 <= response.confidence_score <= 0.9  # Based on safety ratings
         assert response.token_count == 150
+        # Response should be JSON string
+        assert "smalltalk" in response.answer_text
+        assert "short_answer" in response.answer_text
 
     def test_safety_to_confidence(self, gemini_adapter):
         """Test safety rating to confidence mapping."""
@@ -241,16 +297,38 @@ class TestGrokAdapter:
 
     async def test_generate_success(self, grok_adapter, mock_httpx):
         """Test successful generation."""
-        # Mock HTTP response
+        # Mock HTTP response with tool calls (structured output)
+        import json
+
+        structured_json = json.dumps({
+            "smalltalk": False,
+            "short_answer": "Yes.",
+            "persona_short_answer": "Obviously.",
+            "quotes": [
+                {
+                    "quote_title": "Core Rules: Movement",
+                    "quote_text": "Operatives can move 6 inches"
+                }
+            ],
+            "explanation": "Movement is 6 inches per the core rules.",
+            "persona_afterword": "Simple enough."
+        })
+
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "choices": [
                 {
                     "message": {
-                        "content": "According to Core Rules: Movement is 6 inches"
+                        "tool_calls": [
+                            {
+                                "function": {
+                                    "arguments": structured_json
+                                }
+                            }
+                        ]
                     },
-                    "finish_reason": "stop"
+                    "finish_reason": "tool_calls"
                 }
             ],
             "usage": {
@@ -261,11 +339,11 @@ class TestGrokAdapter:
         # Mock the AsyncClient context manager properly
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(return_value=mock_response)
-        
+
         mock_context_manager = AsyncMock()
         mock_context_manager.__aenter__ = AsyncMock(return_value=mock_client)
         mock_context_manager.__aexit__ = AsyncMock(return_value=None)
-        
+
         mock_httpx.AsyncClient.return_value = mock_context_manager
 
         request = GenerationRequest(
@@ -281,6 +359,9 @@ class TestGrokAdapter:
         assert response.model_version == "grok-3"
         assert response.confidence_score == 0.8  # Default confidence
         assert response.token_count == 150
+        # Response should be JSON string
+        assert "smalltalk" in response.answer_text
+        assert "short_answer" in response.answer_text
 
     async def test_generate_rate_limit(self, grok_adapter, mock_httpx):
         """Test rate limit error handling."""
@@ -358,7 +439,7 @@ class TestLLMProviderFactory:
         mock_config.return_value = config_obj
 
         with patch("src.services.llm.claude.AsyncAnthropic"):
-            provider = LLMProviderFactory.create("claude-sonnet")
+            provider = LLMProviderFactory.create("claude-4.5-sonnet")
 
             assert isinstance(provider, ClaudeAdapter)
             assert provider.model == "claude-sonnet-4-5-20250929"
