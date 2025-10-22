@@ -36,7 +36,6 @@ from src.lib.constants import (
     QUALITY_TEST_JUDGE_MODEL,
     RAG_MAX_CHUNKS,
     LLM_GENERATION_TIMEOUT,
-    LLM_USE_STRUCTURED_OUTPUT,
     QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS,
 )
 from src.lib.config import get_config
@@ -123,8 +122,7 @@ class QualityTestRunner:
 
         llm_provider = LLMProviderFactory.create(model)
         gen_config = GenerationConfig(
-            timeout_seconds=LLM_GENERATION_TIMEOUT,
-            use_structured_output=LLM_USE_STRUCTURED_OUTPUT
+            timeout_seconds=LLM_GENERATION_TIMEOUT
         )
         output_filename = report_dir / f"output_{test_case.test_id}_{model}_{run_num}.md"
 
