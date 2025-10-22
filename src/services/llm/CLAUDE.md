@@ -147,7 +147,7 @@ Validates LLM responses:
 ```
 Application Code
     ↓
-LLMProviderFactory.create("claude-sonnet")
+LLMProviderFactory.create("claude-4.5-sonnet")
     ↓
 ClaudeAdapter instance
     ↓
@@ -199,7 +199,7 @@ class GenerationResponse:
 From [src/lib/constants.py](../../lib/constants.py):
 ```python
 # Default LLM
-DEFAULT_LLM_PROVIDER = "claude-sonnet"
+DEFAULT_LLM_PROVIDER = "claude-4.5-sonnet"
 
 # Generation parameters
 LLM_DEFAULT_MAX_TOKENS = 2000
@@ -272,7 +272,7 @@ ProviderName = Literal[
 
 4. **Update CLI choices** ([src/cli/__main__.py](../../cli/__main__.py)):
 ```python
-choices=["claude-sonnet", ..., "cohere-command-r"]
+choices=["claude-4.5-sonnet", ..., "cohere-command-r"]
 ```
 
 5. **Add API key** to [src/lib/config.py](../../lib/config.py):

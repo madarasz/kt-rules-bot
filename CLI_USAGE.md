@@ -127,7 +127,7 @@ python -m src.cli query "<query_text>" [--provider MODEL] [--max-chunks N]
 python -m src.cli query "Can I shoot through barricades?"
 
 # Test with specific provider
-python -m src.cli query "What are ploys?" --provider claude-sonnet
+python -m src.cli query "What are ploys?" --provider claude-4.5-sonnet
 
 # Test with more chunks
 python -m src.cli query "How does overwatch work?" --max-chunks 10
@@ -560,7 +560,7 @@ All commands use configuration from:
 
 2. Test changes locally:
    ```bash
-   python -m src.cli query "Test query" --provider claude-sonnet
+   python -m src.cli query "Test query" --provider claude-4.5-sonnet
    ```
 
 3. Monitor health:
