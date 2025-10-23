@@ -10,7 +10,12 @@ import json
 from datetime import datetime, timezone
 
 from src.lib.config import get_config
-from src.lib.constants import LLM_GENERATION_TIMEOUT, RAG_MAX_CHUNKS, ALL_LLM_PROVIDERS
+from src.lib.constants import (
+    LLM_GENERATION_TIMEOUT,
+    RAG_MAX_CHUNKS,
+    ALL_LLM_PROVIDERS,
+    RAG_MAX_HOPS,
+)
 from src.lib.logging import get_logger
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.validator import ResponseValidator
@@ -23,7 +28,13 @@ from src.services.llm.retry import retry_on_content_filter
 logger = get_logger(__name__)
 
 
-def test_query(query: str, model: str = None, max_chunks: int = RAG_MAX_CHUNKS, rag_only: bool = False) -> None:
+def test_query(
+    query: str,
+    model: str = None,
+    max_chunks: int = RAG_MAX_CHUNKS,
+    rag_only: bool = False,
+    max_hops: int = None,
+) -> None:
     """Test RAG + LLM pipeline locally.
 
     Args:
@@ -31,7 +42,17 @@ def test_query(query: str, model: str = None, max_chunks: int = RAG_MAX_CHUNKS, 
         model: LLM model to use (claude-4.5-sonnet, gemini-2.5-pro, gpt-4o, etc.)
         max_chunks: Maximum chunks to retrieve
         rag_only: If True, stop after RAG retrieval (no LLM call)
+        max_hops: Override RAG_MAX_HOPS constant (None = use constant)
     """
+    # Override RAG_MAX_HOPS if specified
+    if max_hops is not None:
+        import src.lib.constants as constants
+        constants.RAG_MAX_HOPS = max_hops
+        print(f"Overriding RAG_MAX_HOPS to {max_hops}")
+        current_max_hops = max_hops
+    else:
+        current_max_hops = RAG_MAX_HOPS
+
     config = get_config()
     print(f"\nQuery: {query}")
     if not rag_only:
@@ -40,13 +61,16 @@ def test_query(query: str, model: str = None, max_chunks: int = RAG_MAX_CHUNKS, 
         print(f"Mode: RAG-only (no LLM generation)")
     print(f"{'='*60}\n")
 
-    # Initialize services
+    print(f"Multi-hop: {'enabled' if current_max_hops > 0 else 'disabled'} (max_hops={current_max_hops})")
+
+    # Initialize services (after constant override)
     try:
         vector_db = VectorDBService(collection_name="kill_team_rules")
         embedding_service = EmbeddingService()
         rag_retriever = RAGRetriever(
             vector_db_service=vector_db,
             embedding_service=embedding_service,
+            enable_multi_hop=(current_max_hops > 0),  # Explicitly set based on override
         )
 
         # Only initialize LLM services if not rag_only
@@ -73,11 +97,12 @@ def test_query(query: str, model: str = None, max_chunks: int = RAG_MAX_CHUNKS, 
         from uuid import uuid4
         query_id = uuid4()
 
-        rag_context = rag_retriever.retrieve(
+        rag_context, hop_evaluations, chunk_hop_map = rag_retriever.retrieve(
             RetrieveRequest(
                 query=query,
                 context_key="cli:test",
                 max_chunks=max_chunks,
+                use_multi_hop=(current_max_hops > 0),
                 # Use default from RetrieveRequest (0.45)
             ),
             query_id=query_id,
@@ -88,12 +113,48 @@ def test_query(query: str, model: str = None, max_chunks: int = RAG_MAX_CHUNKS, 
         print(f"Retrieved {rag_context.total_chunks} chunks in {rag_time:.2f}s")
         print(f"Average relevance: {rag_context.avg_relevance:.2f}")
         print(f"Meets threshold: {rag_context.meets_threshold}")
+        if hop_evaluations:
+            print(f"Hops used: {len(hop_evaluations)}")
         print()
 
+        # Display hop information if multi-hop was used
+        if hop_evaluations:
+            print(f"\n{'='*60}")
+            print(f"MULTI-HOP INFORMATION ({len(hop_evaluations)} hops)")
+            print(f"{'='*60}")
+
+            for i, hop_eval in enumerate(hop_evaluations, 1):
+                print(f"\n--- Hop {i} ---")
+                print(f"Can Answer: {'✅ Yes' if hop_eval.can_answer else '❌ No'}")
+                print(f"Reasoning: {hop_eval.reasoning}")
+                if hop_eval.missing_query:
+                    print(f"Missing Query: \"{hop_eval.missing_query}\"")
+
+            print(f"\n{'='*60}")
+            print(f"CHUNKS BY HOP")
+            print(f"{'='*60}")
+
+            chunks_by_hop = {}
+            for chunk in rag_context.document_chunks:
+                hop_num = chunk_hop_map.get(chunk.chunk_id, 0)
+                if hop_num not in chunks_by_hop:
+                    chunks_by_hop[hop_num] = []
+                chunks_by_hop[hop_num].append(chunk)
+
+            for hop_num in sorted(chunks_by_hop.keys()):
+                hop_label = "Initial (Hop 0)" if hop_num == 0 else f"Hop {hop_num}"
+                chunks = chunks_by_hop[hop_num]
+                print(f"\n{hop_label}: {len(chunks)} chunks")
+                for chunk in chunks:
+                    print(f"  - {chunk.header} (score: {chunk.relevance_score:.3f})")
+            print()
+
         if rag_context.document_chunks:
-            print("Chunks:")
+            print("All Chunks:")
             for i, chunk in enumerate(rag_context.document_chunks, 1):
-                print(f"\n{i}. {chunk.header} (relevance: {chunk.relevance_score:.2f})")
+                hop_num = chunk_hop_map.get(chunk.chunk_id, 0) if hop_evaluations else 0
+                hop_label = f" [Hop {hop_num}]" if hop_evaluations else ""
+                print(f"\n{i}. {chunk.header}{hop_label} (relevance: {chunk.relevance_score:.2f})")
                 #print(f"   Source: {chunk.metadata.get('source', 'unknown')}")
                 print(f"   Text: {chunk.text[:200]}...")
 
@@ -206,11 +267,23 @@ def main():
         action="store_true",
         help="Stop after RAG retrieval, do not call LLM",
     )
+    parser.add_argument(
+        "--max-hops",
+        type=int,
+        default=None,
+        help=f"Override RAG_MAX_HOPS constant (default: {RAG_MAX_HOPS})",
+    )
 
     args = parser.parse_args()
 
     try:
-        test_query(args.query, model=args.model, max_chunks=args.max_chunks, rag_only=args.rag_only)
+        test_query(
+            args.query,
+            model=args.model,
+            max_chunks=args.max_chunks,
+            rag_only=args.rag_only,
+            max_hops=args.max_hops,
+        )
     except Exception as e:
         logger.error(f"Test query failed: {e}", exc_info=True)
         print(f"❌ Test query failed: {e}")
