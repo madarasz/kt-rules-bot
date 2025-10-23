@@ -45,7 +45,7 @@ class RAGReportGenerator:
         content.append("|--------|-------|")
         content.append(f"| **Mean MAP** | {summary.mean_map:.3f} |")
         content.append(f"| **Recall@5** | {summary.mean_recall_at_5:.3f} ({summary.mean_recall_at_5*100:.1f}%) |")
-        content.append(f"| **Recall@10** | {summary.mean_recall_at_10:.3f} ({summary.mean_recall_at_10*100:.1f}%) |")
+        content.append(f"| **Recall@All** | {summary.mean_recall_at_all:.3f} ({summary.mean_recall_at_all*100:.1f}%) |")
         content.append(f"| **Precision@3** | {summary.mean_precision_at_3:.3f} ({summary.mean_precision_at_3*100:.1f}%) |")
         content.append(f"| **Precision@5** | {summary.mean_precision_at_5:.3f} ({summary.mean_precision_at_5*100:.1f}%) |")
         content.append(f"| **MRR** | {summary.mean_mrr:.3f} |")
@@ -67,6 +67,7 @@ class RAGReportGenerator:
             content.append("")
             content.append(f"- **MAP**: {summary.mean_map:.3f} ± {summary.std_dev_map:.3f}")
             content.append(f"- **Recall@5**: {summary.mean_recall_at_5:.3f} ± {summary.std_dev_recall_at_5:.3f}")
+            content.append(f"- **Recall@All**: {summary.mean_recall_at_all:.3f} ± {summary.std_dev_recall_at_all:.3f}")
             content.append(f"- **Precision@3**: {summary.mean_precision_at_3:.3f} ± {summary.std_dev_precision_at_3:.3f}")
             content.append("")
 
@@ -108,6 +109,7 @@ class RAGReportGenerator:
             if len(test_results) > 1:
                 avg_map = sum(r.map_score for r in test_results) / len(test_results)
                 avg_recall5 = sum(r.recall_at_5 for r in test_results) / len(test_results)
+                avg_recall_all = sum(r.recall_at_all for r in test_results) / len(test_results)
                 avg_prec3 = sum(r.precision_at_3 for r in test_results) / len(test_results)
                 avg_time = sum(r.retrieval_time_seconds for r in test_results) / len(test_results)
                 total_cost = sum(r.embedding_cost_usd for r in test_results)
@@ -116,6 +118,7 @@ class RAGReportGenerator:
                 content.append("**Average Metrics**:")
                 content.append(f"- MAP: {avg_map:.3f}")
                 content.append(f"- Recall@5: {avg_recall5:.3f}")
+                content.append(f"- Recall@All: {avg_recall_all:.3f}")
                 content.append(f"- Precision@3: {avg_prec3:.3f}")
                 content.append(f"- Avg Retrieval Time: {avg_time:.3f}s")
                 content.append(f"- Total Cost: ${total_cost:.6f}")
@@ -123,7 +126,7 @@ class RAGReportGenerator:
                 content.append("**Metrics**:")
                 content.append(f"- MAP: {first_result.map_score:.3f}")
                 content.append(f"- Recall@5: {first_result.recall_at_5:.3f}")
-                content.append(f"- Recall@10: {first_result.recall_at_10:.3f}")
+                content.append(f"- Recall@All: {first_result.recall_at_all:.3f}")
                 content.append(f"- Precision@3: {first_result.precision_at_3:.3f}")
                 content.append(f"- Precision@5: {first_result.precision_at_5:.3f}")
                 #content.append(f"- MRR: {first_result.mrr:.3f}")
@@ -142,7 +145,7 @@ class RAGReportGenerator:
             content.append("**Found** ✅:")
             if first_result.found_chunks:
                 for chunk in first_result.found_chunks:
-                    # Find rank, relevance, and metadata
+                    # Find rank, relevance, and metadata (use substring matching)
                     chunk_lower = chunk.strip().lower()
                     rank = None
                     relevance = None
@@ -155,14 +158,17 @@ class RAGReportGenerator:
                         ),
                         start=1
                     ):
-                        if retr.strip().lower() == chunk_lower:
+                        # Use substring matching (consistent with evaluator)
+                        if chunk_lower in retr.strip().lower():
                             rank = i
                             relevance = score
                             metadata = meta
                             break
 
                     # Build score display
-                    score_parts = [f"final: {relevance:.4f}"]
+                    score_parts = []
+                    if relevance is not None:
+                        score_parts.append(f"final: {relevance:.4f}")
 
                     # Vector score - show N/A if not present
                     if metadata:
@@ -182,7 +188,7 @@ class RAGReportGenerator:
                         if rrf_score is not None:
                             score_parts.append(f"rrf: {rrf_score:.4f}")
 
-                    score_display = ', '.join(score_parts)
+                    score_display = ', '.join(score_parts) if score_parts else "N/A"
                     content.append(f"- {chunk} (rank #{rank}, {score_display})")
             else:
                 content.append("- (none)")
@@ -209,8 +215,13 @@ class RAGReportGenerator:
                 ),
                 start=1
             ):
-                # Mark if it's a required chunk
-                marker = " ✅" if chunk_header in first_result.found_chunks else ""
+                # Mark if it's a required chunk (use substring matching)
+                marker = ""
+                chunk_header_lower = chunk_header.strip().lower()
+                for found_chunk in first_result.found_chunks:
+                    if found_chunk.strip().lower() in chunk_header_lower:
+                        marker = " ✅"
+                        break
 
                 # Get scores from metadata
                 # Show "N/A" if vector_similarity is missing (BM25-only chunk)
@@ -260,7 +271,13 @@ class RAGReportGenerator:
         content.append("")
 
         for i, (header, text) in enumerate(zip(result.retrieved_chunks, result.retrieved_chunk_texts), start=1):
-            marker = "✅ REQUIRED" if header in result.found_chunks else ""
+            # Use substring matching to mark required chunks
+            marker = ""
+            header_lower = header.strip().lower()
+            for found_chunk in result.found_chunks:
+                if found_chunk.strip().lower() in header_lower:
+                    marker = "✅ REQUIRED"
+                    break
             content.append(f"[{i}] {header} {marker}")
             content.append("-" * 80)
             content.append(text)

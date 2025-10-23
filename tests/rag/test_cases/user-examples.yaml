@@ -1,0 +1,85 @@
+- test_id: team-validity
+  query: >
+    which teams are tournament legal currently?
+  required_chunks:
+    - "Classified Format"
+    - "Classified Rotation"
+- test_id: team-rotation
+  query: >
+    Which teams are rotating out soon?
+  required_chunks:
+    - "Classified Rotation > Octarius Season"
+- test_id: cp-lost-cancelled
+  query: >
+    Would the Curtain Falls firefight ploy still cost CP even after the Nemesis Claw chain snare 
+    equipment potenatially would block the free fall back action?
+  required_chunks:
+    - "VOID-DANCER TROUPE - Firefight Ploy - THE CURTAIN FALLS"
+    - "NEMESIS CLAW - Faction Equipment - CHAIN SNARE"
+- test_id: return-to-darkness-teleport
+  query: >
+    can I use return to darkness ploy with nemesis claw operative to use the teleport on tomb world map?
+  required_chunks:
+    - "NEMESIS CLAW - Strategy Ploy - RETURN TO DARKNESS"
+    - "TELEPORT PAD"
+- test_id: nemesis-midnight-clad-barricade
+  query: >
+    Can a nemesis claw operative use light barricade as cover and be obscured as well if its more than 8 inches away from the enemy operative?
+  required_chunks:
+    - "NEMESIS CLAW - Faction Rule - IN MIDNIGHT CLAD"
+    - "UNIVERSAL EQUIPMENT - 2X LIGHT BARRICADES"
+- test_id: track-enemy-melee
+  query: >
+    Can I score VP with track enemy if I track an opponent tied up melee with another operative of mine?
+  required_chunks:
+    - "TRACK ENEMY"
+    - "VALID TARGET"
+- test_id: ploy-difference
+  query: >
+    what is the difference between ploy and firefight ploy?
+  required_chunks:
+    - "PLOYS"
+- test_id: can-the-route-kill-canoptek-warrior
+  query: >
+    can the route tacop be scored with killing a canoptek warrior?
+  required_chunks:
+    - "CANOPTEK CIRCLE - Operatives - CANOPTEK MACROCYTE WARRIOR"
+    - "ROUTE"
+- test_id: vantage-usage
+  query: >
+    Please tell me what rules can we use, when an operatíve in vantage (2"+) shoot his target, and the target is in light cover?
+  required_chunks:
+    - "**Vantage**"
+    - "VALID TARGET"
+- test_id: crit-ops-initiative
+  query: >
+    in the 2025 crit ops, do the player who loses initiative still get 2cp azlt the strategy phase?
+  required_chunks:
+    - "2. READY"
+- test_id: geomancer-geomanic-grot
+  query: >
+    could a canoptek geomancer use the geomantic disturbance on a barricade which is 7" away from it, behind the barricade is a kommando grot, within 2". Does the kommando grot take damage, if the roll with 2d6 is 10?
+  required_chunks:
+    - "CANOPTEK CIRCLE - Operatives - GEOMANCER - GEOMANTIC DISTURBANCE"
+    - "KOMMANDOS - Operatives - KOMMANDO GROT - Sneaky Zogger"
+- test_id: geomancer-shoot-grot
+  query: >
+    Can a Geomancer shoot a kommando grot with conceal order behind a light a barricade?
+  required_chunks:
+    - "KOMMANDOS - Operatives - KOMMANDO GROT - Sneaky Zogger"
+- test_id: canoptek-tombcrawler-shoot-grot
+  query: >
+    does canoptek tomb crawler can shoot kommando grot with conceal order behind a light a barricade?
+  required_chunks:
+    - "CANOPTEK CIRCLE - Operatives - CANOPTEK TOMB CRAWLER"
+    - "KOMMANDOS - Operatives - KOMMANDO GROT - Sneaky Zogger"
+- test_id: how-do-you-climb-barricade
+  query: >
+    How do you climb over a barricade?
+  required_chunks:
+    - "**Climbing**"
+- test_id: if-an-operative
+  query: >
+    if an operative has accurate 1 from two different sources, does that count as accurate 2?
+  required_chunks:
+    - "Accurate x"

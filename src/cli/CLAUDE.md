@@ -45,8 +45,17 @@ python -m src.cli ingest extracted-rules/ --force
 ### `query`
 Test RAG + LLM pipeline locally without Discord.
 ```bash
-python -m src.cli query "Can I use overwatch against a charge?" --provider claude-sonnet --max-chunks 10
+# Full pipeline (RAG + LLM)
+python -m src.cli query "Can I use overwatch against a charge?" --model claude-sonnet --max-chunks 10
+
+# RAG-only mode (no LLM call)
+python -m src.cli query "Can I shoot during conceal order?" --rag-only
 ```
+
+**Options**:
+- `--model`, `-m`: LLM model to use (default: from config)
+- `--max-chunks`: Maximum RAG chunks to retrieve (default: 5)
+- `--rag-only`: Stop after RAG retrieval, do not call LLM
 
 ### `health`
 Check system health (Discord bot, vector DB, LLM providers).

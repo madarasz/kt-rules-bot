@@ -14,8 +14,11 @@ cp config/.env.template config/.env  # Add your API keys
 # Ingest rules
 python -m src.cli ingest extracted-rules/
 
-# Test locally
+# Test locally (full pipeline)
 python -m src.cli query "Can I use overwatch against a charge?"
+
+# Test RAG only (no LLM call)
+python -m src.cli query "Can I shoot during conceal order?" --rag-only
 
 # Run quality test
 # Do not run all tests, all models, multiple runs by yourself. Running these tests costs money.

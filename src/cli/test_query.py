@@ -22,17 +22,21 @@ from src.services.llm.retry import retry_on_content_filter
 logger = get_logger(__name__)
 
 
-def test_query(query: str, provider: str = None, max_chunks: int = RAG_MAX_CHUNKS) -> None:
+def test_query(query: str, model: str = None, max_chunks: int = RAG_MAX_CHUNKS, rag_only: bool = False) -> None:
     """Test RAG + LLM pipeline locally.
 
     Args:
         query: User question to test
-        provider: LLM model to use (claude-sonnet, gemini-2.5-pro, gpt-4o, etc.)
+        model: LLM model to use (claude-sonnet, gemini-2.5-pro, gpt-4o, etc.)
         max_chunks: Maximum chunks to retrieve
+        rag_only: If True, stop after RAG retrieval (no LLM call)
     """
     config = get_config()
     print(f"\nQuery: {query}")
-    print(f"Provider: {provider or config.default_llm_provider}")
+    if not rag_only:
+        print(f"Model: {model or config.default_llm_provider}")
+    else:
+        print(f"Mode: RAG-only (no LLM generation)")
     print(f"{'='*60}\n")
 
     # Initialize services
@@ -43,12 +47,15 @@ def test_query(query: str, provider: str = None, max_chunks: int = RAG_MAX_CHUNK
             vector_db_service=vector_db,
             embedding_service=embedding_service,
         )
-        llm_factory = LLMProviderFactory()
-        llm_provider = llm_factory.create(provider)
-        validator = ResponseValidator(
-            llm_confidence_threshold=0.7,
-            rag_score_threshold=0.45,  # Match retrieval threshold
-        )
+
+        # Only initialize LLM services if not rag_only
+        if not rag_only:
+            llm_factory = LLMProviderFactory()
+            llm_provider = llm_factory.create(model)
+            validator = ResponseValidator(
+                llm_confidence_threshold=0.7,
+                rag_score_threshold=0.45,  # Match retrieval threshold
+            )
 
     except Exception as e:
         logger.error(f"Failed to initialize services: {e}", exc_info=True)
@@ -93,6 +100,13 @@ def test_query(query: str, provider: str = None, max_chunks: int = RAG_MAX_CHUNK
         logger.error(f"RAG retrieval failed: {e}", exc_info=True)
         print(f"❌ RAG retrieval failed: {e}")
         sys.exit(1)
+
+    # If rag_only mode, stop here
+    if rag_only:
+        print(f"\n{'='*60}")
+        print(f"RAG retrieval completed in {rag_time:.2f}s")
+        print(f"{'='*60}\n")
+        return
 
     # Step 2: LLM Generation
     print(f"\n{'='*60}")
@@ -168,8 +182,8 @@ def main():
     )
     parser.add_argument("query", help="Question to ask")
     parser.add_argument(
-        "--provider",
-        "-p",
+        "--model",
+        "-m",
         choices=[
             "claude-sonnet",
             "claude-opus",
@@ -185,16 +199,20 @@ def main():
     )
     parser.add_argument(
         "--max-chunks",
-        "-m",
         type=int,
         default=RAG_MAX_CHUNKS,
         help=f"Maximum chunks to retrieve (default: {RAG_MAX_CHUNKS})",
+    )
+    parser.add_argument(
+        "--rag-only",
+        action="store_true",
+        help="Stop after RAG retrieval, do not call LLM",
     )
 
     args = parser.parse_args()
 
     try:
-        test_query(args.query, provider=args.provider, max_chunks=args.max_chunks)
+        test_query(args.query, model=args.model, max_chunks=args.max_chunks, rag_only=args.rag_only)
     except Exception as e:
         logger.error(f"Test query failed: {e}", exc_info=True)
         print(f"❌ Test query failed: {e}")

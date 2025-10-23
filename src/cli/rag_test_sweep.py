@@ -177,6 +177,7 @@ def rag_test_sweep(
         print(f"  {best_result.config.get_description()}")
         print(f"  MAP: {best_result.summary.mean_map:.3f}")
         print(f"  Recall@5: {best_result.summary.mean_recall_at_5:.3f}")
+        print(f"  Recall@All: {best_result.summary.mean_recall_at_all:.3f}")
         print(f"  Precision@3: {best_result.summary.mean_precision_at_3:.3f}")
         print("")
 
