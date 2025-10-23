@@ -27,7 +27,8 @@ def rag_test_sweep(
     min_relevance: str | None = None,
     rrf_k: str | None = None,
     bm25_k1: str | None = None,
-    bm25_b: str | None = None
+    bm25_b: str | None = None,
+    use_ragas: bool = False,
 ) -> None:
     """Run RAG parameter sweep tests.
 
@@ -42,7 +43,7 @@ def rag_test_sweep(
         rrf_k: Comma-separated rrf_k values (grid mode)
         bm25_k1: Comma-separated bm25_k1 values (grid mode)
         bm25_b: Comma-separated bm25_b values (grid mode)
-        yes: Skip confirmation prompt
+        use_ragas: Calculate Ragas metrics alongside custom metrics
     """
     # Validate arguments
     if not grid and (not param or not values):
@@ -97,7 +98,7 @@ def rag_test_sweep(
     print("")
 
     # Initialize runners
-    sweep_runner = RAGSweepRunner()
+    sweep_runner = RAGSweepRunner(use_ragas=use_ragas)
     comparison_gen = ComparisonGenerator()
 
     try:
@@ -108,11 +109,14 @@ def rag_test_sweep(
                 parameters=list(param_grid.keys()),
                 test_id=test_id,
                 runs=runs,
+                use_ragas=use_ragas,
             )
 
             print(f"\nRunning grid search...")
             print(f"Parameters: {list(param_grid.keys())}")
             print(f"Total configurations: {total_configs}")
+            if use_ragas:
+                print(f"Evaluation mode: Custom + Ragas metrics")
             print("")
 
             sweep_results = sweep_runner.grid_search(
@@ -140,11 +144,14 @@ def rag_test_sweep(
                 values=param_values,
                 test_id=test_id,
                 runs=runs,
+                use_ragas=use_ragas,
             )
 
             print(f"\nRunning parameter sweep...")
             print(f"Parameter: {param}")
             print(f"Values: {param_values}")
+            if use_ragas:
+                print(f"Evaluation mode: Custom + Ragas metrics")
             print("")
 
             sweep_results = sweep_runner.sweep_parameter(

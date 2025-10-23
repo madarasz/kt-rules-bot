@@ -1,0 +1,125 @@
+"""RAG test evaluator using Ragas framework.
+
+This evaluator integrates Ragas metrics alongside custom IR metrics.
+It uses substring matching for ground_truth_contexts as specified in the refactor plan.
+"""
+
+from typing import List, Optional
+from tests.rag.test_case_models import RAGTestCase, RAGTestResult
+from src.models.rag_context import DocumentChunk
+from src.lib.ragas_adapter import (
+    evaluate_retrieval,
+    RagasRetrievalMetrics,
+    is_ragas_available,
+)
+from src.lib.constants import RAGAS_JUDGE_MODEL
+
+
+class RagasRAGEvaluator:
+    """Evaluates RAG retrieval using Ragas framework with substring matching.
+
+    This evaluator extends the custom IR metrics with Ragas-style evaluation,
+    using substring matching for ground_truth_contexts instead of full-text matching.
+    """
+
+    def __init__(self, judge_model: Optional[str] = None):
+        """Initialize the Ragas evaluator.
+
+        Args:
+            judge_model: Optional LLM model for Ragas evaluation (default: RAGAS_JUDGE_MODEL)
+                        Note: Not used for substring matching, but available for future extensions
+        """
+        self.judge_model = judge_model or RAGAS_JUDGE_MODEL
+
+    def evaluate(
+        self,
+        test_case: RAGTestCase,
+        retrieved_chunks: List[DocumentChunk],
+        use_ragas: bool = False,
+    ) -> Optional[RagasRetrievalMetrics]:
+        """Evaluate retrieval using Ragas metrics.
+
+        Args:
+            test_case: Test case definition with optional ground_truth_contexts
+                      Falls back to required_chunks if ground_truth_contexts not set
+            retrieved_chunks: Chunks retrieved by RAG system (ordered by relevance)
+            use_ragas: Whether to calculate Ragas metrics (default: False)
+
+        Returns:
+            RagasRetrievalMetrics if use_ragas=True, None otherwise
+        """
+        # Skip if Ragas is disabled or not available
+        if not use_ragas:
+            return None
+
+        if not is_ragas_available():
+            print("Warning: ragas library not installed. Skipping Ragas metrics.")
+            return None
+
+        # Get ground truth contexts (falls back to required_chunks)
+        ground_truth_contexts = test_case.get_ground_truth_contexts()
+
+        # Extract full text from retrieved chunks
+        retrieved_texts = [chunk.text for chunk in retrieved_chunks]
+
+        # Evaluate using Ragas adapter (substring matching)
+        ragas_metrics = evaluate_retrieval(
+            query=test_case.query,
+            retrieved_contexts=retrieved_texts,
+            ground_truth_contexts=ground_truth_contexts,
+            judge_model=self.judge_model,
+        )
+
+        return ragas_metrics
+
+
+def add_ragas_metrics_to_result(
+    base_result: RAGTestResult,
+    ragas_metrics: Optional[RagasRetrievalMetrics],
+) -> RAGTestResult:
+    """Add Ragas metrics to an existing RAGTestResult.
+
+    This is a helper function to augment RAGTestResult with Ragas metrics
+    without modifying the existing evaluation flow.
+
+    Args:
+        base_result: The base RAGTestResult from custom evaluation
+        ragas_metrics: Optional Ragas metrics to add
+
+    Returns:
+        New RAGTestResult with Ragas metrics added
+    """
+    # Create a dict of all base result fields
+    result_dict = {
+        "test_id": base_result.test_id,
+        "query": base_result.query,
+        "required_chunks": base_result.required_chunks,
+        "retrieved_chunks": base_result.retrieved_chunks,
+        "retrieved_chunk_texts": base_result.retrieved_chunk_texts,
+        "retrieved_relevance_scores": base_result.retrieved_relevance_scores,
+        "retrieved_chunk_metadata": base_result.retrieved_chunk_metadata,
+        "map_score": base_result.map_score,
+        "recall_at_5": base_result.recall_at_5,
+        "recall_at_10": base_result.recall_at_10,
+        "recall_at_all": base_result.recall_at_all,
+        "precision_at_3": base_result.precision_at_3,
+        "precision_at_5": base_result.precision_at_5,
+        "mrr": base_result.mrr,
+        "found_chunks": base_result.found_chunks,
+        "missing_chunks": base_result.missing_chunks,
+        "ranks_of_required": base_result.ranks_of_required,
+        "retrieval_time_seconds": base_result.retrieval_time_seconds,
+        "embedding_cost_usd": base_result.embedding_cost_usd,
+        "run_number": base_result.run_number,
+    }
+
+    # Add Ragas metrics if available
+    if ragas_metrics:
+        result_dict["ragas_context_precision"] = ragas_metrics.context_precision
+        result_dict["ragas_context_recall"] = ragas_metrics.context_recall
+    else:
+        result_dict["ragas_context_precision"] = None
+        result_dict["ragas_context_recall"] = None
+
+    # Return new RAGTestResult with all fields
+    return RAGTestResult(**result_dict)

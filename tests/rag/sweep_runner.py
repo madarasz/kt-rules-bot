@@ -69,20 +69,24 @@ class RAGSweepRunner:
         self,
         test_cases_dir: Path = Path("tests/rag/test_cases"),
         results_base_dir: Path = Path("tests/rag/results"),
+        use_ragas: bool = False,
     ):
         """Initialize sweep runner.
 
         Args:
             test_cases_dir: Directory containing YAML test cases
             results_base_dir: Base directory for results
+            use_ragas: Whether to calculate Ragas metrics
         """
         self.test_cases_dir = test_cases_dir
         self.results_base_dir = results_base_dir
+        self.use_ragas = use_ragas
 
         logger.info(
             "rag_sweep_runner_initialized",
             test_cases_dir=str(test_cases_dir),
             results_base_dir=str(results_base_dir),
+            use_ragas=use_ragas,
         )
 
     def sweep_parameter(
@@ -244,6 +248,7 @@ class RAGSweepRunner:
             rrf_k=config.rrf_k,
             bm25_k1=config.bm25_k1,
             bm25_b=config.bm25_b,
+            use_ragas=self.use_ragas,
         )
 
         # Run tests
