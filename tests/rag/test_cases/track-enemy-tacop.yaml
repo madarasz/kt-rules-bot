@@ -5,6 +5,6 @@ query: >
   tracked enemy operative?
 
 required_chunks:
-  - "TRACK ENEMY"
-  - "**Vantage**"
-  - "Seek"
+  - "An enemy operative is being tracked if it's a" # Track Enemy TacOp
+  - "whenever you are selecting a valid target for an operative on Vantage terrain, operatives at least 2\" lower than that operative with a Conceal order cannot use Light terrain for cover."
+  - "If the rule is Seek Light, operatives cannot use Light terrain for cover."

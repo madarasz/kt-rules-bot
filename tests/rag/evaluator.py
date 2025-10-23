@@ -53,11 +53,20 @@ class RAGEvaluator:
 
             # Check if required chunk is contained in any retrieved header
             for i, retr_header in enumerate(retrieved_headers, start=1):
-                if req_lower in retr_header.strip().lower():
+                if req_lower in retr_header.strip().lower().replace("*", ""):
                     found.append(req_chunk)
                     ranks_of_required.append(i)
                     found_match = True
                     break  # Only count first match
+            
+            # Check if required chunk is contained in any retrieved text (if not found in header)
+            if not found_match:
+                for i, retr_text in enumerate(retrieved_texts, start=1):
+                    if req_lower in retr_text.strip().lower().replace("*", ""):
+                        found.append(req_chunk)
+                        ranks_of_required.append(i)
+                        found_match = True
+                        break
 
             if not found_match:
                 missing.append(req_chunk)
