@@ -12,7 +12,7 @@ from tests.rag.test_case_models import RAGTestCase, RAGTestResult, RAGTestSummar
 from tests.rag.evaluator import RAGEvaluator
 from tests.rag.ragas_evaluator import RagasRAGEvaluator, add_ragas_metrics_to_result
 from src.services.rag.retriever import RAGRetriever, RetrieveRequest
-from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE, EMBEDDING_MODEL, RRF_K, BM25_K1, BM25_B, RAGAS_ENABLED
+from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE, EMBEDDING_MODEL, RRF_K, BM25_K1, BM25_B, BM25_WEIGHT, RAGAS_ENABLED
 from src.lib.tokens import estimate_embedding_cost
 from src.lib.logging import get_logger
 
@@ -29,6 +29,7 @@ class RAGTestRunner:
         rrf_k: int = RRF_K,
         bm25_k1: float = BM25_K1,
         bm25_b: float = BM25_B,
+        bm25_weight: float = BM25_WEIGHT,
         use_ragas: bool = RAGAS_ENABLED,
     ):
         """Initialize test runner.
@@ -39,6 +40,7 @@ class RAGTestRunner:
             rrf_k: RRF constant for hybrid fusion (default: 60)
             bm25_k1: BM25 term frequency saturation parameter (default: 1.5)
             bm25_b: BM25 document length normalization parameter (default: 0.75)
+            bm25_weight: Weight for BM25 in fusion (default: 0.5, vector gets 1-bm25_weight)
             use_ragas: Whether to calculate Ragas metrics (default: RAGAS_ENABLED from constants)
         """
         self.test_cases_dir = test_cases_dir
@@ -46,10 +48,16 @@ class RAGTestRunner:
         self.rrf_k = rrf_k
         self.bm25_k1 = bm25_k1
         self.bm25_b = bm25_b
+        self.bm25_weight = bm25_weight
         self.use_ragas = use_ragas
         self.evaluator = RAGEvaluator()
         self.ragas_evaluator = RagasRAGEvaluator() if use_ragas else None
-        self.retriever = RAGRetriever(rrf_k=rrf_k, bm25_k1=bm25_k1, bm25_b=bm25_b)
+        self.retriever = RAGRetriever(
+            rrf_k=rrf_k,
+            bm25_k1=bm25_k1,
+            bm25_b=bm25_b,
+            bm25_weight=bm25_weight,
+        )
 
         logger.info(
             "rag_test_runner_initialized",
@@ -58,6 +66,7 @@ class RAGTestRunner:
             rrf_k=rrf_k,
             bm25_k1=bm25_k1,
             bm25_b=bm25_b,
+            bm25_weight=bm25_weight,
             use_ragas=use_ragas,
         )
 
@@ -371,9 +380,13 @@ class RAGTestRunner:
         # Get BM25 parameters from hybrid retriever
         bm25_k1 = self.bm25_k1
         bm25_b = self.bm25_b
+        bm25_weight = self.bm25_weight
+        vector_weight = 1.0 - bm25_weight
         if self.retriever.hybrid_retriever and self.retriever.hybrid_retriever.bm25_retriever:
             bm25_k1 = self.retriever.hybrid_retriever.bm25_retriever.k1
             bm25_b = self.retriever.hybrid_retriever.bm25_retriever.b
+            bm25_weight = self.retriever.hybrid_retriever.bm25_weight
+            vector_weight = self.retriever.hybrid_retriever.vector_weight
 
         return RAGTestSummary(
             total_tests=len(results),
@@ -401,5 +414,7 @@ class RAGTestRunner:
             rrf_k=self.rrf_k,
             bm25_k1=bm25_k1,
             bm25_b=bm25_b,
+            bm25_weight=bm25_weight,
+            vector_weight=vector_weight,
             hybrid_enabled=self.retriever.enable_hybrid,
         )
