@@ -28,6 +28,7 @@ from src.services.llm.base import (
     PDFParseError,
     TokenLimitError,
     STRUCTURED_OUTPUT_SCHEMA,
+    HOP_EVALUATION_SCHEMA,
 )
 from src.lib.logging import get_logger
 
@@ -89,22 +90,35 @@ class ChatGPTAdapter(LLMProvider):
                 ],
             }
 
-            # Always use structured output via function calling
+            # Select schema based on configuration
+            schema_type = request.config.structured_output_schema
+
+            if schema_type == "hop_evaluation":
+                schema = HOP_EVALUATION_SCHEMA
+                function_name = "evaluate_context_sufficiency"
+                function_description = "Evaluate if retrieved context is sufficient to answer the question"
+                logger.debug("Using hop evaluation schema")
+            else:  # "default"
+                schema = STRUCTURED_OUTPUT_SCHEMA
+                function_name = "format_kill_team_answer"
+                function_description = "Format Kill Team rules answer with quotes and explanation"
+                logger.debug("Using default answer schema")
+
+            # Use structured output with appropriate schema
             api_params["tools"] = [{
                 "type": "function",
                 "function": {
-                    "name": "format_kill_team_answer",
-                    "description": "Format Kill Team rules answer with quotes and explanation",
-                    "parameters": STRUCTURED_OUTPUT_SCHEMA,
+                    "name": function_name,
+                    "description": function_description,
+                    "parameters": schema,
                     "strict": True  # Enforces 100% schema compliance
                 }
             }]
             api_params["tool_choice"] = {
                 "type": "function",
-                "function": {"name": "format_kill_team_answer"}
+                "function": {"name": function_name}
             }
             api_params["parallel_tool_calls"] = False  # Required for strict mode
-            logger.debug("Using structured output with strict mode")
 
             # GPT-5 uses max_completion_tokens (includes both reasoning and visible output tokens)
             # Other models use max_tokens
@@ -135,7 +149,7 @@ class ChatGPTAdapter(LLMProvider):
 
             latency_ms = int((time.time() - start_time) * 1000)
 
-            # Extract answer text from function calling
+            # Extract answer text from structured output
             choice = response.choices[0]
 
             if not choice.message.tool_calls:
@@ -143,23 +157,17 @@ class ChatGPTAdapter(LLMProvider):
 
             tool_call = choice.message.tool_calls[0]
             answer_text = tool_call.function.arguments  # JSON string
-            logger.debug(f"Extracted structured JSON output: {len(answer_text)} chars")
+            logger.debug(f"Extracted structured JSON output ({schema_type}): {len(answer_text)} chars")
 
             # Validate it's not empty
             if not answer_text or not answer_text.strip():
                 raise Exception("GPT returned empty JSON in tool call")
 
-            # Check if citations are included
-            citations_included = (
-                request.config.include_citations
-                and "According to" in answer_text
-            )
+            # Check if citations are included (only for default schema)
+            citations_included = request.config.include_citations if schema_type == "default" else False
 
-            # Calculate confidence from logprobs (if available)
-            if self.supports_logprobs:
-                confidence = self._calculate_confidence(response.choices[0].logprobs)
-            else:
-                confidence = 0.8  # Default confidence for models without logprobs
+            # Note: Logprobs are not available with structured output (function calling)
+            confidence = 0.8  # Default confidence
 
             # Token count
             token_count = response.usage.total_tokens

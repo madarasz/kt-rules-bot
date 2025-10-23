@@ -3,7 +3,7 @@
 Implements retrieve() method from specs/001-we-are-building/contracts/rag-pipeline.md
 """
 
-from typing import List
+from typing import List, Dict, Any
 from uuid import UUID, uuid4
 from dataclasses import dataclass
 
@@ -23,6 +23,7 @@ from src.lib.constants import (
     RAG_ENABLE_QUERY_NORMALIZATION,
     RAG_ENABLE_QUERY_EXPANSION,
     RAG_SYNONYM_DICT_PATH,
+    RAG_MAX_HOPS,
 )
 from src.lib.logging import get_logger
 
@@ -38,6 +39,7 @@ class RetrieveRequest:
     max_chunks: int = RAG_MAX_CHUNKS  # Maximum document chunks to retrieve
     min_relevance: float = RAG_MIN_RELEVANCE  # Minimum cosine similarity threshold
     use_hybrid: bool = True  # Enable hybrid search (BM25 + vector)
+    use_multi_hop: bool = (RAG_MAX_HOPS > 0)  # Enable multi-hop retrieval (if max_hops > 0)
 
 
 class InvalidQueryError(Exception):
@@ -62,6 +64,7 @@ class RAGRetriever:
         keyword_extractor: KeywordExtractor | None = None,
         query_expander: QueryExpander | None = None,
         enable_hybrid: bool = True,
+        enable_multi_hop: bool = (RAG_MAX_HOPS > 0),
         rrf_k: int = RRF_K,
         bm25_k1: float = BM25_K1,
         bm25_b: float = BM25_B,
@@ -75,6 +78,7 @@ class RAGRetriever:
             keyword_extractor: Keyword extractor for query normalization (creates if None)
             query_expander: Query expander for synonym expansion (creates if None)
             enable_hybrid: Enable hybrid search with BM25 (default: True)
+            enable_multi_hop: Enable multi-hop retrieval (default: False)
             rrf_k: RRF constant for hybrid fusion (default: 60)
             bm25_k1: BM25 term frequency saturation parameter (default: 1.5)
             bm25_b: BM25 document length normalization parameter (default: 0.75)
@@ -85,6 +89,7 @@ class RAGRetriever:
         self.keyword_extractor = keyword_extractor or KeywordExtractor()
         self.query_expander = query_expander or QueryExpander(RAG_SYNONYM_DICT_PATH)
         self.enable_hybrid = enable_hybrid
+        self.enable_multi_hop = enable_multi_hop
 
         # Initialize hybrid retriever if enabled
         self.hybrid_retriever: HybridRetriever | None = None
@@ -98,9 +103,17 @@ class RAGRetriever:
             # Index all chunks from vector DB
             self._build_hybrid_index()
 
+        # Initialize multi-hop retriever if enabled
+        self.multi_hop_retriever = None
+        if enable_multi_hop:
+            from src.services.rag.multi_hop_retriever import MultiHopRetriever
+            self.multi_hop_retriever = MultiHopRetriever(base_retriever=self)
+            logger.info("multi_hop_enabled", max_hops=RAG_MAX_HOPS)
+
         logger.info(
             "rag_retriever_initialized",
             hybrid_enabled=enable_hybrid,
+            multi_hop_enabled=enable_multi_hop,
             rrf_k=rrf_k,
             bm25_k1=bm25_k1,
             bm25_b=bm25_b,
@@ -109,7 +122,9 @@ class RAGRetriever:
             synonyms_loaded=self.query_expander.get_stats()["total_synonyms"]
         )
 
-    def retrieve(self, request: RetrieveRequest, query_id: UUID) -> RAGContext:
+    def retrieve(
+        self, request: RetrieveRequest, query_id: UUID
+    ) -> tuple[RAGContext, List[Any], Dict[UUID, int]]:
         """Retrieve relevant rule documents for a user query.
 
         Implements the RAG pipeline contract from contracts/rag-pipeline.md.
@@ -119,12 +134,65 @@ class RAGRetriever:
             query_id: Query UUID for tracking
 
         Returns:
-            RAGContext with retrieved chunks
+            Tuple of:
+            - RAGContext with retrieved chunks
+            - List of HopEvaluation objects (empty if single-hop)
+            - Dict mapping chunk_id to hop number (all 0 if single-hop)
 
         Raises:
             InvalidQueryError: If query is invalid
             VectorDBUnavailableError: If vector DB is unavailable
         """
+        # Multi-hop path
+        if request.use_multi_hop and self.multi_hop_retriever:
+            # Multi-hop retrieval is async, so we need to run it in a way that works
+            # both from sync contexts (CLI) and async contexts (Discord bot)
+            import asyncio
+            import threading
+
+            # Always use thread-based approach to avoid event loop conflicts
+            # This works whether called from sync or async context
+            result_container = []
+            exception_container = []
+
+            def run_in_thread():
+                try:
+                    # Create a new event loop in this thread
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        result = new_loop.run_until_complete(
+                            self.multi_hop_retriever.retrieve_multi_hop(
+                                query=request.query,
+                                context_key=request.context_key,
+                                query_id=query_id,
+                            )
+                        )
+                        result_container.append(result)
+                    finally:
+                        new_loop.close()
+                except Exception as e:
+                    exception_container.append(e)
+
+            # Run in separate thread
+            thread = threading.Thread(target=run_in_thread, daemon=True)
+            thread.start()
+            thread.join(timeout=120)  # Wait up to 2 minutes
+
+            # Check for errors
+            if exception_container:
+                raise exception_container[0]
+
+            # Check if thread finished
+            if thread.is_alive():
+                raise TimeoutError("Multi-hop retrieval timed out after 120 seconds")
+
+            # Return result
+            if result_container:
+                return result_container[0]
+
+            raise RuntimeError("Multi-hop retrieval completed but produced no result")
+
         # Validate query
         self._validate_query(request.query)
 
@@ -200,7 +268,8 @@ class RAGRetriever:
                 meets_threshold=meets_threshold,
             )
 
-            return context
+            # Return tuple for single-hop: context, empty hop_evaluations, empty chunk_hop_map
+            return context, [], {}
 
         except Exception as e:
             logger.error(

@@ -176,6 +176,27 @@ STRUCTURED_OUTPUT_SCHEMA = {
     "additionalProperties": False
 }
 
+# Schema for multi-hop retrieval context evaluation
+HOP_EVALUATION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "can_answer": {
+            "type": "boolean",
+            "description": "True if the retrieved context is sufficient to answer the question, false otherwise"
+        },
+        "reasoning": {
+            "type": "string",
+            "description": "Brief explanation (1-2 sentences) of what context you have or what's missing"
+        },
+        "missing_query": {
+            "type": ["string", "null"],
+            "description": "If can_answer=false, a focused retrieval query for missing rules. If can_answer=true, null"
+        }
+    },
+    "required": ["can_answer", "reasoning", "missing_query"],
+    "additionalProperties": False
+}
+
 # Gemini-compatible schema (no additionalProperties field - not supported by Gemini API)
 STRUCTURED_OUTPUT_SCHEMA_GEMINI = {
     "type": "object",
@@ -235,8 +256,9 @@ STRUCTURED_OUTPUT_SCHEMA_GEMINI = {
 class GenerationConfig:
     """Configuration for answer generation.
 
-    All LLM providers must return structured JSON responses conforming to
-    STRUCTURED_OUTPUT_SCHEMA. Markdown mode is no longer supported.
+    By default, LLM providers return structured JSON responses conforming to
+    STRUCTURED_OUTPUT_SCHEMA. For multi-hop retrieval evaluation, use
+    structured_output_schema='hop_evaluation'.
     """
 
     max_tokens: int = LLM_DEFAULT_MAX_TOKENS  # Maximum response length
@@ -244,6 +266,7 @@ class GenerationConfig:
     system_prompt: str = field(default_factory=load_system_prompt)
     include_citations: bool = True
     timeout_seconds: int = LLM_GENERATION_TIMEOUT  # Must respond within timeout
+    structured_output_schema: str = "default"  # "default" or "hop_evaluation"
 
 
 @dataclass
