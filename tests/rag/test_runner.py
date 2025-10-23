@@ -420,6 +420,33 @@ class RAGTestRunner:
         total_hop_evaluations = sum(r.hops_used for r in results)
         hop_evaluation_cost = total_hop_evaluations * 0.0001  # Approximate cost per evaluation
 
+        # Calculate hop-specific ground truth statistics
+        # Track how many ground truth chunks were found in each hop across all tests
+        from collections import defaultdict
+        hop_ground_truth_counts = defaultdict(int)  # hop_number -> count of ground truth chunks found
+        total_ground_truth_improvement = 0  # Total ground truth chunks found via hops (hop > 0)
+
+        for result in results:
+            if result.chunk_hop_numbers and result.ground_truth_contexts:
+                # For each retrieved chunk, check if it's a ground truth chunk and which hop it came from
+                for i, chunk_text in enumerate(result.retrieved_chunk_texts):
+                    hop_number = result.chunk_hop_numbers[i]
+                    # Check if this chunk matches any ground truth context
+                    for gt_context in result.ground_truth_contexts:
+                        if gt_context.lower() in chunk_text.lower():
+                            hop_ground_truth_counts[hop_number] += 1
+                            if hop_number > 0:  # Only count hops, not initial retrieval
+                                total_ground_truth_improvement += 1
+                            break  # Don't double-count if multiple ground truths match
+
+        # Calculate average improvement per test
+        avg_ground_truth_improvement = total_ground_truth_improvement / len(results) if results else 0.0
+
+        # Create list of ground truth chunks found per hop [hop1, hop2, hop3, ...]
+        # Find max hop number to determine list size
+        max_hop = max(hop_ground_truth_counts.keys()) if hop_ground_truth_counts else 0
+        ground_truth_per_hop = [hop_ground_truth_counts.get(i, 0) for i in range(1, max_hop + 1)]
+
         # Get BM25 parameters from hybrid retriever
         bm25_k1 = self.bm25_k1
         bm25_b = self.bm25_b
@@ -463,4 +490,6 @@ class RAGTestRunner:
             hybrid_enabled=self.retriever.enable_hybrid,
             avg_hops_used=avg_hops_used,
             hop_evaluation_cost_usd=hop_evaluation_cost,
+            avg_ground_truth_found_improvement=avg_ground_truth_improvement,
+            ground_truth_chunks_per_hop=ground_truth_per_hop,
         )
