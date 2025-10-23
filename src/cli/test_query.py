@@ -9,7 +9,7 @@ import sys
 from datetime import datetime, timezone
 
 from src.lib.config import get_config
-from src.lib.constants import LLM_GENERATION_TIMEOUT, RAG_MAX_CHUNKS
+from src.lib.constants import LLM_GENERATION_TIMEOUT, RAG_MAX_CHUNKS, ALL_LLM_PROVIDERS
 from src.lib.logging import get_logger
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.validator import ResponseValidator
@@ -184,17 +184,7 @@ def main():
     parser.add_argument(
         "--model",
         "-m",
-        choices=[
-            "claude-sonnet",
-            "claude-opus",
-            "gemini-2.5-pro",
-            "gemini-2.5-flash",
-            "gpt-5",
-            "gpt-5-mini",
-            "gpt-4.1",
-            "gpt-4.1-mini",
-            "gpt-4o",
-        ],
+        choices=ALL_LLM_PROVIDERS,
         help="LLM model to use (default: from config)",
     )
     parser.add_argument(
