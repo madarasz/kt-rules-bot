@@ -20,6 +20,9 @@ python -m src.cli query "Can I use overwatch against a charge?"
 # Test RAG only (no LLM call)
 python -m src.cli query "Can I shoot during conceal order?" --rag-only
 
+# Test with multi-hop retrieval (iterative context gathering)
+python -m src.cli query "Can barricade provide cover?" --max-hops 1
+
 # Run quality test
 # Do not run all tests, all models, multiple runs by yourself. Running these tests costs money.
 python -m src.cli quality-test --test eliminator-concealed-counteract
@@ -42,6 +45,7 @@ streamlit run src/cli/admin_dashboard.py --server.port 8501
 
 **RAG Pipeline**:
 - Hybrid retrieval (vector + BM25) with RRF fusion
+- Multi-hop retrieval for complex queries (optional, disabled by default)
 - Query normalization for case-insensitive keyword matching
 - ChromaDB + text-embedding-3-small
 - 1300+ game-specific keywords auto-extracted from rules

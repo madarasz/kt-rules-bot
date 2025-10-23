@@ -13,7 +13,14 @@ from src.cli.rag_test import rag_test
 from src.cli.rag_test_sweep import rag_test_sweep
 from src.cli.download_team import download_team
 from src.cli.download_all_teams import download_all_teams
-from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE, ALL_LLM_PROVIDERS, PDF_EXTRACTION_PROVIDERS
+from src.lib.constants import (
+    QUALITY_TEST_JUDGE_MODEL,
+    RAG_MAX_CHUNKS,
+    RAG_MIN_RELEVANCE,
+    ALL_LLM_PROVIDERS,
+    PDF_EXTRACTION_PROVIDERS,
+    RAG_MAX_HOPS,
+)
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -98,6 +105,12 @@ def create_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Stop after RAG retrieval, do not call LLM",
     )
+    query_parser.add_argument(
+        "--max-hops",
+        type=int,
+        default=None,
+        help="Override RAG_MAX_HOPS constant (0=disable multi-hop, 1+=enable)",
+    )
 
     # Command: health
     health_parser = subparsers.add_parser(
@@ -171,6 +184,12 @@ def create_parser() -> argparse.ArgumentParser:
         type=int,
         default=1,
         help="Number of times to run each test (default: 1)",
+    )
+    quality_parser.add_argument(
+        "--max-hops",
+        type=int,
+        default=None,
+        help=f"Override RAG_MAX_HOPS constant (default: {RAG_MAX_HOPS})",
     )
 
     # Command: rag-test
@@ -335,6 +354,7 @@ def main():
                 model=args.model,
                 max_chunks=args.max_chunks,
                 rag_only=args.rag_only,
+                max_hops=args.max_hops,
             )
 
         elif args.command == "health":
@@ -357,6 +377,7 @@ def main():
                 judge_model=args.judge_model,
                 skip_confirm=args.yes,
                 runs=args.runs,
+                max_hops=args.max_hops,
             )
 
         elif args.command == "rag-test":

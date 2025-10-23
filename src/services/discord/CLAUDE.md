@@ -43,10 +43,12 @@ Protection and validation layers:
 
 ### Response Formatting ([formatter.py](formatter.py))
 Discord-specific response formatting:
-- Markdown formatting for Discord
+- **Parses structured JSON** from LLM responses
+- Formats JSON as Discord embeds with fields for quotes, explanation
+- Supports both structured JSON and markdown (legacy) responses
 - Citation formatting with sources
 - Error message formatting
-- Chunking long responses to fit Discord limits
+- Feedback reaction buttons (👍👎)
 
 ### Error Handling ([error_handler.py](error_handler.py))
 Centralized error management:
@@ -78,18 +80,21 @@ bot.py orchestrator
     ├→ Check rate limits
     ├→ Retrieve conversation context
     ├→ Call RAG service
-    ├→ Call LLM service
+    ├→ Call LLM service (returns structured JSON)
+    ├→ Parse JSON → StructuredLLMResponse
     ├→ Validate response
-    └→ Format response
+    └→ Format as Discord embed (quotes, explanation, etc.)
     ↓
-Discord Response → User
+Discord Response (Embed) → User
+    └→ Add feedback reactions (👍👎)
 ```
 
 ## Key Data Models
 
 From [src/models/](../../models/):
 - **UserQuery**: Sanitized user query with metadata
-- **BotResponse**: Formatted response with citations
+- **BotResponse**: Formatted response with citations and structured data
+- **StructuredLLMResponse**: Parsed JSON response from LLM (quotes, explanation, etc.)
 - **ConversationContext**: Multi-turn conversation state
 
 ## Configuration
@@ -122,9 +127,13 @@ async def on_new_event(event_data):
 ### Modifying Response Format
 
 Edit [formatter.py](formatter.py) functions:
-- `format_response()` - Main response formatting
-- `format_citations()` - Citation formatting
+- `format_response()` - Routes to structured or markdown formatting
+- `_format_structured()` - Formats structured JSON as Discord embeds
+- `_format_markdown()` - Legacy markdown formatting (backwards compatibility)
+- `add_feedback_reactions()` - Adds 👍👎 reaction buttons
 - `format_error()` - Error message formatting
+
+**Note**: All new LLM responses are structured JSON, formatted via `_format_structured()`.
 
 ### Adjusting Rate Limits
 

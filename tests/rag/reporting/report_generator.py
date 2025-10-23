@@ -50,6 +50,24 @@ class RAGReportGenerator:
             content.append(f"| **Context Recall** | {summary.mean_ragas_context_recall:.3f} | Proportion of ground truth found in retrieved contexts |")
             content.append("")
 
+        # Hopping metrics (if multi-hop enabled and data available)
+        if summary.rag_max_hops > 0 and summary.avg_hops_used > 0:
+            content.append("### Hopping")
+            content.append("")
+            content.append("| Metric | Value | Description |")
+            content.append("|--------|-------|-------------|")
+            content.append(f"| **Avg Hops Used** | {summary.avg_hops_used:.2f} | Average number of hops performed per test |")
+            content.append(f"| **Avg Ground Truth Found in Hops** | {summary.avg_ground_truth_found_improvement:.2f} | Average number of ground truth chunks found via hops |")
+            content.append(f"| **Can Answer Recall** | {summary.hop_can_answer_recall:.3f} | Proportion of times LLM hopped when ground truth was missing |")
+            content.append(f"| **Can Answer Precision** | {summary.hop_can_answer_precision:.3f} | Proportion of hops that were made when ground truth was actually missing |")
+
+            # Per-hop breakdown
+            if summary.ground_truth_chunks_per_hop:
+                for hop_num, count in enumerate(summary.ground_truth_chunks_per_hop, start=1):
+                    content.append(f"| **Ground Truth in Hop {hop_num}** | {count} | Total ground truth chunks found in hop {hop_num} across all tests |")
+
+            content.append("")
+
         # Missing chunks analysis
         content.append("## Missing Chunks")
         content.append("")
@@ -74,7 +92,17 @@ class RAGReportGenerator:
         content.append("|--------|-------|")
         content.append(f"| **Total Time** | {summary.total_time_seconds:.2f}s |")
         content.append(f"| **Avg Retrieval Time** | {summary.avg_retrieval_time_seconds:.3f}s |")
-        content.append(f"| **Total Cost** | ${summary.total_cost_usd:.6f} |")
+
+        # Calculate total cost including hop evaluations
+        total_cost_with_hops = summary.total_cost_usd + summary.hop_evaluation_cost_usd
+        content.append(f"| **Total Cost** | ${total_cost_with_hops:.6f} |")
+
+        # Add hop-specific metrics if multi-hop is enabled
+        if summary.rag_max_hops > 0:
+            content.append(f"| **Avg Hops Used** | {summary.avg_hops_used:.2f} |")
+            content.append(f"| **Embedding Cost** | ${summary.total_cost_usd:.6f} |")
+            content.append(f"| **Hop Evaluation Cost** | ${summary.hop_evaluation_cost_usd:.6f} |")
+
         content.append("")
 
         # Multi-run statistics
@@ -99,6 +127,14 @@ class RAGReportGenerator:
         content.append(f"| Hybrid Search | {'Enabled' if summary.hybrid_enabled else 'Disabled'} |")
         content.append(f"| Query Normalization | {'Enabled' if summary.query_normalization_enabled else 'Disabled'} |")
         content.append(f"| Query Expansion | {'Enabled' if summary.query_expansion_enabled else 'Disabled'} |")
+
+        # Add multi-hop configuration if enabled
+        if summary.rag_max_hops > 0:
+            content.append(f"| **Multi-Hop Settings** | |")
+            content.append(f"| RAG_MAX_HOPS | {summary.rag_max_hops} |")
+            content.append(f"| RAG_HOP_CHUNK_LIMIT | {summary.rag_hop_chunk_limit} |")
+            content.append(f"| RAG_HOP_EVALUATION_MODEL | {summary.rag_hop_evaluation_model} |")
+
         content.append("")
 
         # Per-Test Breakdown
@@ -151,13 +187,7 @@ class RAGReportGenerator:
 
             content.append("")
 
-            # Ground truth contexts
-            content.append("**Ground Truth Contexts**:")
-            for chunk in first_result.ground_truth_contexts:
-                content.append(f"- {chunk}")
-            content.append("")
-
-            # Found vs Missing
+            # Found vs Missing (Ground truth contexts are shown here)
             content.append("**Found** ✅:")
             if first_result.found_chunks:
                 for chunk in first_result.found_chunks:
@@ -235,19 +265,44 @@ class RAGReportGenerator:
                     content.append(f"- {chunk}")
                 content.append("")
 
+            # Hop evaluations (if multi-hop was used)
+            if first_result.hops_used > 0 and first_result.hop_evaluations:
+                content.append("**Hop Evaluations**:")
+                content.append("")
+                for hop_eval in first_result.hop_evaluations:
+                    hop_num = hop_eval.get('hop_number', '?')
+                    can_answer = "✅ Can answer" if hop_eval.get('can_answer') else "❌ Cannot answer"
+                    reasoning = hop_eval.get('reasoning', 'N/A')
+                    missing_query = hop_eval.get('missing_query')
+
+                    content.append(f"**Hop {hop_num}**: {can_answer}")
+                    content.append(f"- **Reasoning**: {reasoning}")
+                    if missing_query:
+                        content.append(f"- **Missing Query**: {missing_query}")
+                    content.append("")
+
             # Retrieved chunks - markdown table format
             content.append("**Retrieved Chunks**:")
             content.append("")
-            # Table header
-            content.append("| Rank | Chunk | Final | Vector | BM25 | RRF |")
-            content.append("|------|-------|-------|--------|------|-----|")
 
-            for i, (chunk_header, chunk_text, relevance, metadata) in enumerate(
+            # Table header - add hop column if multi-hop was used
+            if first_result.hops_used > 0:
+                content.append("| Rank | Hop | Chunk | Final | Vector | BM25 | RRF |")
+                content.append("|------|-----|-------|-------|--------|------|-----|")
+            else:
+                content.append("| Rank | Chunk | Final | Vector | BM25 | RRF |")
+                content.append("|------|-------|-------|--------|------|-----|")
+
+            # Get hop numbers if available
+            chunk_hop_numbers = first_result.chunk_hop_numbers if first_result.chunk_hop_numbers else [0] * len(first_result.retrieved_chunks)
+
+            for i, (chunk_header, chunk_text, relevance, metadata, hop_num) in enumerate(
                 zip(
                     first_result.retrieved_chunks,
                     first_result.retrieved_chunk_texts,
                     first_result.retrieved_relevance_scores,
-                    first_result.retrieved_chunk_metadata
+                    first_result.retrieved_chunk_metadata,
+                    chunk_hop_numbers
                 ),
                 start=1
             ):
@@ -274,10 +329,15 @@ class RAGReportGenerator:
                 # RRF score should always be present
                 rrf_score = metadata.get('rrf_score', 0.0)
 
-                # Format as table row
-                content.append(
-                    f"| {i} | {chunk_header}{marker} | {relevance:.4f} | {vector_display} | {bm25_display} | {rrf_score:.4f} |"
-                )
+                # Format as table row - include hop number if multi-hop
+                if first_result.hops_used > 0:
+                    content.append(
+                        f"| {i} | {hop_num} | {chunk_header}{marker} | {relevance:.4f} | {vector_display} | {bm25_display} | {rrf_score:.4f} |"
+                    )
+                else:
+                    content.append(
+                        f"| {i} | {chunk_header}{marker} | {relevance:.4f} | {vector_display} | {bm25_display} | {rrf_score:.4f} |"
+                    )
             content.append("")
             content.append("---")
             content.append("")

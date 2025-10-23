@@ -55,7 +55,6 @@ ragas>=0.1.0  # RAG evaluation framework
 **1.3 Update constants.py** ✅
 ```python
 # Ragas Configuration
-RAGAS_ENABLED = False  # Feature flag for gradual rollout
 RAGAS_JUDGE_MODEL = "gpt-4o"  # Model for ragas internal evaluation
 RAGAS_METRICS_RETRIEVAL = ["context_precision", "context_recall"]
 RAGAS_METRICS_GENERATION = ["faithfulness", "answer_relevancy"]

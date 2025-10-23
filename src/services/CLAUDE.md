@@ -17,9 +17,11 @@ Retrieval-Augmented Generation pipeline using hybrid search (vector embeddings +
 **Ingestion**: Markdown files → chunk → embed → store in ChromaDB
 
 ### [LLM Service](llm/CLAUDE.md)
-Multi-provider LLM integration with unified interface. Supports Claude, ChatGPT, Gemini, and Grok through a factory pattern with automatic retry and rate limiting. Includes PDF extraction capabilities for downloading team rules.
+Multi-provider LLM integration with unified interface. Supports Claude, ChatGPT, Gemini, Grok, and DeepSeek through a factory pattern with automatic retry and rate limiting. **All providers return structured JSON output** (not markdown) using tool use, function calling, or JSON mode. Includes PDF extraction capabilities for downloading team rules.
 
-**Quick summary**: Provider-agnostic interface → factory creates adapter → generate response
+**Quick summary**: Provider-agnostic interface → factory creates adapter → generate **structured JSON** response
+
+**Structured Output**: All LLM responses are JSON with fields: `smalltalk`, `short_answer`, `persona_short_answer`, `quotes`, `explanation`, `persona_afterword`
 
 **PDF Extraction**: Available via CLI ([download_team.py](../cli/download_team.py), [download_all_teams.py](../cli/download_all_teams.py))
 
@@ -42,12 +44,12 @@ RAG Service
     ↓
 LLM Service
     ├→ Build prompt with context
-    ├→ Generate response (selected provider)
-    └→ Return formatted answer + citations
+    ├→ Generate structured JSON response (selected provider)
+    └→ Return JSON with quotes + explanation
     ↓
 Discord Service
-    ├→ Format response for Discord
-    ├→ Add citations
+    ├→ Parse structured JSON
+    ├→ Format as Discord embed (fields for quotes, explanation)
     └→ Send to user
 ```
 

@@ -105,6 +105,10 @@ def add_ragas_metrics_to_result(
         "retrieval_time_seconds": base_result.retrieval_time_seconds,
         "embedding_cost_usd": base_result.embedding_cost_usd,
         "run_number": base_result.run_number,
+        # Multi-hop fields
+        "hops_used": base_result.hops_used,
+        "hop_evaluations": base_result.hop_evaluations,
+        "chunk_hop_numbers": base_result.chunk_hop_numbers,
     }
 
     # Add Ragas metrics if available

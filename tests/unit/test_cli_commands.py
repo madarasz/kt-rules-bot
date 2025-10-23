@@ -229,10 +229,10 @@ def test_main_routes_ingest_command(mock_ingest):
         mock_ingest.assert_called_once_with(source_dir="./rules", force=True)
 
 
-@patch("src.cli.__main__.test_query")
+@patch("src.cli.test_query.test_query")
 def test_main_routes_query_command(mock_query):
     """Test that main routes 'query' command correctly."""
-    with patch("sys.argv", ["cli", "query", "test query", "--model", "claude-sonnet"]):
+    with patch("sys.argv", ["cli", "query", "test query", "--model", "claude-4.5-sonnet"]):
         from src.cli.__main__ import main
 
         try:
@@ -241,7 +241,7 @@ def test_main_routes_query_command(mock_query):
             pass
 
         # Verify test_query was called
-        mock_query.assert_called_once_with(query="test query", model="claude-sonnet", max_chunks=5, rag_only=False)
+        mock_query.assert_called_once_with(query="test query", model="claude-4.5-sonnet", max_chunks=5, rag_only=False, max_hops=None)
 
 
 @patch("src.cli.__main__.health_check")

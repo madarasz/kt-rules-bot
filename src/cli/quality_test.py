@@ -12,7 +12,7 @@ from tests.quality.reporting.report_models import QualityReport
 from tests.quality.reporting.aggregator import aggregate_results
 from tests.quality.reporting.report_generator import ReportGenerator
 from src.lib.logging import get_logger
-from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_PROVIDERS
+from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_PROVIDERS, RAG_MAX_HOPS
 
 logger = get_logger(__name__)
 
@@ -24,8 +24,18 @@ def quality_test(
     judge_model: str = QUALITY_TEST_JUDGE_MODEL,
     skip_confirm: bool = False,
     runs: int = 1,
+    max_hops: Optional[int] = None,
 ) -> None:
     """Run quality tests for RAG + LLM pipeline."""
+    # Override RAG_MAX_HOPS if specified
+    if max_hops is not None:
+        import src.lib.constants as constants
+        original_max_hops = constants.RAG_MAX_HOPS
+        constants.RAG_MAX_HOPS = max_hops
+        logger.info(f"Overriding RAG_MAX_HOPS to {max_hops} for quality tests")
+    else:
+        original_max_hops = None
+
     models_to_run: List[str]
     if all_models:
         models_to_run = QUALITY_TEST_PROVIDERS
@@ -105,6 +115,12 @@ def quality_test(
         logger.error(f"Quality tests failed: {e}", exc_info=True)
         print(f"\n❌ Quality tests failed: {e}")
         sys.exit(1)
+    finally:
+        # Restore original RAG_MAX_HOPS if overridden
+        if original_max_hops is not None:
+            import src.lib.constants as constants
+            constants.RAG_MAX_HOPS = original_max_hops
+            logger.info(f"Restored RAG_MAX_HOPS to {original_max_hops}")
 
 
 def _print_configuration(test_cases, models, runs, judge_model):

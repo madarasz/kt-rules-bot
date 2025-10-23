@@ -5,7 +5,11 @@ import json
 
 import discord
 
-from src.lib.constants import LLM_GENERATION_TIMEOUT
+from src.lib.constants import (
+    LLM_GENERATION_TIMEOUT,
+    RAG_MAX_HOPS,
+    RAG_HOP_EVALUATION_MODEL,
+)
 from src.lib.database import AnalyticsDatabase
 from src.lib.discord_utils import get_random_acknowledgement
 from src.lib.logging import get_logger
@@ -100,11 +104,12 @@ class KillTeamBotOrchestrator:
             acknowledgement = get_random_acknowledgement()
             await message.channel.send(acknowledgement)
 
-            # Step 3: RAG retrieval
-            rag_context = self.rag.retrieve(
+            # Step 3: RAG retrieval (with optional multi-hop)
+            rag_context, hop_evaluations, chunk_hop_map = self.rag.retrieve(
                 RetrieveRequest(
                     query=user_query.sanitized_text,
                     context_key=user_query.conversation_context_id,
+                    use_multi_hop=(RAG_MAX_HOPS > 0),
                     # Uses RAG_MAX_CHUNKS and RAG_MIN_RELEVANCE from constants
                 ),
                 query_id=user_query.query_id,
@@ -116,6 +121,7 @@ class KillTeamBotOrchestrator:
                     "correlation_id": correlation_id,
                     "chunks_retrieved": rag_context.total_chunks,
                     "avg_relevance": rag_context.avg_relevance,
+                    "hops_used": len(hop_evaluations),
                 },
             )
 
@@ -189,7 +195,7 @@ class KillTeamBotOrchestrator:
                 Citation(
                     document_name=chunk.metadata.get("source", "Unknown"),
                     section=chunk.header or "General",
-                    quote=chunk.text[:200],
+                    quote=chunk.text,
                     document_type=chunk.metadata.get("document_type", "core-rules"),
                     last_update_date=date.fromisoformat(chunk.metadata.get("last_update_date", "2024-01-15")),
                 )
@@ -270,9 +276,24 @@ class KillTeamBotOrchestrator:
                         "validation_passed": validation_result.is_valid,
                         "latency_ms": llm_response.latency_ms,
                         "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "multi_hop_enabled": 1 if RAG_MAX_HOPS > 0 else 0,
+                        "hops_used": len(hop_evaluations),
                     })
 
-                    # Insert retrieved chunks
+                    # Insert hop evaluations if multi-hop was used
+                    if hop_evaluations:
+                        evaluations_data = [e.to_dict() for e in hop_evaluations]
+                        self.analytics_db.insert_hop_evaluations(
+                            query_id=str(user_query.query_id),
+                            evaluations=evaluations_data,
+                            evaluation_model=RAG_HOP_EVALUATION_MODEL,
+                        )
+                        logger.debug(
+                            f"Inserted {len(hop_evaluations)} hop evaluations",
+                            extra={"correlation_id": correlation_id}
+                        )
+
+                    # Insert retrieved chunks with hop numbers
                     chunks_data = [
                         {
                             "query_id": str(user_query.query_id),
@@ -285,6 +306,7 @@ class KillTeamBotOrchestrator:
                             "bm25_score": chunk.metadata.get("bm25_score"),
                             "rrf_score": chunk.metadata.get("rrf_score"),
                             "final_score": chunk.relevance_score,
+                            "hop_number": chunk_hop_map.get(chunk.chunk_id, 0),
                         }
                         for idx, chunk in enumerate(rag_context.document_chunks)
                     ]

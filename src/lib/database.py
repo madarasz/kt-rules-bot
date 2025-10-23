@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS queries (
     downvotes INTEGER DEFAULT 0,
     admin_status TEXT DEFAULT 'pending',
     admin_notes TEXT,
+    multi_hop_enabled INTEGER DEFAULT 0,
+    hops_used INTEGER DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -44,6 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_timestamp ON queries(timestamp);
 CREATE INDEX IF NOT EXISTS idx_admin_status ON queries(admin_status);
 CREATE INDEX IF NOT EXISTS idx_llm_model ON queries(llm_model);
 CREATE INDEX IF NOT EXISTS idx_channel_id ON queries(channel_id);
+CREATE INDEX IF NOT EXISTS idx_multi_hop ON queries(multi_hop_enabled);
 
 CREATE TABLE IF NOT EXISTS retrieved_chunks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,12 +61,29 @@ CREATE TABLE IF NOT EXISTS retrieved_chunks (
     rrf_score REAL,
     final_score REAL NOT NULL,
     relevant INTEGER DEFAULT NULL,
+    hop_number INTEGER DEFAULT 0,
     FOREIGN KEY (query_id) REFERENCES queries(query_id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_query_id ON retrieved_chunks(query_id);
 CREATE INDEX IF NOT EXISTS idx_rank ON retrieved_chunks(query_id, rank);
 CREATE INDEX IF NOT EXISTS idx_relevant ON retrieved_chunks(relevant);
+CREATE INDEX IF NOT EXISTS idx_hop_number ON retrieved_chunks(hop_number);
+
+CREATE TABLE IF NOT EXISTS hop_evaluations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    query_id TEXT NOT NULL,
+    hop_number INTEGER NOT NULL,
+    can_answer INTEGER NOT NULL,
+    reasoning TEXT NOT NULL,
+    missing_query TEXT,
+    evaluation_model TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (query_id) REFERENCES queries(query_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_hop_eval_query_id ON hop_evaluations(query_id);
+CREATE INDEX IF NOT EXISTS idx_hop_eval_hop_num ON hop_evaluations(query_id, hop_number);
 """
 
 
@@ -144,8 +164,9 @@ class AnalyticsDatabase:
                         query_text, response_text, llm_model,
                         confidence_score, rag_score, validation_passed,
                         latency_ms, timestamp, upvotes, downvotes,
-                        admin_status, admin_notes, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        admin_status, admin_notes, multi_hop_enabled, hops_used,
+                        created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     query_data["query_id"],
                     query_data["discord_server_id"],
@@ -165,6 +186,8 @@ class AnalyticsDatabase:
                     0,  # downvotes
                     "pending",  # admin_status
                     None,  # admin_notes
+                    query_data.get("multi_hop_enabled", 0),
+                    query_data.get("hops_used", 0),
                     now,
                     now,
                 ))
@@ -196,8 +219,8 @@ class AnalyticsDatabase:
                             query_id, rank, chunk_header, chunk_text,
                             document_name, document_type,
                             vector_similarity, bm25_score, rrf_score,
-                            final_score, relevant
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            final_score, relevant, hop_number
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         query_id,
                         chunk["rank"],
@@ -210,6 +233,7 @@ class AnalyticsDatabase:
                         chunk.get("rrf_score"),
                         chunk["final_score"],
                         None,  # relevant (default NULL)
+                        chunk.get("hop_number", 0),  # hop_number (default 0 for backward compat)
                     ))
                 conn.commit()
 
@@ -220,6 +244,81 @@ class AnalyticsDatabase:
 
         except Exception as e:
             logger.error(f"Failed to insert chunks: {e}", exc_info=True)
+
+    def insert_hop_evaluations(
+        self,
+        query_id: str,
+        evaluations: List[Dict[str, Any]],
+        evaluation_model: str,
+    ) -> None:
+        """Insert hop evaluation results for a query.
+
+        Args:
+            query_id: Query UUID
+            evaluations: List of HopEvaluation dictionaries
+            evaluation_model: Model used for evaluation
+        """
+        if not self.enabled:
+            return
+
+        try:
+            now = datetime.now(timezone.utc).isoformat()
+
+            with self._get_connection() as conn:
+                for hop_num, evaluation in enumerate(evaluations, 1):
+                    conn.execute("""
+                        INSERT INTO hop_evaluations (
+                            query_id, hop_number, can_answer, reasoning,
+                            missing_query, evaluation_model, created_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        query_id,
+                        hop_num,
+                        1 if evaluation["can_answer"] else 0,
+                        evaluation["reasoning"],
+                        evaluation.get("missing_query"),
+                        evaluation_model,
+                        now,
+                    ))
+                conn.commit()
+
+            logger.debug(
+                "Hop evaluations inserted",
+                extra={"query_id": query_id, "hop_count": len(evaluations)}
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to insert hop evaluations: {e}", exc_info=True)
+
+    def get_hop_evaluations_for_query(self, query_id: str) -> List[Dict[str, Any]]:
+        """Get hop evaluation results for a query.
+
+        Args:
+            query_id: Query UUID
+
+        Returns:
+            List of hop evaluation dictionaries
+        """
+        if not self.enabled:
+            return []
+
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.execute("""
+                    SELECT
+                        hop_number, can_answer, reasoning, missing_query,
+                        evaluation_model, created_at
+                    FROM hop_evaluations
+                    WHERE query_id = ?
+                    ORDER BY hop_number ASC
+                """, (query_id,))
+
+                rows = cursor.fetchall()
+                return [dict(row) for row in rows]
+
+        except Exception as e:
+            logger.error(f"Failed to get hop evaluations: {e}", exc_info=True)
+            return []
 
     def increment_vote(
         self,
