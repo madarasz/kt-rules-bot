@@ -126,6 +126,131 @@ Return top-k chunks
 Cache results → Return RAGContext
 ```
 
+## Multi-Hop Retrieval
+
+**Purpose**: Iteratively gather additional context when initial retrieval is insufficient.
+
+### How It Works
+
+Instead of a single retrieval, multi-hop performs multiple passes:
+
+1. **Initial Retrieval**: Retrieve top-k chunks for user query
+2. **Gap Analysis**: LLM evaluates if context is sufficient to answer the question
+3. **Focused Retrieval** (if gaps found): Generate specific sub-query for missing information
+4. **Repeat**: Continue until context is sufficient OR max hops reached
+5. **Final Generation**: Pass all accumulated chunks to LLM for answer
+
+### Configuration
+
+From [src/lib/constants.py](../../lib/constants.py):
+```python
+# Set to 0 to disable, 1+ for number of additional retrieval iterations
+RAG_MAX_HOPS = 0  # Disabled by default
+
+# Chunks to retrieve per hop (smaller than RAG_MAX_CHUNKS for efficiency)
+RAG_HOP_CHUNK_LIMIT = 5
+
+# LLM model for gap analysis (fast model recommended)
+RAG_HOP_EVALUATION_MODEL = "gpt-4.1-mini"
+
+# Timeout for gap analysis LLM call
+RAG_HOP_EVALUATION_TIMEOUT = 20
+```
+
+### Retrieval Flow (Multi-Hop Enabled)
+
+```
+User Query
+    ↓
+Multi-Hop Orchestrator (multi_hop_retriever.py)
+    ↓
+[Hop 0] Initial retrieval → 5 chunks
+    ↓
+Gap Analysis LLM: "Can I answer with these chunks?"
+    ↓
+    ├─ YES → Return all chunks
+    └─ NO  → Generate focused sub-query
+        ↓
+[Hop 1] Retrieve for sub-query → 5 more chunks
+    ↓ (deduplicate by chunk_id)
+Add unique chunks to accumulated context
+    ↓
+Gap Analysis LLM: "Can I answer now?"
+    ↓
+    ├─ YES → Return all chunks (10 total)
+    └─ NO  → Continue if hops < MAX_HOPS
+        ↓
+[MAX_HOPS reached] → Return accumulated chunks anyway
+    ↓
+LLM generates final answer with all context
+```
+
+### Example
+
+**Query**: "Can nemesis claw operative use light barricade as cover?"
+
+**Hop 0** (initial):
+- Retrieved: Nemesis Claw faction rules, portable barricade rules
+- Gap analysis: "Missing explicit cover rules - unclear how barricades provide cover"
+- Missing query: "Rules on cover and whether barricades provide cover"
+
+**Hop 1** (focused):
+- Retrieved: Core Rules - COVER section, FAQ about cover mechanics
+- Gap analysis: "Now I have cover rules AND barricade rules - can answer!"
+
+**Result**: 6 total chunks (5 from hop 0 + 1 unique from hop 1)
+
+### Testing Multi-Hop
+
+```bash
+# Enable multi-hop for single query
+python -m src.cli query "your question" --max-hops 1
+
+# Test with RAG-only mode to see hop details
+python -m src.cli query "your question" --max-hops 1 --rag-only
+```
+
+Output shows:
+- Number of hops performed
+- Gap analysis reasoning for each hop
+- Which chunks came from which hop (`[Hop 0]`, `[Hop 1]`, etc.)
+
+### Implementation Details
+
+**Components**:
+- [multi_hop_retriever.py](multi_hop_retriever.py): Orchestrates multi-hop process
+- Prompt: [prompts/hop-evaluation-prompt.md](../../../prompts/hop-evaluation-prompt.md)
+- Schema: `HOP_EVALUATION_SCHEMA` in [src/services/llm/base.py](../llm/base.py)
+
+**Database tracking**:
+- `hop_evaluations` table: Stores gap analysis results (can_answer, reasoning, missing_query)
+- `retrieved_chunks.hop_number`: Tracks which hop retrieved each chunk (0=initial, 1+=subsequent)
+- `queries.hops_used`: Total hops performed for the query
+
+**Admin Dashboard**:
+- Query browser shows hop count column (🔄 icon)
+- Query detail displays all hop evaluations with reasoning
+- Chunks labeled with `[Hop N]` to show retrieval source
+
+### When to Use
+
+✅ **Enable multi-hop when**:
+- Users ask complex questions requiring multiple rule sections
+- Initial retrieval often misses important context
+- Queries involve interactions between multiple game mechanics
+
+❌ **Keep disabled (default) when**:
+- Most queries are straightforward
+- Performance/cost is critical (adds 1-2s per hop + LLM call)
+- Users provide focused questions
+
+### Performance Impact
+
+- **Latency**: +1-2s per hop (retrieval + gap analysis LLM call)
+- **Cost**: ~$0.0001 per gap analysis (gpt-4.1-mini)
+- **Quality**: Improved answer completeness for complex queries
+- **Deduplication**: Prevents redundant chunks across hops
+
 ## Key Data Models
 
 From [src/models/rag_context.py](../../models/rag_context.py):

@@ -147,7 +147,7 @@ def render_query_browser(db: AnalyticsDatabase):
     # Display queries in individual rows with delete buttons
     for idx, query in enumerate(queries):
         with st.container():
-            col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([2, 3, 1, 1, 1, 1, 1, 0.5])
+            col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns([2, 3, 1, 1, 1, 1, 0.7, 1, 0.5])
 
             with col1:
                 st.write(f"**{pd.to_datetime(query['timestamp']).strftime('%Y-%m-%d %H:%M')}**")
@@ -184,13 +184,21 @@ def render_query_browser(db: AnalyticsDatabase):
                     st.write("N/A")
 
             with col7:
+                # Hop count
+                hops_used = query.get("hops_used", 0)
+                if hops_used > 0:
+                    st.write(f"🔄 {hops_used}")
+                else:
+                    st.write("-")
+
+            with col8:
                 # View button to navigate to detail
                 if st.button("👁️", key=f"view_{query['query_id']}", help="View details"):
                     st.session_state["selected_query_id"] = query['query_id']
                     st.session_state["current_page"] = "🔍 Query Detail"
                     st.rerun()
 
-            with col8:
+            with col9:
                 # Delete button with confirmation
                 delete_key = f"delete_{query['query_id']}"
                 confirm_key = f"confirm_delete_{query['query_id']}"
@@ -286,6 +294,35 @@ def render_query_detail(db: AnalyticsDatabase):
         helpful_rate = query["upvotes"] / total_votes if total_votes > 0 else 0
         st.write(f"**Feedback:** ⬆️ {query['upvotes']} / ⬇️ {query['downvotes']} ({helpful_rate:.0%} helpful)")
 
+        # Multi-hop info
+        multi_hop_enabled = query.get("multi_hop_enabled", 0)
+        hops_used = query.get("hops_used", 0)
+        if multi_hop_enabled:
+            st.write(f"**Multi-Hop:** 🔄 {hops_used} hops")
+        else:
+            st.write(f"**Multi-Hop:** Disabled")
+
+    # Hop evaluations (if multi-hop was used)
+    if query.get("hops_used", 0) > 0:
+        st.subheader("🔄 Multi-Hop Evaluations")
+        hop_evaluations = db.get_hop_evaluations_for_query(query_id)
+
+        if hop_evaluations:
+            for hop_eval in hop_evaluations:
+                hop_num = hop_eval["hop_number"]
+                can_answer = "✅ Can answer" if hop_eval["can_answer"] else "❌ Cannot answer"
+
+                with st.expander(f"Hop {hop_num}: {can_answer}"):
+                    st.write(f"**Reasoning:** {hop_eval['reasoning']}")
+                    if hop_eval.get("missing_query"):
+                        st.write(f"**Missing Query:** {hop_eval['missing_query']}")
+                    if hop_eval.get("evaluation_model"):
+                        st.write(f"**Model:** {hop_eval['evaluation_model']}")
+                    if hop_eval.get("timestamp"):
+                        st.write(f"**Timestamp:** {hop_eval['timestamp']}")
+        else:
+            st.info("No hop evaluations recorded (may be an older query)")
+
     # Retrieved chunks
     st.subheader("📚 Retrieved Chunks")
 
@@ -305,8 +342,12 @@ def render_query_detail(db: AnalyticsDatabase):
             else:
                 status_icon = "⍰"
 
+            # Add hop number to the expander title
+            hop_number = chunk.get('hop_number', 0)
+            hop_label = f" [Hop {hop_number}]" if hop_number is not None else ""
+
             with st.expander(
-                f"{status_icon} Rank {chunk['rank']}: {chunk['chunk_header'] or 'No header'} "
+                f"{status_icon} Rank {chunk['rank']}: {chunk['chunk_header'] or 'No header'}{hop_label} "
                 f"(Score: {chunk['final_score']:.2f})"
             ):
                 col1, col2 = st.columns([3, 1])

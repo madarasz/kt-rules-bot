@@ -241,7 +241,7 @@ def test_main_routes_query_command(mock_query):
             pass
 
         # Verify test_query was called
-        mock_query.assert_called_once_with(query="test query", model="claude-4.5-sonnet", max_chunks=5, rag_only=False)
+        mock_query.assert_called_once_with(query="test query", model="claude-4.5-sonnet", max_chunks=5, rag_only=False, max_hops=None)
 
 
 @patch("src.cli.__main__.health_check")

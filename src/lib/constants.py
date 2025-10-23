@@ -194,10 +194,6 @@ RAG_SYNONYM_DICT_PATH = "data/rag_synonyms.json"
 # Ragas Evaluation Framework Constants
 # ============================================================================
 
-# Enable/disable Ragas metrics in RAG tests (default: False for gradual rollout)
-# When enabled, both custom and Ragas metrics are calculated and reported
-RAGAS_ENABLED = True
-
 # Model used for Ragas internal LLM-based evaluation (context precision, faithfulness, etc.)
 # Note: For retrieval tests with substring matching, this is not used
 # For generation tests, this model acts as the "judge" for faithfulness and relevancy
@@ -210,6 +206,28 @@ RAGAS_METRICS_RETRIEVAL = ["context_precision", "context_recall"]
 # Ragas generation metrics to calculate (used in Quality tests)
 # Available: faithfulness, answer_relevancy, response_groundedness
 RAGAS_METRICS_GENERATION = ["faithfulness", "answer_relevancy"]
+
+# ============================================================================
+# Multi-Hop RAG Constants
+# ============================================================================
+
+# Maximum number of retrieval iterations after initial query (default: 0 = disabled)
+# 0 = single-hop only (multi-hop disabled)
+# 1 = initial + 1 hop, 2 = initial + 2 hops, etc.
+RAG_MAX_HOPS = 1
+
+# Maximum chunks to retrieve per hop
+# Total chunks accumulated = (MAX_HOPS + 1) × HOP_CHUNK_LIMIT
+RAG_HOP_CHUNK_LIMIT = 5
+
+# LLM model for hop context evaluation (default: gpt-4.1-mini for speed)
+RAG_HOP_EVALUATION_MODEL = "gpt-4.1-mini"
+
+# Hop evaluation timeout in seconds
+RAG_HOP_EVALUATION_TIMEOUT = 20
+
+# Hop evaluation prompt file path
+RAG_HOP_EVALUATION_PROMPT_PATH = "prompts/hop-evaluation-prompt.md"
 
 # ============================================================================
 # Notes
