@@ -78,11 +78,18 @@ def evaluate_retrieval(
 
     # Calculate custom substring-based context recall
     # Recall = (number of ground truth substrings found) / (total ground truth substrings)
+    # Note: Strip asterisks (*) from both ground truth and retrieved contexts for matching
     found_count = 0
     for ground_truth_substring in ground_truth_contexts:
+        # Normalize ground truth: lowercase and remove asterisks
+        gt_normalized = ground_truth_substring.strip().lower().replace("*", "")
+
         # Check if this ground truth substring appears in any retrieved context
         for retrieved_context in retrieved_contexts:
-            if ground_truth_substring.lower() in retrieved_context.lower():
+            # Normalize retrieved context: lowercase and remove asterisks
+            retrieved_normalized = retrieved_context.strip().lower().replace("*", "")
+
+            if gt_normalized in retrieved_normalized:
                 found_count += 1
                 break  # Found this ground truth, move to next one
 
@@ -92,9 +99,15 @@ def evaluate_retrieval(
     # Precision = (number of retrieved contexts containing ground truth) / (total retrieved contexts)
     relevant_retrieved_count = 0
     for retrieved_context in retrieved_contexts:
+        # Normalize retrieved context: lowercase and remove asterisks
+        retrieved_normalized = retrieved_context.strip().lower().replace("*", "")
+
         # Check if this retrieved context contains any ground truth substring
         for ground_truth_substring in ground_truth_contexts:
-            if ground_truth_substring.lower() in retrieved_context.lower():
+            # Normalize ground truth: lowercase and remove asterisks
+            gt_normalized = ground_truth_substring.strip().lower().replace("*", "")
+
+            if gt_normalized in retrieved_normalized:
                 relevant_retrieved_count += 1
                 break  # This retrieved context is relevant, move to next one
 
