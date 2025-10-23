@@ -18,6 +18,7 @@ from src.lib.constants import (
     RAG_HOP_EVALUATION_MODEL,
     RAG_HOP_EVALUATION_TIMEOUT,
     RAG_HOP_EVALUATION_PROMPT_PATH,
+    MAX_CHUNK_LENGTH_FOR_EVALUATION
 )
 from src.lib.logging import get_logger
 
@@ -340,7 +341,7 @@ class MultiHopRetriever:
         formatted_chunks = []
         for i, chunk in enumerate(chunks, 1):
             header = chunk.header or "Unknown Section"
-            text = chunk.text[:300] + "..." if len(chunk.text) > 300 else chunk.text
+            text = chunk.text[:MAX_CHUNK_LENGTH_FOR_EVALUATION] + "..." if len(chunk.text) > MAX_CHUNK_LENGTH_FOR_EVALUATION else chunk.text
             formatted_chunks.append(f"{i}. **{header}**\n{text}\n")
 
         return "\n".join(formatted_chunks)

@@ -171,3 +171,5 @@ class RAGTestSummary:
     hop_evaluation_cost_usd: float = 0.0  # Total cost for hop evaluation LLM calls
     avg_ground_truth_found_improvement: float = 0.0  # Average number of ground truth chunks found via hops
     ground_truth_chunks_per_hop: List[int] = None  # List of ground truth chunks found in each hop [hop1, hop2, ...]
+    hop_can_answer_recall: float = 0.0  # Recall: times ground truth missing & hop made / total times ground truth missing
+    hop_can_answer_precision: float = 0.0  # Precision: times ground truth missing & hop made / total hops made

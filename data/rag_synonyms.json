@@ -167,5 +167,8 @@
     "teleport",
     "teleports",
     "teleporting"
+  ],
+  "BARRICADES": [
+    "barricade"
   ]
 }

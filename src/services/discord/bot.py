@@ -195,7 +195,7 @@ class KillTeamBotOrchestrator:
                 Citation(
                     document_name=chunk.metadata.get("source", "Unknown"),
                     section=chunk.header or "General",
-                    quote=chunk.text[:200],
+                    quote=chunk.text,
                     document_type=chunk.metadata.get("document_type", "core-rules"),
                     last_update_date=date.fromisoformat(chunk.metadata.get("last_update_date", "2024-01-15")),
                 )

@@ -229,6 +229,9 @@ RAG_HOP_EVALUATION_TIMEOUT = 20
 # Hop evaluation prompt file path
 RAG_HOP_EVALUATION_PROMPT_PATH = "prompts/hop-evaluation-prompt.md"
 
+# Max length of chunk text for hop evaluation formatting
+MAX_CHUNK_LENGTH_FOR_EVALUATION = 300
+
 # ============================================================================
 # Notes
 # ============================================================================
