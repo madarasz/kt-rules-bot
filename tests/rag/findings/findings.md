@@ -1,3 +1,10 @@
+# Added multi-hop 2025.10.22
+Initial hopping decision is flawed, always hopping, but adding some missing context.
+| Metric | Value | Description |
+|--------|-------|-------------|
+| **Avg Hops Used** | 1.00 | Average number of hops performed per test |
+| **Avg Ground Truth Found in Hops** | 0.37 | Average number of ground truth chunks found via hops |
+
 # Experiment - 2025.10.20
 `Granuality-v2` dataset with `text-embedding-ada-002` + chunking at header level 2 seems to be the best
 

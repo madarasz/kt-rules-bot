@@ -50,6 +50,22 @@ class RAGReportGenerator:
             content.append(f"| **Context Recall** | {summary.mean_ragas_context_recall:.3f} | Proportion of ground truth found in retrieved contexts |")
             content.append("")
 
+        # Hopping metrics (if multi-hop enabled and data available)
+        if summary.rag_max_hops > 0 and summary.avg_hops_used > 0:
+            content.append("### Hopping")
+            content.append("")
+            content.append("| Metric | Value | Description |")
+            content.append("|--------|-------|-------------|")
+            content.append(f"| **Avg Hops Used** | {summary.avg_hops_used:.2f} | Average number of hops performed per test |")
+            content.append(f"| **Avg Ground Truth Found in Hops** | {summary.avg_ground_truth_found_improvement:.2f} | Average number of ground truth chunks found via hops |")
+
+            # Per-hop breakdown
+            if summary.ground_truth_chunks_per_hop:
+                for hop_num, count in enumerate(summary.ground_truth_chunks_per_hop, start=1):
+                    content.append(f"| **Ground Truth in Hop {hop_num}** | {count} | Total ground truth chunks found in hop {hop_num} across all tests |")
+
+            content.append("")
+
         # Missing chunks analysis
         content.append("## Missing Chunks")
         content.append("")
