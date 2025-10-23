@@ -45,7 +45,7 @@ streamlit run src/cli/admin_dashboard.py --server.port 8501
 
 **RAG Pipeline**:
 - Hybrid retrieval (vector + BM25) with RRF fusion
-- Multi-hop retrieval for complex queries (optional, disabled by default)
+- Multi-hop retrieval for complex queries
 - Query normalization for case-insensitive keyword matching
 - ChromaDB + text-embedding-3-small
 - 1300+ game-specific keywords auto-extracted from rules
