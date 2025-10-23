@@ -39,20 +39,19 @@ cp config/.env.template config/.env
 Set `DEFAULT_LLM_PROVIDER` (e.g., `claude-sonnet`, `gemini-2.5-pro`, `gpt-4o`, `o3`) and related `*_API_KEY` values in the `config/.env` file you just created.
 
 ```bash
+# Get the rules descriptions from submodule. Reach out to me for access. 
+# Alternatively you can download team rules only via CLI script
+git submodule update --init --recursive
+```
+
+```bash
 # Ingest rules into vector database
 python -m src.cli ingest ./extracted-rules
 ```
 
-## Running
-
-### In development
+## Running the bot
 ```bash
-python -m src.cli run --mode dev
-```
-
-### In production
-```bash
-python -m src.cli run --mode production
+python -m src.cli run
 ```
 
 ## Tests
@@ -104,3 +103,9 @@ This project uses the [Spec Kit](https://github.com/github/spec-kit) workflow fo
 ## Licence
 
 MIT License
+
+**DISCLAIMER: This is an unofficial fan-made project and is in no way affiliated with, endorsed, or sponsored by Games Workshop Limited. It is a non-commercial project for personal use only.**
+
+Kill Team, Warhammer 40,000, Games Workshop and all associated logos, illustrations, images, names, creatures, races, vehicles, locations, weapons, characters, and the distinctive likeness thereof, are either ® or ™, and/or © Games Workshop Limited, variably registered around the world, and used without permission. All rights reserved to their respective owners.
+
+This tool is not intended to be a substitute for purchasing the official rulebooks. It is strongly recommended that you purchase the official Kill Team rules from Games Workshop to support their work.
