@@ -1,9 +1,33 @@
 # Added multi-hop 2025.10.22
-Initial hopping decision is flawed, always hopping, but adding some missing context.
+Hopping, `gtp-4.1-mini` as hop judge, `RAG_MAX_CHUNKS` = 7, `RAG_HOP_CHUNK_LIMIT` = 5, 
 | Metric | Value | Description |
 |--------|-------|-------------|
-| **Avg Hops Used** | 1.00 | Average number of hops performed per test |
-| **Avg Ground Truth Found in Hops** | 0.37 | Average number of ground truth chunks found via hops |
+| **Context Precision** | 0.315 | Proportion of retrieved contexts containing ground truth |
+| **Context Recall** | 0.937 | Proportion of ground truth found in retrieved contexts |
+| **Avg Hops Used** | 0.87 | Average number of hops performed per test |
+| **Avg Ground Truth Found in Hops** | 0.23 | Average number of ground truth chunks found via hops |
+| **Can Answer Recall** | 1.000 | Proportion of times LLM hopped when ground truth was missing |
+| **Can Answer Precision** | 0.341 | Proportion of hops that were made when ground truth was actually missing |
+
+Trying smaller chunk numbers, `RAG_MAX_CHUNKS` = 5, `RAG_HOP_CHUNK_LIMIT` = 3
+| Metric | Value | Description |
+|--------|-------|-------------|
+| **Context Precision** | 0.365 | Proportion of retrieved contexts containing ground truth |
+| **Context Recall** | 0.853 | Proportion of ground truth found in retrieved contexts |
+| **Avg Hops Used** | 0.93 | Average number of hops performed per test |
+| **Avg Ground Truth Found in Hops** | 0.34 | Average number of ground truth chunks found via hops |
+| **Can Answer Recall** | 1.000 | Proportion of times LLM hopped when ground truth was missing |
+| **Can Answer Precision** | 0.480 | Proportion of hops that were made when ground truth was actually missing |
+
+Trying smarter judge, `gtp-4.1-mini` as hop judge, `RAG_MAX_CHUNKS` = 7, `RAG_HOP_CHUNK_LIMIT` = 5
+| Metric | Value | Description |
+|--------|-------|-------------|
+| **Context Precision** | 0.287 | Proportion of retrieved contexts containing ground truth |
+| **Context Recall** | 0.958 | Proportion of ground truth found in retrieved contexts |
+| **Avg Hops Used** | 0.76 | Average number of hops performed per test |
+| **Avg Ground Truth Found in Hops** | 0.28 | Average number of ground truth chunks found via hops |
+| **Can Answer Recall** | 1.000 | Proportion of times LLM hopped when ground truth was missing |
+| **Can Answer Precision** | 0.326 | Proportion of hops that were made when ground truth was actually missing |
 
 # Experiment - 2025.10.20
 `Granuality-v2` dataset with `text-embedding-ada-002` + chunking at header level 2 seems to be the best

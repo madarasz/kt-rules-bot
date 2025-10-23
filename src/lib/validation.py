@@ -114,9 +114,9 @@ def sanitize_for_llm(text: str) -> str:
     # Remove excessive whitespace
     sanitized = re.sub(r"\s+", " ", sanitized)
 
-    # Trim to reasonable length (8000 chars for context window)
-    if len(sanitized) > 8000:
-        sanitized = sanitized[:8000]
+    # Trim to reasonable length (16000 chars for context window)
+    if len(sanitized) > 16000:
+        sanitized = sanitized[:16000]
 
     return sanitized.strip()
 

@@ -58,6 +58,8 @@ class RAGReportGenerator:
             content.append("|--------|-------|-------------|")
             content.append(f"| **Avg Hops Used** | {summary.avg_hops_used:.2f} | Average number of hops performed per test |")
             content.append(f"| **Avg Ground Truth Found in Hops** | {summary.avg_ground_truth_found_improvement:.2f} | Average number of ground truth chunks found via hops |")
+            content.append(f"| **Can Answer Recall** | {summary.hop_can_answer_recall:.3f} | Proportion of times LLM hopped when ground truth was missing |")
+            content.append(f"| **Can Answer Precision** | {summary.hop_can_answer_precision:.3f} | Proportion of hops that were made when ground truth was actually missing |")
 
             # Per-hop breakdown
             if summary.ground_truth_chunks_per_hop:

@@ -182,7 +182,7 @@ class RAGTestRunner:
         )
 
         # Add multi-hop data to result
-        result.hops_used = len(hop_evaluations)
+        result.hops_used = 0
         if hop_evaluations:
             # Convert HopEvaluation objects to dicts
             result.hop_evaluations = [
@@ -194,6 +194,9 @@ class RAGTestRunner:
                 }
                 for i, eval in enumerate(hop_evaluations)
             ]
+            for eval in hop_evaluations:
+                if eval.can_answer is False:
+                    result.hops_used += 1
 
         # Map chunk IDs to hop numbers
         if chunk_hop_map:
@@ -447,6 +450,74 @@ class RAGTestRunner:
         max_hop = max(hop_ground_truth_counts.keys()) if hop_ground_truth_counts else 0
         ground_truth_per_hop = [hop_ground_truth_counts.get(i, 0) for i in range(1, max_hop + 1)]
 
+        # Calculate hop "can_answer" precision/recall
+        # TP = ground truth missing from current chunks AND hop made (can_answer=false)
+        # FP = all ground truths present BUT hop made (unnecessary hop)
+        # FN = ground truth missing BUT no hop made (can_answer=true too early)
+        true_positives = 0
+        false_positives = 0
+        false_negatives = 0
+
+        for result in results:
+            if result.hop_evaluations and result.ground_truth_contexts:
+                # Track accumulated chunks as we iterate through hops
+                accumulated_chunk_texts = []
+
+                # Add initial retrieval chunks (hop 0)
+                if result.chunk_hop_numbers:
+                    for i, hop_num in enumerate(result.chunk_hop_numbers):
+                        if hop_num == 0:
+                            accumulated_chunk_texts.append(result.retrieved_chunk_texts[i])
+
+                # Evaluate each hop
+                for hop_idx, hop_eval in enumerate(result.hop_evaluations):
+                    hop_num = hop_idx + 1
+
+                    # Check if all ground truths are present in accumulated chunks at this point
+                    all_ground_truths_present = True
+                    for gt_context in result.ground_truth_contexts:
+                        gt_lower = gt_context.strip().lower()
+                        found_in_accumulated = False
+                        for chunk_text in accumulated_chunk_texts:
+                            if gt_lower in chunk_text.strip().lower().replace("*", ""):
+                                found_in_accumulated = True
+                                break
+                        if not found_in_accumulated:
+                            all_ground_truths_present = False
+                            break
+
+                    # Determine if hop was made
+                    hop_was_made = (hop_eval.get('can_answer') == False)
+
+                    # Calculate TP/FP/FN
+                    if not all_ground_truths_present:
+                        # Ground truth is missing
+                        if hop_was_made:
+                            true_positives += 1  # Correctly identified missing context and hopped
+                        else:
+                            false_negatives += 1  # Should have hopped but didn't
+                    else:
+                        # All ground truths present
+                        if hop_was_made:
+                            false_positives += 1  # Unnecessary hop
+                        # If no hop was made and all present, that's a true negative (not counted in precision/recall)
+
+                    # Add chunks from this hop to accumulated chunks for next iteration
+                    if result.chunk_hop_numbers:
+                        for i, chunk_hop in enumerate(result.chunk_hop_numbers):
+                            if chunk_hop == hop_num:
+                                accumulated_chunk_texts.append(result.retrieved_chunk_texts[i])
+
+        # Calculate precision and recall
+        hop_can_answer_recall = 0.0
+        hop_can_answer_precision = 0.0
+
+        if (true_positives + false_negatives) > 0:
+            hop_can_answer_recall = true_positives / (true_positives + false_negatives)
+
+        if (true_positives + false_positives) > 0:
+            hop_can_answer_precision = true_positives / (true_positives + false_positives)
+
         # Get BM25 parameters from hybrid retriever
         bm25_k1 = self.bm25_k1
         bm25_b = self.bm25_b
@@ -492,4 +563,6 @@ class RAGTestRunner:
             hop_evaluation_cost_usd=hop_evaluation_cost,
             avg_ground_truth_found_improvement=avg_ground_truth_improvement,
             ground_truth_chunks_per_hop=ground_truth_per_hop,
+            hop_can_answer_recall=hop_can_answer_recall,
+            hop_can_answer_precision=hop_can_answer_precision,
         )
