@@ -179,20 +179,22 @@ class TestGeminiAdapter:
         """Test successful generation."""
         # Mock API response with candidates
         mock_candidate = Mock()
-        mock_candidate.finish_reason = 1  # STOP
+        mock_candidate.finish_reason = "STOP"  # Proper finish reason string
         mock_candidate.content = Mock()
         mock_candidate.content.parts = [Mock()]  # Has valid parts
 
         mock_response = Mock()
         mock_response.text = "According to Core Rules: Movement is 6 inches"
         mock_response.candidates = [mock_candidate]
-        mock_response.safety_ratings = [
+        mock_response.usage_metadata = Mock(total_token_count=150)
+
+        # Safety ratings are on the candidate in new API
+        mock_candidate.safety_ratings = [
             Mock(probability="LOW"),  # 0.8 confidence
             Mock(probability="NEGLIGIBLE"),  # 0.9 confidence
         ]
-        mock_response.usage_metadata = Mock(total_token_count=150)
 
-        gemini_adapter.client.generate_content = Mock(return_value=mock_response)
+        gemini_adapter.client.models.generate_content = Mock(return_value=mock_response)
 
         request = GenerationRequest(
             prompt="How far can I move?",
@@ -343,8 +345,9 @@ class TestLLMProviderFactory:
         assert "claude-sonnet" in providers
         assert "claude-opus" in providers
         assert "gemini-2.5-pro" in providers
-        assert "gpt-4o" in providers
-        assert len(providers) == 16  # Total number of models (12 + 4 Grok models)
+        assert "gpt-4.1" in providers
+        assert "grok-4-fast-reasoning" in providers
+        assert "deepseek-chat" in providers
 
     @patch("src.services.llm.factory.get_config")
     def test_create_claude_provider(self, mock_config):
