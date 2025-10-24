@@ -19,6 +19,9 @@ from src.lib.constants import (
     BM25_WEIGHT,
     RAG_ENABLE_QUERY_NORMALIZATION,
     RAG_ENABLE_QUERY_EXPANSION,
+    RAG_MAX_HOPS,
+    RAG_HOP_CHUNK_LIMIT,
+    RAG_HOP_EVALUATION_MODEL,
 )
 
 
@@ -108,6 +111,11 @@ class RAGTestResult:
     ragas_context_precision: Optional[float] = None  # Ragas context precision (0-1)
     ragas_context_recall: Optional[float] = None  # Ragas context recall (0-1)
 
+    # Multi-hop retrieval data (if enabled)
+    hops_used: int = 0  # Number of hops performed
+    hop_evaluations: List[dict] = None  # List of hop evaluation dicts (can_answer, reasoning, missing_query)
+    chunk_hop_numbers: List[int] = None  # Hop number for each retrieved chunk (parallel to retrieved_chunks)
+
 
 @dataclass
 class RAGTestSummary:
@@ -152,3 +160,16 @@ class RAGTestSummary:
     hybrid_enabled: bool = True
     query_normalization_enabled: bool = RAG_ENABLE_QUERY_NORMALIZATION
     query_expansion_enabled: bool = RAG_ENABLE_QUERY_EXPANSION
+
+    # Multi-hop configuration
+    rag_max_hops: int = RAG_MAX_HOPS
+    rag_hop_chunk_limit: int = RAG_HOP_CHUNK_LIMIT
+    rag_hop_evaluation_model: str = RAG_HOP_EVALUATION_MODEL
+
+    # Multi-hop statistics
+    avg_hops_used: float = 0.0  # Average hops performed per test
+    hop_evaluation_cost_usd: float = 0.0  # Total cost for hop evaluation LLM calls
+    avg_ground_truth_found_improvement: float = 0.0  # Average number of ground truth chunks found via hops
+    ground_truth_chunks_per_hop: List[int] = None  # List of ground truth chunks found in each hop [hop1, hop2, ...]
+    hop_can_answer_recall: float = 0.0  # Recall: times ground truth missing & hop made / total times ground truth missing
+    hop_can_answer_precision: float = 0.0  # Precision: times ground truth missing & hop made / total hops made
