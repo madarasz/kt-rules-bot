@@ -150,16 +150,11 @@ class ChatGPTAdapter(LLMProvider):
                 raise Exception("GPT returned empty JSON in tool call")
 
             # Check if citations are included
-            citations_included = (
-                request.config.include_citations
-                and "According to" in answer_text
-            )
+            citations_included = request.config.include_citations
 
-            # Calculate confidence from logprobs (if available)
-            if self.supports_logprobs:
-                confidence = self._calculate_confidence(response.choices[0].logprobs)
-            else:
-                confidence = 0.8  # Default confidence for models without logprobs
+            # Note: Logprobs are not available with structured output (function calling)
+            # Always use default confidence since we always use structured output
+            confidence = 0.8  # Default confidence
 
             # Token count
             token_count = response.usage.total_tokens

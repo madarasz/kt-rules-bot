@@ -35,13 +35,22 @@ This ensures:
 
 ### Abstract Base Class ([base.py](base.py))
 Defines the LLM provider interface:
-- `GenerationRequest` / `GenerationResponse` data models
+- `GenerationRequest` / `LLMResponse` data models
 - `GenerationConfig` for LLM parameters
 - System prompt loading from `prompts/rule-helper-prompt.md`
+- **Structured JSON output schema** for consistent response format
 - Token counting and limits
-- Abstract methods for `generate()` and `extract_from_pdf()`
+- Abstract methods for `generate()` and `extract_pdf()`
 
 **Contract**: Based on `specs/001-we-are-building/contracts/llm-adapter.md`
+
+**Output Format**: All providers return **structured JSON** (not markdown) using:
+- Claude: Tool use (`tool_choice`)
+- ChatGPT/Grok: Function calling with strict mode
+- Gemini: JSON mode (`response_mime_type: "application/json"`)
+- DeepSeek: Function calling
+
+This ensures consistent, parseable responses across all providers.
 
 ### LLM Factory ([factory.py](factory.py))
 Creates LLM provider instances:
@@ -86,37 +95,49 @@ Creates LLM provider instances:
 #### Claude Adapter ([claude.py](claude.py))
 Anthropic Claude integration:
 - Uses `anthropic` Python SDK
+- **Structured output**: Tool use with `format_kill_team_answer` tool
 - Supports vision for PDF extraction
-- Streaming responses (not yet exposed)
-- Citation support
+- Returns JSON via `tool_use_block.input` dict
+- Default confidence: 0.8 (no logprobs available)
 
 #### ChatGPT Adapter ([chatgpt.py](chatgpt.py))
 OpenAI ChatGPT integration:
 - Uses `openai` Python SDK
+- **Structured output**: Function calling with `strict: true` mode
 - Supports GPT-4, GPT-5, o-series models
-- PDF extraction via vision API
-- Function calling support (planned)
+- GPT-5/o-series: Uses `max_completion_tokens` (includes reasoning tokens)
+- Returns JSON via `tool_calls[0].function.arguments`
+- Default confidence: 0.8 (logprobs not available with function calling)
+- PDF extraction via vision API (not yet implemented)
 
 #### Gemini Adapter ([gemini.py](gemini.py))
 Google Gemini integration:
-- Uses `google-generativeai` SDK
+- Uses `google-genai` SDK (new API)
+- **Structured output**: JSON mode with `response_mime_type: "application/json"`
 - Best for PDF extraction (native multimodal)
 - Supports Gemini 2.5 Pro and Flash
-- Grounding support (planned)
+- Returns JSON via `response.text`
+- Confidence from safety ratings (0.5-0.9)
+- Content filter detection via `finish_reason`
 
 #### Grok Adapter ([grok.py](grok.py))
 X/Grok integration:
-- Uses OpenAI SDK with custom base URL
+- Uses `httpx` with OpenAI-compatible API
+- **Structured output**: Function calling with tool choice
 - Supports Grok 3 and Grok 4 models
 - Fast reasoning capabilities
-- PDF extraction support
+- Returns JSON via `tool_calls[0].function.arguments`
+- Default confidence: 0.8
+- PDF extraction not yet supported
 
 #### DeepSeek Adapter ([deepseek.py](deepseek.py))
 DeepSeek integration:
 - Uses OpenAI SDK with custom base URL (`https://api.deepseek.com`)
+- **Structured output**: Function calling (OpenAI-compatible)
 - Supports deepseek-chat (standard) and deepseek-reasoner (with chain-of-thought)
 - deepseek-reasoner uses Chain of Thought (CoT) reasoning before final answer
 - Context window up to 128K tokens
+- Default confidence: 0.8
 - No PDF extraction support
 
 ### Supporting Services
@@ -184,15 +205,39 @@ class GenerationConfig:
     timeout_seconds: int = 30
 ```
 
-### GenerationResponse
+### LLMResponse
 ```python
 @dataclass
-class GenerationResponse:
-    answer_text: str               # LLM response
-    citations: List[Citation]      # Source citations
+class LLMResponse:
+    response_id: UUID
+    answer_text: str               # Structured JSON string (not markdown!)
+    confidence_score: float        # 0.0-1.0
     token_count: int               # Tokens used
-    model: str                     # Actual model used
+    latency_ms: int                # Response time
+    provider: str                  # "claude", "chatgpt", "gemini", etc.
+    model_version: str             # Actual model ID
+    citations_included: bool       # Whether citations are in response
 ```
+
+### Structured JSON Output Schema
+All LLM providers return JSON matching this schema:
+```json
+{
+  "smalltalk": false,              // true if casual chat, false if rules question
+  "short_answer": "Yes.",          // Direct answer
+  "persona_short_answer": "Obviously.", // Condescending phrase
+  "quotes": [                      // Rule quotations
+    {
+      "quote_title": "Core Rules: Actions",
+      "quote_text": "Relevant excerpt from rules"
+    }
+  ],
+  "explanation": "Detailed explanation...", // Rules-based explanation
+  "persona_afterword": "Elementary."  // Concluding persona sentence
+}
+```
+
+This JSON is parsed by [StructuredLLMResponse](../../../src/models/structured_response.py) and converted to Discord embeds.
 
 ## Configuration
 
@@ -369,13 +414,41 @@ logger.error("llm_generation_failed", model=model, error=str(e))
 ## Testing LLM Integration
 
 ### Unit Tests
-Mock the LLM provider:
+Mock the LLM provider with structured JSON output:
 ```python
 from unittest.mock import AsyncMock
+import json
 
 llm = AsyncMock(spec=LLMProvider)
-llm.generate.return_value = GenerationResponse(...)
+
+# Mock structured JSON response
+structured_json = json.dumps({
+    "smalltalk": False,
+    "short_answer": "Yes.",
+    "persona_short_answer": "Obviously.",
+    "quotes": [
+        {
+            "quote_title": "Core Rules: Movement",
+            "quote_text": "Operatives can move 6 inches"
+        }
+    ],
+    "explanation": "Movement is 6 inches per the core rules.",
+    "persona_afterword": "Simple enough."
+})
+
+llm.generate.return_value = LLMResponse(
+    response_id=uuid4(),
+    answer_text=structured_json,  # JSON string, not markdown!
+    confidence_score=0.88,
+    token_count=125,
+    latency_ms=1850,
+    provider="claude",
+    model_version="claude-3-sonnet",
+    citations_included=True,
+)
 ```
+
+**Important**: All mocks must return JSON strings in `answer_text`, not markdown.
 
 ### Integration Tests
 Test actual providers (requires API keys):
