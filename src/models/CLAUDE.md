@@ -173,7 +173,7 @@ response = BotResponse(
     text="Overwatch can be used...",
     source_citations=["Core Rules p.42", "Tactical Ops p.15"],
     confidence="high",
-    metadata={"model": "claude-sonnet", "tokens": 234},
+    metadata={"model": "claude-4.5-sonnet", "tokens": 234},
 )
 ```
 
