@@ -25,7 +25,13 @@ Evaluate whether the provided Kill Team rules context contains all necessary rul
 - Each retrieval query should be under 100 characters and focus on rules/abilities/operatives.
 - If sufficient context: set `missing_query` to null.
 - If missing context: specify the exact terms names required.
-- In `missing_query`, ONLY USE TERM NAMES that are missing. Do not add "rules", "definition", "details", "ability" etc.
+- In `missing_query`, ONLY USE TERM NAMES that are missing. Do not add "rules", "definition", "details", "ability" etc. 
+
+Bad example for `missing_query`: `Blast weapon minimum range and damage application within blast radius`
+Good example for `missing_query`: `Blast`
+
+Bad example for `missing_query`: `Is Guard action treated as Shoot action`
+Good example for `missing_query`: `Guard`
 
 # Examples
 
@@ -49,7 +55,7 @@ Response:
 {{
  "can_answer": false,
  "reasoning": "I have Track Enemy TacOp's definition, but missing Vantage terrain and Seek Light weapon definitions.",
- "missing_query": "Vantage terrain, Seek Light weapon"
+ "missing_query": "Vantage, Seek Light"
 }}
 ```
 
@@ -60,8 +66,8 @@ Response:
 ```json
 {{
  "can_answer": false,
- "reasoning": "I have Counteract and Conceal definitions, but missing Eliminator operative definition.",
- "missing_query": "Eliminator operative"
+ "reasoning": "I have Counteract and Conceal definitions, but missing Eliminator Sniper operative definition.",
+ "missing_query": "Eliminator Sniper"
 }}
 ```
 
