@@ -111,7 +111,7 @@ class QualityTestRunner:
 
         if rag_context is None:
             from uuid import uuid4
-            rag_context = self.rag_retriever.retrieve(
+            rag_context, _, _ = self.rag_retriever.retrieve(
                 RetrieveRequest(
                     query=test_case.query,
                     context_key="quality_test",
@@ -261,7 +261,7 @@ class QualityTestRunner:
             for test_case in test_cases:
                 # RAG is done once per test case per run to ensure context is fresh
                 from uuid import uuid4
-                rag_context = self.rag_retriever.retrieve(
+                rag_context, _, _ = self.rag_retriever.retrieve(
                     RetrieveRequest(
                         query=test_case.query,
                         context_key="quality_test",

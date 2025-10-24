@@ -16,13 +16,13 @@ from src.services.rag.embeddings import EmbeddingService
 from src.lib.constants import (
     RAG_MAX_CHUNKS,
     RAG_MIN_RELEVANCE,
+    RAG_MAX_HOPS,
     EMBEDDING_MODEL,
     MARKDOWN_CHUNK_HEADER_LEVEL,
     RRF_K,
     BM25_K1,
     BM25_B,
-    BM25_WEIGHT,
-    RAGAS_ENABLED,
+    BM25_WEIGHT
 )
 from src.lib.tokens import estimate_embedding_cost
 from src.lib.logging import get_logger
@@ -161,14 +161,15 @@ class RAGTestRunner:
             max_chunks=max_chunks,
             min_relevance=min_relevance,
             use_hybrid=True,
+            use_multi_hop=(RAG_MAX_HOPS > 0),  # Explicitly set based on current constant value
         )
 
         # Calculate embedding cost
         embedding_cost = estimate_embedding_cost(test_case.query, model=EMBEDDING_MODEL)
 
-        # Retrieve chunks
+        # Retrieve chunks (returns tuple: context, hop_evaluations, chunk_hop_map)
         start_time = time.time()
-        rag_context = self.retriever.retrieve(request, query_id)
+        rag_context, hop_evaluations, chunk_hop_map = self.retriever.retrieve(request, query_id)
         retrieval_time = time.time() - start_time
 
         # Evaluate with custom metrics
@@ -179,6 +180,27 @@ class RAGTestRunner:
             embedding_cost_usd=embedding_cost,
             run_number=run_number,
         )
+
+        # Add multi-hop data to result
+        result.hops_used = len(hop_evaluations)
+        if hop_evaluations:
+            # Convert HopEvaluation objects to dicts
+            result.hop_evaluations = [
+                {
+                    'hop_number': i + 1,
+                    'can_answer': eval.can_answer,
+                    'reasoning': eval.reasoning,
+                    'missing_query': eval.missing_query
+                }
+                for i, eval in enumerate(hop_evaluations)
+            ]
+
+        # Map chunk IDs to hop numbers
+        if chunk_hop_map:
+            result.chunk_hop_numbers = [
+                chunk_hop_map.get(chunk.chunk_id, 0)
+                for chunk in rag_context.document_chunks
+            ]
 
         # Evaluate with Ragas metrics
         ragas_metrics = self.ragas_evaluator.evaluate(
@@ -390,6 +412,14 @@ class RAGTestRunner:
         avg_retrieval_time = sum(r.retrieval_time_seconds for r in results) / len(results)
         total_cost = sum(r.embedding_cost_usd for r in results)
 
+        # Calculate multi-hop statistics
+        avg_hops_used = sum(r.hops_used for r in results) / len(results) if results else 0.0
+
+        # Estimate hop evaluation cost (simplified: $0.0001 per hop evaluation for gpt-4.1-mini)
+        # This is an approximation based on typical input/output tokens for hop evaluation
+        total_hop_evaluations = sum(r.hops_used for r in results)
+        hop_evaluation_cost = total_hop_evaluations * 0.0001  # Approximate cost per evaluation
+
         # Get BM25 parameters from hybrid retriever
         bm25_k1 = self.bm25_k1
         bm25_b = self.bm25_b
@@ -431,4 +461,6 @@ class RAGTestRunner:
             bm25_weight=bm25_weight,
             vector_weight=vector_weight,
             hybrid_enabled=self.retriever.enable_hybrid,
+            avg_hops_used=avg_hops_used,
+            hop_evaluation_cost_usd=hop_evaluation_cost,
         )
