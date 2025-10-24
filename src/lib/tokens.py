@@ -101,6 +101,8 @@ def estimate_cost(
         "claude-opus": {"prompt": 0.015, "completion": 0.075},
         "gemini-2.5-pro": {"prompt": 0.00125, "completion": 0.01},
         "gemini-2.5-flash": {"prompt": 0.0003, "completion": 0.0025},
+        "deepseek-chat": {"prompt": 0.00028, "completion": 0.00042},
+        "deepseek-reasoner": {"prompt": 0.00028, "completion": 0.00042}
     }
 
     # Default pricing if model not found

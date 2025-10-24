@@ -27,6 +27,8 @@ LLM_PROVIDERS_LITERAL = Literal[
     "grok-4-0709",
     "grok-3",
     "grok-3-mini",
+    "deepseek-chat",
+    "deepseek-reasoner",
     "dial-gpt-4o",
     "dial-gpt-4.1",
     "dial-gpt-5",
@@ -53,11 +55,14 @@ PDF_EXTRACTION_PROVIDERS = [
 
 # Quality test providers (curated list for --all-models testing)
 QUALITY_TEST_PROVIDERS = [
+    "gpt-4.1",
     "dial-gpt-4o",
+    "deepseek-chat",
+    # "deepseek-reasoner"
     # "dial-gpt-4.1",  # denied WHY??
     # "dial-gpt-5",    # denied
     # "dial-gpt-5-chat",  # denied
-    "dial-gpt-5-mini",
+    # "dial-gpt-5-mini",
     # "dial-gpt-o3",   # denied
     # "dial-sonet-4.5",  # denied
     # "dial-sonet-4.5-thinking",  # denied
@@ -65,8 +70,8 @@ QUALITY_TEST_PROVIDERS = [
     # "dial-opus-4.1-thinking",  # denied
     # "dial-amazon-nova-pro",  # denied
     # "dial-amazon-titan",  # denied
-    "dial-gemini-2.5-pro",
-    "dial-gemini-2.5-flash"
+    # "dial-gemini-2.5-pro",
+    # "dial-gemini-2.5-flash"
 ]
 
 # Default LLM provider for generation

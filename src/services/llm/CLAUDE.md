@@ -75,6 +75,10 @@ Creates LLM provider instances:
 "grok-4-0709" → grok-4-0709
 "grok-3" → grok-3
 "grok-3-mini" → grok-3-mini
+
+# DeepSeek
+"deepseek-chat" → deepseek-chat
+"deepseek-reasoner" → deepseek-reasoner
 ```
 
 ### Provider Implementations
@@ -106,6 +110,14 @@ X/Grok integration:
 - Supports Grok 3 and Grok 4 models
 - Fast reasoning capabilities
 - PDF extraction support
+
+#### DeepSeek Adapter ([deepseek.py](deepseek.py))
+DeepSeek integration:
+- Uses OpenAI SDK with custom base URL (`https://api.deepseek.com`)
+- Supports deepseek-chat (standard) and deepseek-reasoner (with chain-of-thought)
+- deepseek-reasoner uses Chain of Thought (CoT) reasoning before final answer
+- Context window up to 128K tokens
+- No PDF extraction support
 
 ### Supporting Services
 
@@ -215,6 +227,7 @@ ANTHROPIC_API_KEY
 OPENAI_API_KEY
 GOOGLE_API_KEY
 X_API_KEY
+DEEPSEEK_API_KEY
 ```
 
 ## Common Tasks
