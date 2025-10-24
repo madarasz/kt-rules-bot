@@ -5,7 +5,7 @@ import json
 
 import discord
 
-from src.lib.constants import LLM_GENERATION_TIMEOUT, LLM_USE_STRUCTURED_OUTPUT
+from src.lib.constants import LLM_GENERATION_TIMEOUT
 from src.lib.database import AnalyticsDatabase
 from src.lib.discord_utils import get_random_acknowledgement
 from src.lib.logging import get_logger
@@ -126,8 +126,7 @@ class KillTeamBotOrchestrator:
                     prompt=user_query.sanitized_text,
                     context=[chunk.text for chunk in rag_context.document_chunks],
                     config=GenerationConfig(
-                        timeout_seconds=LLM_GENERATION_TIMEOUT,
-                        use_structured_output=LLM_USE_STRUCTURED_OUTPUT
+                        timeout_seconds=LLM_GENERATION_TIMEOUT
                     ),
                 ),
                 timeout_seconds=LLM_GENERATION_TIMEOUT
@@ -142,25 +141,30 @@ class KillTeamBotOrchestrator:
                 },
             )
 
-            # Parse structured data if JSON response
-            structured_data = None
-            if llm_response.answer_text.strip().startswith("{"):
-                try:
-                    structured_data = StructuredLLMResponse.from_json(llm_response.answer_text)
-                    structured_data.validate()
-                    logger.debug(
-                        "Parsed structured LLM response",
-                        extra={
-                            "correlation_id": correlation_id,
-                            "quotes_count": len(structured_data.quotes),
-                        }
-                    )
-                except (ValueError, json.JSONDecodeError) as e:
-                    logger.warning(
-                        f"Failed to parse structured response, using markdown fallback: {e}",
-                        extra={"correlation_id": correlation_id}
-                    )
-                    # Keep structured_data as None, will use markdown formatting
+            # Parse structured JSON response (mandatory - no fallback)
+            try:
+                structured_data = StructuredLLMResponse.from_json(llm_response.answer_text)
+                structured_data.validate()
+                logger.debug(
+                    "Parsed structured LLM response",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "quotes_count": len(structured_data.quotes),
+                        "smalltalk": structured_data.smalltalk,
+                    }
+                )
+            except (ValueError, json.JSONDecodeError) as e:
+                logger.error(
+                    f"LLM returned invalid JSON (provider: {llm_response.model_version}): {e}",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "response_preview": llm_response.answer_text[:200]
+                    }
+                )
+                raise ValueError(
+                    f"LLM provider {llm_response.model_version} returned invalid JSON. "
+                    "All providers must return structured JSON output."
+                )
 
             # Step 5: Validation (FR-013: combined LLM + RAG validation)
             validation_result = self.validator.validate(llm_response, rag_context)

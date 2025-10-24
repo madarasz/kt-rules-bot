@@ -26,8 +26,10 @@ from src.services.llm.base import (
     TimeoutError as LLMTimeoutError,
     ContentFilterError,
     PDFParseError,
+    STRUCTURED_OUTPUT_SCHEMA,
 )
 from src.lib.logging import get_logger
+import json
 
 logger = get_logger(__name__)
 
@@ -73,7 +75,7 @@ class ClaudeAdapter(LLMProvider):
         full_prompt = self._build_prompt(request.prompt, request.context)
 
         try:
-            # Call Claude API with timeout
+            # Always use tool use for structured JSON output
             response = await asyncio.wait_for(
                 self.client.messages.create(
                     model=self.model,
@@ -81,20 +83,43 @@ class ClaudeAdapter(LLMProvider):
                     temperature=request.config.temperature,
                     system=request.config.system_prompt,
                     messages=[{"role": "user", "content": full_prompt}],
+                    tools=[{
+                        "name": "format_kill_team_answer",
+                        "description": "Format Kill Team rules answer with quotes and explanation",
+                        "input_schema": STRUCTURED_OUTPUT_SCHEMA
+                    }],
+                    tool_choice={
+                        "type": "tool",
+                        "name": "format_kill_team_answer"
+                    }
                 ),
                 timeout=request.config.timeout_seconds,
             )
 
             latency_ms = int((time.time() - start_time) * 1000)
 
-            # Extract answer text
-            answer_text = response.content[0].text
+            # Extract JSON from tool use
+            # Claude returns tool_use block in content
+            tool_use_block = None
+            for block in response.content:
+                if hasattr(block, 'type') and block.type == 'tool_use':
+                    tool_use_block = block
+                    break
 
-            # Check if citations are included
-            citations_included = (
-                request.config.include_citations
-                and "According to" in answer_text
-            )
+            if not tool_use_block:
+                raise Exception("Expected tool_use block but none returned")
+
+            # tool_use_block.input is a dict with structured data
+            tool_input = tool_use_block.input
+            answer_text = json.dumps(tool_input)  # Convert to JSON string
+            logger.debug(f"Extracted structured JSON from Claude tool use: {len(answer_text)} chars")
+
+            # Validate it's not empty
+            if not answer_text or not answer_text.strip():
+                raise Exception("Claude returned empty JSON in tool use")
+
+            # Check if citations are included (always true for structured output with quotes)
+            citations_included = request.config.include_citations
 
             # Claude doesn't provide logprobs, use default confidence
             confidence = 0.8
