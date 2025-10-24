@@ -203,16 +203,6 @@ def create_parser() -> argparse.ArgumentParser:
         default=RAG_MIN_RELEVANCE,
         help=f"Minimum relevance threshold (default: {RAG_MIN_RELEVANCE})",
     )
-    rag_parser.add_argument(
-        "--use-ragas",
-        action="store_true",
-        help="Calculate both custom and Ragas metrics (requires ground_truth_contexts in test cases)",
-    )
-    rag_parser.add_argument(
-        "--ragas-only",
-        action="store_true",
-        help="Calculate only Ragas metrics (implies --use-ragas)",
-    )
 
     # Command: rag-test-sweep
     rag_sweep_parser = subparsers.add_parser(
@@ -279,11 +269,6 @@ def create_parser() -> argparse.ArgumentParser:
     rag_sweep_parser.add_argument(
         "--chunk-header-level",
         help="Comma-separated chunk header level values for grid search (e.g., 2,3,4)",
-    )
-    rag_sweep_parser.add_argument(
-        "--use-ragas",
-        action="store_true",
-        help="Calculate both custom and Ragas metrics (uses required_chunks as ground truth)",
     )
 
     # Command: download-team
@@ -380,8 +365,6 @@ def main():
                 runs=args.runs,
                 max_chunks=args.max_chunks,
                 min_relevance=args.min_relevance,
-                use_ragas=args.use_ragas,
-                ragas_only=args.ragas_only,
             )
 
         elif args.command == "rag-test-sweep":
@@ -399,7 +382,6 @@ def main():
                 bm25_weight=args.bm25_weight,
                 embedding_model=args.embedding_model,
                 chunk_header_level=args.chunk_header_level,
-                use_ragas=args.use_ragas,
             )
 
         elif args.command == "download-team":

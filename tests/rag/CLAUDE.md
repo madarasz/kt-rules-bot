@@ -17,12 +17,6 @@ python -m src.cli rag-test --runs 10
 
 # Custom retrieval parameters
 python -m src.cli rag-test --max-chunks 10
-
-# Calculate both custom and Ragas metrics
-python -m src.cli rag-test --use-ragas
-
-# Calculate only Ragas metrics (for comparison)
-python -m src.cli rag-test --ragas-only
 ```
 
 ### Parameter Sweep (Find Optimal Parameters)
@@ -35,9 +29,6 @@ python -m src.cli rag-test-sweep --grid \
   --max-chunks 10,15,20 \
   --min-relevance 0.4,0.45,0.5 \
   --runs 5
-
-# Parameter sweep with Ragas metrics
-python -m src.cli rag-test-sweep --param rrf_k --values 40,60,80 --use-ragas
 ```
 
 **Results**:
@@ -47,19 +38,9 @@ python -m src.cli rag-test-sweep --param rrf_k --values 40,60,80 --use-ragas
 
 ## What It Tests
 
-Verifies RAG retrieval quality using two evaluation frameworks:
+Verifies RAG retrieval quality using the **Ragas evaluation framework**.
 
-### Custom IR Metrics (Default)
-Standard Information Retrieval metrics based on chunk header matching:
-- **Mean Average Precision (MAP)**: Overall retrieval quality across all test queries
-- **Recall@5**: % of required chunks found in top 5 results
-- **Recall@All**: % of required chunks found, regardless of position (total coverage)
-- **Precision@3**: % of top 3 retrieved chunks that are relevant
-- **Precision@5**: % of top 5 retrieved chunks that are relevant
-- **MRR (Mean Reciprocal Rank)**: Average 1/rank of first required chunk
-- **Consistency**: Variance across multiple runs
-
-### Ragas Metrics (Optional, with `--use-ragas`)
+### Ragas Metrics
 Industry-standard RAG evaluation framework using substring matching:
 - **Context Precision**: Proportion of retrieved chunks containing ground truth information
 - **Context Recall**: Proportion of ground truth information found in retrieved chunks
@@ -100,33 +81,6 @@ required_chunks:
 
 ## Evaluation Metrics Explained
 
-**Mean Average Precision (MAP)**:
-- Gold standard IR metric
-- Measures how well the system ranks relevant chunks
-- Average of precision@k across all relevant chunks
-- Range: 0-1 (higher is better)
-
-**Recall@k**:
-- What % of required chunks appear in top-k results
-- Recall@5 and Recall@All recommended (matches typical RAG_MAX_CHUNKS)
-- Range: 0-1 (higher is better)
-
-**Recall@All**:
-- What % of required chunks were found, regardless of rank position
-- Measures total coverage: did we find the chunks at all?
-- Useful for debugging when Recall@5 is low but chunks exist further down
-- Range: 0-1 (higher is better)
-
-**Precision@k**:
-- What % of top-k results are relevant
-- Precision@3 and Precision@5 recommended (most important chunks first)
-- Range: 0-1 (higher is better)
-
-**MRR (Mean Reciprocal Rank)**:
-- How quickly does the first relevant chunk appear
-- 1/rank of first relevant chunk, averaged across queries
-- Range: 0-1 (higher is better)
-
 ### Ragas Metrics
 
 **Context Precision**:
@@ -141,15 +95,14 @@ required_chunks:
 - Higher is better (range: 0-1)
 - Formula: (# ground truth substrings found) / (total ground truth substrings)
 
-**Key Difference from Custom Metrics**:
-- Custom metrics: Match chunk **headers** (exact or substring)
-- Ragas metrics: Match chunk **text content** (substring search)
-- Ragas often shows lower precision because it searches full chunk text, not just headers
+**How It Works**:
+- Ragas uses substring matching on chunk **text content** (not just headers)
+- Automatically uses `required_chunks` from test cases as ground truth contexts
+- Provides industry-standard RAG evaluation metrics
 
 **Configuration**:
 ```python
 # File: src/lib/constants.py
-RAGAS_ENABLED = False  # Global default (override with --use-ragas)
 RAGAS_JUDGE_MODEL = "gpt-4o"  # LLM for future Ragas features
 ```
 
@@ -263,7 +216,7 @@ python -m src.cli rag-test-sweep \
   --runs 10
 ```
 
-**Output**: Charts showing MAP, Recall@5, Precision@3, etc. vs parameter value
+**Output**: Charts showing Ragas Context Precision, Context Recall, Time, and Cost vs parameter value
 
 ### Grid Search (Multiple Parameters)
 
@@ -334,23 +287,19 @@ python -m src.cli rag-test --runs 30
 ### Interpreting Results
 
 **Charts Generated**:
-- `map_comparison.png`: MAP score across parameter values (maximize this)
-- `recall5_comparison.png`: Recall@5 across values
-- `precision3_comparison.png`: Precision@3 across values
-- `time_comparison.png`: Performance impact
-- `cost_comparison.png`: Cost impact
-- `multi_metric_comparison.png`: All metrics together
-- `*_heatmap.png`: Grid search heatmaps (2D only)
+- `ragas_metrics_comparison.png`: Combined chart with Context Precision and Context Recall (maximize these)
+- `ragas_context_precision_heatmap.png`: Grid search heatmap for Context Precision (2D only)
+- `ragas_context_recall_heatmap.png`: Grid search heatmap for Context Recall (2D only)
 
 **CSV Export**: All metrics in `comparison_metrics.csv` for statistical analysis
 
-**Best Configuration**: Automatically reported with highest MAP score
+**Best Configuration**: Automatically reported with highest Context Precision score
 
 ### Analysis Guidelines
 
-- **Maximize MAP**: Best overall retrieval quality
-- **Maximize Recall@5**: Ensures all required chunks are found
-- **Balance Precision@3**: Reduces noise in top results
+- **Maximize Context Precision**: Higher proportion of relevant retrieved chunks
+- **Maximize Context Recall**: Ensures all ground truth information is found
+- **Balance**: Aim for high scores on both metrics
 - **Monitor Time/Cost**: Some parameters increase computational cost
 
 ## Report Structure
@@ -359,46 +308,40 @@ Each test run generates:
 
 ### Main Report (`report.md`)
 - **Overall Metrics**:
-  - Mean MAP across all tests
-  - Average Recall@5, Recall@All
-  - Average Precision@3, Precision@5
-  - Average MRR
+  - Ragas Context Precision across all tests
+  - Ragas Context Recall across all tests
 
 - **Performance Metrics**:
   - Total time for all tests (seconds)
   - Average retrieval time per test (seconds)
   - Total embedding cost (USD)
 
+- **Missing Chunks Analysis**:
+  - Lists all required chunks that were not retrieved
+  - Helps identify gaps in retrieval
+
 - **Per-Test Breakdown**:
   - Test ID and query
   - Required chunks (headers)
-  - Retrieved chunks (top-k with ranks)
+  - Retrieved chunks (top-k with ranks and scores)
   - Which required chunks were found/missed
-  - Metrics for this test (MAP, Recall@5, etc.)
-  - Retrieval time and embedding cost for this test
+  - Ragas metrics for this test
 
 - **Configuration Used**:
   - RAG_MAX_CHUNKS
   - RAG_MIN_RELEVANCE
   - EMBEDDING_MODEL
   - RRF k value
+  - BM25 k1 and b values
   - Hybrid enabled/disabled
 
 - **Multi-Run Statistics** (if --runs > 1):
-  - Mean ± std dev for all metrics
+  - Mean ± std dev for Ragas metrics
   - Consistency analysis
   - Variance identification
 
-### Charts
-- MAP comparison across tests
-- Recall@5 and Recall@All per test
-- Precision@3 and Precision@5 per test
-- MRR distribution
-- Multi-run consistency plots
-
 ### Raw Data
 - `retrieved_chunks_{test_id}_{run}.txt`: Full chunk text for manual review
-- `summary.json`: All metrics in structured format
 
 ## Structure
 
@@ -465,29 +408,32 @@ python -m src.cli rag-test --runs 50
 - Archive baseline results before experiments
 - Change one parameter at a time
 - Re-ingest after changing chunking/embeddings
+- Aim for high Context Precision AND Context Recall
 
 ❌ **Don't**:
 - Test with only 1 run (misses variance)
 - Change multiple parameters simultaneously (can't isolate impact)
 - Skip re-ingestion after chunking changes
 - Optimize for a single test case (may overfit)
-- Ignore Recall@5 (missing chunks = incomplete answers)
+- Ignore Context Recall (low recall = missing information)
 
 ## Implementation Status
 
 ✅ **Fully Implemented**:
 - Test runner with multi-run support
-- Metric calculators (MAP, Recall@k, Precision@k, MRR)
+- **Ragas evaluation framework** (Context Precision, Context Recall)
 - Report generation with comprehensive breakdowns
 - CLI command integration (`python -m src.cli rag-test`)
 - Performance tracking (timing and cost)
 - Example test cases
 - **Parameter sweep functionality** (`python -m src.cli rag-test-sweep`)
-- **Matplotlib chart generation** (line charts, bar charts, heatmaps)
+- **Matplotlib chart generation** (line charts, heatmaps)
 - **Grid search** for multi-parameter optimization
 - **CSV export** for external analysis
 - **BM25 parameter tuning** (k1, b)
 - **RRF parameter tuning** (k)
+- **Embedding model comparison** (text-embedding-3-small vs -large)
+- **Chunk header level tuning** (2, 3, or 4)
 
 **All RAG parameters now tunable without code modification!**
 

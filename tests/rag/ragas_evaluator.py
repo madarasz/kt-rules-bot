@@ -34,8 +34,7 @@ class RagasRAGEvaluator:
     def evaluate(
         self,
         test_case: RAGTestCase,
-        retrieved_chunks: List[DocumentChunk],
-        use_ragas: bool = False,
+        retrieved_chunks: List[DocumentChunk]
     ) -> Optional[RagasRetrievalMetrics]:
         """Evaluate retrieval using Ragas metrics.
 
@@ -43,14 +42,10 @@ class RagasRAGEvaluator:
             test_case: Test case definition with optional ground_truth_contexts
                       Falls back to required_chunks if ground_truth_contexts not set
             retrieved_chunks: Chunks retrieved by RAG system (ordered by relevance)
-            use_ragas: Whether to calculate Ragas metrics (default: False)
 
         Returns:
-            RagasRetrievalMetrics if use_ragas=True, None otherwise
+            RagasRetrievalMetrics
         """
-        # Skip if Ragas is disabled or not available
-        if not use_ragas:
-            return None
 
         if not is_ragas_available():
             print("Warning: ragas library not installed. Skipping Ragas metrics.")
