@@ -1,121 +1,122 @@
 - test_id: can-squig-guard
   query: >
     Is Guard is treated as a Shoot action? If so, can a Wrecka Squig do a Guard action?
-  required_chunks:
-    - "This action is treated as a Shoot action."
+  ground_truth_contexts:
+    - "The operative can perform the Guard action, so long as the relevant weapon is selected if it performs the Shoot action during the interrupt"
     - "WRECKA BOMB SQUIG - Stoopid"
+    - "Can operatives that can only perform a restricted set of actions (WRECKA KREW BOMB SQUIG, ELUCIDIAN STARSTRIDER CANID) perform actions that are treated as one of those actions, e.g. Hatchway Fight?"
 - test_id: largest-wrecka-blast
   query: >
     what is the largest blast radius the Wrecka Crew can get?
-  required_chunks:
+  ground_truth_contexts:
     - "WRECKA KREW - KABOOM!"
     - "WRECKA KREW - TANKBUSTA ROKKITEER"
 - test_id: fight-through-wall
   query: >
     can two operatives fight even if not visible to each other on two different sides of a stronghold wall?
-  required_chunks:
+  ground_truth_contexts:
     - "Visibility cannot be determined over or through Wall terrain."
     - "Something is within an operative's control range if it's visible to and within 1\" of that operative."
 - test_id: door-difference
   query: >
     is there a difference between the doors on the strongholds and large ruins ruleswise?
-  required_chunks:
+  ground_truth_contexts:
     - "The upper level of a large ruin terrain feature is"
     - "The upper level(s) of a stronghold terrain feature is"
 - test_id: climbing-ladder
   query: >
     how  do you measure the distance needed to climb up to the second story of volkus map while using a ladder?
-  required_chunks:
+  ground_truth_contexts:
     - "An operative must be within 1\" horizontally and 3\" vertically of terrain that's visible to them to climb it."
     - "UNIVERSAL EQUIPMENT - 2X LADDERS"
 - test_id: blast-vs-torrent
   query: >
     what is the difference between blast and torrent
-  required_chunks:
+  ground_truth_contexts:
     - "Torrent x"
     - "The target you select is the primary target. After shooting the primary target, shoot with this weapon against each secondary target in an order of your choice (roll each sequence separately)."
 - test_id: team-validity # FAILS
   query: >
     which teams are tournament legal currently?
-  required_chunks:
+  ground_truth_contexts:
     - "When planning your tournament, you must determine if it will be using the Classified format."
     - "The full list of Classified kill teams can be found below."
 - test_id: team-rotation
   query: >
     Which teams are rotating out soon?
-  required_chunks:
+  ground_truth_contexts:
     - "The full list of Classified kill teams can be found below."
 - test_id: cp-lost-cancelled
   query: >
     Would the Curtain Falls firefight ploy still cost CP even after the Nemesis Claw chain snare 
     equipment potenatially would block the free fall back action?
-  required_chunks:
+  ground_truth_contexts:
     - "THE CURTAIN FALLS"
     - "Whenever an enemy operative would perform the Fall Back action while within control range of a friendly NEMESIS CLAW operative"
 - test_id: return-to-darkness-teleport # Only works with RAG_ENABLE_QUERY_EXPANSION = True
   query: >
     can I use return to darkness ploy with nemesis claw operative to use the teleport on tomb world map?
-  required_chunks:
+  ground_truth_contexts:
     - "RETURN TO DARKNESS"
     - "TELEPORT PAD"
-- test_id: nemesis-midnight-clad-barricade # Barricade is not found
+- test_id: nemesis-midnight-clad-barricade # Light Barricades is not found
   query: >
     Can a nemesis claw operative use light barricade as cover and be obscured as well if its more than 8 inches away from the enemy operative?
-  required_chunks:
+  ground_truth_contexts:
     - "IN MIDNIGHT CLAD"
     - "UNIVERSAL EQUIPMENT - 2X LIGHT BARRICADES"
 - test_id: track-enemy-melee
   query: >
     Can I score VP with track enemy if I track an opponent tied up melee with another operative of mine?
-  required_chunks:
+  ground_truth_contexts:
     - "TRACK ENEMY"
     - "VALID TARGET"
 - test_id: ploy-difference
   query: >
     what is the difference between ploy and firefight ploy?
-  required_chunks:
+  ground_truth_contexts:
     - "PLOYS"
 - test_id: can-the-route-kill-canoptek-warrior
   query: >
     can the route tacop be scored with killing a canoptek warrior?
-  required_chunks:
+  ground_truth_contexts:
     - "MACROCYTE WARRIOR"
     - "Whenever a friendly operative incapacitates an enemy operative, if that friendly operative is within 6"
 - test_id: vantage-usage
   query: >
     Please tell me what rules can we use, when an operatíve in vantage (2"+) shoot his target, and the target is in light cover?
-  required_chunks:
+  ground_truth_contexts:
     - "Vantage terrain is the upper levels of the killzone areas operatives can be placed upon" # Missing
     - "VALID TARGET"
 - test_id: crit-ops-initiative
   query: >
     in the 2025 crit ops, do the player who loses initiative still get 2cp azlt the strategy phase?
-  required_chunks:
+  ground_truth_contexts:
     - "2. READY"
 - test_id: geomancer-geomanic-grot
   query: >
     could a canoptek geomancer use the geomantic disturbance on a barricade which is 7" away from it, behind the barricade is a kommando grot, within 2". Does the kommando grot take damage, if the roll with 2d6 is 10?
-  required_chunks:
+  ground_truth_contexts:
     - "GEOMANTIC DISTURBANCE"
     - "Sneaky Zogger"
 - test_id: geomancer-shoot-grot
   query: >
     Can a Geomancer shoot a kommando grot with conceal order behind a light a barricade?
-  required_chunks:
+  ground_truth_contexts:
     - "Sneaky Zogger"
 - test_id: canoptek-tombcrawler-shoot-grot
   query: >
     does canoptek tomb crawler can shoot kommando grot with conceal order behind a light a barricade?
-  required_chunks:
+  ground_truth_contexts:
     - "CANOPTEK TOMB CRAWLER"
     - "Sneaky Zogger"
 - test_id: how-do-you-climb-barricade
   query: >
     How do you climb over a barricade?
-  required_chunks:
+  ground_truth_contexts:
     - "Climbing"
 - test_id: if-an-operative
   query: >
     if an operative has accurate 1 from two different sources, does that count as accurate 2?
-  required_chunks:
+  ground_truth_contexts:
     - "Accurate x"

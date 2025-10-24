@@ -3,5 +3,5 @@ query: >
   My operative has a blast 2" weapon. Is it possible for it to be closer than 2"
   to its target, but not to be hit by the blast?
 
-required_chunks:
-  - "Blast x"
+ground_truth_contexts:
+  - "The target you select is the primary target. After shooting the primary target, shoot with this weapon against each secondary target in an order of your choice"

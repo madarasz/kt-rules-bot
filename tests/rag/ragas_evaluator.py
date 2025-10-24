@@ -39,8 +39,7 @@ class RagasRAGEvaluator:
         """Evaluate retrieval using Ragas metrics.
 
         Args:
-            test_case: Test case definition with optional ground_truth_contexts
-                      Falls back to required_chunks if ground_truth_contexts not set
+            test_case: Test case definition with ground_truth_contexts
             retrieved_chunks: Chunks retrieved by RAG system (ordered by relevance)
 
         Returns:
@@ -51,8 +50,8 @@ class RagasRAGEvaluator:
             print("Warning: ragas library not installed. Skipping Ragas metrics.")
             return None
 
-        # Get ground truth contexts (falls back to required_chunks)
-        ground_truth_contexts = test_case.get_ground_truth_contexts()
+        # Get ground truth contexts
+        ground_truth_contexts = test_case.ground_truth_contexts
 
         # Extract full text from retrieved chunks
         retrieved_texts = [chunk.text for chunk in retrieved_chunks]
@@ -88,7 +87,7 @@ def add_ragas_metrics_to_result(
     result_dict = {
         "test_id": base_result.test_id,
         "query": base_result.query,
-        "required_chunks": base_result.required_chunks,
+        "ground_truth_contexts": base_result.ground_truth_contexts,
         "retrieved_chunks": base_result.retrieved_chunks,
         "retrieved_chunk_texts": base_result.retrieved_chunk_texts,
         "retrieved_relevance_scores": base_result.retrieved_relevance_scores,

@@ -41,41 +41,41 @@ class RAGEvaluator:
         retrieved_scores = [chunk.relevance_score for chunk in retrieved_chunks]
         retrieved_metadata = [chunk.metadata for chunk in retrieved_chunks]
 
-        # Find which required chunks were found
-        # Use SUBSTRING matching: required chunk text must be CONTAINED in retrieved header (case-insensitive)
+        # Find which ground_truth_contexts were found
+        # Use SUBSTRING matching: ground truth text must be CONTAINED in retrieved header or text (case-insensitive)
         found = []
         missing = []
         ranks_of_required = []
 
-        for req_chunk in test_case.required_chunks:
-            req_lower = req_chunk.strip().lower()
+        for gt_context in test_case.ground_truth_contexts:
+            gt_lower = gt_context.strip().lower()
             found_match = False
 
-            # Check if required chunk is contained in any retrieved header
+            # Check if ground truth is contained in any retrieved header
             for i, retr_header in enumerate(retrieved_headers, start=1):
-                if req_lower in retr_header.strip().lower().replace("*", ""):
-                    found.append(req_chunk)
+                if gt_lower in retr_header.strip().lower().replace("*", ""):
+                    found.append(gt_context)
                     ranks_of_required.append(i)
                     found_match = True
                     break  # Only count first match
             
-            # Check if required chunk is contained in any retrieved text (if not found in header)
+            # Check if ground truth is contained in any retrieved text (if not found in header)
             if not found_match:
                 for i, retr_text in enumerate(retrieved_texts, start=1):
-                    if req_lower in retr_text.strip().lower().replace("*", ""):
-                        found.append(req_chunk)
+                    if gt_lower in retr_text.strip().lower().replace("*", ""):
+                        found.append(gt_context)
                         ranks_of_required.append(i)
                         found_match = True
                         break
 
             if not found_match:
-                missing.append(req_chunk)
+                missing.append(gt_context)
 
         # Calculate metrics
-        map_score = self._calculate_map(ranks_of_required, len(test_case.required_chunks))
-        recall_at_5 = self._calculate_recall_at_k(ranks_of_required, len(test_case.required_chunks), k=5)
-        recall_at_all = self._calculate_recall_at_all(len(found), len(test_case.required_chunks))
-        recall_at_10 = self._calculate_recall_at_k(ranks_of_required, len(test_case.required_chunks), k=10)
+        map_score = self._calculate_map(ranks_of_required, len(test_case.ground_truth_contexts))
+        recall_at_5 = self._calculate_recall_at_k(ranks_of_required, len(test_case.ground_truth_contexts), k=5)
+        recall_at_all = self._calculate_recall_at_all(len(found), len(test_case.ground_truth_contexts))
+        recall_at_10 = self._calculate_recall_at_k(ranks_of_required, len(test_case.ground_truth_contexts), k=10)
         precision_at_3 = self._calculate_precision_at_k(ranks_of_required, k=3)
         precision_at_5 = self._calculate_precision_at_k(ranks_of_required, k=5)
         mrr = self._calculate_mrr(ranks_of_required)
@@ -83,7 +83,7 @@ class RAGEvaluator:
         return RAGTestResult(
             test_id=test_case.test_id,
             query=test_case.query,
-            required_chunks=test_case.required_chunks,
+            ground_truth_contexts=test_case.ground_truth_contexts,
             retrieved_chunks=retrieved_headers,
             retrieved_chunk_texts=retrieved_texts,
             retrieved_relevance_scores=retrieved_scores,
