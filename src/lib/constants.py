@@ -89,6 +89,11 @@ LLM_JUDGE_TIMEOUT = 30  # Quality test judge evaluation timeout
 LLM_DEFAULT_MAX_TOKENS = 1024  # Maximum response length
 LLM_DEFAULT_TEMPERATURE = 0.1  # Lower = more deterministic (0.0-1.0)
 
+# Structured output configuration
+LLM_USE_STRUCTURED_OUTPUT = True  # Enable native JSON output via function calling
+                                   # Currently only supported for OpenAI models (gpt-4.1, gpt-5, etc.)
+                                   # When enabled, uses strict mode function calling for guaranteed schema compliance
+
 # PDF extraction parameters
 LLM_EXTRACTION_MAX_TOKENS = 16000  # Large output for full rulebook sections
 LLM_EXTRACTION_TEMPERATURE = 0  # Low temperature for consistent structure
