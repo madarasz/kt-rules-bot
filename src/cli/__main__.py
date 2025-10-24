@@ -223,7 +223,7 @@ def create_parser() -> argparse.ArgumentParser:
     rag_sweep_parser.add_argument(
         "--param",
         "-p",
-        help="Parameter name to sweep (max_chunks, min_relevance, rrf_k, bm25_k1, bm25_b)",
+        help="Parameter name to sweep (max_chunks, min_relevance, rrf_k, bm25_k1, bm25_b, bm25_weight, embedding_model, chunk_header_level)",
     )
     rag_sweep_parser.add_argument(
         "--values",
@@ -267,6 +267,18 @@ def create_parser() -> argparse.ArgumentParser:
     rag_sweep_parser.add_argument(
         "--bm25-b",
         help="Comma-separated bm25_b values for grid search (e.g., 0.5,0.75,1.0)",
+    )
+    rag_sweep_parser.add_argument(
+        "--bm25-weight",
+        help="Comma-separated bm25_weight values for grid search (e.g., 0.3,0.5,0.7)",
+    )
+    rag_sweep_parser.add_argument(
+        "--embedding-model",
+        help="Comma-separated embedding model values for grid search (e.g., text-embedding-3-small,text-embedding-3-large)",
+    )
+    rag_sweep_parser.add_argument(
+        "--chunk-header-level",
+        help="Comma-separated chunk header level values for grid search (e.g., 2,3,4)",
     )
     rag_sweep_parser.add_argument(
         "--use-ragas",
@@ -384,6 +396,9 @@ def main():
                 rrf_k=args.rrf_k,
                 bm25_k1=args.bm25_k1,
                 bm25_b=args.bm25_b,
+                bm25_weight=args.bm25_weight,
+                embedding_model=args.embedding_model,
+                chunk_header_level=args.chunk_header_level,
                 use_ragas=args.use_ragas,
             )
 

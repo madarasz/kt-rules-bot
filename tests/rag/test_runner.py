@@ -12,7 +12,18 @@ from tests.rag.test_case_models import RAGTestCase, RAGTestResult, RAGTestSummar
 from tests.rag.evaluator import RAGEvaluator
 from tests.rag.ragas_evaluator import RagasRAGEvaluator, add_ragas_metrics_to_result
 from src.services.rag.retriever import RAGRetriever, RetrieveRequest
-from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE, EMBEDDING_MODEL, RRF_K, BM25_K1, BM25_B, BM25_WEIGHT, RAGAS_ENABLED
+from src.services.rag.embeddings import EmbeddingService
+from src.lib.constants import (
+    RAG_MAX_CHUNKS,
+    RAG_MIN_RELEVANCE,
+    EMBEDDING_MODEL,
+    MARKDOWN_CHUNK_HEADER_LEVEL,
+    RRF_K,
+    BM25_K1,
+    BM25_B,
+    BM25_WEIGHT,
+    RAGAS_ENABLED,
+)
 from src.lib.tokens import estimate_embedding_cost
 from src.lib.logging import get_logger
 
@@ -30,6 +41,7 @@ class RAGTestRunner:
         bm25_k1: float = BM25_K1,
         bm25_b: float = BM25_B,
         bm25_weight: float = BM25_WEIGHT,
+        embedding_model: str = EMBEDDING_MODEL,
         use_ragas: bool = RAGAS_ENABLED,
     ):
         """Initialize test runner.
@@ -41,6 +53,7 @@ class RAGTestRunner:
             bm25_k1: BM25 term frequency saturation parameter (default: 1.5)
             bm25_b: BM25 document length normalization parameter (default: 0.75)
             bm25_weight: Weight for BM25 in fusion (default: 0.5, vector gets 1-bm25_weight)
+            embedding_model: Embedding model to use for queries (default: EMBEDDING_MODEL from constants)
             use_ragas: Whether to calculate Ragas metrics (default: RAGAS_ENABLED from constants)
         """
         self.test_cases_dir = test_cases_dir
@@ -49,10 +62,17 @@ class RAGTestRunner:
         self.bm25_k1 = bm25_k1
         self.bm25_b = bm25_b
         self.bm25_weight = bm25_weight
+        self.embedding_model = embedding_model
         self.use_ragas = use_ragas
         self.evaluator = RAGEvaluator()
         self.ragas_evaluator = RagasRAGEvaluator() if use_ragas else None
+
+        # Create embedding service with custom model
+        embedding_service = EmbeddingService(model=embedding_model)
+
+        # Create retriever with custom embedding service
         self.retriever = RAGRetriever(
+            embedding_service=embedding_service,
             rrf_k=rrf_k,
             bm25_k1=bm25_k1,
             bm25_b=bm25_b,
@@ -67,6 +87,7 @@ class RAGTestRunner:
             bm25_k1=bm25_k1,
             bm25_b=bm25_b,
             bm25_weight=bm25_weight,
+            embedding_model=embedding_model,
             use_ragas=use_ragas,
         )
 
@@ -266,6 +287,7 @@ class RAGTestRunner:
                 rag_max_chunks=max_chunks,
                 rag_min_relevance=min_relevance,
                 embedding_model=EMBEDDING_MODEL,
+                chunk_header_level=MARKDOWN_CHUNK_HEADER_LEVEL,
             )
 
         # Group results by test_id to separate test cases
@@ -411,6 +433,7 @@ class RAGTestRunner:
             rag_max_chunks=max_chunks,
             rag_min_relevance=min_relevance,
             embedding_model=EMBEDDING_MODEL,
+            chunk_header_level=MARKDOWN_CHUNK_HEADER_LEVEL,
             rrf_k=self.rrf_k,
             bm25_k1=bm25_k1,
             bm25_b=bm25_b,
