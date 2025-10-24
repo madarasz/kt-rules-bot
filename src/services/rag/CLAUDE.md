@@ -145,7 +145,7 @@ Instead of a single retrieval, multi-hop performs multiple passes:
 From [src/lib/constants.py](../../lib/constants.py):
 ```python
 # Set to 0 to disable, 1+ for number of additional retrieval iterations
-RAG_MAX_HOPS = 0  # Disabled by default
+RAG_MAX_HOPS = 0
 
 # Chunks to retrieve per hop (smaller than RAG_MAX_CHUNKS for efficiency)
 RAG_HOP_CHUNK_LIMIT = 5
