@@ -6,8 +6,11 @@ Based on specs/001-we-are-building/data-model.md
 
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
-from typing import List, Literal
+from typing import TYPE_CHECKING, List, Literal, Optional
 from uuid import UUID, uuid4
+
+if TYPE_CHECKING:
+    from src.models.structured_response import StructuredLLMResponse
 
 
 # LLM Model names (actual model identifiers like "gpt-4.1", "claude-sonnet-4-5-20250929", etc.)
@@ -48,7 +51,7 @@ class BotResponse:
 
     response_id: UUID
     query_id: UUID  # FK to UserQuery
-    answer_text: str
+    answer_text: str  # JSON string if structured, markdown if not
     citations: List[Citation]
     confidence_score: float  # LLM confidence (0-1)
     rag_score: float  # RAG avg relevance (0-1)
@@ -57,6 +60,7 @@ class BotResponse:
     token_count: int
     latency_ms: int
     timestamp: datetime
+    structured_data: Optional["StructuredLLMResponse"] = None  # Parsed JSON response
 
     def validate(self) -> None:
         """Validate BotResponse fields.
@@ -149,12 +153,13 @@ class BotResponse:
         token_count: int,
         latency_ms: int,
         confidence_threshold: float = 0.7,
+        structured_data: Optional["StructuredLLMResponse"] = None,
     ) -> "BotResponse":
         """Create BotResponse with validation.
 
         Args:
             query_id: Reference to UserQuery
-            answer_text: Generated answer
+            answer_text: Generated answer (JSON string if structured, markdown if not)
             citations: Source rule references
             confidence_score: LLM confidence (0-1)
             rag_score: RAG avg relevance (0-1)
@@ -162,6 +167,7 @@ class BotResponse:
             token_count: Total tokens used
             latency_ms: Response time in milliseconds
             confidence_threshold: Minimum LLM confidence for validation
+            structured_data: Parsed structured response (optional)
 
         Returns:
             BotResponse instance
@@ -183,4 +189,5 @@ class BotResponse:
             token_count=token_count,
             latency_ms=latency_ms,
             timestamp=datetime.now(timezone.utc),
+            structured_data=structured_data,
         )

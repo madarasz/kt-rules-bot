@@ -11,8 +11,9 @@ from typing import Literal, get_args
 
 # All available LLM providers (complete list)
 LLM_PROVIDERS_LITERAL = Literal[
-    "claude-sonnet",
-    "claude-opus",
+    "claude-4.5-sonnet",
+    "claude-4.1-opus",
+    "claude-4.5-haiku",
     "gemini-2.5-pro",
     "gemini-2.5-flash",
     "gpt-5",
@@ -56,8 +57,9 @@ PDF_EXTRACTION_PROVIDERS = [
 # Quality test providers (curated list for --all-models testing)
 QUALITY_TEST_PROVIDERS = [
     "gpt-4.1",
-    "dial-gpt-4o",
-    "deepseek-chat",
+    "claude-4.5-haiku",
+    # "gemini-2.5-flash"
+    #"deepseek-chat",
     # "deepseek-reasoner"
     # "dial-gpt-4.1",  # denied WHY??
     # "dial-gpt-5",    # denied
@@ -88,6 +90,7 @@ LLM_JUDGE_TIMEOUT = 30  # Quality test judge evaluation timeout
 # Default LLM generation parameters
 LLM_DEFAULT_MAX_TOKENS = 1024  # Maximum response length
 LLM_DEFAULT_TEMPERATURE = 0.1  # Lower = more deterministic (0.0-1.0)
+
 
 # PDF extraction parameters
 LLM_EXTRACTION_MAX_TOKENS = 16000  # Large output for full rulebook sections

@@ -27,8 +27,10 @@ from src.services.llm.base import (
     ContentFilterError,
     PDFParseError,
     TokenLimitError,
+    STRUCTURED_OUTPUT_SCHEMA,
 )
 from src.lib.logging import get_logger
+import json
 
 logger = get_logger(__name__)
 
@@ -83,7 +85,7 @@ class DeepSeekAdapter(LLMProvider):
         token_limit = request.config.max_tokens * 3 if self.model == "deepseek-reasoner" else request.config.max_tokens
 
         try:
-            # Build API call parameters
+            # Build API call parameters with structured output (DeepSeek supports OpenAI-compatible function calling)
             api_params = {
                 "model": self.model,
                 "messages": [
@@ -92,6 +94,18 @@ class DeepSeekAdapter(LLMProvider):
                 ],
                 "max_tokens": token_limit,
                 "temperature": request.config.temperature,
+                "tools": [{
+                    "type": "function",
+                    "function": {
+                        "name": "format_kill_team_answer",
+                        "description": "Format Kill Team rules answer with quotes and explanation",
+                        "parameters": STRUCTURED_OUTPUT_SCHEMA,
+                    }
+                }],
+                "tool_choice": {
+                    "type": "function",
+                    "function": {"name": "format_kill_team_answer"}
+                },
             }
 
             # Call DeepSeek API with timeout
@@ -102,9 +116,8 @@ class DeepSeekAdapter(LLMProvider):
 
             latency_ms = int((time.time() - start_time) * 1000)
 
-            # Extract answer text
+            # Extract structured JSON from tool calls
             choice = response.choices[0]
-            answer_text = choice.message.content
 
             # For deepseek-reasoner, also extract reasoning content if available
             reasoning_content = None
@@ -113,9 +126,9 @@ class DeepSeekAdapter(LLMProvider):
                 if reasoning_content:
                     logger.debug(f"DeepSeek reasoning chain-of-thought: {reasoning_content[:200]}...")
 
-            # Check for empty content
-            if not answer_text:
-                logger.warning(f"DeepSeek returned empty content. Finish reason: {choice.finish_reason}")
+            # Check for tool calls (structured output)
+            if not choice.message.tool_calls:
+                logger.warning(f"DeepSeek returned no tool calls. Finish reason: {choice.finish_reason}")
                 # Check if there's a refusal
                 refusal = getattr(choice.message, 'refusal', None)
                 if refusal:
@@ -123,13 +136,26 @@ class DeepSeekAdapter(LLMProvider):
                 elif choice.finish_reason == 'length':
                     raise TokenLimitError("DeepSeek output was truncated due to max_tokens limit")
                 else:
-                    raise Exception(f"DeepSeek returned empty content with finish_reason: {choice.finish_reason}")
+                    raise Exception(f"Expected structured output via tool calls but none returned (finish_reason: {choice.finish_reason})")
 
-            # Check if citations are included
-            citations_included = (
-                request.config.include_citations
-                and "According to" in answer_text
-            )
+            # Extract JSON from tool call
+            tool_call = choice.message.tool_calls[0]
+            function_args = tool_call.function.arguments
+
+            if not function_args:
+                raise Exception("DeepSeek tool call has empty arguments")
+
+            # Parse and validate JSON
+            try:
+                json.loads(function_args)  # Validate JSON is parseable
+                answer_text = function_args  # JSON string
+                logger.debug(f"Extracted structured JSON from DeepSeek tool call: {len(answer_text)} chars")
+            except json.JSONDecodeError as e:
+                logger.error(f"DeepSeek returned invalid JSON in tool call: {e}")
+                raise ValueError(f"DeepSeek returned invalid JSON: {e}")
+
+            # Check if citations are included (always true for structured output with quotes)
+            citations_included = request.config.include_citations
 
             # Calculate confidence (DeepSeek doesn't provide logprobs, use default)
             # Reasoning models get slightly higher confidence due to chain-of-thought

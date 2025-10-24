@@ -27,6 +27,7 @@ from src.services.llm.base import (
     ContentFilterError,
     PDFParseError,
     TokenLimitError,
+    STRUCTURED_OUTPUT_SCHEMA,
 )
 from src.lib.logging import get_logger
 
@@ -88,6 +89,23 @@ class ChatGPTAdapter(LLMProvider):
                 ],
             }
 
+            # Always use structured output via function calling
+            api_params["tools"] = [{
+                "type": "function",
+                "function": {
+                    "name": "format_kill_team_answer",
+                    "description": "Format Kill Team rules answer with quotes and explanation",
+                    "parameters": STRUCTURED_OUTPUT_SCHEMA,
+                    "strict": True  # Enforces 100% schema compliance
+                }
+            }]
+            api_params["tool_choice"] = {
+                "type": "function",
+                "function": {"name": "format_kill_team_answer"}
+            }
+            api_params["parallel_tool_calls"] = False  # Required for strict mode
+            logger.debug("Using structured output with strict mode")
+
             # GPT-5 uses max_completion_tokens (includes both reasoning and visible output tokens)
             # Other models use max_tokens
             if self.uses_completion_tokens:
@@ -106,10 +124,8 @@ class ChatGPTAdapter(LLMProvider):
             if self.supports_temperature:
                 api_params["temperature"] = request.config.temperature
 
-            # Only request logprobs if model supports it
-            if self.supports_logprobs:
-                api_params["logprobs"] = True
-                api_params["top_logprobs"] = 5
+            # Note: Logprobs not available with tool use (structured output)
+            # Skipping logprobs since we always use structured output
 
             # Call OpenAI API with timeout
             response = await asyncio.wait_for(
@@ -119,24 +135,19 @@ class ChatGPTAdapter(LLMProvider):
 
             latency_ms = int((time.time() - start_time) * 1000)
 
-            # Extract answer text
+            # Extract answer text from function calling
             choice = response.choices[0]
-            answer_text = choice.message.content
 
-            # Debug logging for GPT-5 issues
-            logger.debug(f"GPT response - finish_reason: {choice.finish_reason}, content_length: {len(answer_text) if answer_text else 0}")
+            if not choice.message.tool_calls:
+                raise Exception("Expected structured output via tool calls but none returned")
 
-            # GPT-5 sometimes returns None or empty content - check for refusal or other issues
-            if not answer_text:
-                logger.warning(f"GPT returned empty content. Finish reason: {choice.finish_reason}, Refusal: {getattr(choice.message, 'refusal', None)}")
-                # Check if there's a refusal
-                refusal = getattr(choice.message, 'refusal', None)
-                if refusal:
-                    raise ContentFilterError(f"GPT refused to respond: {refusal}")
-                elif choice.finish_reason == 'length':
-                    raise TokenLimitError("GPT output was truncated due to max_completion_tokens limit")
-                else:
-                    raise Exception(f"GPT returned empty content with finish_reason: {choice.finish_reason}")
+            tool_call = choice.message.tool_calls[0]
+            answer_text = tool_call.function.arguments  # JSON string
+            logger.debug(f"Extracted structured JSON output: {len(answer_text)} chars")
+
+            # Validate it's not empty
+            if not answer_text or not answer_text.strip():
+                raise Exception("GPT returned empty JSON in tool call")
 
             # Check if citations are included
             citations_included = (

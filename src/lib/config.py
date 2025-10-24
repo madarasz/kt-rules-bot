@@ -29,7 +29,7 @@ class Config:
     deepseek_api_key: Optional[str] = None
 
     # LLM Selection
-    default_llm_provider: LLM_PROVIDERS_LITERAL = os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER) 
+    default_llm_provider: LLM_PROVIDERS_LITERAL = os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER)
 
     # RAG Configuration
     vector_db_path: str = "./data/chroma_db"
@@ -80,8 +80,9 @@ class Config:
 
         # Validate default provider has API key
         provider_key_mapping = {
-            "claude-sonnet": self.anthropic_api_key,
-            "claude-opus": self.anthropic_api_key,
+            "claude-4.5-sonnet": self.anthropic_api_key,
+            "claude-4.1-opus": self.anthropic_api_key,
+            "claude-4.5-haiku": self.anthropic_api_key,
             "gemini-2.5-pro": self.google_api_key,
             "gemini-2.5-flash": self.google_api_key,
             "gpt-5": self.openai_api_key,

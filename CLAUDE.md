@@ -47,7 +47,7 @@ streamlit run src/cli/admin_dashboard.py --server.port 8501
 - 1300+ game-specific keywords auto-extracted from rules
 
 **LLM Providers** (via factory pattern):
-- Claude: `claude-sonnet` (default), `claude-opus`
+- Claude: `claude-4.5-sonnet`, `claude-4.1-opus`, `claude-4.5-haiku`
 - Gemini: `gemini-2.5-pro`, `gemini-2.5-flash`
 - GPT: `gpt-5`, `gpt-4.1`, `gpt-4o`, `o3`, `o4-mini` + variants
 - Grok: `grok-4-fast-reasoning`, `grok-3` + variants

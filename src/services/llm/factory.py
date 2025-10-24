@@ -22,8 +22,9 @@ class LLMProviderFactory:
 
     # Model name to (adapter_class, actual_model_id, api_key_type) mapping
     _model_registry = {
-        "claude-sonnet": (ClaudeAdapter, "claude-sonnet-4-5-20250929", "anthropic"),
-        "claude-opus": (ClaudeAdapter, "claude-opus-4-1-20250805", "anthropic"),
+        "claude-4.5-sonnet": (ClaudeAdapter, "claude-sonnet-4-5-20250929", "anthropic"),
+        "claude-4.1-opus": (ClaudeAdapter, "claude-opus-4-1-20250805", "anthropic"),
+        "claude-4.5-haiku": (ClaudeAdapter, "claude-haiku-4-5-20251001", "anthropic"),
         "gemini-2.5-pro": (GeminiAdapter, "gemini-2.5-pro", "google"),
         "gemini-2.5-flash": (GeminiAdapter, "gemini-2.5-flash", "google"),
         "gpt-5": (ChatGPTAdapter, "gpt-5", "openai"),
