@@ -21,6 +21,7 @@ from src.lib.constants import (
     MAX_CHUNK_LENGTH_FOR_EVALUATION
 )
 from src.lib.logging import get_logger
+from src.lib.tokens import estimate_cost
 
 logger = get_logger(__name__)
 
@@ -33,10 +34,12 @@ class HopEvaluation:
         can_answer: bool,
         reasoning: str,
         missing_query: Optional[str] = None,
+        cost_usd: float = 0.0,
     ):
         self.can_answer = can_answer
         self.reasoning = reasoning
         self.missing_query = missing_query
+        self.cost_usd = cost_usd
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for database storage."""
@@ -44,6 +47,7 @@ class HopEvaluation:
             "can_answer": self.can_answer,
             "reasoning": self.reasoning,
             "missing_query": self.missing_query,
+            "cost_usd": self.cost_usd,
         }
 
 
@@ -306,10 +310,25 @@ class MultiHopRetriever:
             if "can_answer" not in data or "reasoning" not in data:
                 raise ValueError(f"Missing required fields in response: {data}")
 
+            # Calculate cost based on token usage from response
+            cost_usd = estimate_cost(
+                prompt_tokens=int(response.token_count * 0.7),  # Estimate 70% prompt
+                completion_tokens=int(response.token_count * 0.3),  # Estimate 30% completion
+                model=RAG_HOP_EVALUATION_MODEL
+            )
+            
+            logger.debug(
+                "hop_evaluation_cost",
+                tokens=response.token_count,
+                cost_usd=cost_usd,
+                model=RAG_HOP_EVALUATION_MODEL
+            )
+
             return HopEvaluation(
                 can_answer=data["can_answer"],
                 reasoning=data["reasoning"],
                 missing_query=data.get("missing_query"),
+                cost_usd=cost_usd,
             )
 
         except json.JSONDecodeError as e:

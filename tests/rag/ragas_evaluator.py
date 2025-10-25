@@ -12,7 +12,7 @@ from src.lib.ragas_adapter import (
     RagasRetrievalMetrics,
     is_ragas_available,
 )
-from src.lib.constants import RAGAS_JUDGE_MODEL
+from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
 
 
 class RagasRAGEvaluator:
@@ -26,10 +26,10 @@ class RagasRAGEvaluator:
         """Initialize the Ragas evaluator.
 
         Args:
-            judge_model: Optional LLM model for Ragas evaluation (default: RAGAS_JUDGE_MODEL)
+            judge_model: Optional LLM model for Ragas evaluation (default: QUALITY_TEST_JUDGE_MODEL)
                         Note: Not used for substring matching, but available for future extensions
         """
-        self.judge_model = judge_model or RAGAS_JUDGE_MODEL
+        self.judge_model = judge_model or QUALITY_TEST_JUDGE_MODEL
 
     def evaluate(
         self,

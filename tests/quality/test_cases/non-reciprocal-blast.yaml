@@ -2,29 +2,11 @@ test_id: non-reciprocal-blast
 query: >
   My operative has a blast 2" weapon. Is it possible for it to be closer than 2"
   to its target, but not to be hit by the blast?
+ground_truth_answers:
+  - Yes, your operative with the blast weapon can avoid being hit by the blast.
+  - Not being visible to the primary target allows your operative to avoid being hit by the blast.
+  - Your operative is the shooter, the target within 2" is the primary target, and other operatives visible within 2" of the primary target are secondary targets.
+ground_truth_contexts:
+  # Blast rule
+  - Secondary targets are other operatives visible to and within x of the primary target
 
-requirements:
-  # Relevant rules are quoted
-  - check: Quote blast rule
-    type: contains
-    description: >
-      Secondary targets are other operatives visible to and within x of the primary target
-    points: 5
-
-  # Correct reasoning
-  - check: Correct final answer
-    type: llm
-    description: The final answer is that your operative can avoid being hit by the blast.
-    points: 10
-  - check: Correct identification of roles
-    type: llm
-    description: >
-      My operative with the blast weapon is the shooter, the target within 2" is the primary target,
-      and other operatives visible within 2" of the primary target are secondary targets. My operative
-      is trying to avoid being a secondary target.
-    points: 10
-  - check: Reasoning clarity
-    type: llm
-    description: >
-      The explanation states that not being visible to primary target allows my operative to avoid being hit by the blast.
-    points: 10
