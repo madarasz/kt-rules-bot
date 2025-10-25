@@ -1,23 +1,9 @@
 test_id: multiple-shot-by-guard
 query: >
   Can a dude get guard shot more than once during an activation?
-
-requirements:
-  # Relevant rules are quoted
-  - check: Quote On Guard rule
-    type: contains
-    description: >
-      Once during each enemy operative's activation, after that enemy operative performs an action,
-      you can interrupt that activation and select one friendly operative on guard
-    points: 5
-
-  - check: Correct final answer
-    type: llm
-    description: The final answer is that no, it cannot get shot more than once.
-    points: 10
-  - check: Reasoning clarity
-    type: llm
-    description: > 
-      The reasoning is clear and easy to follow. It states the guard interrupt can only happen once
-      per activation.
-    points: 10
+ground_truth_answers: 
+  - No, it can not get shot more than once during an activation.
+  - The On Guard rule states that once during each enemy operative's activation, you can perform a shoot or fight action.
+ground_truth_contexts:
+  # On Guard rule
+  - Once during each enemy operative's activation, after that enemy operative performs an action, you can interrupt that activation and select one friendly operative on guard to perform the Shoot or Fight action

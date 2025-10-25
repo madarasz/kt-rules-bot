@@ -101,7 +101,7 @@ LLM_EXTRACTION_TEMPERATURE = 0  # Low temperature for consistent structure
 # ============================================================================
 
 # Default judge model for quality tests
-QUALITY_TEST_JUDGE_MODEL = "gpt-4.1-mini"
+QUALITY_TEST_JUDGE_MODEL = "gpt-4o"  # Ragas judge model for generation tests
 
 # Judge evaluation parameters
 QUALITY_TEST_JUDGE_MAX_TOKENS = 150  # Short evaluation responses
@@ -189,23 +189,6 @@ RAG_ENABLE_QUERY_EXPANSION = True
 
 # Path to synonym dictionary mapping user terms to official terminology
 RAG_SYNONYM_DICT_PATH = "data/rag_synonyms.json"
-
-# ============================================================================
-# Ragas Evaluation Framework Constants
-# ============================================================================
-
-# Model used for Ragas internal LLM-based evaluation (context precision, faithfulness, etc.)
-# Note: For retrieval tests with substring matching, this is not used
-# For generation tests, this model acts as the "judge" for faithfulness and relevancy
-RAGAS_JUDGE_MODEL = "gpt-4o"
-
-# Ragas retrieval metrics to calculate (used in RAG tests)
-# Available: context_precision, context_recall, context_entities_recall, noise_sensitivity
-RAGAS_METRICS_RETRIEVAL = ["context_precision", "context_recall"]
-
-# Ragas generation metrics to calculate (used in Quality tests)
-# Available: faithfulness, answer_relevancy, response_groundedness
-RAGAS_METRICS_GENERATION = ["faithfulness", "answer_relevancy"]
 
 # ============================================================================
 # Multi-Hop RAG Constants

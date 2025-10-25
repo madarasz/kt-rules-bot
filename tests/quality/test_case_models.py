@@ -1,26 +1,20 @@
 """Data models for quality test case definitions."""
 
 from dataclasses import dataclass
-from typing import Literal, List
-
-RequirementType = Literal["contains", "llm"]
-
-@dataclass
-class TestRequirement:
-    """Single requirement for a quality test."""
-    type: RequirementType
-    description: str
-    points: int
-    check: str = ""
+from typing import List, Optional
 
 @dataclass
 class TestCase:
-    """Quality test case descriptor."""
+    """Quality test case descriptor with ground truth for Ragas evaluation."""
     test_id: str
     query: str
-    requirements: List[TestRequirement]
+    ground_truth_answers: List[str]
+    ground_truth_contexts: List[str]
+    
+    # Legacy support - optional for backward compatibility during migration
+    requirements: Optional[List] = None
 
     @property
     def max_score(self) -> int:
-        """Calculate maximum possible score for this test."""
-        return sum(req.points for req in self.requirements)
+        """Legacy compatibility - returns fixed score for Ragas metrics."""
+        return 100  # Ragas metrics are percentages (0-1 scaled to 0-100)

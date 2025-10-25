@@ -1,32 +1,15 @@
 test_id: eliminator-concealed-counteract
 query: >
   Can the Eliminator Sniper shoot during counteract while having Conceal order?
-
-requirements:
-  # Relevant rules are quoted
-  - check: Quote Astartes rule
-    type: contains
-    description: >
-      Each friendly ANGEL OF DEATH operative can counteract regardless of its order
-    points: 5
-  - check: Quote Silent weapon rule
-    type: contains
-    description: >
-      An operative can perform the Shoot action with this weapon while it has a Conceal order.
-    points: 5
-  - check: Quote Conceal rule
-    type: contains
-    description: >
-      Conceal: The operative cannot perform Shoot and Charge actions, and it cannot counteract.
-    points: 1
-
-  - check: Correct final answer
-    type: llm
-    description: The final answer is yes.
-    points: 10
-  - check: Reasoning clarity
-    type: llm
-    description: > 
-      The reasoning is clear and easy to follow. It states Eliminator Sniper has Silent weapons.
-      It also states that Astartes can counteract regardless of order.
-    points: 10
+ground_truth_answers: 
+  - Yes, the Eliminator Sniper can shoot during counteract while having a Conceal order.
+  - The Eliminator Sniper's weapon, the Bolt Sniper Rifle, has the Silent weapon rule. 
+  - The Silent weapon rule allows an operative to perform the Shoot action with this weapon even while it has a Conceal order. 
+  - The Astartes rule allows him to counteract regardless of its order.
+ground_truth_contexts:
+  # Astartes rule
+  - Each friendly ANGEL OF DEATH operative can counteract regardless of its order.
+  # Silent weapon rule
+  - An operative can perform the Shoot action with this weapon while it has a Conceal order.
+  # Conceal rule
+  - "Conceal: The operative cannot perform Shoot and Charge actions, and it cannot counteract."

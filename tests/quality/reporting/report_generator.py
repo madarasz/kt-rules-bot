@@ -185,7 +185,7 @@ class ReportGenerator:
             avg_score = np.mean([r.score_percentage for r in test_case_report.results])
             std_dev_score = np.std([r.score_percentage for r in test_case_report.results])
             avg_time = np.mean([r.generation_time_seconds for r in test_case_report.results])
-            avg_cost = np.mean([r.cost_usd for r in test_case_report.results])
+            avg_cost = np.mean([r.total_cost_usd for r in test_case_report.results])
             row = [
                 test_id,
                 f"{avg_score:.1f}% (±{std_dev_score:.1f})",
@@ -243,17 +243,80 @@ class ReportGenerator:
                     # Use bullet points for metrics
                     content.append(f"- **Status:** {status_emoji} {status_text}")
                     content.append(f"- **Score:** {result.score}/{result.max_score} ({result.score_percentage:.1f}%)")
+                    
+                    # Display Ragas metrics if available
+                    if result.ragas_metrics_available:
+                        content.append(f"\n**Ragas Metrics:**")
+                        
+                        # Quote Precision
+                        if result.quote_precision is not None:
+                            content.append(f"- **Quote Precision:** {result.quote_precision:.3f}")
+                            if result.quote_precision_feedback:
+                                # Indent feedback for better readability
+                                feedback_lines = result.quote_precision_feedback.split('\n')
+                                for line in feedback_lines:
+                                    if line.strip():
+                                        content.append(f"  {line}")
+                        
+                        # Quote Recall
+                        if result.quote_recall is not None:
+                            content.append(f"- **Quote Recall:** {result.quote_recall:.3f}")
+                            if result.quote_recall_feedback:
+                                feedback_lines = result.quote_recall_feedback.split('\n')
+                                for line in feedback_lines:
+                                    if line.strip():
+                                        content.append(f"  {line}")
+                        
+                        # Quote Faithfulness
+                        if result.quote_faithfulness is not None:
+                            content.append(f"- **Quote Faithfulness:** {result.quote_faithfulness:.3f}")
+                            if result.quote_faithfulness_feedback:
+                                feedback_lines = result.quote_faithfulness_feedback.split('\n')
+                                for line in feedback_lines:
+                                    if line.strip():
+                                        content.append(f"  {line}")
+                        
+                        # Explanation Faithfulness
+                        if result.explanation_faithfulness is not None:
+                            content.append(f"- **Explanation Faithfulness:** {result.explanation_faithfulness:.3f}")
+                            if result.explanation_faithfulness_feedback:
+                                feedback_lines = result.explanation_faithfulness_feedback.split('\n')
+                                for line in feedback_lines:
+                                    if line.strip():
+                                        content.append(f"  {line}")
+                        
+                        # Answer Correctness
+                        if result.answer_correctness is not None:
+                            content.append(f"- **Answer Correctness:** {result.answer_correctness:.3f}")
+                            if result.answer_correctness_feedback:
+                                feedback_lines = result.answer_correctness_feedback.split('\n')
+                                for line in feedback_lines:
+                                    if line.strip():
+                                        content.append(f"  {line}")
+                        
+                        if result.ragas_error:
+                            content.append(f"- **Ragas Error:** {result.ragas_error}")
+                        content.append("")  # Blank line after metrics
+                    
                     content.append(f"- **Tokens:** {result.tokens}")
-                    content.append(f"- **Cost:** ${result.cost_usd:.4f}")
+                    content.append(f"- **Cost:** ${result.total_cost_usd:.4f}")
+                    if result.multi_hop_cost_usd > 0 or result.ragas_cost_usd > 0 or result.embedding_cost_usd > 0:
+                        content.append(f"  - Main LLM: ${result.cost_usd:.4f}")
+                        if result.multi_hop_cost_usd > 0:
+                            content.append(f"  - Multi-hop: ${result.multi_hop_cost_usd:.4f}")
+                        if result.ragas_cost_usd > 0:
+                            content.append(f"  - Ragas: ${result.ragas_cost_usd:.4f}")
+                        if result.embedding_cost_usd > 0:
+                            content.append(f"  - Embeddings: ${result.embedding_cost_usd:.4f}")
                     content.append(f"- **Generation Time:** {result.generation_time_seconds:.2f}s")
                     content.append(f"- **Output File:** [{result.output_filename}](./{result.output_filename})")
                     
                     if result.error:
                         content.append(f"- **Error:** {result.error}")
                     
-                    # Requirements per model per run
+                    # Legacy requirements (for backward compatibility during migration)
                     if result.requirements:
-                        content.append(f"\n**Requirements:**")
+                        content.append(f"\n**Requirements (Legacy):**")
                         for req in result.requirements:
                             # Build requirement line
                             req_line = f"- {req.emoji} **{req.title}** ({req.type}): {req.achieved_score}/{req.max_score} points - {req.description}"
@@ -287,16 +350,44 @@ class ReportGenerator:
         
         content.append(f"**Score:** {result.score}/{result.max_score} ({result.score_percentage:.1f}%)")
         
+        # Display Ragas metrics if available
+        if result.ragas_metrics_available:
+            content.append(f"\n**Ragas Metrics:**")
+            if result.quote_precision is not None:
+                content.append(f"- Quote Precision: {result.quote_precision:.3f}")
+            if result.quote_recall is not None:
+                content.append(f"- Quote Recall: {result.quote_recall:.3f}")
+            if result.quote_faithfulness is not None:
+                content.append(f"- Quote Faithfulness: {result.quote_faithfulness:.3f}")
+            if result.explanation_faithfulness is not None:
+                content.append(f"- Explanation Faithfulness: {result.explanation_faithfulness:.3f}")
+            if result.answer_correctness is not None:
+                content.append(f"- Answer Correctness: {result.answer_correctness:.3f}")
+            if result.ragas_error:
+                content.append(f"- Ragas Error: {result.ragas_error}")
+            content.append("")  # Blank line
+        
         if result.error:
             content.append(f"\n**Error:**\n{result.error}")
         
         content.append(f"**Tokens:** {result.tokens}")
-        content.append(f"**Cost:** ${result.cost_usd:.4f}")
-        content.append(f"**Generation Time:** {result.generation_time_seconds:.2f}s")
         
-        # Add requirements check
+        # Comprehensive cost breakdown
+        content.append(f"\n**Cost Breakdown:**")
+        content.append(f"- Main LLM: ${result.cost_usd:.4f}")
+        if result.multi_hop_cost_usd > 0:
+            content.append(f"- Multi-hop evaluation: ${result.multi_hop_cost_usd:.4f}")
+        if result.ragas_cost_usd > 0:
+            content.append(f"- Ragas evaluation: ${result.ragas_cost_usd:.4f}")
+        if result.embedding_cost_usd > 0:
+            content.append(f"- Embeddings: ${result.embedding_cost_usd:.4f}")
+        content.append(f"- **Total: ${result.total_cost_usd:.4f}**")
+        
+        content.append(f"\n**Generation Time:** {result.generation_time_seconds:.2f}s")
+        
+        # Legacy requirements (for backward compatibility)
         if result.requirements:
-            content.append("\n**Requirements:**")
+            content.append("\n**Requirements (Legacy):**")
             for req in result.requirements:
                 content.append(f"- {req.emoji} {req.title}: {req.description}")
         
@@ -332,6 +423,34 @@ class ReportGenerator:
             avg_quotes = np.mean([r.structured_quotes_count for r in json_results])
             content.append(f"Avg quotes per JSON response: {avg_quotes:.1f}")
 
+        # Display average Ragas metrics if available
+        results_with_ragas = [r for r in self.report.results if r.ragas_metrics_available]
+        if results_with_ragas:
+            content.append("")
+            content.append("Average Ragas Metrics:")
+            
+            quote_precision_vals = [r.quote_precision for r in results_with_ragas if r.quote_precision is not None]
+            if quote_precision_vals:
+                content.append(f"  Quote Precision: {np.mean(quote_precision_vals):.3f}")
+            
+            quote_recall_vals = [r.quote_recall for r in results_with_ragas if r.quote_recall is not None]
+            if quote_recall_vals:
+                content.append(f"  Quote Recall: {np.mean(quote_recall_vals):.3f}")
+            
+            quote_faithfulness_vals = [r.quote_faithfulness for r in results_with_ragas if r.quote_faithfulness is not None]
+            if quote_faithfulness_vals:
+                content.append(f"  Quote Faithfulness: {np.mean(quote_faithfulness_vals):.3f}")
+            
+            explanation_faithfulness_vals = [r.explanation_faithfulness for r in results_with_ragas if r.explanation_faithfulness is not None]
+            if explanation_faithfulness_vals:
+                content.append(f"  Explanation Faithfulness: {np.mean(explanation_faithfulness_vals):.3f}")
+            
+            answer_correctness_vals = [r.answer_correctness for r in results_with_ragas if r.answer_correctness is not None]
+            if answer_correctness_vals:
+                content.append(f"  Answer Correctness: {np.mean(answer_correctness_vals):.3f}")
+            
+            content.append("")
+
         if self.report.is_multi_model or self.report.is_multi_run:
             avg_score = np.mean([r.score_percentage for r in self.report.results])
             content.append(f"Average score: {avg_score:.1f}%")
@@ -365,7 +484,7 @@ class ReportGenerator:
                 content.append(
                     f"{result.status_emoji} {result.test_id} [{result.model}]: "
                     f"{result.score}/{result.max_score} "
-                    f"({result.generation_time_seconds:.2f}s, ${result.cost_usd:.4f})"
+                    f"({result.generation_time_seconds:.2f}s, ${result.total_cost_usd:.4f})"
                 )
         
         main_report_path = os.path.join(self.report_dir, "report.md")
