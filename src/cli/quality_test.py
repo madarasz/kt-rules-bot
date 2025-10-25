@@ -86,7 +86,7 @@ def quality_test(
         )
 
         total_time = time.time() - start_time
-        total_cost = sum(r.cost_usd for r in results)
+        total_cost = sum(r.total_cost_usd for r in results)
 
         # Create the main report object
         report = QualityReport(
