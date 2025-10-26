@@ -6,20 +6,14 @@ It converts our data formats to Ragas format and provides helper functions for m
 
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
-
-try:
-    from ragas import evaluate
-    from ragas.metrics import (
-        context_precision,
-        context_recall,
-        faithfulness,
-        answer_relevancy,
-    )
-    from datasets import Dataset
-    RAGAS_AVAILABLE = True
-except ImportError:
-    RAGAS_AVAILABLE = False
-
+from ragas import evaluate
+from ragas.metrics import (
+    context_precision,
+    context_recall,
+    faithfulness,
+    answer_relevancy,
+)
+from datasets import Dataset
 
 @dataclass
 class RagasRetrievalMetrics:
@@ -36,21 +30,9 @@ class RagasGenerationMetrics:
     faithfulness: Optional[float] = None
     answer_relevancy: Optional[float] = None
 
-
-def is_ragas_available() -> bool:
-    """Check if Ragas library is available.
-
-    Returns:
-        True if ragas is installed, False otherwise
-    """
-    return RAGAS_AVAILABLE
-
-
 def evaluate_retrieval(
-    query: str,
     retrieved_contexts: List[str],
-    ground_truth_contexts: List[str],
-    judge_model: Optional[str] = None,
+    ground_truth_contexts: List[str]
 ) -> RagasRetrievalMetrics:
     """Evaluate retrieval quality using Ragas metrics.
 
@@ -66,15 +48,7 @@ def evaluate_retrieval(
 
     Returns:
         RagasRetrievalMetrics with context_precision and context_recall
-
-    Raises:
-        ImportError: If ragas is not installed
     """
-    if not RAGAS_AVAILABLE:
-        raise ImportError(
-            "ragas library is not installed. "
-            "Install it with: pip install ragas>=0.1.0"
-        )
 
     # Calculate custom substring-based context recall
     # Recall = (number of ground truth substrings found) / (total ground truth substrings)
@@ -142,14 +116,8 @@ def evaluate_generation(
         RagasGenerationMetrics with faithfulness and answer_relevancy
 
     Raises:
-        ImportError: If ragas is not installed
         ValueError: If Ragas evaluation fails
     """
-    if not RAGAS_AVAILABLE:
-        raise ImportError(
-            "ragas library is not installed. "
-            "Install it with: pip install ragas>=0.1.0"
-        )
 
     # Prepare dataset for Ragas
     data = {
