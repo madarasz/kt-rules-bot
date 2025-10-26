@@ -8,13 +8,13 @@ Evaluates RAG responses using Ragas metrics:
 - Answer Correctness: Validates short_answer+explanation against ground_truth_answers
 """
 
-from typing import List, Dict, Optional
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from typing import List, Optional
 from dataclasses import dataclass
 
 from ragas import evaluate
 from ragas.metrics import (
-    context_precision,
-    context_recall,
     faithfulness,
     answer_correctness,
 )
@@ -24,8 +24,52 @@ from src.models.structured_response import StructuredLLMResponse
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost
 from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
+from src.lib.ragas_adapter import evaluate_retrieval
 
 logger = get_logger(__name__)
+
+
+def _run_ragas_evaluate_sync(dataset, metrics):
+    """Run Ragas evaluate synchronously in a separate thread.
+
+    This function is designed to be called from a thread pool executor
+    to avoid event loop conflicts when running Ragas evaluations in parallel.
+    Ragas uses async HTTP clients internally, which can cause event loop
+    lifecycle issues when called from an existing async context.
+
+    Args:
+        dataset: Ragas Dataset object
+        metrics: List of Ragas metrics to evaluate
+
+    Returns:
+        EvaluationResult from Ragas
+    """
+    import warnings
+    import asyncio
+
+    # Suppress ResourceWarnings related to unclosed resources
+    # Ragas creates async HTTP clients that may not close cleanly in threads
+    warnings.filterwarnings('ignore', category=ResourceWarning)
+
+    # Get or create a new event loop for this thread
+    # This ensures proper cleanup of async resources
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    try:
+        result = evaluate(dataset, metrics=metrics)
+        return result
+    finally:
+        # Don't close the loop here - let Python handle cleanup
+        # Closing it explicitly can cause "Event loop is closed" errors
+        # when async clients try to cleanup in __del__
+        pass
 
 
 @dataclass
@@ -93,9 +137,13 @@ class RagasEvaluator:
             normalized_ground_truth_contexts = [self._normalize_text(gt) for gt in ground_truth_contexts]
             normalized_ground_truth_answers = [self._normalize_text(gt) for gt in ground_truth_answers]
             
-            # For Quote Precision and Quote Recall (context_precision and context_recall in Ragas):
+            # For Quote Precision and Quote Recall:
+            # Use evaluate_retrieval from ragas_adapter (substring matching approach)
             # Compare quotes.text (what was cited) against ground_truth_contexts (what should be cited)
-            # Ragas will compare the "contexts" field against "ground_truth"
+            retrieval_metrics = evaluate_retrieval(
+                retrieved_contexts=quotes_text,
+                ground_truth_contexts=normalized_ground_truth_contexts
+            )
             
             # For Quote Faithfulness:
             # Compare quotes.text (what was cited) with context_chunks (what RAG retrieved)
@@ -110,27 +158,13 @@ class RagasEvaluator:
             # Compare answer_text (short_answer + explanation) with ground_truth_answers
             
             # Prepare datasets for Ragas
-            # Dataset 1: For Quote Precision, Quote Recall, Quote Faithfulness
-            # - Quote Precision/Recall: Compare quotes_text (contexts field) vs ground_truth_contexts (ground_truth field)
-            # - Quote Faithfulness: Compare quotes_combined (answer field) vs context_chunks (contexts field)
-            # NOTE: We run this twice with different contexts field to measure both
-            
-            # First pass: Quote Precision and Recall
-            # contexts = quotes_text (what was cited), ground_truth = ground_truth_contexts (what should be cited)
-            data_quote_precision_recall = {
-                "question": [query],
-                "answer": [quotes_combined],  # Not used for precision/recall
-                "contexts": [quotes_text] if quotes_text else [[]],  # What was cited (normalized)
-                "ground_truth": [self._combine_ground_truths(normalized_ground_truth_contexts)],  # What should be cited (normalized)
-            }
-            
-            # Second pass: Quote Faithfulness
+            # Dataset 1: Quote Faithfulness
             # contexts = context_chunks (what RAG retrieved), answer = quotes_combined (what was cited)
             data_quote_faithfulness = {
                 "question": [query],
                 "answer": [quotes_combined],  # What was cited (normalized)
                 "contexts": [context_chunks],  # What RAG retrieved (not normalized - keep original for RAG faithfulness check)
-                "ground_truth": [self._combine_ground_truths(normalized_ground_truth_contexts)],  # Not used for faithfulness
+                "ground_truth": [" ".join(normalized_ground_truth_contexts)],  # Not used for faithfulness
             }
             
             # Dataset 2: For Explanation Faithfulness and Answer Correctness
@@ -139,57 +173,46 @@ class RagasEvaluator:
             data_explanation = {
                 "question": [query],
                 "answer": [answer_text],  # short_answer + explanation (normalized)
-                "contexts": [quotes_text] if quotes_text else [answer_text],  # Validate against quotes (normalized)
-                "ground_truth": [self._combine_ground_truths(normalized_ground_truth_answers)],  # Expected answer content (normalized)
+                "contexts": [quotes_text],  # Validate against quotes (normalized)
+                "ground_truth": [" ".join(normalized_ground_truth_answers)],  # Expected answer content (normalized)
             }
             
-            # Debug logging
-            logger.debug(
-                "explanation_dataset",
-                answer_length=len(answer_text),
-                num_quote_contexts=len(quotes_text) if quotes_text else 0,
-                quotes_sample=quotes_text[:2] if quotes_text else [],
-            )
-            
-            dataset_quote_precision_recall = Dataset.from_dict(data_quote_precision_recall)
             dataset_quote_faithfulness = Dataset.from_dict(data_quote_faithfulness)
             dataset_explanation = Dataset.from_dict(data_explanation)
             
-            # Run Ragas evaluation - Part 1: Quote Precision and Recall
-            import asyncio
-            result_precision_recall = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: evaluate(dataset_quote_precision_recall, metrics=[
-                    context_precision,
-                    context_recall,
-                ])
+            # Run Ragas evaluation in separate thread to avoid event loop conflicts
+            # Ragas uses async HTTP clients internally which can cause "Event loop is closed" errors
+            # when running in parallel with asyncio.to_thread(). Using ThreadPoolExecutor with
+            # loop.run_in_executor() properly isolates the evaluation.
+            loop = asyncio.get_event_loop()
+            executor = ThreadPoolExecutor(max_workers=1)
+            
+            # Run Ragas evaluation - Part 1: Quote Faithfulness
+            result_quote_faithfulness = await loop.run_in_executor(
+                executor,
+                _run_ragas_evaluate_sync,
+                dataset_quote_faithfulness,
+                [faithfulness]  # This measures quote faithfulness
             )
             
-            # Run Ragas evaluation - Part 2: Quote Faithfulness
-            result_quote_faithfulness = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: evaluate(dataset_quote_faithfulness, metrics=[
-                    faithfulness,  # This measures quote faithfulness
-                ])
+            # Run Ragas evaluation - Part 2: Explanation metrics
+            result_explanation = await loop.run_in_executor(
+                executor,
+                _run_ragas_evaluate_sync,
+                dataset_explanation,
+                [faithfulness, answer_correctness]  # Explanation faithfulness and answer correctness
             )
             
-            # Run Ragas evaluation - Part 3: Explanation metrics
-            result_explanation = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: evaluate(dataset_explanation, metrics=[
-                    faithfulness,  # This measures explanation faithfulness
-                    answer_correctness,
-                ])
-            )
+            # Clean up executor
+            executor.shutdown(wait=True)
             
             # Extract scores from EvaluationResult objects
-            result_pr_df = result_precision_recall.to_pandas()
             result_qf_df = result_quote_faithfulness.to_pandas()
             result_explanation_df = result_explanation.to_pandas()
             
             metrics = RagasMetrics(
-                quote_precision=result_pr_df['context_precision'].iloc[0] if 'context_precision' in result_pr_df else None,
-                quote_recall=result_pr_df['context_recall'].iloc[0] if 'context_recall' in result_pr_df else None,
+                quote_precision=retrieval_metrics.context_precision,
+                quote_recall=retrieval_metrics.context_recall,
                 quote_faithfulness=result_qf_df['faithfulness'].iloc[0] if 'faithfulness' in result_qf_df else None,
                 explanation_faithfulness=result_explanation_df['faithfulness'].iloc[0] if 'faithfulness' in result_explanation_df else None,
                 answer_correctness=result_explanation_df['answer_correctness'].iloc[0] if 'answer_correctness' in result_explanation_df else None,
@@ -213,18 +236,19 @@ class RagasEvaluator:
             )
             
             # Estimate cost based on judge model usage
-            # Ragas makes 3 separate evaluations with 5 total metrics (2+1+2)
+            # Ragas makes 2 separate evaluations with 3 total metrics (1+2)
+            # Quote Precision/Recall are calculated locally without LLM judge
             # Estimate token usage: query + context + answer + ground truths for each metric
             estimated_input_tokens_per_metric = (
                 len(query.split()) * 1.3  # query
-                + sum(len(chunk.split()) * 1.3 for chunk in context_chunks) / 5  # context (averaged)
+                + sum(len(chunk.split()) * 1.3 for chunk in context_chunks) / 3  # context (averaged)
                 + len(answer_text.split()) * 1.3  # answer
-                + sum(len(gt.split()) * 1.3 for gt in ground_truth_answers) / 5  # ground truths (averaged)
+                + sum(len(gt.split()) * 1.3 for gt in ground_truth_answers) / 3  # ground truths (averaged)
             )
             estimated_output_tokens_per_metric = 50  # Judge model outputs are typically short
             
-            total_input_tokens = int(estimated_input_tokens_per_metric * 5)  # 5 metrics total
-            total_output_tokens = int(estimated_output_tokens_per_metric * 5)
+            total_input_tokens = int(estimated_input_tokens_per_metric * 3)  # 3 metrics using LLM judge
+            total_output_tokens = int(estimated_output_tokens_per_metric * 3)
             
             metrics.total_cost_usd = estimate_cost(
                 prompt_tokens=total_input_tokens,
@@ -248,7 +272,6 @@ class RagasEvaluator:
 
     def _normalize_text(self, text: str) -> str:
         """Normalize text for comparison.
-        
         Removes asterisks, lowercases, and strips whitespace.
         
         Args:
@@ -258,24 +281,6 @@ class RagasEvaluator:
             Normalized text
         """
         return text.replace("*", "").lower().strip()
-
-    def _combine_ground_truths(self, ground_truth_answers: List[str]) -> str:
-        """Combine multiple ground truth answers into a single reference.
-        
-        Args:
-            ground_truth_answers: List of acceptable answers
-            
-        Returns:
-            Combined ground truth string
-        """
-        if not ground_truth_answers:
-            return ""
-        
-        if len(ground_truth_answers) == 1:
-            return ground_truth_answers[0]
-        
-        # Combine multiple ground truths with clear separation
-        return " ".join(ground_truth_answers)
 
     def calculate_aggregate_score(self, metrics: RagasMetrics) -> float:
         """Calculate an aggregate score from Ragas metrics.
@@ -291,7 +296,7 @@ class RagasEvaluator:
         
         scores = []
         if metrics.quote_precision is not None:
-            scores.append(metrics.quote_precision)
+             scores.append(metrics.quote_precision)
         if metrics.quote_recall is not None:
             scores.append(metrics.quote_recall)
         if metrics.quote_faithfulness is not None:

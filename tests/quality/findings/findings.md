@@ -4,9 +4,66 @@
 - `Claude Opus 4.1`: 5-8x more expensive than other models, and does not preform well either
 
 ## To improve
+- flavor text variation
+- Gemini models fail in quality tests, but are working in query, might be a bug.
 - Gemini models often fail with RECITATION error, blocking the response
 
 # Test results
+## New Ragas based quality tests - 2025.10.25.
+### Can the Eliminator Sniper shoot during counteract while having Conceal order?
+#### Claude-4.5-Haiku
+- quotes "counteract has no action restriction" instead of "Astartes"
+- thinks counteract having no action restriction lets you counteract on Conceal
+- flavor text does not vary
+#### Claude-4.5-Sonnet ⭐
+- correctly quotes "Astartes", "Silent", "Conceal"
+- correct explanation
+- flavor text does not vary
+#### Deepseek-chat
+- quotes "Silent", "Counteract" with designer notes (action restriction)
+- thinks counteract having no action restriction lets you counteract on Conceal
+- VERY CHEAP
+#### Gemini-2.5-pro ⭐
+- needs 2048 max tokens
+- quotes "Astartes", "Silent", "Counteract" (long)
+- correct explaination, "the operative performs a **1AP** action for free" as extra
+- not much variation in flavor text
+#### Gemini-2.5-flash
+- needs 2048 max tokens
+- fails JSON output 2/5 times
+- quotes "AoD Astartes" (sometimes calls it "AoD Faction rule"), "Conceal", "Silent", "Counteract", "Eliminator" (once)
+- correct explaination, "the operative performs a **1AP** action for free" as extra
+- not much variation in flavor text
+#### GTP-4.1
+- quotes vary a lot: "Silent" (5), "Eliminator" (5), "Counteract" (sometimes the designer's notes), "Conceal" (2), once wrong "FAQ" in title
+- "Astartes" rule is missing from explanation
+#### GTP-4.1 mini
+- quotes "Silent", "Conceal", "Astartes", "Counteract" (designer's note), Goremongers(!) rule once
+- bold formatting is missing
+- "Counteract only on engage" completely missing, usual "no action restriction" confusion
+- flavor text does not vary
+#### GTP-4o
+- quotes "Silent", "Astartes", "Counteact designer's note"
+- explanation has "no action restriction"
+- flavor text does not vary
+#### Grok 3
+- quotes "Conceal", "AoD Faction rule"
+- asnwer is NO, fails to find "Silent"
+- short answer flavor does not vary
+#### Grok 3 mini
+- Very random. Answers sometimes Yes, sometimes No
+#### Grok 4 fast reasoning 👍
+- quotes "Silent", "Astartes", "Counteract WITH desinger's note"
+- reasoning is good, + unnecessary "no action restriction"
+- most verbose
+### Would the Curtain Falls firefight ploy still cost CP even after the Nemesis Claw chain snare equipment potentially would block the free fall back action?
+Some models don't display **Chain Snare**, it's OK, the FAQ explicitly mentions it.
+**Claude-4.5-Sonnet**, **GTP-4.1-mini** and **Grok 3** produce quite long answer.
+### Can a dude get guard shot more than once during an activation?
+All models answer correctly. Sometimes **Claude-4.5-Sonnet** and **Claude-4.5-Haiku** even found the Deathwatch Marksman that can counteract twice.
+
+---
+
 ## Converted rules headings from ALL CAPS to Title Case, implemented query keyword normalization - 2025-10-13
 - `GPT-4.1` scores dropped from 85.3% to 72.7% after Title Case headers and query keyword normalization
 - `GPT-4.1` scores 62.8% if Title Case headers are used WITHOUT normalization

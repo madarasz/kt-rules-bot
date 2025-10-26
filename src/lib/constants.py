@@ -21,7 +21,7 @@ LLM_PROVIDERS_LITERAL = Literal[
     "gpt-4.1",
     "gpt-4.1-mini",
     "gpt-4o",
-    "o3",
+    # "o3", --- does not support JSON output
     "o3-mini",
     "o4-mini",
     "grok-4-fast-reasoning",
@@ -57,9 +57,16 @@ PDF_EXTRACTION_PROVIDERS = [
 # Quality test providers (curated list for --all-models testing)
 QUALITY_TEST_PROVIDERS = [
     "gpt-4.1",
+    "gpt-4o",
+    "gpt-4.1-mini",
+    "claude-4.5-sonnet",
     "claude-4.5-haiku",
-    # "gemini-2.5-flash"
-    #"deepseek-chat",
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "deepseek-chat",
+    "grok-4-fast-reasoning",
+    "grok-3",
+    "grok-3-mini",
     # "deepseek-reasoner"
     # "dial-gpt-4.1",  # denied WHY??
     # "dial-gpt-5",    # denied
@@ -77,7 +84,7 @@ QUALITY_TEST_PROVIDERS = [
 ]
 
 # Default LLM provider for generation
-DEFAULT_LLM_PROVIDER = "gpt-4.1"  # Default model for Discord bot and CLI
+DEFAULT_LLM_PROVIDER = "claude-4.5-haiku"  # Default model for Discord bot and CLI
 
 # LLM retry configuration
 LLM_MAX_RETRIES = 2  # Number of retry attempts on ContentFilterError
