@@ -30,13 +30,18 @@ class ChartGenerator:
         """Generate all visualization charts for the report."""
         if not MATPLOTLIB_AVAILABLE:
             return
-        
+
         # Generate main chart for multi-model scenarios
         if self.report.is_multi_model:
             chart_path = self._generate_main_chart()
             if chart_path:
                 self.report.chart_path = chart_path
-        
+
+            # Generate Ragas metrics chart for multi-model scenarios
+            ragas_chart_path = self._generate_ragas_metrics_chart()
+            if ragas_chart_path:
+                self.report.ragas_chart_path = ragas_chart_path
+
         # Generate per-test-case charts for multi-model scenarios
         if self.report.is_multi_test_case and self.report.is_multi_model:
             for test_id, test_case_report in self.report.per_test_case_reports.items():
@@ -48,42 +53,68 @@ class ChartGenerator:
         """Generate the main visualization chart comparing models."""
         if not MATPLOTLIB_AVAILABLE or not self.report.is_multi_model:
             return None
-        
+
         chart_path = os.path.join(self.report_dir, "chart.png")
-        
-        # Aggregate data by model
-        model_data = {}
+
+        # Aggregate data by model and test case
+        # Structure: model -> test_id -> list of results
+        model_test_data = {}
         test_queries = set()
-        
+
         for result in self.report.results:
             # Remove escape characters from query text for display
             clean_query = result.query.replace('\\"', '"').replace("\\'", "'")
             test_queries.add(clean_query)
-            
-            if result.model not in model_data:
-                model_data[result.model] = {
+
+            if result.model not in model_test_data:
+                model_test_data[result.model] = {}
+            if result.test_id not in model_test_data[result.model]:
+                model_test_data[result.model][result.test_id] = {
                     'scores': [],
                     'times': [],
                     'costs': [],
                     'chars': []
                 }
-            model_data[result.model]['scores'].append(result.score_percentage)
-            model_data[result.model]['times'].append(result.generation_time_seconds)
-            model_data[result.model]['costs'].append(result.cost_usd)
-            model_data[result.model]['chars'].append(result.output_char_count)
-        
-        models = list(model_data.keys())
-        avg_scores = [np.mean(model_data[m]['scores']) for m in models]
-        avg_times = [np.mean(model_data[m]['times']) for m in models]
-        avg_costs = [np.mean(model_data[m]['costs']) for m in models]
-        avg_chars = [np.mean(model_data[m]['chars']) for m in models]
-        
-        # Error bars for multi-run scenarios
-        std_scores = [np.std(model_data[m]['scores']) if len(model_data[m]['scores']) > 1 else 0 for m in models]
-        std_times = [np.std(model_data[m]['times']) if len(model_data[m]['times']) > 1 else 0 for m in models]
-        std_costs = [np.std(model_data[m]['costs']) if len(model_data[m]['costs']) > 1 else 0 for m in models]
-        std_chars = [np.std(model_data[m]['chars']) if len(model_data[m]['chars']) > 1 else 0 for m in models]
-        
+
+            model_test_data[result.model][result.test_id]['scores'].append(result.score_percentage)
+            model_test_data[result.model][result.test_id]['times'].append(result.generation_time_seconds)
+            model_test_data[result.model][result.test_id]['costs'].append(result.cost_usd)
+            model_test_data[result.model][result.test_id]['chars'].append(result.output_char_count)
+
+        # Calculate per-test averages, then overall averages and std devs
+        models = list(model_test_data.keys())
+        avg_scores = []
+        avg_times = []
+        avg_costs = []
+        avg_chars = []
+        std_scores = []
+        std_times = []
+        std_costs = []
+        std_chars = []
+
+        for model in models:
+            # Calculate average for each test (across runs)
+            test_avg_scores = [np.mean(model_test_data[model][test_id]['scores'])
+                              for test_id in model_test_data[model]]
+            test_avg_times = [np.mean(model_test_data[model][test_id]['times'])
+                             for test_id in model_test_data[model]]
+            test_avg_costs = [np.mean(model_test_data[model][test_id]['costs'])
+                             for test_id in model_test_data[model]]
+            test_avg_chars = [np.mean(model_test_data[model][test_id]['chars'])
+                             for test_id in model_test_data[model]]
+
+            # Overall average is the mean of per-test averages
+            avg_scores.append(np.mean(test_avg_scores))
+            avg_times.append(np.mean(test_avg_times))
+            avg_costs.append(np.mean(test_avg_costs))
+            avg_chars.append(np.mean(test_avg_chars))
+
+            # Std dev is calculated from per-test averages (between-test variability)
+            std_scores.append(np.std(test_avg_scores) if len(test_avg_scores) > 1 else 0)
+            std_times.append(np.std(test_avg_times) if len(test_avg_times) > 1 else 0)
+            std_costs.append(np.std(test_avg_costs) if len(test_avg_costs) > 1 else 0)
+            std_chars.append(np.std(test_avg_chars) if len(test_avg_chars) > 1 else 0)
+
         return self._create_chart(
             chart_path=chart_path,
             models=models,
@@ -317,7 +348,7 @@ class ChartGenerator:
             model_results = [r for r in self.report.results if r.model == model]
             if not model_results:
                 continue
-            
+
             values = []
             for result in model_results:
                 if metric == 'scores':
@@ -328,9 +359,163 @@ class ChartGenerator:
                     values.append(result.cost_usd)
                 elif metric == 'chars':
                     values.append(result.output_char_count)
-            
+
             if values:
                 # Add small jitter to x-position to avoid overlapping points
                 x_positions = [positions[i] + np.random.uniform(-0.02, 0.02) for _ in values]
-                ax.scatter(x_positions, values, color='white', s=20, alpha=0.8, 
+                ax.scatter(x_positions, values, color='white', s=20, alpha=0.8,
                           edgecolors='black', linewidth=1, zorder=10)
+
+    def _generate_ragas_metrics_chart(self) -> Optional[str]:
+        """Generate a chart showing individual Ragas metrics per model.
+
+        Returns:
+            Path to the generated chart, or None if chart generation is not applicable.
+        """
+        if not MATPLOTLIB_AVAILABLE or not self.report.is_multi_model:
+            return None
+
+        # Check if we have any Ragas metrics to display
+        has_ragas_data = any(r.ragas_metrics_available for r in self.report.results)
+        if not has_ragas_data:
+            return None
+
+        chart_path = os.path.join(self.report_dir, "chart_ragas_metrics.png")
+
+        # Aggregate Ragas metrics by model and test case
+        # Structure: model -> test_id -> list of metric values
+        model_test_data = {}
+        for result in self.report.results:
+            if result.model not in model_test_data:
+                model_test_data[result.model] = {}
+            if result.test_id not in model_test_data[result.model]:
+                model_test_data[result.model][result.test_id] = {
+                    'quote_precision': [],
+                    'quote_recall': [],
+                    'quote_faithfulness': [],
+                    'explanation_faithfulness': [],
+                    'answer_correctness': []
+                }
+
+            # Append metrics, treating None as 0.0
+            model_test_data[result.model][result.test_id]['quote_precision'].append(
+                result.quote_precision if result.quote_precision is not None else 0.0
+            )
+            model_test_data[result.model][result.test_id]['quote_recall'].append(
+                result.quote_recall if result.quote_recall is not None else 0.0
+            )
+            model_test_data[result.model][result.test_id]['quote_faithfulness'].append(
+                result.quote_faithfulness if result.quote_faithfulness is not None else 0.0
+            )
+            model_test_data[result.model][result.test_id]['explanation_faithfulness'].append(
+                result.explanation_faithfulness if result.explanation_faithfulness is not None else 0.0
+            )
+            model_test_data[result.model][result.test_id]['answer_correctness'].append(
+                result.answer_correctness if result.answer_correctness is not None else 0.0
+            )
+
+        # Calculate per-test averages, then overall averages and std devs
+        models = list(model_test_data.keys())
+        avg_quote_precision = []
+        avg_quote_recall = []
+        avg_quote_faithfulness = []
+        avg_explanation_faithfulness = []
+        avg_answer_correctness = []
+        std_quote_precision = []
+        std_quote_recall = []
+        std_quote_faithfulness = []
+        std_explanation_faithfulness = []
+        std_answer_correctness = []
+
+        for model in models:
+            # Calculate average for each test (across runs)
+            test_avg_qp = [np.mean(model_test_data[model][test_id]['quote_precision'])
+                          for test_id in model_test_data[model]]
+            test_avg_qr = [np.mean(model_test_data[model][test_id]['quote_recall'])
+                          for test_id in model_test_data[model]]
+            test_avg_qf = [np.mean(model_test_data[model][test_id]['quote_faithfulness'])
+                          for test_id in model_test_data[model]]
+            test_avg_ef = [np.mean(model_test_data[model][test_id]['explanation_faithfulness'])
+                          for test_id in model_test_data[model]]
+            test_avg_ac = [np.mean(model_test_data[model][test_id]['answer_correctness'])
+                          for test_id in model_test_data[model]]
+
+            # Overall average is the mean of per-test averages
+            avg_quote_precision.append(np.mean(test_avg_qp))
+            avg_quote_recall.append(np.mean(test_avg_qr))
+            avg_quote_faithfulness.append(np.mean(test_avg_qf))
+            avg_explanation_faithfulness.append(np.mean(test_avg_ef))
+            avg_answer_correctness.append(np.mean(test_avg_ac))
+
+            # Std dev is calculated from per-test averages (between-test variability)
+            std_quote_precision.append(np.std(test_avg_qp) if len(test_avg_qp) > 1 else 0)
+            std_quote_recall.append(np.std(test_avg_qr) if len(test_avg_qr) > 1 else 0)
+            std_quote_faithfulness.append(np.std(test_avg_qf) if len(test_avg_qf) > 1 else 0)
+            std_explanation_faithfulness.append(np.std(test_avg_ef) if len(test_avg_ef) > 1 else 0)
+            std_answer_correctness.append(np.std(test_avg_ac) if len(test_avg_ac) > 1 else 0)
+
+        # Create figure
+        fig, ax = plt.subplots(figsize=(14, 8))
+
+        # Set up x-axis
+        x = np.arange(len(models))
+        width = 0.15  # Width of each bar
+
+        # Bar positions - 5 metrics side by side
+        pos1 = x - 2 * width
+        pos2 = x - 1 * width
+        pos3 = x
+        pos4 = x + 1 * width
+        pos5 = x + 2 * width
+
+        # Determine if we should show error bars
+        show_error_bars = self.report.is_multi_run
+
+        # Colors for each metric
+        color_qp = '#3498db'  # Blue - Quote Precision
+        color_qr = '#2ecc71'  # Green - Quote Recall
+        color_qf = '#9b59b6'  # Purple - Quote Faithfulness
+        color_ef = '#e74c3c'  # Red - Explanation Faithfulness
+        color_ac = '#f39c12'  # Orange - Answer Correctness
+
+        # Plot bars for each metric
+        bars_qp = ax.bar(pos1, avg_quote_precision, width,
+                        label='Quote Precision', color=color_qp, alpha=0.8)
+        bars_qr = ax.bar(pos2, avg_quote_recall, width,
+                        label='Quote Recall', color=color_qr, alpha=0.8)
+        bars_qf = ax.bar(pos3, avg_quote_faithfulness, width,
+                        label='Quote Faithfulness', color=color_qf, alpha=0.8)
+        bars_ef = ax.bar(pos4, avg_explanation_faithfulness, width,
+                        label='Explanation Faithfulness', color=color_ef, alpha=0.8)
+        bars_ac = ax.bar(pos5, avg_answer_correctness, width,
+                        label='Answer Correctness', color=color_ac, alpha=0.8)
+
+        # Add error bars if multi-run
+        if show_error_bars:
+            ax.errorbar(pos1, avg_quote_precision, yerr=std_quote_precision,
+                       fmt='none', ecolor='gray', capsize=5, capthick=2, alpha=0.7)
+            ax.errorbar(pos2, avg_quote_recall, yerr=std_quote_recall,
+                       fmt='none', ecolor='gray', capsize=5, capthick=2, alpha=0.7)
+            ax.errorbar(pos3, avg_quote_faithfulness, yerr=std_quote_faithfulness,
+                       fmt='none', ecolor='gray', capsize=5, capthick=2, alpha=0.7)
+            ax.errorbar(pos4, avg_explanation_faithfulness, yerr=std_explanation_faithfulness,
+                       fmt='none', ecolor='gray', capsize=5, capthick=2, alpha=0.7)
+            ax.errorbar(pos5, avg_answer_correctness, yerr=std_answer_correctness,
+                       fmt='none', ecolor='gray', capsize=5, capthick=2, alpha=0.7)
+
+        # Labels and title
+        ax.set_xlabel('Model', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Metric Score (0-1)', fontsize=12, fontweight='bold')
+        ax.set_ylim(0, 1.0)
+        ax.set_xticks(x)
+        ax.set_xticklabels(models, rotation=45, ha='right')
+        ax.legend(loc='upper left', fontsize=10)
+        ax.grid(axis='y', alpha=0.3, linestyle='--')
+
+        plt.title('Ragas Metrics Comparison by Model', fontsize=14, fontweight='bold', pad=20)
+        plt.tight_layout()
+
+        plt.savefig(chart_path, dpi=150, bbox_inches='tight')
+        plt.close()
+
+        return chart_path

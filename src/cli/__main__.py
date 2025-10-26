@@ -191,6 +191,11 @@ def create_parser() -> argparse.ArgumentParser:
         default=None,
         help=f"Override RAG_MAX_HOPS constant (default: {RAG_MAX_HOPS})",
     )
+    quality_parser.add_argument(
+        "--no-eval",
+        action="store_true",
+        help="Skip Ragas evaluation (only generate outputs, no scoring)",
+    )
 
     # Command: rag-test
     rag_parser = subparsers.add_parser(
@@ -378,6 +383,7 @@ def main():
                 skip_confirm=args.yes,
                 runs=args.runs,
                 max_hops=args.max_hops,
+                no_eval=args.no_eval,
             )
 
         elif args.command == "rag-test":

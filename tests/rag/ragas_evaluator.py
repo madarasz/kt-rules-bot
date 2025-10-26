@@ -9,8 +9,7 @@ from tests.rag.test_case_models import RAGTestCase, RAGTestResult
 from src.models.rag_context import DocumentChunk
 from src.lib.ragas_adapter import (
     evaluate_retrieval,
-    RagasRetrievalMetrics,
-    is_ragas_available,
+    RagasRetrievalMetrics
 )
 from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
 
@@ -46,10 +45,6 @@ class RagasRAGEvaluator:
             RagasRetrievalMetrics
         """
 
-        if not is_ragas_available():
-            print("Warning: ragas library not installed. Skipping Ragas metrics.")
-            return None
-
         # Get ground truth contexts
         ground_truth_contexts = test_case.ground_truth_contexts
 
@@ -58,10 +53,8 @@ class RagasRAGEvaluator:
 
         # Evaluate using Ragas adapter (substring matching)
         ragas_metrics = evaluate_retrieval(
-            query=test_case.query,
             retrieved_contexts=retrieved_texts,
             ground_truth_contexts=ground_truth_contexts,
-            judge_model=self.judge_model,
         )
 
         return ragas_metrics

@@ -2,6 +2,7 @@
 
 import asyncio
 import sys
+import warnings
 from typing import Optional, List
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,6 +17,39 @@ from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_PROVIDERS, 
 
 logger = get_logger(__name__)
 
+# Suppress ResourceWarnings from async HTTP clients cleanup
+# This occurs when Ragas (and other async libraries) try to clean up connections
+# after the event loop has closed. It's harmless and doesn't affect results.
+warnings.filterwarnings('ignore', category=ResourceWarning, message='.*unclosed.*')
+
+# Filter asyncio "Event loop is closed" errors that occur during cleanup
+# These happen when Ragas' async HTTP clients try to close after the event loop is shut down
+# The errors occur AFTER we get our results, so they don't affect functionality
+import logging
+logging.getLogger('asyncio').setLevel(logging.CRITICAL)
+
+
+def _suppress_event_loop_closed_errors():
+    """Suppress 'Event loop is closed' errors during shutdown.
+
+    These errors occur when async HTTP clients (from Ragas) try to cleanup
+    after the event loop has been closed by asyncio.run(). They're harmless
+    and don't affect test results - they only appear during final cleanup.
+    """
+    import sys
+
+    # Store original excepthook
+    original_excepthook = sys.excepthook
+
+    def custom_excepthook(exc_type, exc_value, exc_traceback):
+        # Suppress RuntimeError: Event loop is closed
+        if exc_type == RuntimeError and 'Event loop is closed' in str(exc_value):
+            return  # Silently ignore
+        # Call original excepthook for all other exceptions
+        original_excepthook(exc_type, exc_value, exc_traceback)
+
+    sys.excepthook = custom_excepthook
+
 
 def quality_test(
     test_id: Optional[str] = None,
@@ -25,8 +59,24 @@ def quality_test(
     skip_confirm: bool = False,
     runs: int = 1,
     max_hops: Optional[int] = None,
+    no_eval: bool = False,
 ) -> None:
-    """Run quality tests for RAG + LLM pipeline."""
+    """Run quality tests for RAG + LLM pipeline.
+
+    Args:
+        test_id: Specific test ID to run (default: all tests)
+        model: Specific model to test
+        all_models: Test all available models
+        judge_model: Model to use for Ragas evaluation
+        skip_confirm: Skip confirmation prompt
+        runs: Number of times to run each test
+        max_hops: Override RAG_MAX_HOPS constant
+        no_eval: Skip Ragas evaluation (only generate outputs)
+    """
+    # Suppress event loop cleanup errors from Ragas (only if we're running eval)
+    if not no_eval:
+        _suppress_event_loop_closed_errors()
+
     # Override RAG_MAX_HOPS if specified
     if max_hops is not None:
         import src.lib.constants as constants
@@ -59,7 +109,7 @@ def quality_test(
         sys.exit(1)
 
     # Configuration and Confirmation
-    _print_configuration(test_cases_to_run, models_to_run, runs, judge_model)
+    _print_configuration(test_cases_to_run, models_to_run, runs, judge_model, no_eval)
     if not skip_confirm:
         response = input("\nProceed with tests? (y/N): ")
         if response.lower() not in ["y", "yes"]:
@@ -71,7 +121,8 @@ def quality_test(
     report_dir = Path(f"tests/quality/results/{timestamp_str}")
     report_dir.mkdir(parents=True, exist_ok=True)
 
-    print("\nRunning tests...")
+    mode_str = " (no evaluation)" if no_eval else ""
+    print(f"\nRunning tests{mode_str}...")
     start_time = time.time()
 
     try:
@@ -82,6 +133,7 @@ def quality_test(
                 report_dir=report_dir,
                 test_id=test_id,
                 models=models_to_run,
+                no_eval=no_eval,
             )
         )
 
@@ -123,7 +175,7 @@ def quality_test(
             logger.info(f"Restored RAG_MAX_HOPS to {original_max_hops}")
 
 
-def _print_configuration(test_cases, models, runs, judge_model):
+def _print_configuration(test_cases, models, runs, judge_model, no_eval=False):
     """Prints the test configuration to the console."""
     print("\n" + "=" * 60)
     print("Quality Test Configuration")
@@ -132,7 +184,10 @@ def _print_configuration(test_cases, models, runs, judge_model):
     print(f"Models: {', '.join(models)}")
     print(f"Runs per test: {runs}")
     print(f"Total queries: {len(test_cases) * len(models) * runs}")
-    print(f"Judge model: {judge_model}")
+    if no_eval:
+        print(f"Evaluation: DISABLED (outputs only)")
+    else:
+        print(f"Judge model: {judge_model}")
     print("=" * 60)
 
 

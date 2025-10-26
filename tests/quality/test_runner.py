@@ -64,6 +64,8 @@ class QualityTestRunner:
         )
         # Semaphore to limit concurrent LLM requests (prevents rate limit errors)
         self.llm_semaphore = asyncio.Semaphore(QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS)
+        # Semaphore to serialize Ragas evaluations (Ragas is not thread-safe for parallel execution)
+        self.ragas_semaphore = asyncio.Semaphore(1)
 
     def load_test_cases(self, test_id: Optional[str] = None) -> List[TestCase]:
         """Load test cases from YAML files."""
@@ -104,14 +106,25 @@ class QualityTestRunner:
         report_dir: Path,
         rag_context=None,
         hop_evaluations=None,
+        no_eval: bool = False,
     ) -> IndividualTestResult:
-        """Run a single test case."""
-        logger.info(f"Running test '{test_case.test_id}' with model '{model}' (Run #{run_num})")
-        start_time = datetime.now(timezone.utc)
+        """Run a single test case.
+
+        Args:
+            test_case: The test case to run
+            model: The LLM model to use
+            run_num: The run number (for multiple runs)
+            report_dir: Directory to save outputs
+            rag_context: Pre-retrieved RAG context (optional)
+            hop_evaluations: Pre-retrieved hop evaluations (optional)
+            no_eval: If True, skip Ragas evaluation (only generate outputs)
+        """
+        eval_mode = " (no-eval)" if no_eval else ""
+        logger.info(f"Running test '{test_case.test_id}' with model '{model}' (Run #{run_num}){eval_mode}")
 
         multi_hop_cost = 0.0
         embedding_cost = 0.0
-        
+
         if rag_context is None:
             from uuid import uuid4
             rag_context, hop_evaluations_result, _ = self.rag_retriever.retrieve(
@@ -123,10 +136,10 @@ class QualityTestRunner:
                 query_id=uuid4(),
             )
             hop_evaluations = hop_evaluations_result
-            
+
             # Calculate embedding cost for the query
             embedding_cost = estimate_embedding_cost(test_case.query)
-            
+
         # Calculate multi-hop evaluation costs if any
         if hop_evaluations:
             multi_hop_cost = sum(hop.cost_usd for hop in hop_evaluations)
@@ -148,10 +161,13 @@ class QualityTestRunner:
         json_formatted = False
         structured_quotes_count = 0
         structured_llm_response = None  # For Ragas evaluation
+        generation_time = 0.0  # Initialize to 0 in case of early errors
 
         try:
             # Use semaphore to limit concurrent requests and prevent rate limits
             async with self.llm_semaphore:
+                # Start timing right before LLM API call
+                llm_start_time = datetime.now(timezone.utc)
                 llm_response = await retry_with_rate_limit_backoff(
                     llm_provider.generate,
                     GenerationRequest(
@@ -161,6 +177,8 @@ class QualityTestRunner:
                     ),
                     timeout_seconds=LLM_GENERATION_TIMEOUT,
                 )
+                # Stop timing immediately after LLM response
+                generation_time = (datetime.now(timezone.utc) - llm_start_time).total_seconds()
             llm_response_text = llm_response.answer_text
             token_count = llm_response.token_count
 
@@ -214,31 +232,38 @@ class QualityTestRunner:
             llm_response_json = f"[LLM Generation Failed: {error_str}]"
             llm_response_markdown = llm_response_json
 
-        generation_time = (datetime.now(timezone.utc) - start_time).total_seconds()
-        
         # Save markdown output for human reading
         self._save_output(output_filename, test_case.query, llm_response_markdown)
 
-        # Evaluate with Ragas metrics using JSON (not markdown)
-        ragas_metrics = await self.ragas_evaluator.evaluate(
-            query=test_case.query,
-            llm_response=structured_llm_response,
-            context_chunks=[chunk.text for chunk in rag_context.document_chunks],
-            ground_truth_answers=test_case.ground_truth_answers,
-            ground_truth_contexts=test_case.ground_truth_contexts,
-        )
-        
-        # Calculate aggregate score from Ragas metrics
-        score = self.ragas_evaluator.calculate_aggregate_score(ragas_metrics)
-        passed = score >= 80.0  # 80% threshold for passing
-        
+        # Evaluate with Ragas metrics (skip if no_eval is True)
+        if no_eval:
+            # Skip Ragas evaluation - create empty metrics
+            from tests.quality.ragas_evaluator import RagasMetrics
+            ragas_metrics = RagasMetrics()
+            score = 0.0
+            passed = False
+        else:
+            # Use semaphore to serialize Ragas evaluations (Ragas is not thread-safe)
+            async with self.ragas_semaphore:
+                ragas_metrics = await self.ragas_evaluator.evaluate(
+                    query=test_case.query,
+                    llm_response=structured_llm_response,
+                    context_chunks=[chunk.text for chunk in rag_context.document_chunks],
+                    ground_truth_answers=test_case.ground_truth_answers,
+                    ground_truth_contexts=test_case.ground_truth_contexts,
+                )
+
+            # Calculate aggregate score from Ragas metrics
+            score = self.ragas_evaluator.calculate_aggregate_score(ragas_metrics)
+            passed = score >= 80.0  # 80% threshold for passing
+
         # Calculate main LLM cost
         cost = estimate_cost(
             prompt_tokens=int(token_count * 0.7),
             completion_tokens=int(token_count * 0.3),
             model=model,
         )
-        
+
         # Log comprehensive cost breakdown
         total_cost = cost + multi_hop_cost + ragas_metrics.total_cost_usd + embedding_cost
         logger.info(
@@ -290,23 +315,31 @@ class QualityTestRunner:
         report_dir: Path,
         test_id: Optional[str] = None,
         models: Optional[List[str]] = None,
+        no_eval: bool = False,
     ) -> List[IndividualTestResult]:
         """Run all test combinations in parallel with concurrency control.
 
         Tests are run in parallel but LLM requests are limited by semaphore
         to prevent rate limit errors. Maximum concurrent LLM requests is
         controlled by QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS constant.
+
+        Args:
+            runs: Number of times to run each test
+            report_dir: Directory to save results
+            test_id: Specific test ID to run (default: all tests)
+            models: List of models to test
+            no_eval: If True, skip Ragas evaluation (only generate outputs)
         """
         test_cases = self.load_test_cases(test_id)
         if not test_cases:
             raise ValueError(f"No test cases found for test_id: {test_id}" if test_id else "No test cases found.")
 
         models_to_run = models or [self.config.default_llm_provider]
-        
+
         # Save the current prompt to prompt.md once
         gen_config = GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT)
         self._save_prompt(report_dir / "prompt.md", gen_config.system_prompt)
-        
+
         tasks = []
         for run_num in range(1, runs + 1):
             for test_case in test_cases:
@@ -323,10 +356,10 @@ class QualityTestRunner:
                 for model in models_to_run:
                     tasks.append(
                         self.run_test(
-                            test_case, model, run_num, report_dir, rag_context, hop_evaluations
+                            test_case, model, run_num, report_dir, rag_context, hop_evaluations, no_eval
                         )
                     )
-        
+
         results = await asyncio.gather(*tasks)
         return results
 

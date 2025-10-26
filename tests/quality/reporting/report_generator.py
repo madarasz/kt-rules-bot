@@ -141,12 +141,16 @@ class ReportGenerator:
         if self.report.is_multi_model or self.report.is_multi_run:
             best_model = max(self.report.per_model_summaries.values(), key=lambda s: s.avg_score_pct)
             header.append(f"- **Best score**: {best_model.avg_score_pct:.1f}% - {best_model.model_name}")
-        
+
         header.append(f"- **Test cases**: {', '.join(self.report.test_cases)}")
-        
+
         if self.report.chart_path:
             chart_name = os.path.basename(self.report.chart_path)
             header.append(f"\n![Overall Chart](./{chart_name})")
+
+        if self.report.ragas_chart_path:
+            ragas_chart_name = os.path.basename(self.report.ragas_chart_path)
+            header.append(f"\n![Ragas Metrics Chart](./{ragas_chart_name})")
 
         return "\n".join(header)
 

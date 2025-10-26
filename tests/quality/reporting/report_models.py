@@ -159,7 +159,8 @@ class QualityReport:
     report_dir: str
     prompt_path: Optional[str] = None
     chart_path: Optional[str] = None
-    
+    ragas_chart_path: Optional[str] = None
+
     # Populated by the aggregator
     per_test_case_reports: Dict[str, TestCaseReport] = field(default_factory=dict)
     per_model_summaries: Dict[str, ModelSummary] = field(default_factory=dict)
