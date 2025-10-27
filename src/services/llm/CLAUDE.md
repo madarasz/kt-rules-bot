@@ -62,8 +62,9 @@ Creates LLM provider instances:
 **Supported Models**:
 ```python
 # Anthropic
-"claude-sonnet" → claude-sonnet-4-5-20250929
-"claude-opus" → claude-opus-4-1-20250805
+"claude-4.5-sonnet" → claude-sonnet-4-5-20250929
+"claude-4.1-opus" → claude-opus-4-1-20250805
+"claude-4.5-haiku" → claude-haiku-4-5-20251001
 
 # Google
 "gemini-2.5-pro" → gemini-2.5-pro
