@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import List
 
 import discord
+import re
 
 from src.lib.discord_utils import get_random_disclaimer
 from src.models.bot_response import BotResponse
@@ -33,14 +34,13 @@ def format_response(
 
     # Check if structured data available
     if bot_response.structured_data:
-        return _format_structured(bot_response, validation_result, smalltalk)
+        return _format_structured(bot_response, smalltalk)
     else:
-        return _format_markdown(bot_response, validation_result, smalltalk)
+        return _format_markdown(bot_response, smalltalk)
 
 
 def _format_structured(
     bot_response: BotResponse,
-    validation_result: ValidationResult,
     smalltalk: bool = False,
 ) -> List[discord.Embed]:
     """Format structured JSON response as Discord embeds.
@@ -63,7 +63,7 @@ def _format_structured(
     description = f"**{data.short_answer}** {data.persona_short_answer}"
 
     embed = discord.Embed(
-        title="Kill Team Rules Bot",
+        title=None,
         description=description,
         color=color,
         timestamp=datetime.now(timezone.utc),
@@ -100,23 +100,27 @@ def _format_structured(
             inline=True,
         )
 
-    # Footer with metadata
+    # Footer with metadatam, remove date suffix from model name
     footer_content = (
         f"ID: {str(bot_response.response_id)[:8]} | "
-        f"Model: {bot_response.llm_model} | "
-        f"Latency: {bot_response.latency_ms}ms"
+        f"Model: {_format_llm_model_name(bot_response.llm_model)} | "
+        f"Latency: {_format_latency_ms(bot_response.latency_ms)}"
     )
-    if not smalltalk:
-        footer_content += f" | Confidence: {confidence_emoji} {bot_response.confidence_score:.0%}"
+    # if not smalltalk:
+    #     footer_content += f" | Confidence: {confidence_emoji} {bot_response.confidence_score:.0%}"
 
     embed.set_footer(text=footer_content)
 
     return [embed]
 
+def _format_llm_model_name(model_name: str) -> str:
+    return re.sub(r'-\d{8}$', '', model_name)
+
+def _format_latency_ms(latency_ms: int) -> str:
+    return f"{latency_ms / 1000:.2f}s"
 
 def _format_markdown(
     bot_response: BotResponse,
-    validation_result: ValidationResult,
     smalltalk: bool = False,
 ) -> List[discord.Embed]:
     """Format markdown response as Discord embeds (existing implementation).
