@@ -11,6 +11,44 @@ from src.models.bot_response import BotResponse
 from src.services.llm.validator import ValidationResult
 
 
+def _split_field_value(text: str, max_length: int = 1024) -> List[str]:
+    """Split text into chunks at sentence boundaries, respecting Discord's field limit.
+
+    Args:
+        text: Text to split
+        max_length: Maximum characters per chunk (default 1024 for Discord fields)
+
+    Returns:
+        List of text chunks, each ≤ max_length
+    """
+    if len(text) <= max_length:
+        return [text]
+
+    chunks = []
+    current_chunk = ""
+
+    # Split on sentence boundaries (. ! ?)
+    sentences = re.split(r'([.!?]+\s+)', text)
+
+    for i in range(0, len(sentences), 2):
+        sentence = sentences[i]
+        delimiter = sentences[i + 1] if i + 1 < len(sentences) else ""
+        sentence_with_delimiter = sentence + delimiter
+
+        # Check if adding this sentence exceeds limit
+        if len(current_chunk) + len(sentence_with_delimiter) <= max_length:
+            current_chunk += sentence_with_delimiter
+        else:
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+            current_chunk = sentence_with_delimiter
+
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+
+    return chunks
+
+
 def format_response(
     bot_response: BotResponse,
     validation_result: ValidationResult,
@@ -77,12 +115,16 @@ def _format_structured(
             inline=False
         )
 
-    # Add explanation field
-    embed.add_field(
-        name="Explanation",
-        value=data.explanation,
-        inline=False
-    )
+    # Add explanation field (split if needed)
+    explanation_chunks = _split_field_value(data.explanation)
+
+    for chunk_idx, chunk in enumerate(explanation_chunks):
+        field_name = "Explanation" if chunk_idx == 0 else "Explanation (cont.)"
+        embed.add_field(
+            name=field_name,
+            value=chunk,
+            inline=False
+        )
 
     # Add persona afterword
     embed.add_field(
