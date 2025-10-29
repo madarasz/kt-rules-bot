@@ -95,10 +95,9 @@ def _format_structured(
 
     # Determine embed color based on confidence
     color = _get_embed_color(bot_response.confidence_score, smalltalk)
-    confidence_emoji = _get_confidence_emoji(bot_response.confidence_score)
 
     # Main embed with short answer + persona
-    description = f"**{data.short_answer}** {data.persona_short_answer}"
+    description = f"**{data.short_answer}** *{data.persona_short_answer}*"
 
     embed = discord.Embed(
         title=None,
