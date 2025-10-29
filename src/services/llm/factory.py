@@ -4,6 +4,8 @@ Creates LLM provider instances based on configuration.
 Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
+from typing import Optional
+
 from src.services.llm.base import LLMProvider
 from src.services.llm.claude import ClaudeAdapter
 from src.services.llm.chatgpt import ChatGPTAdapter
@@ -12,6 +14,7 @@ from src.services.llm.grok import GrokAdapter
 from src.services.llm.dial import DialAdapter
 from src.services.llm.deepseek import DeepSeekAdapter
 from src.lib.config import get_config
+from src.lib.server_config import get_multi_server_config
 from src.lib.logging import get_logger
 from src.lib.constants import LLM_PROVIDERS_LITERAL
 
@@ -58,12 +61,14 @@ class LLMProviderFactory:
     }
 
     @classmethod
-    def create(cls, provider_name: LLM_PROVIDERS_LITERAL = None) -> LLMProvider:
+    def create(cls, provider_name: LLM_PROVIDERS_LITERAL = None, guild_id: Optional[str] = None) -> LLMProvider:
         """Create LLM provider instance.
 
         Args:
             provider_name: Model to use (claude-sonnet, gemini-2.5-pro, gpt-4o, etc.).
                           If None, uses DEFAULT_LLM_PROVIDER from config.
+            guild_id: Discord guild (server) ID for per-server API key resolution.
+                     If None, uses global .env config only.
 
         Returns:
             LLMProvider instance
@@ -73,10 +78,24 @@ class LLMProviderFactory:
             KeyError: If API key not found in environment
         """
         config = get_config()
+        multi_server_config = get_multi_server_config()
 
-        # Use default provider if not specified
+        # Get server-specific config if guild_id provided
+        server_config = multi_server_config.get_server_config(guild_id) if guild_id else None
+
+        # Log config resolution for debugging
+        if guild_id:
+            if server_config:
+                logger.debug(f"Using server config for guild {guild_id} ({server_config.name if server_config.name else 'unnamed'})")
+            else:
+                logger.debug(f"Guild {guild_id} not in servers.yaml, using global .env config")
+
+        # Use default provider if not specified (check server override first)
         if provider_name is None:
-            provider_name = config.default_llm_provider
+            if server_config and server_config.llm_provider:
+                provider_name = server_config.llm_provider
+            else:
+                provider_name = config.default_llm_provider
 
         # Validate provider name
         if provider_name not in cls._model_registry:
@@ -88,18 +107,26 @@ class LLMProviderFactory:
         # Get adapter class, model ID, and API key type
         adapter_class, model_id, api_key_type = cls._model_registry[provider_name]
 
-        # Get API key from config
-        api_key_map = {
-            "anthropic": config.anthropic_api_key,
-            "openai": config.openai_api_key,
-            "google": config.google_api_key,
-            "x": config.x_api_key,
-            "dial": config.dial_api_key,
-            "deepseek": config.deepseek_api_key,
-        }
+        # Resolve API key based on whether server is configured
+        api_key = None
 
-        api_key = api_key_map[api_key_type]
+        if server_config:
+            # Server defined in servers.yaml - use ONLY server keys (no .env fallback)
+            server_api_key_map = {
+                "anthropic": server_config.anthropic_api_key,
+                "openai": server_config.openai_api_key,
+                "google": server_config.google_api_key,
+                "x": server_config.x_api_key,
+                "dial": server_config.dial_api_key,
+                "deepseek": server_config.deepseek_api_key,
+            }
+            api_key = server_api_key_map.get(api_key_type)
+        else:
+            # No server config - use global .env keys
+            return None
 
+        # If API key is missing, return None instead of throwing
+        # The bot will handle this gracefully and send a Discord message
         if not api_key:
             api_key_env_map = {
                 "anthropic": "ANTHROPIC_API_KEY",
@@ -109,15 +136,25 @@ class LLMProviderFactory:
                 "dial": "DIAL_API_KEY",
                 "deepseek": "DEEPSEEK_API_KEY",
             }
-            raise KeyError(
-                f"API key not found: {api_key_env_map[api_key_type]}. "
-                f"Set it in your environment or .env file."
+
+            missing_key = api_key_env_map[api_key_type]
+
+            logger.error(
+                f"Missing API key for {provider_name}: {missing_key} "
+                f"(guild_id: {guild_id}, server_config: {bool(server_config)})"
             )
+
+            # Return None - let the bot handle this gracefully
+            return None
 
         # Create provider instance
         provider = adapter_class(api_key=api_key, model=model_id)
 
-        logger.info(f"Created {provider_name} with model {model_id}")
+        log_msg = f"Created {provider_name} with model {model_id}"
+        if guild_id:
+            guild_name = f" ({server_config.name})" if server_config and server_config.name else ""
+            log_msg += f" for guild {guild_id}{guild_name}"
+        logger.info(log_msg)
 
         return provider
 

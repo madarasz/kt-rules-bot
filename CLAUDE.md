@@ -80,7 +80,9 @@ tests/
 
 extracted-rules/  → Markdown source documents
 prompts/          → LLM system prompts
-config/.env       → API keys (gitignored, see .env.template)
+config/
+  .env            → Global API keys (gitignored, see .env.template)
+  servers.yaml    → Per-server API keys (optional, gitignored, see servers.yaml.template)
 data/
   chroma_db/      → Vector database (ChromaDB)
   rag_keywords.json → Auto-extracted keyword library for query normalization
@@ -90,6 +92,7 @@ data/
 **Notes**:
 - Markdown ingestion: `src/services/rag/ingestor.py` (part of RAG service)
 - PDF extraction: `src/cli/download_team.py` and `download_all_teams.py` (CLI commands)
+- Multi-server config: See [Multi-Server Deployment](#multi-server-deployment) below
 
 ## Documentation Map
 
@@ -192,6 +195,43 @@ streamlit run src/cli/admin_dashboard.py --server.port 8501
 - Password-protected dashboard
 
 **See**: [src/lib/database.py](src/lib/database.py) for implementation
+
+## Multi-Server Deployment
+
+The bot uses **per-server API key configuration**, allowing multiple Discord servers to use their own LLM API keys and pay for their own usage.
+
+### Setup
+
+1. **Copy the template**:
+   ```bash
+   cp config/servers.yaml.template config/servers.yaml
+   ```
+
+2. **Get Discord Guild IDs**:
+   - Enable Developer Mode in Discord (User Settings → Advanced → Developer Mode)
+   - Right-click on server icon → "Copy Server ID"
+
+3. **Configure per-server settings** in `config/servers.yaml`:
+   ```yaml
+   servers:
+     "123456789012345678":  # Discord guild ID
+       name: "My Gaming Community"  # Optional, for documentation
+       llm_provider: "claude-4.5-sonnet"  # REQUIRED
+       anthropic_api_key: "sk-ant-..."  # REQUIRED for claude models
+
+     "987654321098765432":
+       name: "Tournament Server"
+       llm_provider: "gpt-4.1"  # REQUIRED
+       openai_api_key: "sk-..."  # REQUIRED for gpt models
+       rag_hop_evaluation_model: "gpt-4.1-mini"  # Optional
+   ```
+
+### Per-Server Configurable Settings
+
+- **LLM Provider** (REQUIRED): `llm_provider` - which model to use for queries
+- **API Keys**: `anthropic_api_key`, `openai_api_key`, `google_api_key`, `x_api_key`, `deepseek_api_key`
+  - The API key must match the `llm_provider` (e.g., claude models need `anthropic_api_key`)
+
 
 ## API Documentation
 

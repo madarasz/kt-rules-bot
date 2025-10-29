@@ -56,7 +56,18 @@ class KillTeamBotOrchestrator:
         """
         self.rag = rag_retriever
         self.llm_factory = llm_provider_factory or LLMProviderFactory()
-        self.llm = self.llm_factory.create()  # Get configured LLM provider
+
+        # Try to create default LLM provider for rate limiting
+        # If no global .env keys, this will be None and we'll create per-query
+        try:
+            self.llm = self.llm_factory.create()  # Get default LLM provider (for rate limiting)
+        except KeyError as e:
+            logger.warning(
+                "No global LLM API key found in .env, will use per-server keys only. "
+                "Rate limiting may not work correctly without a default provider."
+            )
+            self.llm = None
+
         self.validator = response_validator or ResponseValidator()
         self.rate_limiter = rate_limiter or RateLimiter()
         self.context_manager = context_manager or ConversationContextManager()
@@ -77,18 +88,60 @@ class KillTeamBotOrchestrator:
             user_query: Parsed user query
         """
         correlation_id = str(user_query.query_id)
+
+        # Extract guild ID for per-server LLM configuration
+        guild_id = str(message.guild.id) if message.guild else None
+
         logger.info(
             "Processing query",
             extra={
                 "correlation_id": correlation_id,
                 "query": user_query.sanitized_text[:100],  # Truncate for logs
+                "guild_id": guild_id,
             },
         )
 
         try:
+            # Create LLM provider for this guild (uses server-specific or global config)
+            llm = self.llm_factory.create(guild_id=guild_id)
+
+            # Check if LLM provider creation failed due to missing API key
+            if llm is None:
+                # Get the server config to determine which key is missing
+                from src.lib.server_config import get_multi_server_config
+                multi_server_config = get_multi_server_config()
+                server_config = multi_server_config.get_server_config(guild_id) if guild_id else None
+
+                if server_config:
+                    # Determine which API key is needed based on the provider
+                    provider_to_key = {
+                        "claude": "ANTHROPIC_API_KEY",
+                        "gemini": "GOOGLE_API_KEY",
+                        "gpt": "OPENAI_API_KEY",
+                        "o3": "OPENAI_API_KEY",
+                        "o4": "OPENAI_API_KEY",
+                        "grok": "X_API_KEY",
+                        "deepseek": "DEEPSEEK_API_KEY",
+                        "dial": "DIAL_API_KEY",
+                    }
+
+                    # Extract provider type from llm_provider (e.g., "claude-4.5-sonnet" → "claude")
+                    provider_type = server_config.llm_provider.split("-")[0].lower()
+                    missing_key = provider_to_key.get(provider_type, "API_KEY")
+
+                    await message.channel.send(f"❌ Missing API key: {missing_key}")
+                else:
+                    await message.channel.send("❌ Missing Discord server configuration.")
+
+                logger.warning(
+                    "LLM provider creation failed",
+                    extra={"correlation_id": correlation_id, "guild_id": guild_id}
+                )
+                return
+
             # Step 1: Rate limiting check
             is_allowed, retry_after = self.rate_limiter.check_rate_limit(
-                provider=self.llm.model,
+                provider=llm.model,
                 user_id=user_query.user_id,
             )
 
@@ -129,7 +182,7 @@ class KillTeamBotOrchestrator:
 
             # Step 4: LLM generation with retry logic for ContentFilterError
             llm_response = await retry_on_content_filter(
-                self.llm.generate,
+                llm.generate,
                 GenerationRequest(
                     prompt=user_query.sanitized_text,
                     context=[chunk.text for chunk in rag_context.document_chunks],
@@ -410,12 +463,38 @@ class KillTeamBotOrchestrator:
             )
 
         except Exception as e:
+            # Handle specific API errors with user-friendly messages
+            error_message = None
+            error_str = str(e).lower()
+
+            # Check for credit balance issues
+            if "credit balance" in error_str or "insufficient funds" in error_str or "insufficient quota" in error_str or "quota" in error_str:
+                error_message = "💰 API credit balance is insufficient"
+
+            # Check for invalid API key errors
+            elif "invalid api key" in error_str or "authentication" in error_str or "unauthorized" in error_str:
+                error_message = "🔑 API key is invalid or expired"
+
+            # Check for rate limit errors (from the API itself, not our rate limiter)
+            elif "rate limit" in error_str or "too many requests" in error_str:
+                error_message = "⏳ API rate limit exceeded. Please try again in a moment."
+
+            # Check for content filter/safety errors
+            elif "content" in error_str and ("filter" in error_str or "policy" in error_str or "safety" in error_str):
+                error_message = "⚠️ Your query was blocked by content safety filters. Please rephrase your question."
+
+            # Generic error fallback
+            if not error_message:
+                error_message = "❌ An error occurred while processing your request. Please try again in a moment."
+
             logger.error(
                 f"Error processing query: {e}",
-                extra={"correlation_id": correlation_id},
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                    "user_message": error_message,
+                },
                 exc_info=True,
             )
-            await message.channel.send(
-                "❌ An error occurred while processing your request. "
-                "Please try again in a moment."
-            )
+
+            await message.channel.send(error_message)

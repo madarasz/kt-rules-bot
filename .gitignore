@@ -38,6 +38,7 @@ env/
 # Environment variables
 .env
 config/.env
+config/servers.yaml
 
 # IDE
 .vscode/

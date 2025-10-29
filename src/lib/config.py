@@ -34,6 +34,7 @@ class Config:
     # RAG Configuration
     vector_db_path: str = "./data/chroma_db"
     embedding_model: str = EMBEDDING_MODEL
+    rag_hop_evaluation_model: Optional[LLM_PROVIDERS_LITERAL] = None  # Model for multi-hop RAG evaluation (defaults to constant)
 
     # Logging
     log_level: str = "INFO"
@@ -54,6 +55,9 @@ class Config:
     analytics_retention_days: int = 30
     admin_dashboard_password: str = ""
 
+    # Multi-Server Configuration (optional)
+    server_config_path: str = "./config/servers.yaml"
+
     def validate(self) -> None:
         """Validate configuration.
 
@@ -63,20 +67,6 @@ class Config:
         # Discord token required
         if not self.discord_bot_token:
             raise ValueError("DISCORD_BOT_TOKEN is required")
-
-        # At least one LLM provider API key required
-        has_provider = any(
-            [
-                self.anthropic_api_key,
-                self.openai_api_key,
-                self.google_api_key,
-                self.x_api_key,
-                self.dial_api_key,
-                self.deepseek_api_key,
-            ]
-        )
-        if not has_provider:
-            raise ValueError("At least one LLM provider API key is required")
 
         # Validate default provider has API key
         provider_key_mapping = {
@@ -114,11 +104,6 @@ class Config:
             "dial-gemini-2.5-pro": self.dial_api_key,
             "dial-gemini-2.5-flash": self.dial_api_key,
         }
-
-        if not provider_key_mapping.get(self.default_llm_provider):
-            raise ValueError(
-                f"API key for default model '{self.default_llm_provider}' is missing"
-            )
 
         # Validate log level
         valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
@@ -202,6 +187,7 @@ class Config:
             # RAG
             vector_db_path=os.getenv("VECTOR_DB_PATH", "./data/chroma_db"),
             embedding_model=os.getenv("EMBEDDING_MODEL", EMBEDDING_MODEL),
+            rag_hop_evaluation_model=os.getenv("RAG_HOP_EVALUATION_MODEL"),  # type: ignore
             # Logging
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             # Bot Personality
@@ -218,6 +204,8 @@ class Config:
             analytics_db_path=os.getenv("ANALYTICS_DB_PATH", "./data/analytics.db"),
             analytics_retention_days=int(os.getenv("ANALYTICS_RETENTION_DAYS", "30")),
             admin_dashboard_password=os.getenv("ADMIN_DASHBOARD_PASSWORD", ""),
+            # Multi-Server Configuration
+            server_config_path=os.getenv("SERVER_CONFIG_PATH", "./config/servers.yaml"),
         )
 
         config.validate()

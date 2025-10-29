@@ -1,0 +1,67 @@
+# Multi-Server Configuration for Kill Team Rules Bot
+#
+# This file allows you to configure different LLM API keys and providers
+# for different Discord servers (guilds). This is useful when deploying
+# the bot to multiple servers, where each server pays for their own LLM usage.
+#
+# IMPORTANT: Copy this file to `servers.yaml` and fill in your server-specific settings.
+# Add `config/servers.yaml` to .gitignore to keep API keys private.
+#
+# Fallback behavior:
+# - If a setting is not specified for a server, it falls back to config/.env
+# - If servers.yaml doesn't exist, the bot uses config/.env for all servers
+# - If a server is not listed here, it uses config/.env settings
+
+# Per-server configurations
+servers:
+  # Example Server 1: Custom Claude configuration
+  "123456789012345678":  # Replace with your Discord server (guild) ID
+    name: "My Gaming Community"  # Optional: Human-readable name for documentation
+
+    # LLM provider for this server (REQUIRED)
+    llm_provider: "claude-4.5-sonnet"
+
+    # API Keys (REQUIRED: must match the llm_provider above)
+    anthropic_api_key: "sk-ant-..."
+
+    # Optional: Additional API keys (any not specified fall back to .env)
+    # openai_api_key: "sk-..."  # Commented out = uses .env value
+    # google_api_key: "AIza..."
+    # x_api_key: "xai-..."
+    # deepseek_api_key: "sk-..."
+    # dial_api_key: "dial-..."
+
+    # RAG hop evaluation model (optional override)
+    # rag_hop_evaluation_model: "gpt-4.1-mini"  # Falls back to .env or constants.py
+
+  # Example Server 2: Using Gemini
+  "987654321098765432":
+    name: "Warhammer Rules Server"
+    llm_provider: "gemini-2.5-pro"
+    google_api_key: "AIza-server2-..."
+    # All other keys fall back to .env
+
+  # Example Server 3: Using Grok
+  "111222333444555666":
+    name: "Kill Team Tournament"
+    llm_provider: "grok-4-fast-reasoning"
+    x_api_key: "xai-server3-..."
+
+  # Example Server 4: Using OpenAI
+  "444555666777888999":
+    name: "Competitive Kill Team"
+    llm_provider: "gpt-4.1"
+    openai_api_key: "sk-server4-..."
+
+# Available LLM Providers:
+#   Claude: claude-4.5-sonnet, claude-4.1-opus, claude-4.5-haiku
+#   Gemini: gemini-2.5-pro, gemini-2.5-flash
+#   GPT: gpt-5, gpt-5-mini, gpt-4.1, gpt-4.1-mini, gpt-4o, o3, o3-mini, o4-mini
+#   Grok: grok-4-fast-reasoning, grok-4-0709, grok-3, grok-3-mini
+#   DeepSeek: deepseek-chat, deepseek-reasoner
+#   DIAL: dial-gpt-4o, dial-gpt-4.1, dial-gpt-5, dial-sonet-4.5, dial-opus-4.1, etc.
+
+# How to find your Discord Guild ID:
+# 1. Enable Developer Mode in Discord (User Settings → Advanced → Developer Mode)
+# 2. Right-click on your server icon and select "Copy Server ID"
+# 3. Paste the ID as a string (in quotes) in this file
