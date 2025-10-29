@@ -125,13 +125,17 @@ class ClaudeAdapter(LLMProvider):
             confidence = 0.8
 
             # Token count
-            token_count = response.usage.input_tokens + response.usage.output_tokens
+            prompt_tokens = response.usage.input_tokens
+            completion_tokens = response.usage.output_tokens
+            token_count = prompt_tokens + completion_tokens
 
             logger.info(
                 f"Claude generation completed",
                 extra={
                     "latency_ms": latency_ms,
                     "token_count": token_count,
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
                     "confidence": confidence,
                 },
             )
@@ -145,6 +149,8 @@ class ClaudeAdapter(LLMProvider):
                 provider="claude",
                 model_version=self.model,
                 citations_included=citations_included,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
             )
 
         except asyncio.TimeoutError:

@@ -302,6 +302,10 @@ def render_query_detail(db: AnalyticsDatabase):
         else:
             st.write(f"**Multi-Hop:** Disabled")
 
+        # Cost
+        cost = query.get("cost", 0.0)
+        st.write(f"**Cost:** ${cost:.5f}")
+
     # Hop evaluations (if multi-hop was used)
     if query.get("hops_used", 0) > 0:
         st.subheader("🔄 Multi-Hop Evaluations")
@@ -541,6 +545,37 @@ def render_analytics(db: AnalyticsDatabase):
             yaxis_title="Count",
         )
         st.plotly_chart(fig, use_container_width=True)
+
+    # Cost over time
+    st.subheader("💰 Daily Cost Breakdown")
+    if queries:
+        daily_costs = df.groupby("date").agg({
+            "cost": "sum",
+        }).reset_index()
+
+        fig = px.bar(
+            daily_costs,
+            x="date",
+            y="cost",
+            title="Daily Query Costs (USD)",
+            labels={"cost": "Total Cost (USD)", "date": "Date"},
+        )
+        fig.update_traces(marker_color="#4CAF50")
+        fig.update_layout(
+            xaxis_title="Date",
+            yaxis_title="Cost (USD)",
+            yaxis_tickformat="$.5f",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Show total cost
+        total_cost = df["cost"].sum()
+        avg_cost_per_query = df["cost"].mean()
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Total Cost", f"${total_cost:.5f}")
+        with col2:
+            st.metric("Avg Cost/Query", f"${avg_cost_per_query:.5f}")
 
     # LLM model performance
     st.subheader("🤖 LLM Model Performance")

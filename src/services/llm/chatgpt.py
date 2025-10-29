@@ -170,6 +170,8 @@ class ChatGPTAdapter(LLMProvider):
             confidence = 0.8  # Default confidence
 
             # Token count
+            prompt_tokens = response.usage.prompt_tokens
+            completion_tokens = response.usage.completion_tokens
             token_count = response.usage.total_tokens
 
             logger.info(
@@ -177,6 +179,8 @@ class ChatGPTAdapter(LLMProvider):
                 extra={
                     "latency_ms": latency_ms,
                     "token_count": token_count,
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
                     "confidence": confidence,
                 },
             )
@@ -190,6 +194,8 @@ class ChatGPTAdapter(LLMProvider):
                 provider="chatgpt",
                 model_version=self.model,
                 citations_included=citations_included,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
             )
 
         except asyncio.TimeoutError:

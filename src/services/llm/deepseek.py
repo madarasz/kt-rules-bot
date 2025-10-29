@@ -162,6 +162,8 @@ class DeepSeekAdapter(LLMProvider):
             confidence = 0.85 if self.is_reasoning_model else 0.8
 
             # Token count
+            prompt_tokens = response.usage.prompt_tokens
+            completion_tokens = response.usage.completion_tokens
             token_count = response.usage.total_tokens
 
             logger.info(
@@ -169,6 +171,8 @@ class DeepSeekAdapter(LLMProvider):
                 extra={
                     "latency_ms": latency_ms,
                     "token_count": token_count,
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
                     "confidence": confidence,
                     "has_reasoning": reasoning_content is not None,
                 },
@@ -183,6 +187,8 @@ class DeepSeekAdapter(LLMProvider):
                 provider="deepseek",
                 model_version=self.model,
                 citations_included=citations_included,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
             )
 
         except asyncio.TimeoutError:
