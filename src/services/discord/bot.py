@@ -9,10 +9,12 @@ from src.lib.constants import (
     LLM_GENERATION_TIMEOUT,
     RAG_MAX_HOPS,
     RAG_HOP_EVALUATION_MODEL,
+    EMBEDDING_MODEL,
 )
 from src.lib.database import AnalyticsDatabase
 from src.lib.discord_utils import get_random_acknowledgement
 from src.lib.logging import get_logger
+from src.lib.tokens import estimate_embedding_cost, estimate_cost
 from src.models.bot_response import BotResponse, Citation
 from src.models.structured_response import StructuredLLMResponse
 from src.models.user_query import UserQuery
@@ -250,7 +252,55 @@ class KillTeamBotOrchestrator:
             # Step 9b: Add feedback reaction buttons (👍👎)
             await formatter.add_feedback_reactions(sent_message)
 
-            # Step 10: Store in analytics DB (if enabled)
+            # Step 10: Calculate total cost
+            # Cost breakdown:
+            # 1. Initial retrieval embedding
+            initial_embedding_cost = estimate_embedding_cost(
+                user_query.sanitized_text,
+                EMBEDDING_MODEL
+            )
+
+            # 2. Hop query embeddings (if multi-hop was used)
+            hop_embedding_cost = 0.0
+            if hop_evaluations:
+                for hop_eval in hop_evaluations:
+                    if hop_eval.missing_query:
+                        hop_embedding_cost += estimate_embedding_cost(
+                            hop_eval.missing_query,
+                            EMBEDDING_MODEL
+                        )
+
+            # 3. Hop evaluation LLM costs (already tracked)
+            hop_evaluation_cost = sum(hop_eval.cost_usd for hop_eval in hop_evaluations)
+
+            # 4. Main LLM generation cost
+            main_llm_cost = estimate_cost(
+                llm_response.prompt_tokens,
+                llm_response.completion_tokens,
+                llm_response.model_version
+            )
+
+            # Total cost
+            total_cost = (
+                initial_embedding_cost +
+                hop_embedding_cost +
+                hop_evaluation_cost +
+                main_llm_cost
+            )
+
+            logger.info(
+                "Query cost breakdown",
+                extra={
+                    "correlation_id": correlation_id,
+                    "initial_embedding_cost": f"${initial_embedding_cost:.6f}",
+                    "hop_embedding_cost": f"${hop_embedding_cost:.6f}",
+                    "hop_evaluation_cost": f"${hop_evaluation_cost:.6f}",
+                    "main_llm_cost": f"${main_llm_cost:.6f}",
+                    "total_cost": f"${total_cost:.6f}",
+                }
+            )
+
+            # Step 11: Store in analytics DB (if enabled)
             if self.analytics_db.enabled:
                 try:
                     from datetime import datetime, timezone
@@ -278,6 +328,7 @@ class KillTeamBotOrchestrator:
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                         "multi_hop_enabled": 1 if RAG_MAX_HOPS > 0 else 0,
                         "hops_used": len(hop_evaluations),
+                        "cost": total_cost,
                     })
 
                     # Insert hop evaluations if multi-hop was used

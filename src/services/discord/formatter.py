@@ -119,7 +119,7 @@ def _format_structured(
     explanation_chunks = _split_field_value(data.explanation)
 
     for chunk_idx, chunk in enumerate(explanation_chunks):
-        field_name = "Explanation" if chunk_idx == 0 else None
+        field_name = "Explanation" if chunk_idx == 0 else ""
         embed.add_field(
             name=field_name,
             value=chunk,
