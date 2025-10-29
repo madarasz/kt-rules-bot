@@ -23,6 +23,7 @@ from typing import Any, Dict, List
 
 from src.lib.database import AnalyticsDatabase
 from src.lib.config import load_config
+from src.models.structured_response import StructuredLLMResponse
 
 
 # Constants
@@ -90,6 +91,7 @@ def render_query_browser(db: AnalyticsDatabase):
         date_range = st.selectbox(
             "Date Range",
             ["Last 24 hours", "Last 7 days", "Last 30 days", "All time"],
+            index=3,
         )
 
     with col2:
@@ -241,6 +243,10 @@ def render_query_browser(db: AnalyticsDatabase):
         st.session_state["current_page"] = "🔍 Query Detail"
         st.rerun()
 
+def bool_to_icon(value: bool) -> str:
+    if value is True:
+        return "✅"
+    return "❌"
 
 def render_query_detail(db: AnalyticsDatabase):
     """Render the query detail page."""
@@ -275,7 +281,18 @@ def render_query_detail(db: AnalyticsDatabase):
         st.text_area("Query", value=query["query_text"], height=100, disabled=True)
 
         st.subheader("🤖 Response Text")
-        st.text_area("Response", value=query["response_text"], height=200, disabled=True)
+        try:
+            structuredResponse = StructuredLLMResponse.from_json(query["response_text"])
+            st.write(f"**smalltalk:** {bool_to_icon(structuredResponse.smalltalk)}")
+            st.write(f"**short answer:** {structuredResponse.short_answer}")
+            st.write(f"**persona short answer:** *{structuredResponse.persona_short_answer}*")
+            for quote in structuredResponse.quotes:
+                st.write(f"> **{quote.quote_title}**\n> {quote.quote_text}")
+            st.write(f"**explanation:** {structuredResponse.explanation}")
+            st.write(f"**persona afterword:** *{structuredResponse.persona_afterword}*")
+
+        except ValueError:
+            st.text_area("Response", value=query["response_text"], height=200, disabled=True)
 
     with col2:
         st.subheader("📊 Metadata")
@@ -589,16 +606,6 @@ def render_analytics(db: AnalyticsDatabase):
         model_stats.columns = ["Model", "Queries", "Avg Confidence", "Upvotes", "Downvotes"]
         model_stats["Helpful Rate"] = model_stats["Upvotes"] / (model_stats["Upvotes"] + model_stats["Downvotes"])
         model_stats["Helpful Rate"] = model_stats["Helpful Rate"].fillna(0)
-
-        fig = px.bar(
-            model_stats,
-            x="Model",
-            y="Helpful Rate",
-            title="Helpful Rate by LLM Model",
-            color="Helpful Rate",
-            color_continuous_scale="RdYlGn",
-        )
-        st.plotly_chart(fig, use_container_width=True)
 
         st.dataframe(model_stats, use_container_width=True, hide_index=True)
 
