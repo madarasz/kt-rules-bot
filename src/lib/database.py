@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS queries (
     admin_notes TEXT,
     multi_hop_enabled INTEGER DEFAULT 0,
     hops_used INTEGER DEFAULT 0,
+    cost REAL DEFAULT 0.0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -47,6 +48,7 @@ CREATE INDEX IF NOT EXISTS idx_admin_status ON queries(admin_status);
 CREATE INDEX IF NOT EXISTS idx_llm_model ON queries(llm_model);
 CREATE INDEX IF NOT EXISTS idx_channel_id ON queries(channel_id);
 CREATE INDEX IF NOT EXISTS idx_multi_hop ON queries(multi_hop_enabled);
+CREATE INDEX IF NOT EXISTS idx_cost ON queries(cost);
 
 CREATE TABLE IF NOT EXISTS retrieved_chunks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -165,8 +167,8 @@ class AnalyticsDatabase:
                         confidence_score, rag_score, validation_passed,
                         latency_ms, timestamp, upvotes, downvotes,
                         admin_status, admin_notes, multi_hop_enabled, hops_used,
-                        created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        cost, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     query_data["query_id"],
                     query_data["discord_server_id"],
@@ -188,6 +190,7 @@ class AnalyticsDatabase:
                     None,  # admin_notes
                     query_data.get("multi_hop_enabled", 0),
                     query_data.get("hops_used", 0),
+                    query_data.get("cost", 0.0),
                     now,
                     now,
                 ))

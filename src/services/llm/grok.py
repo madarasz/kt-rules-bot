@@ -172,6 +172,8 @@ class GrokAdapter(LLMProvider):
 
             # Token count
             usage = response_data.get("usage", {})
+            prompt_tokens = usage.get("prompt_tokens", 0)
+            completion_tokens = usage.get("completion_tokens", 0)
             token_count = usage.get("total_tokens", 0)
 
             logger.info(
@@ -179,6 +181,8 @@ class GrokAdapter(LLMProvider):
                 extra={
                     "latency_ms": latency_ms,
                     "token_count": token_count,
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
                     "confidence": confidence,
                 },
             )
@@ -192,6 +196,8 @@ class GrokAdapter(LLMProvider):
                 provider="grok",
                 model_version=self.model,
                 citations_included=citations_included,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
             )
 
         except Exception as e:

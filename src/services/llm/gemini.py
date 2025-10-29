@@ -172,17 +172,22 @@ class GeminiAdapter(LLMProvider):
             confidence = self._safety_to_confidence(safety_ratings)
 
             # Token count from usage metadata
-            token_count = (
-                response.usage_metadata.total_token_count
-                if hasattr(response, "usage_metadata")
-                else 0
-            )
+            if hasattr(response, "usage_metadata"):
+                prompt_tokens = response.usage_metadata.prompt_token_count
+                completion_tokens = response.usage_metadata.candidates_token_count
+                token_count = response.usage_metadata.total_token_count
+            else:
+                prompt_tokens = 0
+                completion_tokens = 0
+                token_count = 0
 
             logger.info(
                 f"Gemini generation completed",
                 extra={
                     "latency_ms": latency_ms,
                     "token_count": token_count,
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
                     "confidence": confidence,
                 },
             )
@@ -196,6 +201,8 @@ class GeminiAdapter(LLMProvider):
                 provider="gemini",
                 model_version=self.model,
                 citations_included=citations_included,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
             )
 
         except asyncio.TimeoutError:

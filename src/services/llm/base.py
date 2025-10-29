@@ -290,6 +290,8 @@ class LLMResponse:
     provider: str  # "claude", "gemini", "chatgpt"
     model_version: str  # e.g., "claude-3-sonnet-20240229"
     citations_included: bool  # True if answer references context chunks
+    prompt_tokens: int = 0  # Input/prompt tokens
+    completion_tokens: int = 0  # Output/completion tokens
 
 
 # Data classes for extraction
