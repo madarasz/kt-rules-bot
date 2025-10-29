@@ -1,5 +1,5 @@
 # Hop judge test 2025.10.26.
-`Claude-4.5-Haiku` is a little bit better than `GTP-4.1-mini` as a hop judge while not being 
+`Claude-4.5-Haiku` is worse than `GTP-4.1-mini` as a hop judge. +1s execution time, GTP finds occasionally more chunks and uses less hops
 # Added multi-hop 2025.10.22
 Hopping, `gtp-4.1-mini` as hop judge, `RAG_MAX_CHUNKS` = 7, `RAG_HOP_CHUNK_LIMIT` = 5, 
 | Metric | Value | Description |

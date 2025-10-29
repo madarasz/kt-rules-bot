@@ -1,3 +1,9 @@
+- test_id: sniper-twice
+  query: >
+    Can the Eliminator Sniper shoot twice in a turning point?
+  ground_truth_contexts:
+    - "ANGELS OF DEATH - ELIMINATOR SNIPER"
+    - "During each friendly ANGEL OF DEATH operative's activation"
 - test_id: can-squig-guard
   query: >
     Is Guard is treated as a Shoot action? If so, can a Wrecka Squig do a Guard action?
