@@ -27,6 +27,7 @@ from src.services.llm.base import (
     ContentFilterError,
     PDFParseError,
     STRUCTURED_OUTPUT_SCHEMA,
+    HOP_EVALUATION_SCHEMA,
 )
 from src.lib.logging import get_logger
 import json
@@ -75,7 +76,21 @@ class ClaudeAdapter(LLMProvider):
         full_prompt = self._build_prompt(request.prompt, request.context)
 
         try:
-            # Always use tool use for structured JSON output
+            # Select schema based on configuration
+            schema_type = request.config.structured_output_schema
+
+            if schema_type == "hop_evaluation":
+                schema = HOP_EVALUATION_SCHEMA
+                tool_name = "evaluate_context_sufficiency"
+                tool_description = "Evaluate if retrieved context is sufficient to answer the question"
+                logger.debug("Using hop evaluation schema")
+            else:  # "default"
+                schema = STRUCTURED_OUTPUT_SCHEMA
+                tool_name = "format_kill_team_answer"
+                tool_description = "Format Kill Team rules answer with quotes and explanation"
+                logger.debug("Using default answer schema")
+
+            # Use tool use for structured JSON output
             response = await asyncio.wait_for(
                 self.client.messages.create(
                     model=self.model,
@@ -84,13 +99,13 @@ class ClaudeAdapter(LLMProvider):
                     system=request.config.system_prompt,
                     messages=[{"role": "user", "content": full_prompt}],
                     tools=[{
-                        "name": "format_kill_team_answer",
-                        "description": "Format Kill Team rules answer with quotes and explanation",
-                        "input_schema": STRUCTURED_OUTPUT_SCHEMA
+                        "name": tool_name,
+                        "description": tool_description,
+                        "input_schema": schema
                     }],
                     tool_choice={
                         "type": "tool",
-                        "name": "format_kill_team_answer"
+                        "name": tool_name
                     }
                 ),
                 timeout=request.config.timeout_seconds,

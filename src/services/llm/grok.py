@@ -28,6 +28,7 @@ from src.services.llm.base import (
     PDFParseError,
     TokenLimitError,
     STRUCTURED_OUTPUT_SCHEMA,
+    HOP_EVALUATION_SCHEMA,
 )
 from src.lib.logging import get_logger
 import json
@@ -79,6 +80,20 @@ class GrokAdapter(LLMProvider):
         full_prompt = self._build_prompt(request.prompt, request.context)
 
         try:
+            # Select schema based on configuration
+            schema_type = request.config.structured_output_schema
+
+            if schema_type == "hop_evaluation":
+                schema = HOP_EVALUATION_SCHEMA
+                function_name = "evaluate_context_sufficiency"
+                function_description = "Evaluate if retrieved context is sufficient to answer the question"
+                logger.debug("Using hop evaluation schema")
+            else:  # "default"
+                schema = STRUCTURED_OUTPUT_SCHEMA
+                function_name = "format_kill_team_answer"
+                function_description = "Format Kill Team rules answer with quotes and explanation"
+                logger.debug("Using default answer schema")
+
             # Build API request payload with structured output (Grok supports OpenAI-compatible function calling)
             payload = {
                 "model": self.model,
@@ -92,14 +107,14 @@ class GrokAdapter(LLMProvider):
                 "tools": [{
                     "type": "function",
                     "function": {
-                        "name": "format_kill_team_answer",
-                        "description": "Format Kill Team rules answer with quotes and explanation",
-                        "parameters": STRUCTURED_OUTPUT_SCHEMA,
+                        "name": function_name,
+                        "description": function_description,
+                        "parameters": schema,
                     }
                 }],
                 "tool_choice": {
                     "type": "function",
-                    "function": {"name": "format_kill_team_answer"}
+                    "function": {"name": function_name}
                 },
             }
 
