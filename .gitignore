@@ -61,6 +61,7 @@ dmypy.json
 
 # Project specific
 data/*
+!data/*.py
 !data/rag_synonyms.json
 logs/
 *.log
