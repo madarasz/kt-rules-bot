@@ -115,15 +115,16 @@ def _format_structured(
         )
 
     # Add explanation field (split if needed)
-    explanation_chunks = _split_field_value(data.explanation)
+    if (len(data.explanation) > 0):
+        explanation_chunks = _split_field_value(data.explanation)
 
-    for chunk_idx, chunk in enumerate(explanation_chunks):
-        field_name = "Explanation" if chunk_idx == 0 else ""
-        embed.add_field(
-            name=field_name,
-            value=chunk,
-            inline=False
-        )
+        for chunk_idx, chunk in enumerate(explanation_chunks):
+            field_name = "Explanation" if chunk_idx == 0 else ""
+            embed.add_field(
+                name=field_name,
+                value=chunk,
+                inline=False
+            )
 
     # Add persona afterword
     embed.add_field(

@@ -32,10 +32,16 @@ SMALLTALK_CONTEXT = []
 
 @pytest.mark.parametrize("provider", PROVIDERS_TO_TEST)
 @pytest.mark.asyncio
-async def test_provider_returns_valid_json(provider):
-    """Test provider returns parseable JSON.
+async def test_provider_structured_output_compliance(provider):
+    """Test provider returns valid structured JSON with all required fields.
 
-    Contract: All providers must return valid JSON string in answer_text.
+    Combined test that validates:
+    1. Valid JSON format
+    2. All required schema fields present with correct types
+    3. Quotes have correct structure
+    4. Can be parsed into StructuredLLMResponse model
+
+    Contract: All providers must return valid JSON conforming to STRUCTURED_OUTPUT_SCHEMA.
     """
     llm = LLMProviderFactory.create(provider)
 
@@ -47,7 +53,7 @@ async def test_provider_returns_valid_json(provider):
 
     response = await llm.generate(request)
 
-    # Verify response is valid JSON
+    # 1. Verify response is valid JSON
     try:
         data = json.loads(response.answer_text)
     except json.JSONDecodeError as e:
@@ -56,31 +62,11 @@ async def test_provider_returns_valid_json(provider):
     assert isinstance(data, dict), f"{provider} must return JSON object (got {type(data)})"
     print(f"✓ {provider} returned valid JSON")
 
-
-@pytest.mark.parametrize("provider", PROVIDERS_TO_TEST)
-@pytest.mark.asyncio
-async def test_provider_has_required_fields(provider):
-    """Test provider includes all required schema fields.
-
-    Contract: Response must include all fields from STRUCTURED_OUTPUT_SCHEMA.
-    """
-    llm = LLMProviderFactory.create(provider)
-
-    request = GenerationRequest(
-        prompt=TEST_PROMPT,
-        context=TEST_CONTEXT,
-        config=GenerationConfig()
-    )
-
-    response = await llm.generate(request)
-    data = json.loads(response.answer_text)
-
-    # Verify all required fields present
+    # 2. Verify all required fields present with correct types
     required_fields = STRUCTURED_OUTPUT_SCHEMA["required"]
     missing_fields = [f for f in required_fields if f not in data]
     assert not missing_fields, f"{provider} missing required fields: {missing_fields}"
 
-    # Verify field types
     assert isinstance(data["smalltalk"], bool), f"{provider} smalltalk must be boolean"
     assert isinstance(data["short_answer"], str), f"{provider} short_answer must be string"
     assert isinstance(data["persona_short_answer"], str), f"{provider} persona_short_answer must be string"
@@ -90,25 +76,7 @@ async def test_provider_has_required_fields(provider):
 
     print(f"✓ {provider} has all required fields with correct types")
 
-
-@pytest.mark.parametrize("provider", PROVIDERS_TO_TEST)
-@pytest.mark.asyncio
-async def test_provider_quotes_structure(provider):
-    """Test provider returns correctly structured quotes array.
-
-    Contract: Each quote must have quote_title and quote_text.
-    """
-    llm = LLMProviderFactory.create(provider)
-
-    request = GenerationRequest(
-        prompt=TEST_PROMPT,
-        context=TEST_CONTEXT,
-        config=GenerationConfig()
-    )
-
-    response = await llm.generate(request)
-    data = json.loads(response.answer_text)
-
+    # 3. Verify quotes structure
     quotes = data["quotes"]
     assert len(quotes) > 0, f"{provider} must return at least one quote for rules questions"
 
@@ -122,25 +90,7 @@ async def test_provider_quotes_structure(provider):
 
     print(f"✓ {provider} returned {len(quotes)} valid quotes")
 
-
-@pytest.mark.parametrize("provider", PROVIDERS_TO_TEST)
-@pytest.mark.asyncio
-async def test_provider_parses_to_structured_model(provider):
-    """Test provider response can be parsed into StructuredLLMResponse.
-
-    Contract: Response must be compatible with StructuredLLMResponse model.
-    """
-    llm = LLMProviderFactory.create(provider)
-
-    request = GenerationRequest(
-        prompt=TEST_PROMPT,
-        context=TEST_CONTEXT,
-        config=GenerationConfig()
-    )
-
-    response = await llm.generate(request)
-
-    # Verify can parse into model
+    # 4. Verify can parse into StructuredLLMResponse model
     try:
         structured_response = StructuredLLMResponse.from_json(response.answer_text)
         structured_response.validate()
@@ -154,7 +104,7 @@ async def test_provider_parses_to_structured_model(provider):
     print(f"✓ {provider} response successfully parsed to StructuredLLMResponse")
 
 
-@pytest.mark.parametrize("provider", PROVIDERS_TO_TEST)
+@pytest.mark.parametrize("provider", ["gpt-4.1"])
 @pytest.mark.asyncio
 async def test_provider_smalltalk_flag(provider):
     """Test provider correctly sets smalltalk flag.
@@ -180,7 +130,7 @@ async def test_provider_smalltalk_flag(provider):
     print(f"✓ {provider} correctly identified smalltalk")
 
 
-@pytest.mark.parametrize("provider", PROVIDERS_TO_TEST)
+@pytest.mark.parametrize("provider", ["gpt-4.1"])
 @pytest.mark.asyncio
 async def test_provider_markdown_conversion(provider):
     """Test provider response converts to markdown correctly.

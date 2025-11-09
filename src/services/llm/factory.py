@@ -122,8 +122,16 @@ class LLMProviderFactory:
             }
             api_key = server_api_key_map.get(api_key_type)
         else:
-            # No server config - use global .env keys
-            return None
+            # No server config - fall back to global .env keys
+            global_api_key_map = {
+                "anthropic": config.anthropic_api_key,
+                "openai": config.openai_api_key,
+                "google": config.google_api_key,
+                "x": config.x_api_key,
+                "dial": config.dial_api_key,
+                "deepseek": config.deepseek_api_key,
+            }
+            api_key = global_api_key_map.get(api_key_type)
 
         # If API key is missing, return None instead of throwing
         # The bot will handle this gracefully and send a Discord message
