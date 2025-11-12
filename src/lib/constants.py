@@ -48,10 +48,11 @@ LLM_PROVIDERS_LITERAL = Literal[
 
 ALL_LLM_PROVIDERS = list(get_args(LLM_PROVIDERS_LITERAL))
 
-# PDF extraction providers (models that support PDF processing)
 PDF_EXTRACTION_PROVIDERS = [
-    "gemini-2.5-pro", 
-    "gemini-2.5-flash",
+    "gemini-2.5-pro",      # Recommended: Most reliable
+    "gemini-2.5-flash",    # Recommended: Fast and reliable
+    "claude-4.5-sonnet",
+    "claude-4.1-opus",
 ]
 
 # Quality test providers (curated list for --all-models testing)
@@ -91,7 +92,7 @@ LLM_MAX_RETRIES = 2  # Number of retry attempts on ContentFilterError
 
 # Default LLM timeouts (in seconds)
 LLM_GENERATION_TIMEOUT = 50  # Standard generation timeout
-LLM_EXTRACTION_TIMEOUT = 120  # PDF extraction timeout (longer)
+LLM_EXTRACTION_TIMEOUT = 300  # PDF extraction timeout (5 minutes for large PDFs)
 LLM_JUDGE_TIMEOUT = 30  # Quality test judge evaluation timeout
 
 # Default LLM generation parameters

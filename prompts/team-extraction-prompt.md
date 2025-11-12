@@ -22,10 +22,10 @@ Extract each operative's complete datacard information:
 - **Abilities:** All special rules, abilities, and unique actions (marked with AP cost)
 - **Keywords:** Bottom line keywords (e.g., "PATHFINDER, T'AU EMPIRE, LEADER, SHAS'UI")
 
-### Abilities
+#### Abilities
 All special rules, abilities, and unique actions (marked with AP cost) as heading 3: 
 ```
-### [Team Name] - [Operative Name] - [Ability Name]
+### [Operative Name] - [Ability Name]
 ```
 
 ### 2. Kill Team Selection Card
@@ -50,10 +50,15 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS"). Put e
 
 ### Rules Commentaries
 **Each Q&A pair must:**
-1. Be marked with `[FAQ]` at the start, and separated with `---` from the other Q&A pairs
+1. Use header 2 (##) and `[FAQ]` prefix for each Q&A pair
 2. Format the question with `*Question*:` prefix
 3. Format the answer with `*Answer*:` prefix
-4. **Bold** 
+4. **Bold** the following elements:
+   - Faction/unit names (e.g., **CORSAIR VOIDSCARRED**)
+   - Ability names (e.g., **Warding Shield**)
+   - Game action names (e.g., **Shoot** action, **Guard** action)
+   - Keywords (e.g., **Blast**, **Heavy**, **Torrent**)
+   - Critical game terms when relevant (e.g., **incapacitated**, **counteract**)
 
 ## Extraction Rules
 1. **Verbatim Extraction Required:**
@@ -97,9 +102,7 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS"). Put e
 ### [KILL TEAM NAME] - Archetypes
 - [List archetypes]
 
-## [KILL TEAM NAME] - Faction Rules
-
-### [KILL TEAM NAME] - Faction Rules - [Faction Rule Name] - [Faction Rule Variant]
+## [Faction Rule Name] - [Faction Rule Variant]
 [Complete rule text]
 
 ## [KILL TEAM NAME] - [OPERATIVE NAME]
@@ -116,25 +119,25 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS"). Put e
 
 **Keywords:** [list keywords]
 
-### [KILL TEAM NAME] - [OPERATIVE NAME] - [Ability Name]
+### [OPERATIVE NAME] - [Ability Name]
 [Full ability description]
 
-### [KILL TEAM NAME] - [OPERATIVE NAME] - [Action Name] [X]AP
+### [OPERATIVE NAME] - [Action Name] [X]AP
 [Full action description]
 
 [Repeat for each operative]
 
-## [Kill Team Name] - Strategy Ploy - [Strategy Ploy Name]
+## Strategy Ploy - [Strategy Ploy Name]
 [Complete ploy text]
 
 [Exactly 4 strategy ploys]
 
-## [Kill Team Name] - Firefight Ploy - [Firefight Ploy Name]
+## Firefight Ploy - [Firefight Ploy Name]
 [Complete ploy text]
 
 [Exactly 4 firefight ploys]
 
-## [Kill Team Name] - Faction Equipment - [Equipment Name]
+## Equipment - [Equipment Name]
 [Complete equipment text]
 
 [Exactly 4 faction equipment items]

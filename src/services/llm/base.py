@@ -266,11 +266,13 @@ class ExtractionResponse:
 
     extraction_id: UUID
     markdown_content: str  # Extracted markdown with YAML frontmatter
-    token_count: int  # Tokens used (for cost tracking)
+    token_count: int  # Total tokens used (for backward compatibility)
     latency_ms: int  # Extraction time
     provider: str  # "claude", "gemini", "chatgpt"
     model_version: str
     validation_warnings: List[str]  # E.g., "Missing YAML frontmatter"
+    prompt_tokens: int = 0  # Input tokens (PDF + prompt)
+    completion_tokens: int = 0  # Output tokens (markdown)
 
 
 # Abstract base class

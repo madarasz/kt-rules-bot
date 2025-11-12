@@ -371,11 +371,16 @@ class GeminiAdapter(LLMProvider):
             latency_ms = int((time.time() - start_time) * 1000)
 
             markdown_content = response.text
-            token_count = (
-                response.usage_metadata.total_token_count
-                if hasattr(response, "usage_metadata")
-                else 0
-            )
+
+            # Extract token counts
+            if hasattr(response, "usage_metadata"):
+                prompt_tokens = response.usage_metadata.prompt_token_count
+                completion_tokens = response.usage_metadata.candidates_token_count
+                token_count = response.usage_metadata.total_token_count
+            else:
+                prompt_tokens = 0
+                completion_tokens = 0
+                token_count = 0
 
             # Validate extracted markdown
             validation_warnings = self._validate_extraction(markdown_content)
@@ -385,6 +390,8 @@ class GeminiAdapter(LLMProvider):
                 extra={
                     "latency_ms": latency_ms,
                     "token_count": token_count,
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
                     "warnings": len(validation_warnings),
                 },
             )
@@ -397,6 +404,8 @@ class GeminiAdapter(LLMProvider):
                 provider="gemini",
                 model_version=self.model,
                 validation_warnings=validation_warnings,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
             )
 
         except asyncio.TimeoutError:
