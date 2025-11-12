@@ -50,6 +50,8 @@ config/servers.yaml
 # Testing
 .pytest_cache/
 .coverage
+coverage.xml
+coverage.json
 htmlcov/
 .hypothesis/
 tests/quality/results/
@@ -59,6 +61,11 @@ tests/rag/results/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Code quality
+.ruff_cache/
+.radon/
+vulture.txt
 
 # Project specific
 data/*
