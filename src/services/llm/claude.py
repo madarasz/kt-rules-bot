@@ -6,14 +6,9 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 
 import asyncio
 import time
-from typing import BinaryIO
 from uuid import uuid4
+from anthropic import AsyncAnthropic, Anthropic
 
-try:
-    from anthropic import Anthropic, AsyncAnthropic
-except ImportError:
-    Anthropic = None
-    AsyncAnthropic = None
 
 from src.services.llm.base import (
     LLMProvider,
@@ -30,6 +25,7 @@ from src.services.llm.base import (
     HOP_EVALUATION_SCHEMA,
 )
 from src.lib.logging import get_logger
+from src.lib.pdf_utils import decompress_pdf_with_cleanup
 import json
 
 logger = get_logger(__name__)
@@ -47,12 +43,11 @@ class ClaudeAdapter(LLMProvider):
         """
         super().__init__(api_key, model)
 
-        if AsyncAnthropic is None:
-            raise ImportError(
-                "anthropic package not installed. Run: pip install anthropic"
-            )
-
-        self.client = AsyncAnthropic(api_key=api_key)
+        # Initialize client with PDF and Files API beta headers
+        self.client = AsyncAnthropic(
+            api_key=api_key,
+            default_headers={"anthropic-beta": "pdfs-2024-09-25,files-api-2025-04-14"}
+        )
         logger.info(f"Initialized Claude adapter with model {model}")
 
     async def generate(self, request: GenerationRequest) -> LLMResponse:
@@ -195,7 +190,7 @@ class ClaudeAdapter(LLMProvider):
             raise
 
     async def extract_pdf(self, request: ExtractionRequest) -> ExtractionResponse:
-        """Extract markdown from PDF using Claude vision.
+        """Extract markdown from PDF using Claude Files API.
 
         Args:
             request: Extraction request with PDF file
@@ -216,41 +211,69 @@ class ClaudeAdapter(LLMProvider):
             if len(pdf_bytes) == 0:
                 raise PDFParseError("PDF file is empty")
 
-            # Call Claude API with PDF document
-            # Note: Anthropic uses base64 encoding for documents
-            import base64
+            pdf_size_mb = len(pdf_bytes) / (1024 * 1024)
+            logger.info(f"Extracting PDF ({pdf_size_mb:.1f} MB) using Claude Files API")
 
-            pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
+            # Upload PDF using Files API (better for large documents)
+            # Use context manager for automatic cleanup of temporary files
+            with decompress_pdf_with_cleanup(pdf_bytes) as (_, decompressed_pdf_path):
+                # Upload file using Files API (in beta namespace)
+                # Note: Need to use synchronous client for file upload
+                sync_client = Anthropic(
+                    api_key=self.client.api_key,
+                    default_headers=self.client._custom_headers  # Preserve beta headers
+                )
 
-            response = await asyncio.wait_for(
-                self.client.messages.create(
-                    model=self.model,
-                    max_tokens=request.config.max_tokens,
-                    temperature=request.config.temperature,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
+                uploaded_file = None
+                try:
+                    with open(decompressed_pdf_path, 'rb') as f:
+                        uploaded_file = await asyncio.to_thread(
+                            sync_client.beta.files.upload,
+                            file=f
+                        )
+
+                    logger.info(f"Uploaded PDF to Files API: {uploaded_file.id}")
+
+                    # Use uploaded file in message
+                    response = await asyncio.wait_for(
+                        self.client.messages.create(
+                            model=self.model,
+                            max_tokens=request.config.max_tokens,
+                            temperature=request.config.temperature,
+                            messages=[
                                 {
-                                    "type": "document",
-                                    "source": {
-                                        "type": "base64",
-                                        "media_type": "application/pdf",
-                                        "data": pdf_base64,
-                                    },
-                                },
-                                {"type": "text", "text": request.extraction_prompt},
+                                    "role": "user",
+                                    "content": [
+                                        {
+                                            "type": "document",
+                                            "source": {
+                                                "type": "file",
+                                                "file_id": uploaded_file.id,
+                                            },
+                                        },
+                                        {"type": "text", "text": request.extraction_prompt},
+                                    ],
+                                }
                             ],
-                        }
-                    ],
-                ),
-                timeout=request.config.timeout_seconds,
-            )
+                        ),
+                        timeout=request.config.timeout_seconds,
+                    )
+
+                finally:
+                    # Clean up uploaded file
+                    if uploaded_file:
+                        try:
+                            await asyncio.to_thread(sync_client.beta.files.delete, uploaded_file.id)
+                            logger.info(f"Deleted uploaded file: {uploaded_file.id}")
+                        except Exception as e:
+                            logger.warning(f"Failed to delete uploaded file: {e}")
 
             latency_ms = int((time.time() - start_time) * 1000)
 
             markdown_content = response.content[0].text
-            token_count = response.usage.input_tokens + response.usage.output_tokens
+            prompt_tokens = response.usage.input_tokens
+            completion_tokens = response.usage.output_tokens
+            token_count = prompt_tokens + completion_tokens
 
             # Validate extracted markdown
             validation_warnings = self._validate_extraction(markdown_content)
@@ -260,6 +283,8 @@ class ClaudeAdapter(LLMProvider):
                 extra={
                     "latency_ms": latency_ms,
                     "token_count": token_count,
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
                     "warnings": len(validation_warnings),
                 },
             )
@@ -272,6 +297,8 @@ class ClaudeAdapter(LLMProvider):
                 provider="claude",
                 model_version=self.model,
                 validation_warnings=validation_warnings,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
             )
 
         except asyncio.TimeoutError:

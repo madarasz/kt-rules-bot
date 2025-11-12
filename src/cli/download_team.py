@@ -16,7 +16,8 @@ from datetime import date, datetime
 from src.lib.config import get_config
 from src.lib.logging import get_logger
 from src.lib.constants import PDF_EXTRACTION_PROVIDERS
-from src.services.llm.gemini import GeminiAdapter
+from src.lib.tokens import estimate_cost
+from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.base import ExtractionConfig, ExtractionRequest
 
 logger = get_logger(__name__)
@@ -127,29 +128,41 @@ def download_pdf(url: str) -> Tuple[bytes, int]:
 
 
 def extract_team_name(markdown: str) -> str:
-    """Extract team name from first H1 header in markdown.
+    """Extract team name from first H2 header in markdown.
 
     Args:
         markdown: Extracted markdown content
 
     Returns:
-        Team name in lowercase (e.g., "pathfinders")
+        Team name in lowercase (e.g., "angels_of_death")
 
     Raises:
-        ValueError: If no H1 header found
+        ValueError: If no H2 header found
+
+    Examples:
+        "## ANGELS OF DEATH - Operative Selection" -> "angels_of_death"
+        "## Pathfinders - Faction Rules" -> "pathfinders"
     """
-    # Find first H1 header (# TEAM NAME)
+    # Find first H2 header (## TEAM NAME - ...)
     lines = markdown.split('\n')
     for line in lines:
         line = line.strip()
-        if line.startswith('# ') and not line.startswith('##'):
-            # Extract team name (remove '# ' prefix)
-            team_name = line[2:].strip()
+        if line.startswith('## ') and not line.startswith('###'):
+            # Extract full header (remove '## ' prefix)
+            header = line[3:].strip()
+
+            # Extract team name (text before first ' - ')
+            if ' - ' in header:
+                team_name = header.split(' - ')[0].strip()
+            else:
+                # Fallback: use entire header
+                team_name = header
+
             # Convert to lowercase and replace spaces with underscores
             team_name_clean = team_name.lower().replace(' ', '_')
             return team_name_clean
 
-    raise ValueError("Could not find team name in extracted markdown (no H1 header found)")
+    raise ValueError("Could not find team name in extracted markdown (no H2 header found)")
 
 
 def prepend_yaml_frontmatter(
@@ -200,8 +213,9 @@ def validate_final_markdown(markdown: str, team_name: str) -> list[str]:
         if field not in markdown[:500]:
             warnings.append(f"Missing required field: {field.rstrip(':')}")
 
-    # Check for team name in content
-    if f"# {team_name.upper()}" not in markdown and f"# {team_name.replace('_', ' ').upper()}" not in markdown:
+    # Check for team name in content (H2 headers with team name)
+    team_name_display = team_name.replace('_', ' ').upper()
+    if f"## {team_name_display}" not in markdown.upper():
         warnings.append(f"Team name heading not found in markdown")
 
     # Check for key sections
@@ -211,28 +225,18 @@ def validate_final_markdown(markdown: str, team_name: str) -> list[str]:
     return warnings
 
 
-def calculate_cost(token_count: int, model: str) -> float:
+def calculate_cost(prompt_tokens: int, completion_tokens: int, model: str) -> float:
     """Calculate estimated cost for LLM usage.
 
     Args:
-        token_count: Total tokens used
+        prompt_tokens: Input tokens (PDF + prompt)
+        completion_tokens: Output tokens (markdown)
         model: Model identifier
 
     Returns:
         Estimated cost in USD
     """
-    # Gemini 2.5 Pro pricing (as of 2025)
-    # Input: $1.25 per million tokens
-    # Output: $5.00 per million tokens
-    # Assume 80/20 split (input/output) as rough estimate for PDF extraction
-    if 'gemini-2.5-pro' in model.lower():
-        input_tokens = token_count * 0.8
-        output_tokens = token_count * 0.2
-        cost = (input_tokens * 1.25 / 1_000_000) + (output_tokens * 5.00 / 1_000_000)
-        return cost
-
-    # Fallback for other models
-    return token_count * 2.00 / 1_000_000
+    return estimate_cost(prompt_tokens, completion_tokens, model)
 
 
 def download_team_internal(
@@ -265,20 +269,6 @@ def download_team_internal(
         }
     """
     config = get_config()
-
-    # Validate Google API key
-    if not config.google_api_key:
-        logger.error("GOOGLE_API_KEY not configured")
-        return {
-            "success": False,
-            "team_name": None,
-            "output_file": None,
-            "tokens": 0,
-            "latency_ms": 0,
-            "cost_usd": 0.0,
-            "error": "GOOGLE_API_KEY not configured in environment",
-            "validation_warnings": [],
-        }
 
     # Step 1: Download PDF
     if verbose:
@@ -322,17 +312,31 @@ def download_team_internal(
             "validation_warnings": [],
         }
 
-    # Step 3: Extract using Gemini
+    # Step 3: Extract using LLM provider
     if verbose:
         print(f"\nExtracting team rules using {model}...")
     try:
+        # Create LLM provider using factory
+        llm_provider = LLMProviderFactory.create(provider_name=model)
+
+        if llm_provider is None:
+            error_msg = f"API key not configured for {model}. Please check your .env file."
+            logger.error(error_msg)
+            return {
+                "success": False,
+                "team_name": None,
+                "output_file": None,
+                "tokens": 0,
+                "latency_ms": 0,
+                "cost_usd": 0.0,
+                "error": error_msg,
+                "validation_warnings": [],
+            }
+
         # Create temporary file for PDF
         with tempfile.NamedTemporaryFile(mode='wb', suffix='.pdf', delete=False) as temp_pdf:
             temp_pdf.write(pdf_bytes)
             temp_pdf_path = temp_pdf.name
-
-        # Initialize Gemini adapter
-        gemini = GeminiAdapter(api_key=config.google_api_key, model=model)
 
         # Create extraction request
         with open(temp_pdf_path, 'rb') as pdf_file:
@@ -345,7 +349,7 @@ def download_team_internal(
 
             # Extract (synchronous wrapper for async method)
             import asyncio
-            response = asyncio.run(gemini.extract_pdf(request))
+            response = asyncio.run(llm_provider.extract_pdf(request))
 
         # Clean up temp file
         Path(temp_pdf_path).unlink(missing_ok=True)
@@ -384,7 +388,7 @@ def download_team_internal(
                 "output_file": None,
                 "tokens": response.token_count,
                 "latency_ms": response.latency_ms,
-                "cost_usd": calculate_cost(response.token_count, model),
+                "cost_usd": calculate_cost(response.prompt_tokens, response.completion_tokens, model),
                 "error": f"Failed to extract team name: {e}",
                 "validation_warnings": [],
             }
@@ -416,7 +420,7 @@ def download_team_internal(
             "output_file": None,
             "tokens": response.token_count,
             "latency_ms": response.latency_ms,
-            "cost_usd": calculate_cost(response.token_count, model),
+            "cost_usd": calculate_cost(response.prompt_tokens, response.completion_tokens, model),
             "error": f"Failed to add frontmatter: {e}",
             "validation_warnings": [],
         }
@@ -448,13 +452,13 @@ def download_team_internal(
             "output_file": None,
             "tokens": response.token_count,
             "latency_ms": response.latency_ms,
-            "cost_usd": calculate_cost(response.token_count, model),
+            "cost_usd": calculate_cost(response.prompt_tokens, response.completion_tokens, model),
             "error": f"Failed to save file: {e}",
             "validation_warnings": validation_warnings,
         }
 
     # Step 7: Calculate metrics
-    cost = calculate_cost(response.token_count, model)
+    cost = calculate_cost(response.prompt_tokens, response.completion_tokens, model)
 
     if verbose:
         latency_s = response.latency_ms / 1000
