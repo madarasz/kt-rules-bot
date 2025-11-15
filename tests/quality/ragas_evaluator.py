@@ -107,24 +107,29 @@ class RagasEvaluator:
     async def evaluate(
         self,
         query: str,
-        llm_response: StructuredLLMResponse,
+        llm_response: Optional[StructuredLLMResponse],
         context_chunks: List[str],
         ground_truth_answers: List[str],
         ground_truth_contexts: List[str],
     ) -> RagasMetrics:
         """Evaluate a single RAG response using Ragas metrics.
-        
+
         Args:
             query: The user's question
-            llm_response: The structured LLM response object
+            llm_response: The structured LLM response object (can be None if LLM call failed)
             context_chunks: The RAG context chunks provided to the LLM
             ground_truth_answers: List of acceptable ground truth answers
             ground_truth_contexts: List of expected context snippets
-            
+
         Returns:
             RagasMetrics with scores (0-1 scale)
         """
         try:
+            # Check if LLM response is None (e.g., due to timeout, rate limit, or other errors)
+            if llm_response is None:
+                logger.warning("LLM response is None, cannot evaluate with Ragas")
+                return RagasMetrics(error="LLM response is None (generation failed)")
+
             # Extract and normalize components from structured response
             quotes_text = [self._normalize_text(q.quote_text) for q in llm_response.quotes]
             short_answer = self._normalize_text(llm_response.short_answer)

@@ -1,3 +1,9 @@
+- test_id: rain-bitter-demise
+  query: >
+    Would the banshee resolve his dash/fall back with Rain of Tears before the damage of Bitter Demise can hit it, or would the blooded operative be removed from the battlefield before any of that, thus possibly dealing damage to the banshee?
+  ground_truth_contexts:
+    - "Use this ASPECT TECHNIQUE when a friendly HOWLING BANSHEE operative is fighting, after you strike with a critical success"
+    - "Whenever a friendly BLOODED operative is incapacitated, before it's removed from the killzone"
 - test_id: sniper-twice
   query: >
     Can the Eliminator Sniper shoot twice in a turning point?

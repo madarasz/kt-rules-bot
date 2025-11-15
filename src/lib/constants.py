@@ -205,7 +205,7 @@ RAG_SYNONYM_DICT_PATH = "data/rag_synonyms.json"
 # Maximum number of retrieval iterations after initial query (default: 0 = disabled)
 # 0 = single-hop only (multi-hop disabled)
 # 1 = initial + 1 hop, 2 = initial + 2 hops, etc.
-RAG_MAX_HOPS = 1
+RAG_MAX_HOPS = 2
 
 # Maximum chunks to retrieve per hop
 # Total chunks accumulated = (MAX_HOPS + 1) × HOP_CHUNK_LIMIT

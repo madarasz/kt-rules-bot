@@ -170,5 +170,9 @@
   ],
   "BARRICADES": [
     "barricade"
+  ],
+  "PICK UP MARKER, PLACE MARKER": [
+    "picked up",
+    "drop marker"
   ]
 }
