@@ -4,22 +4,14 @@ A Discord bot that answers questions about Warhammer 40,000 Kill Team rules usin
 
 ## Purpose
 
-Helps Kill Team players quickly find accurate rule information by asking questions in Discord. The bot searches through official rule documents and provides AI-generated answers with citations and confidence scores.
-
-## Roadmap
-- ✅ Kill Team rules extracted
-- ✅ LLM models integrated
-- ✅ RAG system operational
-- ✅ Rules query available via CLI
-- 🏗️ Assessing LLM models, optimizing prompts
-- 🏗️ Discord integration
+Helps Kill Team players quickly find accurate rule information by asking questions in Discord. The bot searches through official rule documents and provides AI-generated answers with citations.
 
 ## Technology, Architecture
 
+- **LLM with RAG** using semantic + **BM25** keyword search with **multi-hop**
+- **ChromaDB** vector database
 - **Python 3.12** with discord.py for Discord integration
-- **RAG Pipeline**: ChromaDB vector database + LLM
-- **Orchestrator Pattern**: Centralized coordination of Discord, RAG, and LLM services
-- **GDPR-compliant**: SHA-256 user ID hashing, 7-day retention, audit logging
+- **Orchestrator Pattern**: Centralized coordination of Discord, RAG and LLM services
 
 **Supported LLM models:**
 - **Claude**: `claude-4.5-sonnet`, `claude-4.1-opus`, `claude-4.5-haiku`
@@ -54,17 +46,27 @@ python -m src.cli ingest ./extracted-rules
 python -m src.cli run
 ```
 
-## Tests
+## Tests & Code Quality
 
 ```bash
-# Run all tests
+# Run all tests with coverage
 pytest
 
-# Run with coverage
-pytest --cov=src --cov-report=html
+# Run all quality checks (recommended before commit)
+make quality
+
+# Run comprehensive checks (tests + security + complexity)
+make all
+
+# View HTML coverage report
+make coverage
 ```
 
 **Current status**: 87 tests passing (unit, integration, contract)
+
+**Quality tools**: Automated linting (ruff, mypy, flake8), security scanning (bandit, safety, pip-audit), complexity analysis (radon), coverage tracking, custom import validation, and dead code detection.
+
+**Documentation**: See [docs/CODE_QUALITY.md](docs/CODE_QUALITY.md) for detailed guide.
 
 ## Project structure
 
