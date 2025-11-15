@@ -16,6 +16,8 @@ LLM_PROVIDERS_LITERAL = Literal[
     "claude-4.5-haiku",
     "gemini-2.5-pro",
     "gemini-2.5-flash",
+    "gemini-2.5-pro-file-search",
+    "gemini-2.5-flash-file-search",
     "gpt-5",
     "gpt-5-mini",
     "gpt-4.1",
@@ -55,19 +57,23 @@ PDF_EXTRACTION_PROVIDERS = [
     "claude-4.1-opus",
 ]
 
+# Gemini File Search Store Configuration
+GEMINI_FILE_SEARCH_STORE_ID_PATH = "data/gemini_file_search_store_id.txt"  # Persistent store ID
+GEMINI_FILE_SEARCH_HASHES_PATH = "data/gemini_file_search_hashes.json"  # Document hash tracking
+
 # Quality test providers (curated list for --all-models testing)
 QUALITY_TEST_PROVIDERS = [
     "gpt-4.1",
     "gpt-4o",
-    "gpt-4.1-mini",
+    # "gpt-4.1-mini",
     "claude-4.5-sonnet",
-    "claude-4.5-haiku",
-    "gemini-2.5-flash",
+    # "claude-4.5-haiku",
+    # "gemini-2.5-flash",
     "gemini-2.5-pro",
-    "deepseek-chat",
+    # "deepseek-chat",
     "grok-4-fast-reasoning",
-    "grok-3",
-    "grok-3-mini",
+    # "grok-3",
+    # "grok-3-mini",
     # "deepseek-reasoner"
     # "dial-gpt-4.1",  # denied WHY??
     # "dial-gpt-5",    # denied
@@ -91,7 +97,7 @@ DEFAULT_LLM_PROVIDER = "claude-4.5-sonnet"  # Default model for Discord bot and 
 LLM_MAX_RETRIES = 2  # Number of retry attempts on ContentFilterError
 
 # Default LLM timeouts (in seconds)
-LLM_GENERATION_TIMEOUT = 50  # Standard generation timeout
+LLM_GENERATION_TIMEOUT = 120  # Standard generation timeout
 LLM_EXTRACTION_TIMEOUT = 300  # PDF extraction timeout (5 minutes for large PDFs)
 LLM_JUDGE_TIMEOUT = 30  # Quality test judge evaluation timeout
 
@@ -205,7 +211,7 @@ RAG_SYNONYM_DICT_PATH = "data/rag_synonyms.json"
 # Maximum number of retrieval iterations after initial query (default: 0 = disabled)
 # 0 = single-hop only (multi-hop disabled)
 # 1 = initial + 1 hop, 2 = initial + 2 hops, etc.
-RAG_MAX_HOPS = 1
+RAG_MAX_HOPS = 2
 
 # Maximum chunks to retrieve per hop
 # Total chunks accumulated = (MAX_HOPS + 1) × HOP_CHUNK_LIMIT

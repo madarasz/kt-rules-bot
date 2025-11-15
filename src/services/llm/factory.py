@@ -30,6 +30,8 @@ class LLMProviderFactory:
         "claude-4.5-haiku": (ClaudeAdapter, "claude-haiku-4-5-20251001", "anthropic"),
         "gemini-2.5-pro": (GeminiAdapter, "gemini-2.5-pro", "google"),
         "gemini-2.5-flash": (GeminiAdapter, "gemini-2.5-flash", "google"),
+        "gemini-2.5-pro-file-search": (GeminiAdapter, "gemini-2.5-pro-file-search", "google"),
+        "gemini-2.5-flash-file-search": (GeminiAdapter, "gemini-2.5-flash-file-search", "google"),
         "gpt-5": (ChatGPTAdapter, "gpt-5", "openai"),
         "gpt-5-mini": (ChatGPTAdapter, "gpt-5-mini", "openai"),
         "gpt-4.1": (ChatGPTAdapter, "gpt-4.1", "openai"),

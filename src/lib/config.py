@@ -75,6 +75,8 @@ class Config:
             "claude-4.5-haiku": self.anthropic_api_key,
             "gemini-2.5-pro": self.google_api_key,
             "gemini-2.5-flash": self.google_api_key,
+            "gemini-2.5-pro-file-search": self.google_api_key,
+            "gemini-2.5-flash-file-search": self.google_api_key,
             "gpt-5": self.openai_api_key,
             "gpt-5-mini": self.openai_api_key,
             "gpt-4.1": self.openai_api_key,

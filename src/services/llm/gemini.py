@@ -127,7 +127,17 @@ class GeminiAdapter(LLMProvider):
 
         self.client = genai.Client(api_key=api_key)
         self.model = model
-        logger.info(f"Initialized Gemini adapter with model {model}")
+
+        # Check if this is a file-search model
+        self.use_file_search = "-file-search" in model
+
+        # Strip "-file-search" suffix to get actual Gemini model name
+        self.base_model = model.replace("-file-search", "") if self.use_file_search else model
+
+        if self.use_file_search:
+            logger.info(f"Initialized Gemini adapter with file search: {model} (base: {self.base_model})")
+        else:
+            logger.info(f"Initialized Gemini adapter with model {model}")
 
     async def generate(self, request: GenerationRequest) -> LLMResponse:
         """Generate answer using Gemini API.
@@ -146,8 +156,14 @@ class GeminiAdapter(LLMProvider):
         """
         start_time = time.time()
 
-        # Build prompt with system message and context
-        full_prompt = f"{request.config.system_prompt}\n\n{self._build_prompt(request.prompt, request.context)}"
+        # Build prompt based on mode (file-search or traditional RAG)
+        if self.use_file_search:
+            # File search mode: don't include context in prompt, use file search tool
+            # Explicitly request JSON format since we can't use response_schema with file search
+            full_prompt = f"{request.config.system_prompt}\n\nUser Question: {request.prompt}\n\nIMPORTANT: Return your answer as a valid JSON object matching the schema described in the system prompt. Do not wrap it in markdown code blocks."
+        else:
+            # Traditional RAG mode: include context chunks in prompt
+            full_prompt = f"{request.config.system_prompt}\n\n{self._build_prompt(request.prompt, request.context)}"
 
         try:
             # Select schema based on configuration
@@ -162,12 +178,32 @@ class GeminiAdapter(LLMProvider):
 
             # Configure generation with JSON mode for structured output
             # Gemini requires schema without additionalProperties field
-            generation_config = {
-                "max_output_tokens": request.config.max_tokens,
-                "temperature": request.config.temperature,
-                "response_mime_type": "application/json",
-                "response_schema": schema
-            }
+            # Note: File search and response_schema conflict in current API - omit schema when using file search
+            if self.use_file_search:
+                store_id = self._load_file_search_store_id()
+                # Convert dict config to types.GenerateContentConfig with tools
+                # DO NOT use response_schema with file search - it causes schema echoing bug
+                from google.genai import types as genai_types
+                generation_config = genai_types.GenerateContentConfig(
+                    max_output_tokens=request.config.max_tokens,
+                    temperature=request.config.temperature,
+                    # response_mime_type omitted - file search conflicts with JSON mode
+                    tools=[
+                        genai_types.Tool(
+                            file_search=genai_types.FileSearch(
+                                file_search_store_names=[store_id]
+                            )
+                        )
+                    ]
+                )
+            else:
+                # Traditional mode: use response schema
+                generation_config = {
+                    "max_output_tokens": request.config.max_tokens,
+                    "temperature": request.config.temperature,
+                    "response_mime_type": "application/json",
+                    "response_schema": schema
+                }
 
             # Call Gemini API with timeout using new API
             # Note: google-genai doesn't have native async support yet
@@ -175,7 +211,7 @@ class GeminiAdapter(LLMProvider):
             response = await asyncio.wait_for(
                 asyncio.to_thread(
                     self.client.models.generate_content,
-                    model=self.model,
+                    model=self.base_model,  # Use base model without "-file-search" suffix
                     contents=full_prompt,
                     config=generation_config,
                 ),
@@ -202,14 +238,14 @@ class GeminiAdapter(LLMProvider):
                     raise ContentFilterError(
                         f"Gemini blocked content due to {finish_reason_str} filter. "
                         "This query may contain content flagged by safety filters. "
-                        "Try rephrasing or use a different model (--provider claude-4.5-sonnet)."
+                        "Try rephrasing or use a different model (--model claude-4.5-sonnet)."
                     )
                 elif finish_reason_str == 'MAX_TOKENS' and not candidate.content.parts:
                     # MAX_TOKENS with no parts typically means truncation/blocking
                     logger.warning(f"Gemini content blocked: finish_reason=MAX_TOKENS (no parts)")
                     raise ContentFilterError(
                         "Gemini response was truncated or blocked (MAX_TOKENS with no content). "
-                        "Try rephrasing or use a different model (--provider claude-4.5-sonnet)."
+                        "Try rephrasing or use a different model (--model claude-4.5-sonnet)."
                     )
                 elif finish_reason_str == 'MAX_TOKENS':  # MAX_TOKENS with parts
                     logger.warning(f"Gemini response truncated: finish_reason=MAX_TOKENS")
@@ -224,8 +260,44 @@ class GeminiAdapter(LLMProvider):
                 logger.error(f"Gemini response has no valid text parts: {e}")
                 raise ContentFilterError(
                     "Gemini response was blocked. The query may have triggered safety filters. "
-                    "Try rephrasing or use a different model (--provider claude-4.5-sonnet)."
+                    "Try rephrasing or use a different model (--model claude-4.5-sonnet)."
                 )
+
+            # Strip markdown code blocks if present (Gemini sometimes wraps JSON in ```json blocks)
+            # This can happen when using tools like file search
+            import re
+            if answer_text.strip().startswith('```'):
+                # Extract JSON from code block
+                match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', answer_text, re.DOTALL)
+                if match:
+                    answer_text = match.group(1).strip()
+                    logger.debug("Stripped markdown code block from Gemini response")
+
+            # Also strip common prefixes like "Here is the JSON:" and trailing text
+            if not answer_text.strip().startswith('{'):
+                # Try to find the first { and extract JSON from there
+                json_start = answer_text.find('{')
+                if json_start != -1:
+                    answer_text = answer_text[json_start:]
+                    logger.debug("Stripped non-JSON prefix from Gemini response")
+
+            # Find the matching closing brace to handle extra text after JSON
+            if answer_text.strip().startswith('{'):
+                # Count braces to find where JSON ends
+                brace_count = 0
+                json_end = -1
+                for i, char in enumerate(answer_text):
+                    if char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            json_end = i + 1
+                            break
+
+                if json_end > 0 and json_end < len(answer_text):
+                    answer_text = answer_text[:json_end]
+                    logger.debug(f"Stripped extra text after JSON (truncated at position {json_end})")
 
             # Validate JSON is parseable (Gemini can sometimes return invalid JSON)
             try:
@@ -233,6 +305,9 @@ class GeminiAdapter(LLMProvider):
                 logger.debug(f"Extracted structured JSON from Gemini: {len(answer_text)} chars")
             except json.JSONDecodeError as e:
                 logger.error(f"Gemini returned invalid JSON: {e}")
+                logger.error(f"Full response text ({len(answer_text)} chars):")
+                logger.error(f"{answer_text}")
+                logger.error(f"Response parts: {len(response.candidates[0].content.parts) if response.candidates else 0}")
                 raise ValueError(
                     f"Gemini returned invalid JSON despite JSON mode. "
                     f"Response may be malformed. Error: {e}"
@@ -479,3 +554,27 @@ class GeminiAdapter(LLMProvider):
             warnings.append("No markdown headings found")
 
         return warnings
+
+    def _load_file_search_store_id(self) -> str:
+        """Load file search store ID from persistent storage.
+
+        Returns:
+            Store ID
+
+        Raises:
+            FileNotFoundError: If store ID file not found
+        """
+        from pathlib import Path
+        from src.lib.constants import GEMINI_FILE_SEARCH_STORE_ID_PATH
+
+        store_id_path = Path(GEMINI_FILE_SEARCH_STORE_ID_PATH)
+
+        if not store_id_path.exists():
+            raise FileNotFoundError(
+                f"File search store ID not found at {store_id_path}. "
+                "Create a store first with: python -m src.cli.gemini_store create"
+            )
+
+        store_id = store_id_path.read_text(encoding="utf-8").strip()
+        logger.debug(f"Loaded file search store ID: {store_id}")
+        return store_id

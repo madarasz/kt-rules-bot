@@ -54,24 +54,34 @@ def test_query(
         current_max_hops = RAG_MAX_HOPS
 
     config = get_config()
+
+    # Determine model to use
+    selected_model = model or config.default_llm_provider
+    use_file_search = "-file-search" in selected_model
+
     print(f"\nQuery: {query}")
     if not rag_only:
-        print(f"Model: {model or config.default_llm_provider}")
+        print(f"Model: {selected_model}")
+        if use_file_search:
+            print(f"Mode: File Search (RAG disabled)")
     else:
         print(f"Mode: RAG-only (no LLM generation)")
     print(f"{'='*60}\n")
 
-    print(f"Multi-hop: {'enabled' if current_max_hops > 0 else 'disabled'} (max_hops={current_max_hops})")
+    if not use_file_search:
+        print(f"Multi-hop: {'enabled' if current_max_hops > 0 else 'disabled'} (max_hops={current_max_hops})")
 
     # Initialize services (after constant override)
     try:
-        vector_db = VectorDBService(collection_name="kill_team_rules")
-        embedding_service = EmbeddingService()
-        rag_retriever = RAGRetriever(
-            vector_db_service=vector_db,
-            embedding_service=embedding_service,
-            enable_multi_hop=(current_max_hops > 0),  # Explicitly set based on override
-        )
+        # Only initialize RAG services if NOT using file-search model
+        if not use_file_search:
+            vector_db = VectorDBService(collection_name="kill_team_rules")
+            embedding_service = EmbeddingService()
+            rag_retriever = RAGRetriever(
+                vector_db_service=vector_db,
+                embedding_service=embedding_service,
+                enable_multi_hop=(current_max_hops > 0),  # Explicitly set based on override
+            )
 
         # Only initialize LLM services if not rag_only
         if not rag_only:
@@ -87,81 +97,103 @@ def test_query(
         print(f"❌ Error initializing services: {e}")
         sys.exit(1)
 
-    # Step 1: RAG Retrieval
-    print("Step 1: RAG Retrieval")
-    print("-" * 60)
-
+    # Step 1: RAG Retrieval (skip for file-search models)
     start_time = datetime.now(timezone.utc)
 
-    try:
-        from uuid import uuid4
-        query_id = uuid4()
+    if use_file_search:
+        # File search mode: create empty RAG context
+        print("Step 1: File Search Mode - Skipping RAG")
+        print("-" * 60)
+        print("Using Gemini File Search tool instead of traditional RAG\n")
 
-        rag_context, hop_evaluations, chunk_hop_map = rag_retriever.retrieve(
-            RetrieveRequest(
-                query=query,
-                context_key="cli:test",
-                max_chunks=max_chunks,
-                use_multi_hop=(current_max_hops > 0),
-                # Use default from RetrieveRequest (0.45)
-            ),
-            query_id=query_id,
+        from src.models.rag_context import RAGContext
+        from uuid import uuid4, UUID
+        rag_context = RAGContext(
+            context_id=UUID('00000000-0000-0000-0000-000000000000'),
+            query_id=uuid4(),
+            document_chunks=[],
+            relevance_scores=[],
+            total_chunks=0,
+            avg_relevance=1.0,  # Not applicable
+            meets_threshold=True,
         )
+        hop_evaluations = []
+        chunk_hop_map = {}
+        rag_time = 0.0
+    else:
+        # Traditional RAG mode
+        print("Step 1: RAG Retrieval")
+        print("-" * 60)
 
-        rag_time = (datetime.now(timezone.utc) - start_time).total_seconds()
+        try:
+            from uuid import uuid4
+            query_id = uuid4()
 
-        print(f"Retrieved {rag_context.total_chunks} chunks in {rag_time:.2f}s")
-        print(f"Average relevance: {rag_context.avg_relevance:.2f}")
-        print(f"Meets threshold: {rag_context.meets_threshold}")
-        if hop_evaluations:
-            print(f"Hops used: {len(hop_evaluations)}")
-        print()
+            rag_context, hop_evaluations, chunk_hop_map = rag_retriever.retrieve(
+                RetrieveRequest(
+                    query=query,
+                    context_key="cli:test",
+                    max_chunks=max_chunks,
+                    use_multi_hop=(current_max_hops > 0),
+                    # Use default from RetrieveRequest (0.45)
+                ),
+                query_id=query_id,
+            )
 
-        # Display hop information if multi-hop was used
-        if hop_evaluations:
-            print(f"\n{'='*60}")
-            print(f"MULTI-HOP INFORMATION ({len(hop_evaluations)} hops)")
-            print(f"{'='*60}")
+            rag_time = (datetime.now(timezone.utc) - start_time).total_seconds()
 
-            for i, hop_eval in enumerate(hop_evaluations, 1):
-                print(f"\n--- Hop {i} ---")
-                print(f"Can Answer: {'✅ Yes' if hop_eval.can_answer else '❌ No'}")
-                print(f"Reasoning: {hop_eval.reasoning}")
-                if hop_eval.missing_query:
-                    print(f"Missing Query: \"{hop_eval.missing_query}\"")
-
-            print(f"\n{'='*60}")
-            print(f"CHUNKS BY HOP")
-            print(f"{'='*60}")
-
-            chunks_by_hop = {}
-            for chunk in rag_context.document_chunks:
-                hop_num = chunk_hop_map.get(chunk.chunk_id, 0)
-                if hop_num not in chunks_by_hop:
-                    chunks_by_hop[hop_num] = []
-                chunks_by_hop[hop_num].append(chunk)
-
-            for hop_num in sorted(chunks_by_hop.keys()):
-                hop_label = "Initial (Hop 0)" if hop_num == 0 else f"Hop {hop_num}"
-                chunks = chunks_by_hop[hop_num]
-                print(f"\n{hop_label}: {len(chunks)} chunks")
-                for chunk in chunks:
-                    print(f"  - {chunk.header} (score: {chunk.relevance_score:.3f})")
+            print(f"Retrieved {rag_context.total_chunks} chunks in {rag_time:.2f}s")
+            print(f"Average relevance: {rag_context.avg_relevance:.2f}")
+            print(f"Meets threshold: {rag_context.meets_threshold}")
+            if hop_evaluations:
+                print(f"Hops used: {len(hop_evaluations)}")
             print()
 
-        if rag_context.document_chunks:
-            print("All Chunks:")
-            for i, chunk in enumerate(rag_context.document_chunks, 1):
-                hop_num = chunk_hop_map.get(chunk.chunk_id, 0) if hop_evaluations else 0
-                hop_label = f" [Hop {hop_num}]" if hop_evaluations else ""
-                print(f"\n{i}. {chunk.header}{hop_label} (relevance: {chunk.relevance_score:.2f})")
-                #print(f"   Source: {chunk.metadata.get('source', 'unknown')}")
-                print(f"   Text: {chunk.text[:200]}...")
+            # Display hop information if multi-hop was used
+            if hop_evaluations:
+                print(f"\n{'='*60}")
+                print(f"MULTI-HOP INFORMATION ({len(hop_evaluations)} hops)")
+                print(f"{'='*60}")
 
-    except Exception as e:
-        logger.error(f"RAG retrieval failed: {e}", exc_info=True)
-        print(f"❌ RAG retrieval failed: {e}")
-        sys.exit(1)
+                for i, hop_eval in enumerate(hop_evaluations, 1):
+                    print(f"\n--- Hop {i} ---")
+                    print(f"Can Answer: {'✅ Yes' if hop_eval.can_answer else '❌ No'}")
+                    print(f"Reasoning: {hop_eval.reasoning}")
+                    if hop_eval.missing_query:
+                        print(f"Missing Query: \"{hop_eval.missing_query}\"")
+
+                print(f"\n{'='*60}")
+                print(f"CHUNKS BY HOP")
+                print(f"{'='*60}")
+
+                chunks_by_hop = {}
+                for chunk in rag_context.document_chunks:
+                    hop_num = chunk_hop_map.get(chunk.chunk_id, 0)
+                    if hop_num not in chunks_by_hop:
+                        chunks_by_hop[hop_num] = []
+                    chunks_by_hop[hop_num].append(chunk)
+
+                for hop_num in sorted(chunks_by_hop.keys()):
+                    hop_label = "Initial (Hop 0)" if hop_num == 0 else f"Hop {hop_num}"
+                    chunks = chunks_by_hop[hop_num]
+                    print(f"\n{hop_label}: {len(chunks)} chunks")
+                    for chunk in chunks:
+                        print(f"  - {chunk.header} (score: {chunk.relevance_score:.3f})")
+                print()
+
+            if rag_context.document_chunks:
+                print("All Chunks:")
+                for i, chunk in enumerate(rag_context.document_chunks, 1):
+                    hop_num = chunk_hop_map.get(chunk.chunk_id, 0) if hop_evaluations else 0
+                    hop_label = f" [Hop {hop_num}]" if hop_evaluations else ""
+                    print(f"\n{i}. {chunk.header}{hop_label} (relevance: {chunk.relevance_score:.2f})")
+                    #print(f"   Source: {chunk.metadata.get('source', 'unknown')}")
+                    print(f"   Text: {chunk.text[:200]}...")
+
+        except Exception as e:
+            logger.error(f"RAG retrieval failed: {e}", exc_info=True)
+            print(f"❌ RAG retrieval failed: {e}")
+            sys.exit(1)
 
     # If rag_only mode, stop here
     if rag_only:

@@ -23,6 +23,10 @@ python -m src.cli query "Can I shoot during conceal order?" --rag-only
 # Test with multi-hop retrieval (iterative context gathering)
 python -m src.cli query "Can barricade provide cover?" --max-hops 1
 
+# Setup Gemini File Search (optional, alternative to traditional RAG)
+python -m src.cli.gemini_store create   # Create file search store
+python -m src.cli.gemini_store upload   # Upload rules documents
+
 # Run quality test
 # Do not run all tests, all models, multiple runs by yourself. Running these tests costs money.
 python -m src.cli quality-test --test eliminator-concealed-counteract
@@ -52,10 +56,12 @@ streamlit run src/cli/admin_dashboard.py --server.port 8501
 
 **LLM Providers** (via factory pattern):
 - Claude: `claude-4.5-sonnet`, `claude-4.1-opus`, `claude-4.5-haiku`
-- Gemini: `gemini-2.5-pro`, `gemini-2.5-flash`
+- Gemini: `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-2.5-pro-file-search`*, `gemini-2.5-flash-file-search`*
 - GPT: `gpt-5`, `gpt-4.1`, `gpt-4o`, `o3`, `o4-mini` + variants
 - Grok: `grok-4-fast-reasoning`, `grok-3` + variants
 - DeepSeek: `deepseek-chat`, `deepseek-reasoner`
+
+\* **File Search models**: Use Gemini's built-in file search instead of traditional RAG. See [docs/GEMINI-FILE-SEARCH.md](docs/GEMINI-FILE-SEARCH.md)
 
 **See**: [src/services/CLAUDE.md](src/services/CLAUDE.md) for detailed architecture
 
@@ -105,6 +111,7 @@ data/
 - [src/services/rag/CLAUDE.md](src/services/rag/CLAUDE.md) - RAG retrieval pipeline
 - [src/services/llm/CLAUDE.md](src/services/llm/CLAUDE.md) - LLM provider integration
 - [tests/quality/CLAUDE.md](tests/quality/CLAUDE.md) - Quality testing framework
+- [docs/GEMINI-FILE-SEARCH.md](docs/GEMINI-FILE-SEARCH.md) - Gemini File Search integration (alternative to RAG)
 
 **Overviews**: [src/CLAUDE.md](src/CLAUDE.md), [tests/CLAUDE.md](tests/CLAUDE.md)
 

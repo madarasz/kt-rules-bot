@@ -159,26 +159,50 @@ class KillTeamBotOrchestrator:
             acknowledgement = get_random_acknowledgement()
             await message.channel.send(acknowledgement)
 
-            # Step 3: RAG retrieval (with optional multi-hop)
-            rag_context, hop_evaluations, chunk_hop_map = self.rag.retrieve(
-                RetrieveRequest(
-                    query=user_query.sanitized_text,
-                    context_key=user_query.conversation_context_id,
-                    use_multi_hop=(RAG_MAX_HOPS > 0),
-                    # Uses RAG_MAX_CHUNKS and RAG_MIN_RELEVANCE from constants
-                ),
-                query_id=user_query.query_id,
-            )
+            # Step 3: RAG retrieval (skip if using file-search models)
+            use_file_search = "-file-search" in llm.model
 
-            logger.debug(
-                "RAG retrieval complete",
-                extra={
-                    "correlation_id": correlation_id,
-                    "chunks_retrieved": rag_context.total_chunks,
-                    "avg_relevance": rag_context.avg_relevance,
-                    "hops_used": len(hop_evaluations),
-                },
-            )
+            if use_file_search:
+                # File search mode: skip RAG, LLM uses Gemini file search tool
+                logger.debug(
+                    "Skipping RAG retrieval (file-search model)",
+                    extra={"correlation_id": correlation_id, "model": llm.model}
+                )
+                # Create empty RAG context
+                from src.models.rag_context import RAGContext
+                from uuid import UUID
+                rag_context = RAGContext(
+                    context_id=UUID('00000000-0000-0000-0000-000000000000'),
+                    query_id=user_query.query_id,
+                    document_chunks=[],
+                    relevance_scores=[],
+                    total_chunks=0,
+                    avg_relevance=1.0,  # Not applicable for file search
+                    meets_threshold=True,
+                )
+                hop_evaluations = []
+                chunk_hop_map = {}
+            else:
+                # Traditional RAG mode: retrieve chunks from vector DB
+                rag_context, hop_evaluations, chunk_hop_map = self.rag.retrieve(
+                    RetrieveRequest(
+                        query=user_query.sanitized_text,
+                        context_key=user_query.conversation_context_id,
+                        use_multi_hop=(RAG_MAX_HOPS > 0),
+                        # Uses RAG_MAX_CHUNKS and RAG_MIN_RELEVANCE from constants
+                    ),
+                    query_id=user_query.query_id,
+                )
+
+                logger.debug(
+                    "RAG retrieval complete",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "chunks_retrieved": rag_context.total_chunks,
+                        "avg_relevance": rag_context.avg_relevance,
+                        "hops_used": len(hop_evaluations),
+                    },
+                )
 
             # Step 4: LLM generation with retry logic for ContentFilterError
             llm_response = await retry_on_content_filter(
