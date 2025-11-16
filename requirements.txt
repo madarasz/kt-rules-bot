@@ -11,6 +11,7 @@ google-genai>=1.0.0  # New unified Google GenAI SDK (replaces google-generativea
 httpx>=0.25.0  # HTTP client for Grok API
 rank-bm25>=0.2.2  # BM25 keyword search for hybrid retrieval
 ragas>=0.1.0  # RAG evaluation framework
+rapidfuzz>=3.0.0  # Fuzzy string matching for team name extraction
 
 # Utilities
 structlog>=23.2.0
