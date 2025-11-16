@@ -8,6 +8,8 @@ from typing import List, Dict, Any, Optional
 from uuid import UUID
 import json
 import asyncio
+import yaml
+import time
 
 from src.models.rag_context import RAGContext, DocumentChunk
 from src.services.llm.factory import LLMProviderFactory
@@ -18,10 +20,15 @@ from src.lib.constants import (
     RAG_HOP_EVALUATION_MODEL,
     RAG_HOP_EVALUATION_TIMEOUT,
     RAG_HOP_EVALUATION_PROMPT_PATH,
-    MAX_CHUNK_LENGTH_FOR_EVALUATION
+    RAG_HOP_RATE_LIMIT_DELAY,
+    MAX_CHUNK_LENGTH_FOR_EVALUATION,
+    RULES_STRUCTURE_PATH,
+    TEAMS_STRUCTURE_PATH,
+    LLM_MAX_RETRIES,
 )
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost
+from src.services.llm.base import RateLimitError
 
 logger = get_logger(__name__)
 
@@ -35,11 +42,15 @@ class HopEvaluation:
         reasoning: str,
         missing_query: Optional[str] = None,
         cost_usd: float = 0.0,
+        retrieval_time_s: float = 0.0,
+        evaluation_time_s: float = 0.0,
     ):
         self.can_answer = can_answer
         self.reasoning = reasoning
         self.missing_query = missing_query
         self.cost_usd = cost_usd
+        self.retrieval_time_s = retrieval_time_s  # Time for retrieval
+        self.evaluation_time_s = evaluation_time_s  # Time for LLM evaluation
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for database storage."""
@@ -48,6 +59,8 @@ class HopEvaluation:
             "reasoning": self.reasoning,
             "missing_query": self.missing_query,
             "cost_usd": self.cost_usd,
+            "retrieval_time_s": self.retrieval_time_s,
+            "evaluation_time_s": self.evaluation_time_s,
         }
 
 
@@ -79,8 +92,10 @@ class MultiHopRetriever:
         # Initialize evaluation LLM
         self.evaluation_llm = LLMProviderFactory.create(evaluation_model)
 
-        # Load and cache hop evaluation prompt
+        # Load and cache hop evaluation prompt and structures
         self.evaluation_prompt_template = self._load_prompt_template()
+        self.rules_structure_text = self._load_structure_file(RULES_STRUCTURE_PATH)
+        self.teams_structure_text = self._load_structure_file(TEAMS_STRUCTURE_PATH)
 
         logger.info(
             "multi_hop_retriever_initialized",
@@ -93,6 +108,29 @@ class MultiHopRetriever:
         """Load hop evaluation prompt from file and cache in memory."""
         with open(RAG_HOP_EVALUATION_PROMPT_PATH, "r") as f:
             return f.read()
+
+    def _load_structure_file(self, file_path: str) -> str:
+        """Load and format YAML structure file as readable text.
+
+        Args:
+            file_path: Path to YAML structure file
+
+        Returns:
+            Formatted text representation of the structure
+        """
+        try:
+            with open(file_path, "r") as f:
+                structure = yaml.safe_load(f)
+
+            # Convert YAML to readable indented text
+            return yaml.dump(structure, default_flow_style=False, allow_unicode=True, width=120, indent=2)
+        except Exception as e:
+            logger.error(
+                "structure_file_load_failed",
+                file_path=file_path,
+                error=str(e),
+            )
+            return "(Structure file not available)"
 
     async def retrieve_multi_hop(
         self,
@@ -147,10 +185,13 @@ class MultiHopRetriever:
         for hop_num in range(1, self.max_hops + 1):
             # Evaluate context: can we answer?
             try:
+                eval_start = time.time()
                 evaluation = await self._evaluate_context(
                     user_query=query,
                     retrieved_chunks=accumulated_chunks,
                 )
+                evaluation.evaluation_time_s = time.time() - eval_start
+
                 hop_evaluations.append(evaluation)
 
                 logger.info(
@@ -186,7 +227,9 @@ class MultiHopRetriever:
                     use_multi_hop=False,  # Prevent infinite recursion
                 )
 
+                retrieval_start = time.time()
                 hop_context, _, _ = self.base_retriever.retrieve(hop_request, query_id)
+                evaluation.retrieval_time_s = time.time() - retrieval_start
 
                 # Deduplicate by chunk_id
                 existing_ids = {c.chunk_id for c in accumulated_chunks}
@@ -261,14 +304,17 @@ class MultiHopRetriever:
         Raises:
             ValueError: If LLM returns invalid JSON
             TimeoutError: If evaluation exceeds timeout
+            RateLimitError: If rate limit is hit after all retries
         """
         # Format chunks for prompt
         chunks_text = self._format_chunks_for_prompt(retrieved_chunks)
 
-        # Fill prompt template
+        # Fill prompt template with structures
         prompt = self.evaluation_prompt_template.format(
             user_query=user_query,
             retrieved_chunks=chunks_text,
+            rule_structure=self.rules_structure_text,
+            team_structure=self.teams_structure_text,
         )
 
         # Call evaluation LLM with hop evaluation schema
@@ -284,66 +330,94 @@ class MultiHopRetriever:
             ),
         )
 
-        try:
-            response = await asyncio.wait_for(
-                self.evaluation_llm.generate(request),
-                timeout=self.evaluation_timeout,
-            )
-
-            # Parse JSON response (already structured by LLM)
-            response_text = response.answer_text.strip()
-            logger.debug("hop_evaluation_response", response_length=len(response_text))
-
-            # Parse the JSON
+        # Retry loop for rate limit errors
+        last_error = None
+        for attempt in range(LLM_MAX_RETRIES + 1):
             try:
-                data = json.loads(response_text)
-                logger.debug("hop_evaluation_parsed", keys=list(data.keys()) if isinstance(data, dict) else "not_a_dict")
+                response = await asyncio.wait_for(
+                    self.evaluation_llm.generate(request),
+                    timeout=self.evaluation_timeout,
+                )
+
+                # Parse JSON response (already structured by LLM)
+                response_text = response.answer_text.strip()
+                logger.debug("hop_evaluation_response", response_length=len(response_text))
+
+                # Parse the JSON
+                try:
+                    data = json.loads(response_text)
+                    logger.debug("hop_evaluation_parsed", keys=list(data.keys()) if isinstance(data, dict) else "not_a_dict")
+                except json.JSONDecodeError as e:
+                    logger.error(
+                        "hop_evaluation_json_parse_error",
+                        error=str(e),
+                        response_preview=response_text[:200],
+                    )
+                    raise ValueError(f"Failed to parse hop evaluation JSON: {e}. Response: {response_text[:200]}")
+
+                # Validate required fields
+                if "can_answer" not in data or "reasoning" not in data:
+                    raise ValueError(f"Missing required fields in response: {data}")
+
+                # Calculate cost based on token usage from response
+                cost_usd = estimate_cost(
+                    prompt_tokens=int(response.token_count * 0.7),  # Estimate 70% prompt
+                    completion_tokens=int(response.token_count * 0.3),  # Estimate 30% completion
+                    model=RAG_HOP_EVALUATION_MODEL
+                )
+
+                logger.debug(
+                    "hop_evaluation_cost",
+                    tokens=response.token_count,
+                    cost_usd=cost_usd,
+                    model=RAG_HOP_EVALUATION_MODEL
+                )
+
+                return HopEvaluation(
+                    can_answer=data["can_answer"],
+                    reasoning=data["reasoning"],
+                    missing_query=data.get("missing_query"),
+                    cost_usd=cost_usd,
+                )
+
+            except RateLimitError as e:
+                last_error = e
+                if attempt < LLM_MAX_RETRIES:
+                    logger.warning(
+                        "hop_evaluation_rate_limit_retry",
+                        attempt=attempt + 1,
+                        max_retries=LLM_MAX_RETRIES,
+                        delay=RAG_HOP_RATE_LIMIT_DELAY,
+                        error=str(e),
+                    )
+                    await asyncio.sleep(RAG_HOP_RATE_LIMIT_DELAY)
+                    continue
+                else:
+                    logger.error(
+                        "hop_evaluation_rate_limit_exhausted",
+                        attempts=LLM_MAX_RETRIES + 1,
+                        error=str(e),
+                    )
+                    raise
+
             except json.JSONDecodeError as e:
                 logger.error(
-                    "hop_evaluation_json_parse_error",
+                    "hop_evaluation_json_parse_failed",
                     error=str(e),
-                    response_preview=response_text[:200],
+                    response_text=response.answer_text[:1000],
                 )
-                raise ValueError(f"Failed to parse hop evaluation JSON: {e}. Response: {response_text[:200]}")
+                raise ValueError(f"Invalid JSON from evaluation LLM: {e}")
 
-            # Validate required fields
-            if "can_answer" not in data or "reasoning" not in data:
-                raise ValueError(f"Missing required fields in response: {data}")
+            except asyncio.TimeoutError:
+                logger.error("hop_evaluation_timeout", timeout=self.evaluation_timeout)
+                raise TimeoutError(
+                    f"Hop evaluation exceeded {self.evaluation_timeout}s timeout"
+                )
 
-            # Calculate cost based on token usage from response
-            cost_usd = estimate_cost(
-                prompt_tokens=int(response.token_count * 0.7),  # Estimate 70% prompt
-                completion_tokens=int(response.token_count * 0.3),  # Estimate 30% completion
-                model=RAG_HOP_EVALUATION_MODEL
-            )
-            
-            logger.debug(
-                "hop_evaluation_cost",
-                tokens=response.token_count,
-                cost_usd=cost_usd,
-                model=RAG_HOP_EVALUATION_MODEL
-            )
-
-            return HopEvaluation(
-                can_answer=data["can_answer"],
-                reasoning=data["reasoning"],
-                missing_query=data.get("missing_query"),
-                cost_usd=cost_usd,
-            )
-
-        except json.JSONDecodeError as e:
-            logger.error(
-                "hop_evaluation_json_parse_failed",
-                error=str(e),
-                response_text=response.answer_text[:1000],
-            )
-            raise ValueError(f"Invalid JSON from evaluation LLM: {e}")
-
-        except asyncio.TimeoutError:
-            logger.error("hop_evaluation_timeout", timeout=self.evaluation_timeout)
-            raise TimeoutError(
-                f"Hop evaluation exceeded {self.evaluation_timeout}s timeout"
-            )
+        # Should never reach here, but just in case
+        if last_error:
+            raise last_error
+        raise RuntimeError("Unexpected error in hop evaluation retry loop")
 
     def _format_chunks_for_prompt(self, chunks: List[DocumentChunk]) -> str:
         """Format chunks as numbered list for prompt.
