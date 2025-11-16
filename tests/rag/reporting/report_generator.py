@@ -97,11 +97,14 @@ class RAGReportGenerator:
         total_cost_with_hops = summary.total_cost_usd + summary.hop_evaluation_cost_usd
         content.append(f"| **Total Cost** | ${total_cost_with_hops:.6f} |")
 
+        # Cost breakdown - group embeddings together
+        content.append(f"| **RAG Costs** | ${total_cost_with_hops:.6f} |")
+        content.append(f"| └─ Embeddings** | ${summary.total_cost_usd:.6f} |")
+
         # Add hop-specific metrics if multi-hop is enabled
         if summary.rag_max_hops > 0:
+            content.append(f"| └─ Hop Evaluations** | ${summary.hop_evaluation_cost_usd:.6f} |")
             content.append(f"| **Avg Hops Used** | {summary.avg_hops_used:.2f} |")
-            content.append(f"| **Embedding Cost** | ${summary.total_cost_usd:.6f} |")
-            content.append(f"| **Hop Evaluation Cost** | ${summary.hop_evaluation_cost_usd:.6f} |")
 
         content.append("")
 

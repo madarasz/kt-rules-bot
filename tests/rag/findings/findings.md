@@ -1,5 +1,30 @@
 # Hop judge test 2025.10.26.
 `Claude-4.5-Haiku` is worse than `GTP-4.1-mini` as a hop judge. +1s execution time, GTP finds occasionally more chunks and uses less hops
+# Multi-hop improvement 2025.11.16
+Measurements:
+- Baseline hopping, hops 1: `BL1`
+- Baseline hopping, hops 2: `BL2`
+- Improved hopping, hops 1: `I1`
+- Improved hopping, hops 2: `I2`
+- Improved hopping with all team rules, hop 2: `I2+`
+### Total precision, recall
+| Metric | BL1 | BL2 | I1 | I2 | I2+ |
+|--------|-----|-----|----|----|-----|
+| **Context Precision** | 0.267 | 0.249 | 0.287 | 0.249 | 0.259 |
+| **Context Recall** | 0.914 | 0.934 | 0.930 | 0.943 | 0.952 |
+### Hopping
+| Metric | BL1 | BL2 | I1 | I2 | I2+ |
+|--------|-----|-----|----|----|-----|
+| **Avg Hops Used** | 0.90 | 1.84 | 0.78 | 1.72 | 1.68 |
+| **Avg Ground Truth Found in Hops** | 0.19 | 0.46 | 0.30 | 0.51 | 0.59 |
+| **Can Answer Recall** | 1.000 | 1.000 | 1.000 | 0.938 | 1.000 |
+| **Can Answer Precision** | 0.308 | 0.247 | 0.354 | 0.240 | 0.251 |
+| **Ground Truth in Hop 1** | 28 | 50 | 44 | 53 | 64 |
+| **Ground Truth in Hop 2** | - | 16 | - | 21 | 22 |
+### Hop evaluation cost (gtp 4.1 mini)
+- Improved hopping: ~$0.014
+- Improved hopping with all team rules: ~$0.021
+
 # Added multi-hop 2025.10.22
 Hopping, `gtp-4.1-mini` as hop judge, `RAG_MAX_CHUNKS` = 7, `RAG_HOP_CHUNK_LIMIT` = 5, 
 | Metric | Value | Description |
