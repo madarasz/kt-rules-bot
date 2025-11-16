@@ -28,6 +28,29 @@ TEAMS_OUTPUT_FILE = Path(__file__).parent.parent / TEAMS_STRUCTURE_PATH
 # TEAMS_EXCLUDE_CATEGORIES = ['Operative Selection', 'Strategy Ploys', 'Firefight Ploys', 'Faction Equipment']
 TEAMS_EXCLUDE_CATEGORIES = ['Operative Selection']
 EXCLUDE_HEADERS = ['WEAPON RULES']
+TRIM_HEADER_TEXT = [
+    'BHETA-DECIMA - ',
+    'GALLOWDARK - ',
+    'GALLOWDARK CLOSE QUARTERS RULES - ',
+    'TOMB WORLD - ',
+    'VOLKUS - ',
+    'UNIVERSAL EQUIPMENT - ',
+]
+
+
+def trim_leaf_text(text: str) -> str:
+    """Remove unwanted prefixes from leaf text (list items).
+
+    Args:
+        text: Original text (e.g., "UNIVERSAL EQUIPMENT - 1X AMMO CACHE")
+
+    Returns:
+        Trimmed text (e.g., "1X AMMO CACHE")
+    """
+    for prefix in TRIM_HEADER_TEXT:
+        if text.startswith(prefix):
+            return text[len(prefix):].strip()
+    return text
 
 
 def clean_header(header: str) -> str:
@@ -53,6 +76,8 @@ def extract_headers(file_path: Path) -> List[str]:
                     header = re.sub(r'\*+', '', match.group(1)).strip()
                     # Skip excluded headers
                     if header.upper() not in EXCLUDE_HEADERS:
+                        # Apply trimming to remove unwanted prefixes
+                        header = trim_leaf_text(header)
                         headers.append(header)
     except Exception as e:
         print(f"Warning: Could not read {file_path}: {e}")

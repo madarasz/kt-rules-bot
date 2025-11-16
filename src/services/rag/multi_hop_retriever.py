@@ -14,6 +14,7 @@ import time
 from src.models.rag_context import RAGContext, DocumentChunk
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.base import GenerationRequest, GenerationConfig
+from src.services.rag.team_filter import TeamFilter
 from src.lib.constants import (
     RAG_MAX_HOPS,
     RAG_HOP_CHUNK_LIMIT,
@@ -94,8 +95,11 @@ class MultiHopRetriever:
 
         # Load and cache hop evaluation prompt and structures
         self.evaluation_prompt_template = self._load_prompt_template()
-        self.rules_structure_text = self._load_structure_file(RULES_STRUCTURE_PATH)
-        self.teams_structure_text = self._load_structure_file(TEAMS_STRUCTURE_PATH)
+        self.rules_structure_dict = self._load_structure_dict(RULES_STRUCTURE_PATH)
+        self.teams_structure_dict = self._load_structure_dict(TEAMS_STRUCTURE_PATH)
+
+        # Initialize team filter for query-specific filtering
+        self.team_filter = TeamFilter(self.teams_structure_dict) if self.teams_structure_dict else None
 
         logger.info(
             "multi_hop_retriever_initialized",
@@ -109,28 +113,25 @@ class MultiHopRetriever:
         with open(RAG_HOP_EVALUATION_PROMPT_PATH, "r") as f:
             return f.read()
 
-    def _load_structure_file(self, file_path: str) -> str:
-        """Load and format YAML structure file as readable text.
+    def _load_structure_dict(self, file_path: str) -> Dict[str, Any]:
+        """Load YAML structure file as dictionary.
 
         Args:
             file_path: Path to YAML structure file
 
         Returns:
-            Formatted text representation of the structure
+            Structure as dictionary (empty dict if load fails)
         """
         try:
             with open(file_path, "r") as f:
-                structure = yaml.safe_load(f)
-
-            # Convert YAML to readable indented text
-            return yaml.dump(structure, default_flow_style=False, allow_unicode=True, width=120, indent=2)
+                return yaml.safe_load(f) or {}
         except Exception as e:
             logger.error(
                 "structure_file_load_failed",
                 file_path=file_path,
                 error=str(e),
             )
-            return "(Structure file not available)"
+            return {}
 
     async def retrieve_multi_hop(
         self,
@@ -309,12 +310,47 @@ class MultiHopRetriever:
         # Format chunks for prompt
         chunks_text = self._format_chunks_for_prompt(retrieved_chunks)
 
+        # Filter teams structure based on query
+        filtered_teams = self.teams_structure_dict
+        relevant_teams = []
+        if self.team_filter:
+            relevant_teams = self.team_filter.extract_relevant_teams(user_query)
+            filtered_teams = self.team_filter.filter_structure(relevant_teams)
+
+            # Log team filtering results
+            logger.info(
+                "hop_evaluation_teams_filtered",
+                query=user_query,
+                relevant_teams=relevant_teams,
+                teams_count=len(relevant_teams),
+                original_teams_count=len(self.teams_structure_dict),
+                reduction_pct=round(
+                    (1 - len(filtered_teams) / len(self.teams_structure_dict)) * 100, 1
+                ) if filtered_teams else 0,
+            )
+
+        # Convert structures to YAML text
+        rules_structure_text = yaml.dump(
+            self.rules_structure_dict,
+            default_flow_style=False,
+            allow_unicode=True,
+            width=120,
+            indent=2
+        )
+        teams_structure_text = yaml.dump(
+            filtered_teams,
+            default_flow_style=False,
+            allow_unicode=True,
+            width=120,
+            indent=2
+        )
+
         # Fill prompt template with structures
         prompt = self.evaluation_prompt_template.format(
             user_query=user_query,
             retrieved_chunks=chunks_text,
-            rule_structure=self.rules_structure_text,
-            team_structure=self.teams_structure_text,
+            rule_structure=rules_structure_text,
+            team_structure=teams_structure_text,
         )
 
         # Call evaluation LLM with hop evaluation schema
