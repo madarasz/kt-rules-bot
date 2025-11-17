@@ -8,6 +8,8 @@ import argparse
 import sys
 import json
 from datetime import datetime, timezone
+from uuid import uuid4
+import asyncio
 
 from src.lib.config import get_config
 from src.lib.constants import (
@@ -15,7 +17,6 @@ from src.lib.constants import (
     RAG_MAX_CHUNKS,
     ALL_LLM_PROVIDERS,
     RAG_MAX_HOPS,
-    RAG_HOP_EVALUATION_MODEL,
     EMBEDDING_MODEL,
 )
 from src.lib.logging import get_logger
@@ -98,7 +99,6 @@ def test_query(
     start_time = datetime.now(timezone.utc)
 
     try:
-        from uuid import uuid4
         query_id = uuid4()
 
         # Track initial retrieval time separately
@@ -220,8 +220,6 @@ def test_query(
     llm_start = datetime.now(timezone.utc)
 
     try:
-        import asyncio
-
         # Wrap LLM generation with retry logic for ContentFilterError
         llm_response = asyncio.run(
             retry_on_content_filter(

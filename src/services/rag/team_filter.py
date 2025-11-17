@@ -4,8 +4,10 @@ Extracts relevant team names from user queries using fuzzy matching
 and filters the teams structure to reduce token costs.
 """
 
-from typing import Dict, List, Any, Set
+from typing import Any
+
 from rapidfuzz import fuzz, process
+
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -67,7 +69,7 @@ TEAM_ALIASES = {
 class TeamFilter:
     """Filters teams structure based on query relevance."""
 
-    def __init__(self, teams_structure: Dict[str, Any]):
+    def __init__(self, teams_structure: dict[str, Any]):
         """Initialize team filter with teams structure.
 
         Args:
@@ -77,8 +79,8 @@ class TeamFilter:
         self._team_names = list(teams_structure.keys())
 
         # Build keyword caches: separate operatives from abilities/ploys
-        self._operative_to_teams: Dict[str, List[str]] = {}  # Operative names (single-word match)
-        self._ability_to_teams: Dict[str, List[str]] = {}  # Abilities/ploys (multi-word match)
+        self._operative_to_teams: dict[str, list[str]] = {}  # Operative names (single-word match)
+        self._ability_to_teams: dict[str, list[str]] = {}  # Abilities/ploys (multi-word match)
         self._build_keyword_cache()
 
         logger.info(
@@ -114,7 +116,7 @@ class TeamFilter:
                     self._ability_to_teams[ability_lower] = []
                 self._ability_to_teams[ability_lower].append(team_name)
 
-    def extract_relevant_teams(self, query: str) -> List[str]:
+    def extract_relevant_teams(self, query: str) -> list[str]:
         """Extract relevant team names from user query using fuzzy matching.
 
         Args:
@@ -124,7 +126,7 @@ class TeamFilter:
             List of team names (empty if no teams detected)
         """
         query_lower = query.lower()
-        relevant_teams: Set[str] = set()
+        relevant_teams: set[str] = set()
 
         # Filter query words to remove stop words (for alias matching)
         query_words = [w for w in query_lower.split() if w not in STOP_WORDS]
@@ -245,7 +247,7 @@ class TeamFilter:
         )
         return result
 
-    def filter_structure(self, relevant_teams: List[str]) -> Dict[str, Any]:
+    def filter_structure(self, relevant_teams: list[str]) -> dict[str, Any]:
         """Filter teams structure to only include relevant teams.
 
         Args:
@@ -269,8 +271,8 @@ class TeamFilter:
 
 def filter_teams_for_query(
     query: str,
-    teams_structure: Dict[str, Any],
-) -> Dict[str, Any]:
+    teams_structure: dict[str, Any],
+) -> dict[str, Any]:
     """Convenience function to filter teams structure for a query.
 
     Args:
