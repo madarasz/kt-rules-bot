@@ -27,10 +27,16 @@ class QualityMetric:
 class QualityChecker:
     """Runs quality checks and aggregates results."""
 
-    def __init__(self, project_root: Path):
+    def __init__(self, project_root: Path, quiet: bool = False):
         self.project_root = project_root
         self.src_dir = project_root / "src"
         self.metrics: list[QualityMetric] = []
+        self.quiet = quiet
+
+    def log(self, message: str) -> None:
+        """Log a message to stderr (so it doesn't interfere with JSON output)."""
+        if not self.quiet:
+            print(message, file=sys.stderr)
 
     def run_command(
         self, cmd: list[str], capture_output: bool = True
@@ -40,7 +46,7 @@ class QualityChecker:
 
     def check_coverage(self) -> QualityMetric:
         """Check test coverage."""
-        print("📊 Checking test coverage...")
+        self.log("📊 Checking test coverage...")
         self.run_command(["pytest", "--cov=src", "--cov-report=json", "--cov-report=term", "-q"])
 
         coverage_file = self.project_root / "coverage.json"
@@ -68,7 +74,7 @@ class QualityChecker:
 
     def check_complexity(self) -> QualityMetric:
         """Check code complexity with radon."""
-        print("🔍 Checking code complexity...")
+        self.log("🔍 Checking code complexity...")
         result = self.run_command(["radon", "cc", str(self.src_dir), "--json"])
 
         if result.returncode == 0 and result.stdout:
@@ -113,7 +119,7 @@ class QualityChecker:
 
     def check_maintainability(self) -> QualityMetric:
         """Check maintainability index with radon."""
-        print("🛠️  Checking maintainability...")
+        self.log("🛠️  Checking maintainability...")
         result = self.run_command(["radon", "mi", str(self.src_dir), "--json"])
 
         if result.returncode == 0 and result.stdout:
@@ -154,7 +160,7 @@ class QualityChecker:
 
     def check_type_coverage(self) -> QualityMetric:
         """Check type hint coverage with mypy."""
-        print("🔤 Checking type coverage...")
+        self.log("🔤 Checking type coverage...")
         result = self.run_command(["mypy", str(self.src_dir)])
 
         # Count total functions/methods vs typed ones
@@ -181,7 +187,7 @@ class QualityChecker:
 
     def check_security(self) -> QualityMetric:
         """Check for security issues with bandit."""
-        print("🔒 Checking security...")
+        self.log("🔒 Checking security...")
         result = self.run_command(["bandit", "-r", str(self.src_dir), "-f", "json", "-q"])
 
         if result.stdout:
@@ -232,7 +238,7 @@ class QualityChecker:
 
     def check_imports(self) -> QualityMetric:
         """Check import conventions."""
-        print("📦 Checking import conventions...")
+        self.log("📦 Checking import conventions...")
         result = self.run_command(["python", "scripts/check_imports.py"])
 
         if result.returncode == 0:
@@ -256,7 +262,7 @@ class QualityChecker:
 
     def run_all_checks(self) -> None:
         """Run all quality checks."""
-        print("🚀 Running comprehensive quality checks...\n")
+        self.log("🚀 Running comprehensive quality checks...\n")
 
         self.metrics.extend(
             [
@@ -340,7 +346,9 @@ def main() -> None:
     args = parser.parse_args()
 
     project_root = Path(__file__).parent.parent
-    checker = QualityChecker(project_root)
+    # Use quiet mode for JSON output (logs go to stderr, only JSON to stdout)
+    quiet = args.format == "json"
+    checker = QualityChecker(project_root, quiet=quiet)
     checker.run_all_checks()
 
     if args.format == "json":
