@@ -11,6 +11,7 @@ import sys
 from datetime import UTC, datetime
 from uuid import uuid4
 
+import src.lib.constants as constants
 from src.lib.config import get_config
 from src.lib.constants import (
     ALL_LLM_PROVIDERS,
@@ -51,7 +52,6 @@ def test_query(
     """
     # Override RAG_MAX_HOPS if specified
     if max_hops is not None:
-        import src.lib.constants as constants
         constants.RAG_MAX_HOPS = max_hops
         print(f"Overriding RAG_MAX_HOPS to {max_hops}")
         current_max_hops = max_hops

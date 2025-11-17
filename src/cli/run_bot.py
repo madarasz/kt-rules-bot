@@ -4,7 +4,7 @@ import asyncio
 import signal
 import sys
 
-from src.lib.config import Config
+from src.lib.config import Config, get_config
 from src.lib.database import AnalyticsDatabase
 from src.lib.logging import get_logger
 from src.services.discord.bot import KillTeamBotOrchestrator
@@ -175,7 +175,6 @@ class BotRunner:
 def run_bot() -> None:
     """Start the Discord bot."""
     # Load configuration
-    from src.lib.config import get_config
     config = get_config()
 
     # Create and run bot

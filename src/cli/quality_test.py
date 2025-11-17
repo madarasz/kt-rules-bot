@@ -8,6 +8,8 @@ import warnings
 from datetime import UTC, datetime
 from pathlib import Path
 
+import src.lib.constants as constants
+from src.lib.config import get_config
 from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_PROVIDERS
 from src.lib.logging import get_logger
 from tests.quality.reporting.aggregator import aggregate_results
@@ -37,8 +39,6 @@ def _suppress_event_loop_closed_errors() -> None:
     after the event loop has been closed by asyncio.run(). They're harmless
     and don't affect test results - they only appear during final cleanup.
     """
-    import sys
-
     # Store original excepthook
     original_excepthook = sys.excepthook
 
@@ -80,7 +80,6 @@ def quality_test(
 
     # Override RAG_MAX_HOPS if specified
     if max_hops is not None:
-        import src.lib.constants as constants
         original_max_hops = constants.RAG_MAX_HOPS
         constants.RAG_MAX_HOPS = max_hops
         logger.info(f"Overriding RAG_MAX_HOPS to {max_hops} for quality tests")
@@ -93,7 +92,6 @@ def quality_test(
     elif model:
         models_to_run = [model]
     else:
-        from src.lib.config import get_config
         models_to_run = [get_config().default_llm_provider]
 
     runner = QualityTestRunner(judge_model=judge_model)
@@ -171,7 +169,6 @@ def quality_test(
     finally:
         # Restore original RAG_MAX_HOPS if overridden
         if original_max_hops is not None:
-            import src.lib.constants as constants
             constants.RAG_MAX_HOPS = original_max_hops
             logger.info(f"Restored RAG_MAX_HOPS to {original_max_hops}")
 

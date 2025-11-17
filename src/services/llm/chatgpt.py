@@ -9,10 +9,7 @@ import time
 from math import exp
 from uuid import uuid4
 
-try:
-    from openai import AsyncOpenAI
-except ImportError:
-    AsyncOpenAI = None
+from openai import AsyncOpenAI
 
 from src.lib.logging import get_logger
 from src.services.llm.base import (

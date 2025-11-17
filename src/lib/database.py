@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
+from src.lib.config import load_config
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -793,8 +794,6 @@ class AnalyticsDatabase:
         Returns:
             AnalyticsDatabase instance
         """
-        from src.lib.config import load_config
-
         config = load_config()
         return cls(
             db_path=config.analytics_db_path,

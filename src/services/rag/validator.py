@@ -5,6 +5,7 @@ Based on specs/001-we-are-building/tasks.md T037.
 """
 
 import re
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -159,8 +160,6 @@ class DocumentValidator:
             True if valid date format
         """
         # YAML safe_load automatically converts YYYY-MM-DD to datetime.date
-        from datetime import date
-
         if isinstance(date_str, date):
             return True
 

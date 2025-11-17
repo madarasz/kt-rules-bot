@@ -11,6 +11,7 @@ Note: Changes to embedding_model or chunk_header_level will automatically reset 
 """
 
 import sys
+import traceback
 
 from src.lib.logging import get_logger
 from tests.rag.reporting.comparison_generator import ComparisonGenerator
@@ -216,7 +217,6 @@ def rag_test_sweep(
     except Exception as e:
         logger.error("sweep_failed", error=str(e))
         print(f"Error running parameter sweep: {e}")
-        import traceback
         traceback.print_exc()
         sys.exit(1)
 

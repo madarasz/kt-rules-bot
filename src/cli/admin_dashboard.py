@@ -15,6 +15,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+import json
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -783,7 +784,6 @@ def render_settings(db: AnalyticsDatabase):
 
     with col2:
         if st.button("📋 Export to JSON"):
-            import json
             queries = db.get_all_queries(limit=10000)
             json_data = json.dumps(queries, indent=2, default=str)
             st.download_button(
