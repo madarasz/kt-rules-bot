@@ -4,6 +4,7 @@ Implements BM25 (Best Matching 25) ranking algorithm for keyword matching.
 Complements vector semantic search with exact term matching.
 """
 
+import re
 from dataclasses import dataclass
 
 from rank_bm25 import BM25Okapi
@@ -57,8 +58,7 @@ class BM25Retriever:
 
         # Tokenize corpus (lowercase, split on whitespace/punctuation)
         self.tokenized_corpus = [
-            self._tokenize(chunk.text + " " + chunk.header)
-            for chunk in chunks
+            self._tokenize(chunk.text + " " + chunk.header) for chunk in chunks
         ]
 
         # Build BM25 index with custom parameters
@@ -69,7 +69,7 @@ class BM25Retriever:
             chunk_count=len(chunks),
             avg_tokens=sum(len(t) for t in self.tokenized_corpus) / len(chunks),
             k1=self.k1,
-            b=self.b
+            b=self.b,
         )
 
     def search(self, query: str, top_k: int = 15) -> list[BM25Result]:
@@ -93,17 +93,10 @@ class BM25Retriever:
         scores = self.bm25.get_scores(tokenized_query)
 
         # Get top-k results
-        top_indices = sorted(
-            range(len(scores)),
-            key=lambda i: scores[i],
-            reverse=True
-        )[:top_k]
+        top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
 
         results = [
-            BM25Result(
-                chunk=self.chunks[idx],
-                score=float(scores[idx])
-            )
+            BM25Result(chunk=self.chunks[idx], score=float(scores[idx]))
             for idx in top_indices
             if scores[idx] > 0  # Filter zero scores
         ]
@@ -112,7 +105,7 @@ class BM25Retriever:
             "bm25_search_completed",
             query_tokens=len(tokenized_query),
             results_count=len(results),
-            top_score=results[0].score if results else 0.0
+            top_score=results[0].score if results else 0.0,
         )
 
         return results
@@ -128,17 +121,15 @@ class BM25Retriever:
         Returns:
             List of tokens
         """
-        import re
-
         # Lowercase
         text = text.lower()
 
         # Split on whitespace and punctuation (keep alphanumeric and hyphen)
-        tokens = re.findall(r'\b[\w-]+\b', text)
+        tokens = re.findall(r"\b[\w-]+\b", text)
 
         return tokens
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, object]:
         """Get BM25 index statistics.
 
         Returns:
@@ -150,8 +141,11 @@ class BM25Retriever:
         return {
             "indexed": True,
             "chunk_count": len(self.chunks),
-            "avg_doc_length": sum(len(t) for t in self.tokenized_corpus) / len(self.tokenized_corpus) if self.tokenized_corpus else 0,
+            "avg_doc_length": sum(len(t) for t in self.tokenized_corpus)
+            / len(self.tokenized_corpus)
+            if self.tokenized_corpus
+            else 0,
             "vocabulary_size": len({token for doc in self.tokenized_corpus for token in doc}),
             "k1": self.k1,
-            "b": self.b
+            "b": self.b,
         }

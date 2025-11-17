@@ -9,10 +9,7 @@ from typing import Any
 
 from datasets import Dataset
 from ragas import evaluate
-from ragas.metrics import (
-    answer_relevancy,
-    faithfulness,
-)
+from ragas.metrics import answer_relevancy, faithfulness
 
 
 @dataclass
@@ -30,9 +27,9 @@ class RagasGenerationMetrics:
     faithfulness: float | None = None
     answer_relevancy: float | None = None
 
+
 def evaluate_retrieval(
-    retrieved_contexts: list[str],
-    ground_truth_contexts: list[str]
+    retrieved_contexts: list[str], ground_truth_contexts: list[str]
 ) -> RagasRetrievalMetrics:
     """Evaluate retrieval quality using Ragas metrics.
 
@@ -67,7 +64,9 @@ def evaluate_retrieval(
                 found_count += 1
                 break  # Found this ground truth, move to next one
 
-    context_recall_value = found_count / len(ground_truth_contexts) if ground_truth_contexts else 0.0
+    context_recall_value = (
+        found_count / len(ground_truth_contexts) if ground_truth_contexts else 0.0
+    )
 
     # Calculate custom substring-based context precision
     # Precision = (number of retrieved contexts containing ground truth) / (total retrieved contexts)
@@ -86,13 +85,11 @@ def evaluate_retrieval(
                 break  # This retrieved context is relevant, move to next one
 
     context_precision_value = (
-        relevant_retrieved_count / len(retrieved_contexts)
-        if retrieved_contexts else 0.0
+        relevant_retrieved_count / len(retrieved_contexts) if retrieved_contexts else 0.0
     )
 
     return RagasRetrievalMetrics(
-        context_precision=context_precision_value,
-        context_recall=context_recall_value,
+        context_precision=context_precision_value, context_recall=context_recall_value
     )
 
 
@@ -101,7 +98,7 @@ def evaluate_generation(
     response: str,
     retrieved_contexts: list[str],
     ground_truth_answer: str | None = None,
-    judge_model: str | None = None,
+    _judge_model: str | None = None,
 ) -> RagasGenerationMetrics:
     """Evaluate generation quality using Ragas metrics.
 
@@ -110,7 +107,7 @@ def evaluate_generation(
         response: The generated response from the LLM
         retrieved_contexts: List of retrieved document chunks used for generation
         ground_truth_answer: Optional reference answer for comparison
-        judge_model: Optional LLM model for Ragas evaluation (e.g., "gpt-4o")
+        _judge_model: Optional LLM model for Ragas evaluation (currently unused)
 
     Returns:
         RagasGenerationMetrics with faithfulness and answer_relevancy
@@ -120,11 +117,7 @@ def evaluate_generation(
     """
 
     # Prepare dataset for Ragas
-    data = {
-        "question": [query],
-        "answer": [response],
-        "contexts": [retrieved_contexts],
-    }
+    data = {"question": [query], "answer": [response], "contexts": [retrieved_contexts]}
 
     if ground_truth_answer:
         data["ground_truth"] = [ground_truth_answer]
@@ -143,8 +136,7 @@ def evaluate_generation(
         result = evaluate(dataset, metrics=metrics)
 
         return RagasGenerationMetrics(
-            faithfulness=result.get("faithfulness"),
-            answer_relevancy=result.get("answer_relevancy"),
+            faithfulness=result.get("faithfulness"), answer_relevancy=result.get("answer_relevancy")
         )
     except Exception as e:
         raise ValueError(f"Ragas evaluation failed: {str(e)}") from e

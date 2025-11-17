@@ -4,15 +4,11 @@ Implements LLMProvider interface for Grok models.
 Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
+import json
 import time
 from uuid import uuid4
 
-try:
-    import httpx
-except ImportError:
-    httpx = None
-
-import json
+import httpx
 
 from src.lib.logging import get_logger
 from src.services.llm.base import (
@@ -29,9 +25,7 @@ from src.services.llm.base import (
     RateLimitError,
     TokenLimitError,
 )
-from src.services.llm.base import (
-    TimeoutError as LLMTimeoutError,
-)
+from src.services.llm.base import TimeoutError as LLMTimeoutError
 
 logger = get_logger(__name__)
 
@@ -52,10 +46,7 @@ class GrokAdapter(LLMProvider):
             raise ImportError("httpx package not installed. Run: pip install httpx")
 
         self.base_url = "https://api.x.ai/v1"
-        self.headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
+        self.headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
         logger.info(f"Initialized Grok adapter with model {model}")
 
@@ -86,7 +77,9 @@ class GrokAdapter(LLMProvider):
             if schema_type == "hop_evaluation":
                 schema = HOP_EVALUATION_SCHEMA
                 function_name = "evaluate_context_sufficiency"
-                function_description = "Evaluate if retrieved context is sufficient to answer the question"
+                function_description = (
+                    "Evaluate if retrieved context is sufficient to answer the question"
+                )
                 logger.debug("Using hop evaluation schema")
             else:  # "default"
                 schema = STRUCTURED_OUTPUT_SCHEMA
@@ -104,26 +97,23 @@ class GrokAdapter(LLMProvider):
                 "max_tokens": request.config.max_tokens,
                 "temperature": request.config.temperature,
                 "stream": False,
-                "tools": [{
-                    "type": "function",
-                    "function": {
-                        "name": function_name,
-                        "description": function_description,
-                        "parameters": schema,
+                "tools": [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": function_name,
+                            "description": function_description,
+                            "parameters": schema,
+                        },
                     }
-                }],
-                "tool_choice": {
-                    "type": "function",
-                    "function": {"name": function_name}
-                },
+                ],
+                "tool_choice": {"type": "function", "function": {"name": function_name}},
             }
 
             # Call Grok API with timeout
             async with httpx.AsyncClient(timeout=request.config.timeout_seconds) as client:
                 response = await client.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=self.headers,
-                    json=payload,
+                    f"{self.base_url}/chat/completions", headers=self.headers, json=payload
                 )
 
             latency_ms = int((time.time() - start_time) * 1000)
@@ -161,7 +151,9 @@ class GrokAdapter(LLMProvider):
                 elif finish_reason == "length":
                     raise TokenLimitError("Grok output was truncated due to max_tokens limit")
                 else:
-                    raise Exception(f"Expected structured output via tool calls but none returned (finish_reason: {finish_reason})")
+                    raise Exception(
+                        f"Expected structured output via tool calls but none returned (finish_reason: {finish_reason})"
+                    )
 
             # Extract JSON from tool call
             tool_call = tool_calls[0]
@@ -174,10 +166,12 @@ class GrokAdapter(LLMProvider):
             try:
                 json.loads(function_args)  # Validate JSON is parseable
                 answer_text = function_args  # JSON string
-                logger.debug(f"Extracted structured JSON from Grok tool call: {len(answer_text)} chars")
+                logger.debug(
+                    f"Extracted structured JSON from Grok tool call: {len(answer_text)} chars"
+                )
             except json.JSONDecodeError as e:
                 logger.error(f"Grok returned invalid JSON in tool call: {e}")
-                raise ValueError(f"Grok returned invalid JSON: {e}")
+                raise ValueError(f"Grok returned invalid JSON: {e}") from e
 
             # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations
@@ -216,28 +210,38 @@ class GrokAdapter(LLMProvider):
             )
 
         except Exception as e:
-            if isinstance(e, (RateLimitError, AuthenticationError, LLMTimeoutError, ContentFilterError, TokenLimitError)):
+            if isinstance(
+                e,
+                (
+                    RateLimitError,
+                    AuthenticationError,
+                    LLMTimeoutError,
+                    ContentFilterError,
+                    TokenLimitError,
+                ),
+            ):
                 raise
 
             error_msg = str(e).lower()
 
             # Check for timeout-related errors
-            if ("timeout" in error_msg or hasattr(e, '__class__') and
-                e.__class__.__name__ in ('TimeoutException', 'TimeoutError')):
-                logger.warning(
-                    f"Grok API timeout after {request.config.timeout_seconds}s"
-                )
+            if (
+                "timeout" in error_msg
+                or hasattr(e, "__class__")
+                and e.__class__.__name__ in ("TimeoutException", "TimeoutError")
+            ):
+                logger.warning(f"Grok API timeout after {request.config.timeout_seconds}s")
                 raise LLMTimeoutError(
                     f"Grok generation exceeded {request.config.timeout_seconds}s timeout"
-                )
+                ) from e
 
             if "rate_limit" in error_msg or "429" in error_msg:
                 logger.warning(f"Grok rate limit exceeded: {e}")
-                raise RateLimitError(f"Grok rate limit: {e}")
+                raise RateLimitError(f"Grok rate limit: {e}") from e
 
             if "authentication" in error_msg or "401" in error_msg:
                 logger.error(f"Grok authentication failed: {e}")
-                raise AuthenticationError(f"Grok auth error: {e}")
+                raise AuthenticationError(f"Grok auth error: {e}") from e
 
             if (
                 "content_policy" in error_msg
@@ -245,7 +249,7 @@ class GrokAdapter(LLMProvider):
                 or "unsafe" in error_msg
             ):
                 logger.warning(f"Grok content filtered: {e}")
-                raise ContentFilterError(f"Grok content filter: {e}")
+                raise ContentFilterError(f"Grok content filter: {e}") from e
 
             logger.error(f"Grok generation error: {e}")
             raise
@@ -278,20 +282,16 @@ class GrokAdapter(LLMProvider):
 
             # Grok doesn't currently support direct PDF processing
             # In production, you'd convert PDF to text/images first
-            logger.warning(
-                "Grok PDF extraction requires text conversion (not implemented)"
-            )
+            logger.warning("Grok PDF extraction requires text conversion (not implemented)")
 
             # Placeholder: In production, convert PDF to text and send to Grok
-            raise NotImplementedError(
-                "Grok PDF extraction requires PDF-to-text conversion"
-            )
+            raise NotImplementedError("Grok PDF extraction requires PDF-to-text conversion")
 
-        except TimeoutError:
+        except TimeoutError as e:
             logger.warning("Grok PDF extraction timeout")
             raise LLMTimeoutError(
                 f"Grok extraction exceeded {request.config.timeout_seconds}s timeout"
-            )
+            ) from e
 
         except NotImplementedError:
             raise
@@ -301,16 +301,16 @@ class GrokAdapter(LLMProvider):
 
             if "token" in error_msg and "limit" in error_msg:
                 logger.error(f"Grok token limit exceeded: {e}")
-                raise TokenLimitError(f"Grok token limit: {e}")
+                raise TokenLimitError(f"Grok token limit: {e}") from e
 
             if "pdf" in error_msg or "parse" in error_msg:
                 logger.error(f"Grok PDF parse error: {e}")
-                raise PDFParseError(f"Grok PDF error: {e}")
+                raise PDFParseError(f"Grok PDF error: {e}") from e
 
             logger.error(f"Grok extraction error: {e}")
             raise
 
-    def _validate_extraction(self, markdown: str) -> list:
+    def _validate_extraction(self, markdown: str) -> list[str]:
         """Validate extracted markdown for required fields.
 
         Args:

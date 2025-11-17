@@ -34,7 +34,7 @@ class QueryExpander:
             logger.warning(
                 "synonym_dict_not_found",
                 path=str(self.synonym_dict_path),
-                message="Query expansion will be disabled"
+                message="Query expansion will be disabled",
             )
 
     def _load_synonyms(self) -> None:
@@ -61,7 +61,7 @@ class QueryExpander:
                 "synonyms_loaded",
                 path=str(self.synonym_dict_path),
                 official_terms=len(self.official_to_synonyms),
-                total_synonyms=len(self.synonym_to_official)
+                total_synonyms=len(self.synonym_to_official),
             )
 
         except Exception as e:
@@ -94,19 +94,17 @@ class QueryExpander:
 
         # Check for multi-word phrase matches first (longer matches = more specific)
         for synonym, official_term in sorted(
-            self.synonym_to_official.items(),
-            key=lambda x: len(x[0]),
-            reverse=True
+            self.synonym_to_official.items(), key=lambda x: len(x[0]), reverse=True
         ):
             # Use word boundaries for multi-word phrases
             if len(synonym.split()) > 1:
                 # Multi-word phrase: match as substring with word boundaries
-                pattern = r'\b' + re.escape(synonym) + r'\b'
+                pattern = r"\b" + re.escape(synonym) + r"\b"
                 if re.search(pattern, query_lower):
                     matched_official_terms.add(official_term)
             else:
                 # Single word: match as whole word
-                pattern = r'\b' + re.escape(synonym) + r'\b'
+                pattern = r"\b" + re.escape(synonym) + r"\b"
                 if re.search(pattern, query_lower):
                     matched_official_terms.add(official_term)
 
@@ -119,7 +117,7 @@ class QueryExpander:
                 "query_expanded",
                 original=query,
                 expanded=expanded_query,
-                added_terms=sorted(matched_official_terms)
+                added_terms=sorted(matched_official_terms),
             )
 
             return expanded_query
@@ -135,7 +133,7 @@ class QueryExpander:
         return {
             "official_terms": len(self.official_to_synonyms),
             "total_synonyms": len(self.synonym_to_official),
-            "loaded": len(self.synonym_to_official) > 0
+            "loaded": len(self.synonym_to_official) > 0,
         }
 
     def get_official_terms(self) -> list[str]:

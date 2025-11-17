@@ -9,10 +9,7 @@ import time
 from math import exp
 from uuid import uuid4
 
-try:
-    from openai import AsyncOpenAI
-except ImportError:
-    AsyncOpenAI = None
+from openai import AsyncOpenAI
 
 from src.lib.logging import get_logger
 from src.services.llm.base import (
@@ -29,9 +26,7 @@ from src.services.llm.base import (
     RateLimitError,
     TokenLimitError,
 )
-from src.services.llm.base import (
-    TimeoutError as LLMTimeoutError,
-)
+from src.services.llm.base import TimeoutError as LLMTimeoutError
 
 logger = get_logger(__name__)
 
@@ -57,7 +52,9 @@ class ChatGPTAdapter(LLMProvider):
         reasoning_models = ["gpt-5", "gpt-5-mini", "o3", "o3-mini", "o4-mini"]
         self.supports_logprobs = model not in reasoning_models
         self.uses_completion_tokens = model in reasoning_models
-        self.supports_temperature = model not in reasoning_models  # Reasoning models only support temperature=1
+        self.supports_temperature = (
+            model not in reasoning_models
+        )  # Reasoning models only support temperature=1
 
         logger.info(f"Initialized ChatGPT adapter with model {model}")
 
@@ -97,7 +94,9 @@ class ChatGPTAdapter(LLMProvider):
             if schema_type == "hop_evaluation":
                 schema = HOP_EVALUATION_SCHEMA
                 function_name = "evaluate_context_sufficiency"
-                function_description = "Evaluate if retrieved context is sufficient to answer the question"
+                function_description = (
+                    "Evaluate if retrieved context is sufficient to answer the question"
+                )
                 logger.debug("Using hop evaluation schema")
             else:  # "default"
                 schema = STRUCTURED_OUTPUT_SCHEMA
@@ -106,19 +105,18 @@ class ChatGPTAdapter(LLMProvider):
                 logger.debug("Using default answer schema")
 
             # Use structured output with appropriate schema
-            api_params["tools"] = [{
-                "type": "function",
-                "function": {
-                    "name": function_name,
-                    "description": function_description,
-                    "parameters": schema,
-                    "strict": True  # Enforces 100% schema compliance
+            api_params["tools"] = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": function_name,
+                        "description": function_description,
+                        "parameters": schema,
+                        "strict": True,  # Enforces 100% schema compliance
+                    },
                 }
-            }]
-            api_params["tool_choice"] = {
-                "type": "function",
-                "function": {"name": function_name}
-            }
+            ]
+            api_params["tool_choice"] = {"type": "function", "function": {"name": function_name}}
             api_params["parallel_tool_calls"] = False  # Required for strict mode
 
             # GPT-5 uses max_completion_tokens (includes both reasoning and visible output tokens)
@@ -158,14 +156,18 @@ class ChatGPTAdapter(LLMProvider):
 
             tool_call = choice.message.tool_calls[0]
             answer_text = tool_call.function.arguments  # JSON string
-            logger.debug(f"Extracted structured JSON output ({schema_type}): {len(answer_text)} chars")
+            logger.debug(
+                f"Extracted structured JSON output ({schema_type}): {len(answer_text)} chars"
+            )
 
             # Validate it's not empty
             if not answer_text or not answer_text.strip():
                 raise Exception("GPT returned empty JSON in tool call")
 
             # Check if citations are included (only for default schema)
-            citations_included = request.config.include_citations if schema_type == "default" else False
+            citations_included = (
+                request.config.include_citations if schema_type == "default" else False
+            )
 
             # Note: Logprobs are not available with structured output (function calling)
             confidence = 0.8  # Default confidence
@@ -199,24 +201,22 @@ class ChatGPTAdapter(LLMProvider):
                 completion_tokens=completion_tokens,
             )
 
-        except TimeoutError:
-            logger.warning(
-                f"ChatGPT API timeout after {request.config.timeout_seconds}s"
-            )
+        except TimeoutError as e:
+            logger.warning(f"ChatGPT API timeout after {request.config.timeout_seconds}s")
             raise LLMTimeoutError(
                 f"ChatGPT generation exceeded {request.config.timeout_seconds}s timeout"
-            )
+            ) from e
 
         except Exception as e:
             error_msg = str(e).lower()
 
             if "rate_limit" in error_msg or "429" in error_msg:
                 logger.warning(f"ChatGPT rate limit exceeded: {e}")
-                raise RateLimitError(f"ChatGPT rate limit: {e}")
+                raise RateLimitError(f"ChatGPT rate limit: {e}") from e
 
             if "authentication" in error_msg or "401" in error_msg:
                 logger.error(f"ChatGPT authentication failed: {e}")
-                raise AuthenticationError(f"ChatGPT auth error: {e}")
+                raise AuthenticationError(f"ChatGPT auth error: {e}") from e
 
             if (
                 "content_policy" in error_msg
@@ -224,7 +224,7 @@ class ChatGPTAdapter(LLMProvider):
                 or "unsafe" in error_msg
             ):
                 logger.warning(f"ChatGPT content filtered: {e}")
-                raise ContentFilterError(f"ChatGPT content filter: {e}")
+                raise ContentFilterError(f"ChatGPT content filter: {e}") from e
 
             logger.error(f"ChatGPT generation error: {e}")
             raise
@@ -258,21 +258,17 @@ class ChatGPTAdapter(LLMProvider):
             # GPT-4 Vision requires images, not PDFs
             # In production, you'd convert PDF to images here
             # For now, we'll use a text-based extraction approach
-            logger.warning(
-                "ChatGPT PDF extraction requires image conversion (not implemented)"
-            )
+            logger.warning("ChatGPT PDF extraction requires image conversion (not implemented)")
 
             # Placeholder: In production, convert PDF pages to base64 images
             # and send to gpt-4-vision-preview
-            raise NotImplementedError(
-                "ChatGPT PDF extraction requires PDF-to-image conversion"
-            )
+            raise NotImplementedError("ChatGPT PDF extraction requires PDF-to-image conversion")
 
-        except TimeoutError:
+        except TimeoutError as e:
             logger.warning("ChatGPT PDF extraction timeout")
             raise LLMTimeoutError(
                 f"ChatGPT extraction exceeded {request.config.timeout_seconds}s timeout"
-            )
+            ) from e
 
         except NotImplementedError:
             raise
@@ -282,11 +278,11 @@ class ChatGPTAdapter(LLMProvider):
 
             if "token" in error_msg and "limit" in error_msg:
                 logger.error(f"ChatGPT token limit exceeded: {e}")
-                raise TokenLimitError(f"ChatGPT token limit: {e}")
+                raise TokenLimitError(f"ChatGPT token limit: {e}") from e
 
             if "pdf" in error_msg or "parse" in error_msg:
                 logger.error(f"ChatGPT PDF parse error: {e}")
-                raise PDFParseError(f"ChatGPT PDF error: {e}")
+                raise PDFParseError(f"ChatGPT PDF error: {e}") from e
 
             logger.error(f"ChatGPT extraction error: {e}")
             raise
@@ -314,7 +310,7 @@ class ChatGPTAdapter(LLMProvider):
 
         return sum(probs) / len(probs)
 
-    def _validate_extraction(self, markdown: str) -> list:
+    def _validate_extraction(self, markdown: str) -> list[str]:
         """Validate extracted markdown for required fields.
 
         Args:

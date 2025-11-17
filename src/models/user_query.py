@@ -66,9 +66,7 @@ class UserQuery:
 
         # Validate conversation_context_id format
         if ":" not in self.conversation_context_id:
-            raise ValueError(
-                "conversation_context_id must be format {channel_id}:{user_id}"
-            )
+            raise ValueError("conversation_context_id must be format {channel_id}:{user_id}")
 
     def is_expired(self) -> bool:
         """Check if query has exceeded 7-day GDPR retention period.

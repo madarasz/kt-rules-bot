@@ -88,27 +88,27 @@ class MarkdownChunker:
             Content with YAML front matter removed
         """
         # Check if content starts with YAML front matter delimiter
-        if not content.strip().startswith('---'):
+        if not content.strip().startswith("---"):
             return content
 
-        lines = content.split('\n')
+        lines = content.split("\n")
 
         # Find the closing --- delimiter
         in_frontmatter = False
         content_start_line = 0
 
         for i, line in enumerate(lines):
-            if i == 0 and line.strip() == '---':
+            if i == 0 and line.strip() == "---":
                 in_frontmatter = True
                 continue
-            elif in_frontmatter and line.strip() == '---':
+            elif in_frontmatter and line.strip() == "---":
                 # Found closing delimiter, content starts after this line
                 content_start_line = i + 1
                 break
 
         # If we found valid front matter, return content without it
         if content_start_line > 0:
-            content_after_frontmatter = '\n'.join(lines[content_start_line:])
+            content_after_frontmatter = "\n".join(lines[content_start_line:])
             # Strip leading whitespace/empty lines
             return content_after_frontmatter.lstrip()
 
@@ -125,11 +125,11 @@ class MarkdownChunker:
             List of chunks
         """
         # Find all headers and their positions
-        lines = content.split('\n')
+        lines = content.split("\n")
         chunks: list[MarkdownChunk] = []
         current_header = ""
         current_header_level = 0
-        current_lines = []
+        current_lines: list[str] = []
         position = 0
 
         for line in lines:
@@ -138,14 +138,16 @@ class MarkdownChunker:
             if header_level and 2 <= header_level <= self.chunk_level:
                 # Save previous section if exists
                 if current_lines:
-                    current_text = '\n'.join(current_lines)
-                    chunks.append(self._create_chunk_with_level(
-                        current_text, current_header, current_header_level, position
-                    ))
+                    current_text = "\n".join(current_lines)
+                    chunks.append(
+                        self._create_chunk_with_level(
+                            current_text, current_header, current_header_level, position
+                        )
+                    )
                     position += 1
 
                 # Start new section
-                header_text = line[header_level + 1:].strip()  # Remove "### " prefix
+                header_text = line[header_level + 1 :].strip()  # Remove "### " prefix
                 current_header = header_text
                 current_header_level = header_level
                 current_lines = [line]
@@ -155,10 +157,12 @@ class MarkdownChunker:
 
         # Don't forget last section
         if current_lines:
-            current_text = '\n'.join(current_lines)
-            chunks.append(self._create_chunk_with_level(
-                current_text, current_header, current_header_level, position
-            ))
+            current_text = "\n".join(current_lines)
+            chunks.append(
+                self._create_chunk_with_level(
+                    current_text, current_header, current_header_level, position
+                )
+            )
 
         return chunks
 
@@ -171,22 +175,24 @@ class MarkdownChunker:
         Returns:
             Header level (1-6) or 0 if not a header
         """
-        if not text.startswith('#'):
+        if not text.startswith("#"):
             return 0
 
         # Count consecutive # characters
         level = 0
         for char in text:
-            if char == '#':
+            if char == "#":
                 level += 1
-            elif char == ' ':
+            elif char == " ":
                 break
             else:
                 return 0  # Not a valid header
 
         return level if level <= 6 else 0
 
-    def _create_chunk_with_level(self, text: str, header: str, header_level: int, position: int) -> MarkdownChunk:
+    def _create_chunk_with_level(
+        self, text: str, header: str, header_level: int, position: int
+    ) -> MarkdownChunk:
         """Create a chunk from text with specific header level.
 
         Args:
@@ -208,7 +214,7 @@ class MarkdownChunker:
             token_count=token_count,
         )
 
-    def get_chunk_stats(self, chunks: list[MarkdownChunk]) -> dict:
+    def get_chunk_stats(self, chunks: list[MarkdownChunk]) -> dict[str, int | float]:
         """Get statistics about chunks.
 
         Args:

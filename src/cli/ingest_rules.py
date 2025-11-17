@@ -61,10 +61,7 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
     try:
         vector_db = VectorDBService(collection_name="kill_team_rules")
         embedding_service = EmbeddingService()
-        ingestor = RAGIngestor(
-            vector_db_service=vector_db,
-            embedding_service=embedding_service,
-        )
+        ingestor = RAGIngestor(vector_db_service=vector_db, embedding_service=embedding_service)
         validator = DocumentValidator()
     except Exception as e:
         logger.error(f"Failed to initialize services: {e}", exc_info=True)
@@ -84,9 +81,7 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
             relative_path = md_file.relative_to(source_path)
 
             # Validate document
-            is_valid, error, metadata = validator.validate_content(
-                content, str(relative_path)
-            )
+            is_valid, error, metadata = validator.validate_content(content, str(relative_path))
 
             if not is_valid:
                 logger.warning(f"Validation failed for {relative_path}: {error}")
@@ -96,9 +91,7 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
 
             # Create RuleDocument
             rule_doc = RuleDocument.from_markdown_file(
-                filename=md_file.name,
-                content=content,
-                metadata=metadata,
+                filename=md_file.name, content=content, metadata=metadata
             )
 
             # Check if document already exists (unless force)
@@ -128,13 +121,13 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
             documents_skipped += 1
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Ingestion complete")
     print(f"  Documents processed: {documents_processed}")
     print(f"  Documents skipped: {documents_skipped}")
     print(f"  Validation errors: {validation_errors}")
     print(f"  Total chunks created: {total_chunks}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     logger.info(
         "Ingestion complete",
@@ -147,22 +140,16 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
     )
 
 
-def main():
+def main() -> None:
     """Main entry point for ingest_rules CLI."""
     parser = argparse.ArgumentParser(
         description="Ingest Kill Team markdown rules into vector database"
     )
     parser.add_argument(
-        "--source",
-        "-s",
-        required=True,
-        help="Source directory containing markdown files",
+        "--source", "-s", required=True, help="Source directory containing markdown files"
     )
     parser.add_argument(
-        "--force",
-        "-f",
-        action="store_true",
-        help="Force re-ingestion of existing documents",
+        "--force", "-f", action="store_true", help="Force re-ingestion of existing documents"
     )
 
     args = parser.parse_args()

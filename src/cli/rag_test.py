@@ -56,10 +56,7 @@ def rag_test(
         print("")
 
         results, total_time = runner.run_tests(
-            test_id=test_id,
-            runs=runs,
-            max_chunks=max_chunks,
-            min_relevance=min_relevance,
+            test_id=test_id, runs=runs, max_chunks=max_chunks, min_relevance=min_relevance
         )
 
         if not results:

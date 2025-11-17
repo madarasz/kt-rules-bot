@@ -4,7 +4,6 @@ Creates LLM provider instances based on configuration.
 Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
-
 from src.lib.config import get_config
 from src.lib.constants import LLM_PROVIDERS_LITERAL
 from src.lib.logging import get_logger
@@ -18,6 +17,7 @@ from src.services.llm.gemini import GeminiAdapter
 from src.services.llm.grok import GrokAdapter
 
 logger = get_logger(__name__)
+
 
 class LLMProviderFactory:
     """Factory for creating LLM provider instances."""
@@ -50,9 +50,17 @@ class LLMProviderFactory:
         "dial-gpt-5-mini": (DialAdapter, "gpt-5-mini-2025-08-07", "dial"),
         "dial-gpt-o3": (DialAdapter, "o3-2025-04-16", "dial"),
         "dial-sonet-4.5": (DialAdapter, "anthropic.claude-sonnet-4-5-20250929-v1:0", "dial"),
-        "dial-sonet-4.5-thinking": (DialAdapter, "anthropic.claude-sonnet-4-5-20250929-v1:0-with-thinking", "dial"),
+        "dial-sonet-4.5-thinking": (
+            DialAdapter,
+            "anthropic.claude-sonnet-4-5-20250929-v1:0-with-thinking",
+            "dial",
+        ),
         "dial-opus-4.1": (DialAdapter, "anthropic.claude-opus-4-1-20250805-v1:0", "dial"),
-        "dial-opus-4.1-thinking": (DialAdapter, "anthropic.claude-opus-4-1-20250805-v1:0-with-thinking", "dial"),
+        "dial-opus-4.1-thinking": (
+            DialAdapter,
+            "anthropic.claude-opus-4-1-20250805-v1:0-with-thinking",
+            "dial",
+        ),
         "dial-amazon-nova-pro": (DialAdapter, "amazon.nova-pro-v1", "dial"),
         "dial-amazon-titan": (DialAdapter, "amazon.titan-tg1-large", "dial"),
         "dial-gemini-2.5-pro": (DialAdapter, "gemini-2.5-pro", "dial"),
@@ -60,7 +68,9 @@ class LLMProviderFactory:
     }
 
     @classmethod
-    def create(cls, provider_name: LLM_PROVIDERS_LITERAL = None, guild_id: str | None = None) -> LLMProvider:
+    def create(
+        cls, provider_name: LLM_PROVIDERS_LITERAL = None, guild_id: str | None = None
+    ) -> LLMProvider:
         """Create LLM provider instance.
 
         Args:
@@ -85,7 +95,9 @@ class LLMProviderFactory:
         # Log config resolution for debugging
         if guild_id:
             if server_config:
-                logger.debug(f"Using server config for guild {guild_id} ({server_config.name if server_config.name else 'unnamed'})")
+                logger.debug(
+                    f"Using server config for guild {guild_id} ({server_config.name if server_config.name else 'unnamed'})"
+                )
             else:
                 logger.debug(f"Guild {guild_id} not in servers.yaml, using global .env config")
 
@@ -173,6 +185,7 @@ class LLMProviderFactory:
             List of model names
         """
         return list(cls._model_registry.keys())
+
 
 def get_provider(provider_name: LLM_PROVIDERS_LITERAL = None) -> LLMProvider:
     """Convenience function to get LLM provider.

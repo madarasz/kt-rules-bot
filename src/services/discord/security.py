@@ -32,11 +32,7 @@ def log_rate_limit_violation(user_id: str, provider: str) -> None:
     """
     security_logger.info(
         "Rate limit reached",
-        extra={
-            "event_type": "rate_limit",
-            "user_id": user_id[:16],
-            "provider": provider,
-        },
+        extra={"event_type": "rate_limit", "user_id": user_id[:16], "provider": provider},
     )
 
 
@@ -49,11 +45,7 @@ def log_permission_violation(user_id: str, action: str) -> None:
     """
     security_logger.warning(
         "Permission violation",
-        extra={
-            "event_type": "permission_violation",
-            "user_id": user_id[:16],
-            "action": action,
-        },
+        extra={"event_type": "permission_violation", "user_id": user_id[:16], "action": action},
     )
 
 
@@ -76,7 +68,7 @@ def log_unusual_query_pattern(user_id: str, pattern_type: str, details: str) -> 
     )
 
 
-def _detect_patterns(message: str) -> list:
+def _detect_patterns(message: str) -> list[str]:
     """Detect injection patterns in message.
 
     Args:

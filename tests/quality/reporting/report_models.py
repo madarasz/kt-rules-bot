@@ -8,6 +8,7 @@ import numpy as np
 @dataclass
 class RequirementResult:
     """Represents the result of a single requirement check."""
+
     title: str
     type: str
     achieved_score: int
@@ -28,9 +29,11 @@ class RequirementResult:
             return "❌"
         return "⚠️"
 
+
 @dataclass
 class IndividualTestResult:
     """Represents the result of a single test run for a specific model and test case."""
+
     test_id: str
     query: str
     model: str
@@ -97,18 +100,24 @@ class IndividualTestResult:
     @property
     def total_cost_usd(self) -> float:
         """Calculate total cost including all components."""
-        return self.cost_usd + self.multi_hop_cost_usd + self.ragas_cost_usd + self.embedding_cost_usd
+        return (
+            self.cost_usd + self.multi_hop_cost_usd + self.ragas_cost_usd + self.embedding_cost_usd
+        )
+
 
 @dataclass
 class TestCaseReport:
     """Aggregates results for a single test case across multiple models and/or runs."""
+
     test_id: str
     results: list[IndividualTestResult] = field(default_factory=list)
     chart_path: str | None = None
 
+
 @dataclass
 class ModelSummary:
     """Aggregates results for a single model across multiple test cases and/or runs."""
+
     model_name: str
     results: list[IndividualTestResult] = field(default_factory=list)
 
@@ -148,9 +157,11 @@ class ModelSummary:
             return 0.0
         return np.std([r.total_cost_usd for r in self.results])
 
+
 @dataclass
 class QualityReport:
     """The main container for a full quality test report, covering all runs, tests, and models."""
+
     results: list[IndividualTestResult]
     total_time_seconds: float
     total_cost_usd: float

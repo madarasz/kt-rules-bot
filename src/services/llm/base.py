@@ -19,6 +19,11 @@ from src.lib.constants import (
     LLM_GENERATION_TIMEOUT,
     LLM_SYSTEM_PROMPT_FILE_PATH,
 )
+from src.lib.personality import (
+    get_afterword_example,
+    get_personality_description,
+    get_short_answer_example,
+)
 
 # Cached system prompt (loaded once from file)
 _SYSTEM_PROMPT_CACHE: str | None = None
@@ -55,21 +60,9 @@ def load_system_prompt() -> str:
     # Read the base template
     template = prompt_file.read_text(encoding="utf-8")
 
-    # Import personality module to get personality-specific content
-    # Import here to avoid circular dependency at module level
-    from src.lib.personality import (
-        get_afterword_example,
-        get_personality_description,
-        get_short_answer_example,
-    )
-
     # Replace personality placeholders
-    template = template.replace(
-        "[PERSONALITY DESCRIPTION]", get_personality_description()
-    )
-    template = template.replace(
-        "[PERSONALITY SHORT ANSWER]", get_short_answer_example()
-    )
+    template = template.replace("[PERSONALITY DESCRIPTION]", get_personality_description())
+    template = template.replace("[PERSONALITY SHORT ANSWER]", get_short_answer_example())
     template = template.replace("[PERSONALITY AFTERWORD]", get_afterword_example())
 
     # Cache and return
@@ -126,15 +119,12 @@ STRUCTURED_OUTPUT_SCHEMA = {
     "properties": {
         "smalltalk": {
             "type": "boolean",
-            "description": "True if this is casual conversation (not rules-related), False if answering a rules question"
+            "description": "True if this is casual conversation (not rules-related), False if answering a rules question",
         },
-        "short_answer": {
-            "type": "string",
-            "description": "Direct, short answer (e.g., 'Yes.')"
-        },
+        "short_answer": {"type": "string", "description": "Direct, short answer (e.g., 'Yes.')"},
         "persona_short_answer": {
             "type": "string",
-            "description": "Short condescending phrase after the direct answer (e.g., 'The affirmative is undeniable.')"
+            "description": "Short condescending phrase after the direct answer (e.g., 'The affirmative is undeniable.')",
         },
         "quotes": {
             "type": "array",
@@ -144,25 +134,25 @@ STRUCTURED_OUTPUT_SCHEMA = {
                 "properties": {
                     "quote_title": {
                         "type": "string",
-                        "description": "Rule name (e.g., 'Core Rules: Actions')"
+                        "description": "Rule name (e.g., 'Core Rules: Actions')",
                     },
                     "quote_text": {
                         "type": "string",
-                        "description": "Relevant excerpt from the rule"
-                    }
+                        "description": "Relevant excerpt from the rule",
+                    },
                 },
                 "required": ["quote_title", "quote_text"],
-                "additionalProperties": False
-            }
+                "additionalProperties": False,
+            },
         },
         "explanation": {
             "type": "string",
-            "description": "Brief rules-based explanation using official Kill Team terminology"
+            "description": "Brief rules-based explanation using official Kill Team terminology",
         },
         "persona_afterword": {
             "type": "string",
-            "description": "Dismissive concluding sentence (e.g., 'The logic is unimpeachable.')"
-        }
+            "description": "Dismissive concluding sentence (e.g., 'The logic is unimpeachable.')",
+        },
     },
     "required": [
         "smalltalk",
@@ -170,9 +160,9 @@ STRUCTURED_OUTPUT_SCHEMA = {
         "persona_short_answer",
         "quotes",
         "explanation",
-        "persona_afterword"
+        "persona_afterword",
     ],
-    "additionalProperties": False
+    "additionalProperties": False,
 }
 
 # Schema for multi-hop retrieval context evaluation
@@ -181,19 +171,19 @@ HOP_EVALUATION_SCHEMA = {
     "properties": {
         "can_answer": {
             "type": "boolean",
-            "description": "True if the retrieved context is sufficient to answer the question, false otherwise"
+            "description": "True if the retrieved context is sufficient to answer the question, false otherwise",
         },
         "reasoning": {
             "type": "string",
-            "description": "Brief explanation (1-2 sentences) of what context you have or what's missing"
+            "description": "Brief explanation (1-2 sentences) of what context you have or what's missing",
         },
         "missing_query": {
             "type": ["string", "null"],
-            "description": "If can_answer=false, a focused retrieval query for missing rules. If can_answer=true, null"
-        }
+            "description": "If can_answer=false, a focused retrieval query for missing rules. If can_answer=true, null",
+        },
     },
     "required": ["can_answer", "reasoning", "missing_query"],
-    "additionalProperties": False
+    "additionalProperties": False,
 }
 
 
@@ -341,7 +331,7 @@ class LLMProvider(ABC):
             Formatted user prompt with context
         """
         context_text = "\n\n".join(
-            [f"[Context {i+1}]:\n{chunk}" for i, chunk in enumerate(context)]
+            [f"[Context {i + 1}]:\n{chunk}" for i, chunk in enumerate(context)]
         )
 
         return f"""Context from Kill Team 3rd Edition rules:

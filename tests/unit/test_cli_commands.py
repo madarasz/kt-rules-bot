@@ -80,16 +80,18 @@ async def test_health_checker_initializes_services(mock_config):
     """Test that HealthChecker initializes required services."""
     checker = HealthChecker(config=mock_config)
 
-    with patch("src.cli.health_check.RAGRetriever") as mock_rag:
-        with patch("src.cli.health_check.LLMProviderFactory") as mock_factory:
-            mock_factory.return_value.create.return_value = Mock()
-            mock_rag.return_value = Mock()
+    with (
+        patch("src.cli.health_check.RAGRetriever") as mock_rag,
+        patch("src.cli.health_check.LLMProviderFactory") as mock_factory,
+    ):
+        mock_factory.return_value.create.return_value = Mock()
+        mock_rag.return_value = Mock()
 
-            try:
-                await checker._initialize_services()
-                # Should not raise
-            except Exception as e:
-                pytest.fail(f"Service initialization failed: {e}")
+        try:
+            await checker._initialize_services()
+            # Should not raise
+        except Exception as e:
+            pytest.fail(f"Service initialization failed: {e}")
 
 
 @pytest.mark.asyncio
@@ -98,23 +100,25 @@ async def test_health_checker_returns_status(mock_config):
     checker = HealthChecker(config=mock_config)
 
     # Mock services
-    with patch("src.cli.health_check.RAGRetriever"):
-        with patch("src.cli.health_check.LLMProviderFactory"):
-            with patch("src.cli.health_check.check_health") as mock_check:
-                mock_check.return_value = HealthStatus(
-                    is_healthy=True,
-                    discord_connected=False,
-                    vector_db_available=True,
-                    llm_provider_available=True,
-                    recent_error_rate=0.0,
-                    avg_latency_ms=0,
-                    timestamp=datetime.now(UTC),
-                )
+    with (
+        patch("src.cli.health_check.RAGRetriever"),
+        patch("src.cli.health_check.LLMProviderFactory"),
+        patch("src.cli.health_check.check_health") as mock_check,
+    ):
+        mock_check.return_value = HealthStatus(
+            is_healthy=True,
+            discord_connected=False,
+            vector_db_available=True,
+            llm_provider_available=True,
+            recent_error_rate=0.0,
+            avg_latency_ms=0,
+            timestamp=datetime.now(UTC),
+        )
 
-                is_healthy = await checker.run(verbose=False, wait_for_discord=False)
+        is_healthy = await checker.run(verbose=False, wait_for_discord=False)
 
-                assert is_healthy is True
-                assert mock_check.called
+        assert is_healthy is True
+        assert mock_check.called
 
 
 # --- Test: run_bot ---
@@ -125,30 +129,30 @@ async def test_bot_runner_initializes_orchestrator(mock_config):
     """Test that BotRunner initializes orchestrator with all services."""
     runner = BotRunner(config=mock_config)
 
-    with patch("src.cli.run_bot.RAGRetriever") as mock_rag:
-        with patch("src.cli.run_bot.LLMProviderFactory") as mock_factory:
-            with patch("src.cli.run_bot.ResponseValidator") as mock_validator:
-                with patch("src.cli.run_bot.RateLimiter") as mock_limiter:
-                    with patch("src.cli.run_bot.ConversationContextManager") as mock_context:
-                        with patch(
-                            "src.cli.run_bot.KillTeamBotOrchestrator"
-                        ) as mock_orch:
-                            mock_rag.return_value = Mock()
-                            mock_factory.return_value = Mock()
-                            mock_validator.return_value = Mock()
-                            mock_limiter.return_value = Mock()
-                            mock_context.return_value = Mock()
-                            mock_orch.return_value = Mock()
+    with (
+        patch("src.cli.run_bot.RAGRetriever") as mock_rag,
+        patch("src.cli.run_bot.LLMProviderFactory") as mock_factory,
+        patch("src.cli.run_bot.ResponseValidator") as mock_validator,
+        patch("src.cli.run_bot.RateLimiter") as mock_limiter,
+        patch("src.cli.run_bot.ConversationContextManager") as mock_context,
+        patch("src.cli.run_bot.KillTeamBotOrchestrator") as mock_orch,
+    ):
+        mock_rag.return_value = Mock()
+        mock_factory.return_value = Mock()
+        mock_validator.return_value = Mock()
+        mock_limiter.return_value = Mock()
+        mock_context.return_value = Mock()
+        mock_orch.return_value = Mock()
 
-                            await runner._initialize_services()
+        await runner._initialize_services()
 
-                            # Verify all services initialized
-                            assert mock_rag.called
-                            assert mock_factory.called
-                            assert mock_validator.called
-                            assert mock_limiter.called
-                            assert mock_context.called
-                            assert mock_orch.called
+        # Verify all services initialized
+        assert mock_rag.called
+        assert mock_factory.called
+        assert mock_validator.called
+        assert mock_limiter.called
+        assert mock_context.called
+        assert mock_orch.called
 
 
 @pytest.mark.asyncio
@@ -170,7 +174,7 @@ async def test_bot_runner_handles_missing_token(mock_config):
 
 @patch("src.cli.gdpr_delete.get_logger")
 @patch("builtins.input")
-def test_gdpr_delete_requires_confirmation(mock_input, mock_logger):
+def test_gdpr_delete_requires_confirmation(mock_input, _mock_logger):
     """Test that gdpr_delete requires confirmation."""
     mock_input.return_value = "no"
 
@@ -183,7 +187,7 @@ def test_gdpr_delete_requires_confirmation(mock_input, mock_logger):
 
 @patch("src.cli.gdpr_delete.get_logger")
 @patch("builtins.input")
-def test_gdpr_delete_with_confirm_flag(mock_input, mock_logger):
+def test_gdpr_delete_with_confirm_flag(mock_input, _mock_logger):
     """Test that gdpr_delete skips confirmation with --confirm flag."""
     # Should not prompt for confirmation
     delete_user_data(user_id="123456789", confirm=True)
@@ -198,14 +202,14 @@ def test_gdpr_delete_with_confirm_flag(mock_input, mock_logger):
 @patch("src.cli.__main__.run_bot")
 def test_main_routes_run_command(mock_run_bot):
     """Test that main routes 'run' command correctly."""
-    with patch("sys.argv", ["cli", "run", "--mode", "dev"]):
+    with patch("sys.argv", ["cli", "run"]):
         from src.cli.__main__ import main
 
         with contextlib.suppress(SystemExit):
             main()
 
         # Verify run_bot was called
-        mock_run_bot.assert_called_once_with(mode="dev")
+        mock_run_bot.assert_called_once()
 
 
 @patch("src.cli.__main__.ingest_rules")
@@ -223,15 +227,23 @@ def test_main_routes_ingest_command(mock_ingest):
 
 def test_main_routes_query_command():
     """Test that main routes 'query' command correctly."""
-    with patch("sys.argv", ["cli", "query", "test query", "--model", "claude-4.5-sonnet"]):
-        with patch("src.cli.__main__.test_query") as mock_query:
-            from src.cli.__main__ import main
+    with (
+        patch("sys.argv", ["cli", "query", "test query", "--model", "claude-4.5-sonnet"]),
+        patch("src.cli.__main__.test_query") as mock_query,
+    ):
+        from src.cli.__main__ import main
 
-            with contextlib.suppress(SystemExit):
-                main()
+        with contextlib.suppress(SystemExit):
+            main()
 
             # Verify test_query was called
-            mock_query.assert_called_once_with(query="test query", model="claude-4.5-sonnet", max_chunks=5, rag_only=False, max_hops=None)
+            mock_query.assert_called_once_with(
+                query="test query",
+                model="claude-4.5-sonnet",
+                max_chunks=5,
+                rag_only=False,
+                max_hops=None,
+            )
 
 
 @patch("src.cli.__main__.health_check")

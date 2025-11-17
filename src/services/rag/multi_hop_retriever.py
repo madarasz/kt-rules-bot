@@ -27,6 +27,7 @@ from src.lib.constants import (
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost
 from src.models.rag_context import DocumentChunk, RAGContext
+from src.models.rag_request import RetrieveRequest
 from src.services.llm.base import GenerationConfig, GenerationRequest, RateLimitError
 from src.services.llm.factory import LLMProviderFactory
 from src.services.rag.team_filter import TeamFilter
@@ -99,7 +100,9 @@ class MultiHopRetriever:
         self.teams_structure_dict = self._load_structure_dict(TEAMS_STRUCTURE_PATH)
 
         # Initialize team filter for query-specific filtering
-        self.team_filter = TeamFilter(self.teams_structure_dict) if self.teams_structure_dict else None
+        self.team_filter = (
+            TeamFilter(self.teams_structure_dict) if self.teams_structure_dict else None
+        )
 
         logger.info(
             "multi_hop_retriever_initialized",
@@ -126,18 +129,11 @@ class MultiHopRetriever:
             with open(file_path) as f:
                 return yaml.safe_load(f) or {}
         except Exception as e:
-            logger.error(
-                "structure_file_load_failed",
-                file_path=file_path,
-                error=str(e),
-            )
+            logger.error("structure_file_load_failed", file_path=file_path, error=str(e))
             return {}
 
     async def retrieve_multi_hop(
-        self,
-        query: str,
-        context_key: str,
-        query_id: UUID,
+        self, query: str, context_key: str, query_id: UUID
     ) -> tuple[RAGContext, list[HopEvaluation], dict[UUID, int]]:
         """Perform multi-hop retrieval with LLM-guided context evaluation.
 
@@ -152,9 +148,6 @@ class MultiHopRetriever:
             - List of HopEvaluation objects (one per hop attempted)
             - Dict mapping chunk_id to hop number (0=initial, 1+=hop)
         """
-        # Import here to avoid circular dependency
-        from src.services.rag.retriever import RetrieveRequest
-
         accumulated_chunks: list[DocumentChunk] = []
         hop_evaluations: list[HopEvaluation] = []
         chunk_hop_map: dict[UUID, int] = {}
@@ -188,8 +181,7 @@ class MultiHopRetriever:
             try:
                 eval_start = time.time()
                 evaluation = await self._evaluate_context(
-                    user_query=query,
-                    retrieved_chunks=accumulated_chunks,
+                    user_query=query, retrieved_chunks=accumulated_chunks
                 )
                 evaluation.evaluation_time_s = time.time() - eval_start
 
@@ -215,9 +207,7 @@ class MultiHopRetriever:
                 # Retrieve additional context with focused query
                 if not evaluation.missing_query:
                     logger.warning(
-                        "multi_hop_missing_query_null",
-                        hop=hop_num,
-                        evaluation=evaluation.reasoning,
+                        "multi_hop_missing_query_null", hop=hop_num, evaluation=evaluation.reasoning
                     )
                     break
 
@@ -235,8 +225,7 @@ class MultiHopRetriever:
                 # Deduplicate by chunk_id
                 existing_ids = {c.chunk_id for c in accumulated_chunks}
                 new_chunks = [
-                    c for c in hop_context.document_chunks
-                    if c.chunk_id not in existing_ids
+                    c for c in hop_context.document_chunks if c.chunk_id not in existing_ids
                 ]
 
                 # Track hop number for new chunks
@@ -274,10 +263,7 @@ class MultiHopRetriever:
             )
 
         # Build final RAGContext from accumulated chunks
-        final_context = RAGContext.from_retrieval(
-            query_id=query_id,
-            chunks=accumulated_chunks,
-        )
+        final_context = RAGContext.from_retrieval(query_id=query_id, chunks=accumulated_chunks)
 
         logger.info(
             "multi_hop_finished",
@@ -289,9 +275,7 @@ class MultiHopRetriever:
         return final_context, hop_evaluations, chunk_hop_map
 
     async def _evaluate_context(
-        self,
-        user_query: str,
-        retrieved_chunks: list[DocumentChunk],
+        self, user_query: str, retrieved_chunks: list[DocumentChunk]
     ) -> HopEvaluation:
         """Evaluate if retrieved context is sufficient to answer query.
 
@@ -326,7 +310,9 @@ class MultiHopRetriever:
                 original_teams_count=len(self.teams_structure_dict),
                 reduction_pct=round(
                     (1 - len(filtered_teams) / len(self.teams_structure_dict)) * 100, 1
-                ) if filtered_teams else 0,
+                )
+                if filtered_teams
+                else 0,
             )
 
         # Convert structures to YAML text
@@ -335,14 +321,10 @@ class MultiHopRetriever:
             default_flow_style=False,
             allow_unicode=True,
             width=120,
-            indent=2
+            indent=2,
         )
         teams_structure_text = yaml.dump(
-            filtered_teams,
-            default_flow_style=False,
-            allow_unicode=True,
-            width=120,
-            indent=2
+            filtered_teams, default_flow_style=False, allow_unicode=True, width=120, indent=2
         )
 
         # Fill prompt template with structures
@@ -371,8 +353,7 @@ class MultiHopRetriever:
         for attempt in range(LLM_MAX_RETRIES + 1):
             try:
                 response = await asyncio.wait_for(
-                    self.evaluation_llm.generate(request),
-                    timeout=self.evaluation_timeout,
+                    self.evaluation_llm.generate(request), timeout=self.evaluation_timeout
                 )
 
                 # Parse JSON response (already structured by LLM)
@@ -382,14 +363,19 @@ class MultiHopRetriever:
                 # Parse the JSON
                 try:
                     data = json.loads(response_text)
-                    logger.debug("hop_evaluation_parsed", keys=list(data.keys()) if isinstance(data, dict) else "not_a_dict")
+                    logger.debug(
+                        "hop_evaluation_parsed",
+                        keys=list(data.keys()) if isinstance(data, dict) else "not_a_dict",
+                    )
                 except json.JSONDecodeError as e:
                     logger.error(
                         "hop_evaluation_json_parse_error",
                         error=str(e),
                         response_preview=response_text[:200],
                     )
-                    raise ValueError(f"Failed to parse hop evaluation JSON: {e}. Response: {response_text[:200]}")
+                    raise ValueError(
+                        f"Failed to parse hop evaluation JSON: {e}. Response: {response_text[:200]}"
+                    ) from e
 
                 # Validate required fields
                 if "can_answer" not in data or "reasoning" not in data:
@@ -399,14 +385,14 @@ class MultiHopRetriever:
                 cost_usd = estimate_cost(
                     prompt_tokens=int(response.token_count * 0.7),  # Estimate 70% prompt
                     completion_tokens=int(response.token_count * 0.3),  # Estimate 30% completion
-                    model=RAG_HOP_EVALUATION_MODEL
+                    model=RAG_HOP_EVALUATION_MODEL,
                 )
 
                 logger.debug(
                     "hop_evaluation_cost",
                     tokens=response.token_count,
                     cost_usd=cost_usd,
-                    model=RAG_HOP_EVALUATION_MODEL
+                    model=RAG_HOP_EVALUATION_MODEL,
                 )
 
                 return HopEvaluation(
@@ -442,13 +428,13 @@ class MultiHopRetriever:
                     error=str(e),
                     response_text=response.answer_text[:1000],
                 )
-                raise ValueError(f"Invalid JSON from evaluation LLM: {e}")
+                raise ValueError(f"Invalid JSON from evaluation LLM: {e}") from e
 
-            except TimeoutError:
+            except TimeoutError as e:
                 logger.error("hop_evaluation_timeout", timeout=self.evaluation_timeout)
                 raise TimeoutError(
                     f"Hop evaluation exceeded {self.evaluation_timeout}s timeout"
-                )
+                ) from e
 
         # Should never reach here, but just in case
         if last_error:
@@ -470,7 +456,11 @@ class MultiHopRetriever:
         formatted_chunks = []
         for i, chunk in enumerate(chunks, 1):
             header = chunk.header or "Unknown Section"
-            text = chunk.text[:MAX_CHUNK_LENGTH_FOR_EVALUATION] + "..." if len(chunk.text) > MAX_CHUNK_LENGTH_FOR_EVALUATION else chunk.text
+            text = (
+                chunk.text[:MAX_CHUNK_LENGTH_FOR_EVALUATION] + "..."
+                if len(chunk.text) > MAX_CHUNK_LENGTH_FOR_EVALUATION
+                else chunk.text
+            )
             formatted_chunks.append(f"{i}. **{header}**\n{text}\n")
 
         return "\n".join(formatted_chunks)

@@ -3,6 +3,7 @@
 This is the single source of truth for all tunable parameters.
 Modify values here to change behavior across the entire application.
 """
+
 from typing import Literal, get_args
 
 # ============================================================================
@@ -49,8 +50,8 @@ LLM_PROVIDERS_LITERAL = Literal[
 ALL_LLM_PROVIDERS = list(get_args(LLM_PROVIDERS_LITERAL))
 
 PDF_EXTRACTION_PROVIDERS = [
-    "gemini-2.5-pro",      # Recommended: Most reliable
-    "gemini-2.5-flash",    # Recommended: Fast and reliable
+    "gemini-2.5-pro",  # Recommended: Most reliable
+    "gemini-2.5-flash",  # Recommended: Fast and reliable
     "claude-4.5-sonnet",
     "claude-4.1-opus",
 ]
@@ -133,29 +134,34 @@ RAG_MIN_RELEVANCE = 0.45  # Minimum cosine similarity threshold
 # See CHANGELOG-RETRIEVAL.md for tuning history
 
 # Hybrid search parameters
-BM25_WEIGHT = 0.5  # Weight for BM25 keyword search in hybrid fusion (0.0-1.0)
-                   # Higher values (e.g., 0.7): Prefer exact keyword matching
-                   # Lower values (e.g., 0.3): Prefer semantic similarity
-                   # Vector weight is automatically 1.0 - BM25_WEIGHT
+# Weight for BM25 keyword search in hybrid fusion (0.0-1.0)
+# Higher values (e.g., 0.7): Prefer exact keyword matching
+# Lower values (e.g., 0.3): Prefer semantic similarity
+# Vector weight is automatically 1.0 - BM25_WEIGHT
+BM25_WEIGHT = 0.5
 
 # BM25 keyword search parameters
-BM25_K1 = 1.6  # Term frequency saturation parameter (typical range: 1.2-2.0)
-               # Higher values give more weight to term frequency
-BM25_B = 0.8  # Document length normalization parameter (typical range: 0.5-1.0)
-               # 0 = no normalization, 1 = full normalization
+# Term frequency saturation parameter (typical range: 1.2-2.0)
+# Higher values give more weight to term frequency
+BM25_K1 = 1.6
 
-RRF_K = 60  # RRF (Reciprocal Rank Fusion) constant for hybrid search
-            # Lower k (e.g., 40): More weight to top-ranked results
-            # Higher k (e.g., 80): More balanced fusion between vector and BM25
-            # DOES NOT AFFECT ANYTHING because we  RRK scores are normalized
+# Document length normalization parameter (typical range: 0.5-1.0)
+# 0 = no normalization, 1 = full normalization
+BM25_B = 0.8
+
+# RRF (Reciprocal Rank Fusion) constant for hybrid search
+# Lower k (e.g., 40): More weight to top-ranked results
+# Higher k (e.g., 80): More balanced fusion between vector and BM25
+# DOES NOT AFFECT ANYTHING because we RRK scores are normalized
+RRF_K = 60
 
 # ============================================================================
 # Embedding & Chunking Constants
 # ============================================================================
 
 # Default embedding model
-EMBEDDING_MODEL = "text-embedding-ada-002"  # OpenAI embedding model
-                                            # text-embedding-3-small, text-embedding-3-large, text-embedding-ada-002
+# Options: text-embedding-3-small, text-embedding-3-large, text-embedding-ada-002
+EMBEDDING_MODEL = "text-embedding-ada-002"
 
 # Markdown chunking configuration
 MARKDOWN_CHUNK_HEADER_LEVEL = 2  # Max header level to chunk at: chunks at ## up to this level

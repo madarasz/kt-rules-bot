@@ -19,39 +19,157 @@ TEAM_MATCH_THRESHOLD = 80
 # These appear in ability/ploy names but cause false positives when matching
 STOP_WORDS = {
     # Articles
-    "the", "a", "an", "this", "these", "those",
+    "the",
+    "a",
+    "an",
+    "this",
+    "these",
+    "those",
     # Prepositions
-    "from", "with", "for", "before", "after", "into", "onto", "upon", "over", "under",
-    "through", "across", "along", "behind", "beyond", "near", "beside", "of", "to", "in", "on", "at",
+    "from",
+    "with",
+    "for",
+    "before",
+    "after",
+    "into",
+    "onto",
+    "upon",
+    "over",
+    "under",
+    "through",
+    "across",
+    "along",
+    "behind",
+    "beyond",
+    "near",
+    "beside",
+    "of",
+    "to",
+    "in",
+    "on",
+    "at",
     # Conjunctions
-    "and", "or", "but", "that", "thus", "then", "than", "as", "if", "when", "where",
+    "and",
+    "or",
+    "but",
+    "that",
+    "thus",
+    "then",
+    "than",
+    "as",
+    "if",
+    "when",
+    "where",
     # Pronouns
-    "his", "her", "its", "their", "your", "my", "our", "it", "he", "she", "they", "we",
+    "his",
+    "her",
+    "its",
+    "their",
+    "your",
+    "my",
+    "our",
+    "it",
+    "he",
+    "she",
+    "they",
+    "we",
     # Common verbs (auxiliary/modal and 'be' forms)
-    "would", "could", "should", "will", "can", "may", "might", "must", "shall",
-    "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did",
+    "would",
+    "could",
+    "should",
+    "will",
+    "can",
+    "may",
+    "might",
+    "must",
+    "shall",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "being",
+    "have",
+    "has",
+    "had",
+    "do",
+    "does",
+    "did",
     # Quantifiers
-    "all", "any", "some", "few", "many", "much", "more", "most", "less", "least",
+    "all",
+    "any",
+    "some",
+    "few",
+    "many",
+    "much",
+    "more",
+    "most",
+    "less",
+    "least",
     # Other common words
-    "not", "no", "yes", "also", "just", "only", "very", "too", "so", "such",
+    "not",
+    "no",
+    "yes",
+    "also",
+    "just",
+    "only",
+    "very",
+    "too",
+    "so",
+    "such",
     # Game-specific common words (appear in many ability/operative names)
-    #"blood", "field", "battle", "death", "kill", "shot", "fire", "dark", "light",
+    # "blood", "field", "battle", "death", "kill", "shot", "fire", "dark", "light",
 }
 
 # Common abbreviations and alternative names
 TEAM_ALIASES = {
-    "space marines": ["Angels Of Death", "Deathwatch", "Phobos Strike Team", "Scout Squad",
-                 "Legionaries", "Plague Marines", "Nemesis Claw"],
-    "astartes": ["Angels Of Death", "Deathwatch", "Phobos Strike Team", "Scout Squad",
-                 "Legionaries", "Plague Marines", "Nemesis Claw"],
-    "chaos": ["Blooded", "Chaos Cult", "Legionaries", "Plague Marines", "Warpcoven",
-              "Nemesis Claw", "Fellgor Ravagers", "Goremongers"],
+    "space marines": [
+        "Angels Of Death",
+        "Deathwatch",
+        "Phobos Strike Team",
+        "Scout Squad",
+        "Legionaries",
+        "Plague Marines",
+        "Nemesis Claw",
+    ],
+    "astartes": [
+        "Angels Of Death",
+        "Deathwatch",
+        "Phobos Strike Team",
+        "Scout Squad",
+        "Legionaries",
+        "Plague Marines",
+        "Nemesis Claw",
+    ],
+    "chaos": [
+        "Blooded",
+        "Chaos Cult",
+        "Legionaries",
+        "Plague Marines",
+        "Warpcoven",
+        "Nemesis Claw",
+        "Fellgor Ravagers",
+        "Goremongers",
+    ],
     "orks": ["Kommandos", "Wrecka Krew"],
     "tau": ["Pathfinders", "Vespid Stingwings", "Farstalker Kinband"],
     "kroot": ["Farstalker Kinband"],
     "kroots": ["Farstalker Kinband"],
-    "eldar": ["Blades Of Khaine", "Corsair Voidscarred", "Void Dancer Troupe", "Hand Of The Archon", "Mandrakes"],
-    "aeldari": ["Blades Of Khaine", "Corsair Voidscarred", "Void Dancer Troupe", "Hand Of The Archon", "Mandrakes"],
+    "eldar": [
+        "Blades Of Khaine",
+        "Corsair Voidscarred",
+        "Void Dancer Troupe",
+        "Hand Of The Archon",
+        "Mandrakes",
+    ],
+    "aeldari": [
+        "Blades Of Khaine",
+        "Corsair Voidscarred",
+        "Void Dancer Troupe",
+        "Hand Of The Archon",
+        "Mandrakes",
+    ],
     "guard": ["Death Korps", "Kasrkin", "Tempestus Aquilons", "Imperial Navy Breachers"],
     "imperial guard": ["Death Korps", "Kasrkin", "Tempestus Aquilons", "Imperial Navy Breachers"],
     "necrons": ["Hierotek Circle", "Canoptek Circle"],
@@ -105,10 +223,10 @@ class TeamFilter:
 
             # Add faction rules, ploys (use multi-word matching)
             abilities = (
-                team_data.get("Faction Rules", []) +
-                team_data.get("Strategy Ploys", []) +
-                team_data.get("Firefight Ploys", []) +
-                team_data.get("Faction Equipment", [])
+                team_data.get("Faction Rules", [])
+                + team_data.get("Strategy Ploys", [])
+                + team_data.get("Firefight Ploys", [])
+                + team_data.get("Faction Equipment", [])
             )
             for ability in abilities:
                 ability_lower = ability.lower()
@@ -223,28 +341,15 @@ class TeamFilter:
 
             # Try fuzzy matching against team names
             match = process.extractOne(
-                word,
-                self._team_names,
-                scorer=fuzz.ratio,
-                score_cutoff=TEAM_MATCH_THRESHOLD,
+                word, self._team_names, scorer=fuzz.ratio, score_cutoff=TEAM_MATCH_THRESHOLD
             )
             if match:
                 team_name, score, _ = match
                 relevant_teams.add(team_name)
-                logger.debug(
-                    "team_fuzzy_match",
-                    word=word,
-                    team=team_name,
-                    score=score,
-                )
+                logger.debug("team_fuzzy_match", word=word, team=team_name, score=score)
 
         result = sorted(relevant_teams)
-        logger.info(
-            "teams_extracted",
-            query=query,
-            teams_found=len(result),
-            teams=result,
-        )
+        logger.info("teams_extracted", query=query, teams_found=len(result), teams=result)
         return result
 
     def filter_structure(self, relevant_teams: list[str]) -> dict[str, Any]:
@@ -269,10 +374,7 @@ class TeamFilter:
         return filtered
 
 
-def filter_teams_for_query(
-    query: str,
-    teams_structure: dict[str, Any],
-) -> dict[str, Any]:
+def filter_teams_for_query(query: str, teams_structure: dict[str, Any]) -> dict[str, Any]:
     """Convenience function to filter teams structure for a query.
 
     Args:

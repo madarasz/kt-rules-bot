@@ -4,7 +4,7 @@ import asyncio
 import signal
 import sys
 
-from src.lib.config import Config
+from src.lib.config import Config, get_config
 from src.lib.database import AnalyticsDatabase
 from src.lib.logging import get_logger
 from src.services.discord.bot import KillTeamBotOrchestrator
@@ -32,10 +32,10 @@ class BotRunner:
         self.bot: KillTeamBot | None = None
         self.shutdown_event = asyncio.Event()
 
-    def _setup_signal_handlers(self):
+    def _setup_signal_handlers(self) -> None:
         """Setup graceful shutdown handlers for SIGINT and SIGTERM."""
 
-        def shutdown_handler(signum, frame):
+        def shutdown_handler(signum, _frame):
             logger.info(f"Received signal {signum}, initiating graceful shutdown...")
             self.shutdown_event.set()
 
@@ -77,7 +77,9 @@ class BotRunner:
             # Initialize analytics database (optional, env-controlled)
             analytics_db = AnalyticsDatabase.from_config()
             if analytics_db.enabled:
-                logger.info(f"✓ Analytics database initialized (retention: {analytics_db.retention_days} days)")
+                logger.info(
+                    f"✓ Analytics database initialized (retention: {analytics_db.retention_days} days)"
+                )
             else:
                 logger.info("✓ Analytics database disabled")
 
@@ -127,7 +129,7 @@ class BotRunner:
                 logger.warning("Bot shutdown timeout, forcing exit")
                 bot_task.cancel()
 
-    async def run(self):
+    async def run(self) -> None:
         """Run the Discord bot with full initialization and graceful shutdown."""
         # Setup signal handlers
         self._setup_signal_handlers()
@@ -172,14 +174,9 @@ class BotRunner:
             sys.exit(1)
 
 
-def run_bot(mode: str = "production") -> None:
-    """Start the Discord bot.
-
-    Args:
-        mode: Runtime mode ('dev' or 'production')
-    """
+def run_bot() -> None:
+    """Start the Discord bot."""
     # Load configuration
-    from src.lib.config import get_config
     config = get_config()
 
     # Create and run bot

@@ -11,7 +11,9 @@ class TimeFormatter:
     """Formats time breakdown sections."""
 
     @staticmethod
-    def format(total_time: float, initial_time: float, hop_evals: list | None, llm_time: float | None) -> list[str]:
+    def format(
+        total_time: float, initial_time: float, hop_evals: list | None, llm_time: float | None
+    ) -> list[str]:  # type: ignore[type-arg]
         """Format time breakdown section."""
         rag_time = total_time - (llm_time or 0.0)
         lines = [
@@ -50,7 +52,7 @@ class CostFormatter:
         prompt_tokens: int,
         completion_tokens: int,
         hop_evals: list | None,
-    ) -> list[str]:
+    ) -> list[str]:  # type: ignore[type-arg]
         """Format cost breakdown section."""
         # Calculate initial embedding cost if needed
         if init_emb == 0.0 and query:
@@ -97,7 +99,7 @@ def format_statistics_summary(
     total_time: float,
     initial_retrieval_time: float,
     hop_evaluations: list | None = None,
-    llm_time: float | None = None,
+    llm_time: float | None = None,  # type: ignore[type-arg]
     query: str = "",
     initial_embedding_cost: float = 0.0,
     hop_embedding_cost: float = 0.0,
@@ -116,14 +118,25 @@ def format_statistics_summary(
     ]
 
     # Time breakdown
-    lines.extend(TimeFormatter.format(total_time, initial_retrieval_time, hop_evaluations, llm_time))
+    lines.extend(
+        TimeFormatter.format(total_time, initial_retrieval_time, hop_evaluations, llm_time)
+    )
     lines.append("")
 
     # Cost breakdown
-    lines.extend(CostFormatter.format(
-        query, initial_embedding_cost, hop_embedding_cost, hop_evaluation_cost,
-        llm_cost, llm_model, llm_prompt_tokens, llm_completion_tokens, hop_evaluations
-    ))
+    lines.extend(
+        CostFormatter.format(
+            query,
+            initial_embedding_cost,
+            hop_embedding_cost,
+            hop_evaluation_cost,
+            llm_cost,
+            llm_model,
+            llm_prompt_tokens,
+            llm_completion_tokens,
+            hop_evaluations,
+        )
+    )
 
     lines.extend(["=" * 60, ""])
     return "\n".join(lines)

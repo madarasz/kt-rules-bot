@@ -33,17 +33,12 @@ class VectorDBService:
 
         # Initialize Chroma client with persistence
         self.client = chromadb.PersistentClient(
-            path=path,
-            settings=Settings(
-                anonymized_telemetry=False,
-                allow_reset=True,
-            ),
+            path=path, settings=Settings(anonymized_telemetry=False, allow_reset=True)
         )
 
         # Get or create collection
         self.collection = self.client.get_or_create_collection(
-            name=collection_name,
-            metadata={"description": "Kill Team 3rd edition rules embeddings"},
+            name=collection_name, metadata={"description": "Kill Team 3rd edition rules embeddings"}
         )
 
         logger.info(
@@ -76,24 +71,13 @@ class VectorDBService:
 
         try:
             self.collection.add(
-                ids=ids,
-                embeddings=embeddings,
-                documents=documents,
-                metadatas=metadatas,
+                ids=ids, embeddings=embeddings, documents=documents, metadatas=metadatas
             )
 
-            logger.info(
-                "embeddings_added",
-                count=len(ids),
-                collection=self.collection.name,
-            )
+            logger.info("embeddings_added", count=len(ids), collection=self.collection.name)
 
         except Exception as e:
-            logger.error(
-                "add_embeddings_failed",
-                error=str(e),
-                count=len(ids),
-            )
+            logger.error("add_embeddings_failed", error=str(e), count=len(ids))
             raise
 
     def upsert_embeddings(
@@ -116,24 +100,13 @@ class VectorDBService:
 
         try:
             self.collection.upsert(
-                ids=ids,
-                embeddings=embeddings,
-                documents=documents,
-                metadatas=metadatas,
+                ids=ids, embeddings=embeddings, documents=documents, metadatas=metadatas
             )
 
-            logger.info(
-                "embeddings_upserted",
-                count=len(ids),
-                collection=self.collection.name,
-            )
+            logger.info("embeddings_upserted", count=len(ids), collection=self.collection.name)
 
         except Exception as e:
-            logger.error(
-                "upsert_embeddings_failed",
-                error=str(e),
-                count=len(ids),
-            )
+            logger.error("upsert_embeddings_failed", error=str(e), count=len(ids))
             raise
 
     def query(
@@ -154,9 +127,7 @@ class VectorDBService:
         """
         try:
             results = self.collection.query(
-                query_embeddings=query_embeddings,
-                n_results=n_results,
-                where=where,
+                query_embeddings=query_embeddings, n_results=n_results, where=where
             )
 
             logger.debug(
@@ -169,11 +140,7 @@ class VectorDBService:
             return results
 
         except Exception as e:
-            logger.error(
-                "query_failed",
-                error=str(e),
-                n_results=n_results,
-            )
+            logger.error("query_failed", error=str(e), n_results=n_results)
             raise
 
     def delete_by_document_id(self, document_id: UUID) -> int:
@@ -189,35 +156,23 @@ class VectorDBService:
 
         try:
             # Query to find all chunks for this document
-            results = self.collection.get(
-                where={"document_id": doc_id_str},
-            )
+            results = self.collection.get(where={"document_id": doc_id_str})
 
             if not results["ids"]:
                 logger.info("no_embeddings_to_delete", document_id=doc_id_str)
                 return 0
 
             # Delete the embeddings
-            self.collection.delete(
-                ids=results["ids"],
-            )
+            self.collection.delete(ids=results["ids"])
 
             count = len(results["ids"])
 
-            logger.info(
-                "embeddings_deleted",
-                document_id=doc_id_str,
-                count=count,
-            )
+            logger.info("embeddings_deleted", document_id=doc_id_str, count=count)
 
             return count
 
         except Exception as e:
-            logger.error(
-                "delete_failed",
-                error=str(e),
-                document_id=doc_id_str,
-            )
+            logger.error("delete_failed", error=str(e), document_id=doc_id_str)
             raise
 
     def get_count(self) -> int:

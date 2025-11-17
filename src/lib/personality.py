@@ -14,6 +14,7 @@ from pathlib import Path
 
 import yaml
 
+from src.lib.config import get_config
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -70,7 +71,7 @@ def load_personality(personality_name: str) -> PersonalityConfig:
         with open(yaml_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
     except yaml.YAMLError as e:
-        raise ValueError(f"Invalid YAML in {yaml_file}: {e}")
+        raise ValueError(f"Invalid YAML in {yaml_file}: {e}") from e
 
     # Validate required fields
     required_fields = [
@@ -82,17 +83,13 @@ def load_personality(personality_name: str) -> PersonalityConfig:
     ]
     missing = [field for field in required_fields if field not in data]
     if missing:
-        raise ValueError(
-            f"Missing required fields in {yaml_file}: {', '.join(missing)}"
-        )
+        raise ValueError(f"Missing required fields in {yaml_file}: {', '.join(missing)}")
 
     # Validate that referenced files exist
     for field in ["description_file", "acknowledgements_file", "disclaimers_file"]:
         file_path = project_root / data[field]
         if not file_path.exists():
-            logger.warning(
-                f"Personality file not found: {file_path} (referenced in {yaml_file})"
-            )
+            logger.warning(f"Personality file not found: {file_path} (referenced in {yaml_file})")
 
     return PersonalityConfig(
         name=personality_name,
@@ -120,9 +117,6 @@ def get_personality() -> PersonalityConfig:
 
     if _PERSONALITY_CACHE is not None:
         return _PERSONALITY_CACHE
-
-    # Import here to avoid circular dependency
-    from src.lib.config import get_config
 
     config = get_config()
     _PERSONALITY_CACHE = load_personality(config.personality)

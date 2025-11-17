@@ -24,14 +24,14 @@ def get_random_acknowledgement() -> str:
             logger.warning(f"Acknowledgements file not found at: {file_path}")
             return "Processing your query..."
 
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             lines = [line.strip() for line in f.readlines() if line.strip()]
 
         if not lines:
             logger.warning("Acknowledgements file is empty")
             return "Processing your query..."
 
-        return random.choice(lines)
+        return random.choice(lines)  # nosec B311 (not used for security/crypto)
 
     except Exception as e:
         logger.error(f"Error reading acknowledgements file: {e}")
@@ -53,14 +53,14 @@ def get_random_disclaimer() -> str:
             logger.warning(f"Disclaimers file not found at: {file_path}")
             return "This interpretation is auto-generated. Consult official rules for certainty."
 
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             lines = [line.strip() for line in f.readlines() if line.strip()]
 
         if not lines:
             logger.warning("Disclaimers file is empty")
             return "This interpretation is auto-generated. Consult official rules for certainty."
 
-        return random.choice(lines)
+        return random.choice(lines)  # nosec B311 (not used for security/crypto)
 
     except Exception as e:
         logger.error(f"Error reading disclaimers file: {e}")

@@ -5,15 +5,11 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
 import asyncio
+import json
 import time
 from uuid import uuid4
 
-try:
-    from openai import AsyncOpenAI
-except ImportError:
-    AsyncOpenAI = None
-
-import json
+from openai import AsyncOpenAI
 
 from src.lib.logging import get_logger
 from src.services.llm.base import (
@@ -29,9 +25,7 @@ from src.services.llm.base import (
     RateLimitError,
     TokenLimitError,
 )
-from src.services.llm.base import (
-    TimeoutError as LLMTimeoutError,
-)
+from src.services.llm.base import TimeoutError as LLMTimeoutError
 
 logger = get_logger(__name__)
 
@@ -54,10 +48,7 @@ class DeepSeekAdapter(LLMProvider):
             raise ImportError("openai package not installed. Run: pip install openai")
 
         # DeepSeek API is OpenAI-compatible, use custom base URL
-        self.client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=self.DEEPSEEK_BASE_URL
-        )
+        self.client = AsyncOpenAI(api_key=api_key, base_url=self.DEEPSEEK_BASE_URL)
 
         # deepseek-reasoner uses chain-of-thought reasoning
         self.is_reasoning_model = model == "deepseek-reasoner"
@@ -83,7 +74,11 @@ class DeepSeekAdapter(LLMProvider):
 
         # Build prompt with context
         full_prompt = self._build_prompt(request.prompt, request.context)
-        token_limit = request.config.max_tokens * 3 if self.model == "deepseek-reasoner" else request.config.max_tokens
+        token_limit = (
+            request.config.max_tokens * 3
+            if self.model == "deepseek-reasoner"
+            else request.config.max_tokens
+        )
 
         try:
             # Select schema based on configuration
@@ -92,7 +87,9 @@ class DeepSeekAdapter(LLMProvider):
             if schema_type == "hop_evaluation":
                 schema = HOP_EVALUATION_SCHEMA
                 function_name = "evaluate_context_sufficiency"
-                function_description = "Evaluate if retrieved context is sufficient to answer the question"
+                function_description = (
+                    "Evaluate if retrieved context is sufficient to answer the question"
+                )
                 logger.debug("Using hop evaluation schema")
             else:  # "default"
                 schema = STRUCTURED_OUTPUT_SCHEMA
@@ -109,18 +106,17 @@ class DeepSeekAdapter(LLMProvider):
                 ],
                 "max_tokens": token_limit,
                 "temperature": request.config.temperature,
-                "tools": [{
-                    "type": "function",
-                    "function": {
-                        "name": function_name,
-                        "description": function_description,
-                        "parameters": schema,
+                "tools": [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": function_name,
+                            "description": function_description,
+                            "parameters": schema,
+                        },
                     }
-                }],
-                "tool_choice": {
-                    "type": "function",
-                    "function": {"name": function_name}
-                },
+                ],
+                "tool_choice": {"type": "function", "function": {"name": function_name}},
             }
 
             # Call DeepSeek API with timeout
@@ -136,22 +132,28 @@ class DeepSeekAdapter(LLMProvider):
 
             # For deepseek-reasoner, also extract reasoning content if available
             reasoning_content = None
-            if self.is_reasoning_model and hasattr(choice.message, 'reasoning_content'):
+            if self.is_reasoning_model and hasattr(choice.message, "reasoning_content"):
                 reasoning_content = choice.message.reasoning_content
                 if reasoning_content:
-                    logger.debug(f"DeepSeek reasoning chain-of-thought: {reasoning_content[:200]}...")
+                    logger.debug(
+                        f"DeepSeek reasoning chain-of-thought: {reasoning_content[:200]}..."
+                    )
 
             # Check for tool calls (structured output)
             if not choice.message.tool_calls:
-                logger.warning(f"DeepSeek returned no tool calls. Finish reason: {choice.finish_reason}")
+                logger.warning(
+                    f"DeepSeek returned no tool calls. Finish reason: {choice.finish_reason}"
+                )
                 # Check if there's a refusal
-                refusal = getattr(choice.message, 'refusal', None)
+                refusal = getattr(choice.message, "refusal", None)
                 if refusal:
                     raise ContentFilterError(f"DeepSeek refused to respond: {refusal}")
-                elif choice.finish_reason == 'length':
+                elif choice.finish_reason == "length":
                     raise TokenLimitError("DeepSeek output was truncated due to max_tokens limit")
                 else:
-                    raise Exception(f"Expected structured output via tool calls but none returned (finish_reason: {choice.finish_reason})")
+                    raise Exception(
+                        f"Expected structured output via tool calls but none returned (finish_reason: {choice.finish_reason})"
+                    )
 
             # Extract JSON from tool call
             tool_call = choice.message.tool_calls[0]
@@ -164,10 +166,12 @@ class DeepSeekAdapter(LLMProvider):
             try:
                 json.loads(function_args)  # Validate JSON is parseable
                 answer_text = function_args  # JSON string
-                logger.debug(f"Extracted structured JSON from DeepSeek tool call: {len(answer_text)} chars")
+                logger.debug(
+                    f"Extracted structured JSON from DeepSeek tool call: {len(answer_text)} chars"
+                )
             except json.JSONDecodeError as e:
                 logger.error(f"DeepSeek returned invalid JSON in tool call: {e}")
-                raise ValueError(f"DeepSeek returned invalid JSON: {e}")
+                raise ValueError(f"DeepSeek returned invalid JSON: {e}") from e
 
             # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations
@@ -206,24 +210,22 @@ class DeepSeekAdapter(LLMProvider):
                 completion_tokens=completion_tokens,
             )
 
-        except TimeoutError:
-            logger.warning(
-                f"DeepSeek API timeout after {request.config.timeout_seconds}s"
-            )
+        except TimeoutError as e:
+            logger.warning(f"DeepSeek API timeout after {request.config.timeout_seconds}s")
             raise LLMTimeoutError(
                 f"DeepSeek generation exceeded {request.config.timeout_seconds}s timeout"
-            )
+            ) from e
 
         except Exception as e:
             error_msg = str(e).lower()
 
             if "rate_limit" in error_msg or "429" in error_msg:
                 logger.warning(f"DeepSeek rate limit exceeded: {e}")
-                raise RateLimitError(f"DeepSeek rate limit: {e}")
+                raise RateLimitError(f"DeepSeek rate limit: {e}") from e
 
             if "authentication" in error_msg or "401" in error_msg:
                 logger.error(f"DeepSeek authentication failed: {e}")
-                raise AuthenticationError(f"DeepSeek auth error: {e}")
+                raise AuthenticationError(f"DeepSeek auth error: {e}") from e
 
             if (
                 "content_policy" in error_msg
@@ -231,12 +233,12 @@ class DeepSeekAdapter(LLMProvider):
                 or "unsafe" in error_msg
             ):
                 logger.warning(f"DeepSeek content filtered: {e}")
-                raise ContentFilterError(f"DeepSeek content filter: {e}")
+                raise ContentFilterError(f"DeepSeek content filter: {e}") from e
 
             logger.error(f"DeepSeek generation error: {e}")
             raise
 
-    async def extract_pdf(self, request: ExtractionRequest) -> ExtractionResponse:
+    async def extract_pdf(self, _request: ExtractionRequest) -> ExtractionResponse:
         """Extract markdown from PDF using DeepSeek.
 
         Note: DeepSeek API documentation does not currently specify PDF extraction

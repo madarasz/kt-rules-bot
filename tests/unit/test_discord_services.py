@@ -14,13 +14,9 @@ import pytest
 from src.models.bot_response import BotResponse, Citation
 from src.models.rag_context import DocumentChunk, RAGContext
 from src.models.user_query import UserQuery
-from src.services.discord.context_manager import (
-    ConversationContextManager,
-)
+from src.services.discord.context_manager import ConversationContextManager
 from src.services.discord.feedback_logger import FeedbackLogger
-from src.services.discord.formatter import (
-    add_feedback_reactions,
-)
+from src.services.discord.formatter import add_feedback_reactions
 from src.services.discord.handlers import handle_message
 
 # ==================== FIXTURES ====================
@@ -149,9 +145,7 @@ async def test_handle_message_ignores_non_mentions(
 
 
 @pytest.mark.asyncio
-async def test_handle_message_empty_query(
-    mock_bot, mock_discord_message, mock_orchestrator
-):
+async def test_handle_message_empty_query(mock_bot, mock_discord_message, mock_orchestrator):
     """Test handler response to empty message after removing mention."""
     mock_discord_message.content = f"<@{mock_bot.user.id}>   "
     mock_discord_message.mentions = [mock_bot.user]
@@ -235,6 +229,7 @@ async def test_context_manager_cleanup_expired():
 
 # ==================== RESPONSE FORMATTER TESTS ====================
 
+
 @pytest.mark.asyncio
 async def test_add_feedback_reactions():
     """Test adding feedback reaction buttons."""
@@ -264,9 +259,7 @@ async def test_feedback_logger_helpful_reaction():
     reaction.message.author = Mock()
     reaction.message.author.id = bot_user_id
     reaction.message.embeds = [
-        Mock(
-            footer=Mock(text="ID: 12345678 | Provider: claude | Tokens: 150 | Latency: 1200ms")
-        )
+        Mock(footer=Mock(text="ID: 12345678 | Provider: claude | Tokens: 150 | Latency: 1200ms"))
     ]
 
     user = Mock(spec=discord.User)

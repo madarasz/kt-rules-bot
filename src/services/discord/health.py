@@ -98,11 +98,7 @@ def get_avg_latency() -> int:
     return 0
 
 
-async def check_health(
-    bot,
-    vector_db,
-    llm_provider,
-) -> HealthStatus:
+async def check_health(bot, vector_db, llm_provider) -> HealthStatus:
     """Check system health.
 
     Args:

@@ -4,7 +4,6 @@ This evaluator integrates Ragas metrics alongside custom IR metrics.
 It uses substring matching for ground_truth_contexts as specified in the refactor plan.
 """
 
-
 from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
 from src.lib.ragas_adapter import RagasRetrievalMetrics, evaluate_retrieval
 from src.models.rag_context import DocumentChunk
@@ -28,9 +27,7 @@ class RagasRAGEvaluator:
         self.judge_model = judge_model or QUALITY_TEST_JUDGE_MODEL
 
     def evaluate(
-        self,
-        test_case: RAGTestCase,
-        retrieved_chunks: list[DocumentChunk]
+        self, test_case: RAGTestCase, retrieved_chunks: list[DocumentChunk]
     ) -> RagasRetrievalMetrics | None:
         """Evaluate retrieval using Ragas metrics.
 
@@ -50,16 +47,14 @@ class RagasRAGEvaluator:
 
         # Evaluate using Ragas adapter (substring matching)
         ragas_metrics = evaluate_retrieval(
-            retrieved_contexts=retrieved_texts,
-            ground_truth_contexts=ground_truth_contexts,
+            retrieved_contexts=retrieved_texts, ground_truth_contexts=ground_truth_contexts
         )
 
         return ragas_metrics
 
 
 def add_ragas_metrics_to_result(
-    base_result: RAGTestResult,
-    ragas_metrics: RagasRetrievalMetrics | None,
+    base_result: RAGTestResult, ragas_metrics: RagasRetrievalMetrics | None
 ) -> RAGTestResult:
     """Add Ragas metrics to an existing RAGTestResult.
 

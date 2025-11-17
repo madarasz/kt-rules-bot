@@ -5,6 +5,7 @@ Based on specs/001-we-are-building/tasks.md T037.
 """
 
 import re
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +19,7 @@ logger = get_logger(__name__)
 class DocumentValidator:
     """Validates markdown rule documents."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize document validator."""
         self.valid_doc_types = {"core-rules", "faq", "team-rules", "ops", "killzone"}
 
@@ -74,9 +75,7 @@ class DocumentValidator:
 
         return True, "", metadata
 
-    def _extract_frontmatter(
-        self, content: str
-    ) -> tuple[bool, dict[str, Any], str]:
+    def _extract_frontmatter(self, content: str) -> tuple[bool, dict[str, Any], str]:
         """Extract YAML frontmatter from markdown.
 
         Args:
@@ -105,9 +104,7 @@ class DocumentValidator:
         except yaml.YAMLError as e:
             return False, {}, f"Invalid YAML syntax: {e}"
 
-    def _validate_metadata(
-        self, metadata: dict[str, Any], filename: str
-    ) -> tuple[bool, str]:
+    def _validate_metadata(self, metadata: dict[str, Any], filename: str) -> tuple[bool, str]:
         """Validate metadata fields.
 
         Args:
@@ -119,15 +116,10 @@ class DocumentValidator:
         """
         # Check required fields
         required_fields = ["source", "last_update_date", "document_type"]
-        missing_fields = [
-            field for field in required_fields if field not in metadata
-        ]
+        missing_fields = [field for field in required_fields if field not in metadata]
 
         if missing_fields:
-            return (
-                False,
-                f"{filename}: Missing required fields: {', '.join(missing_fields)}",
-            )
+            return (False, f"{filename}: Missing required fields: {', '.join(missing_fields)}")
 
         # Validate document_type
         doc_type = metadata.get("document_type")
@@ -143,8 +135,7 @@ class DocumentValidator:
         if not self._is_valid_date(last_update):
             return (
                 False,
-                f"{filename}: Invalid last_update_date '{last_update}'. "
-                f"Must be YYYY-MM-DD format",
+                f"{filename}: Invalid last_update_date '{last_update}'. Must be YYYY-MM-DD format",
             )
 
         return True, ""
@@ -159,8 +150,6 @@ class DocumentValidator:
             True if valid date format
         """
         # YAML safe_load automatically converts YYYY-MM-DD to datetime.date
-        from datetime import date
-
         if isinstance(date_str, date):
             return True
 
@@ -171,9 +160,7 @@ class DocumentValidator:
         date_pattern = r"^\d{4}-\d{2}-\d{2}$"
         return bool(re.match(date_pattern, date_str))
 
-    def validate_directory(
-        self, directory: str | Path
-    ) -> tuple[list[str], list[tuple[str, str]]]:
+    def validate_directory(self, directory: str | Path) -> tuple[list[str], list[tuple[str, str]]]:
         """Validate all markdown files in a directory.
 
         Args:
