@@ -57,6 +57,8 @@ jobs:
       - name: Run tests with coverage
         run: |
           pytest -m "not llm_api" --cov=src --cov-report=xml --cov-report=term-missing
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
@@ -184,6 +186,4 @@ jobs:
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '✅ Code quality checks passed! See workflow for detailed metrics.'
             })
