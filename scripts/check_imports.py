@@ -12,7 +12,6 @@ Only top-level imports are allowed.
 import ast
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 
 class ImportChecker(ast.NodeVisitor):
@@ -20,7 +19,7 @@ class ImportChecker(ast.NodeVisitor):
 
     def __init__(self, filename: str) -> None:
         self.filename = filename
-        self.errors: List[Tuple[int, str]] = []
+        self.errors: list[tuple[int, str]] = []
         self.in_try_block = False
         self.in_function = False
         self.current_scope_level = 0
@@ -77,7 +76,7 @@ class ImportChecker(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-def check_file(filepath: Path) -> List[Tuple[int, str]]:
+def check_file(filepath: Path) -> list[tuple[int, str]]:
     """
     Check a single Python file for import anti-patterns.
 
@@ -88,7 +87,7 @@ def check_file(filepath: Path) -> List[Tuple[int, str]]:
         List of (line_number, error_message) tuples
     """
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             tree = ast.parse(f.read(), filename=str(filepath))
     except SyntaxError as e:
         return [(e.lineno or 0, f"Syntax error: {e.msg}")]

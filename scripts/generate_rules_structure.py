@@ -13,7 +13,8 @@ Usage:
 import re
 import sys
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any
+
 import yaml
 
 # Add project root to path for imports
@@ -66,11 +67,11 @@ def clean_header(header: str) -> str:
     return cleaned.strip()
 
 
-def extract_headers(file_path: Path) -> List[str]:
+def extract_headers(file_path: Path) -> list[str]:
     """Extract all level 2 (##) headers from a markdown file, excluding specified headers."""
     headers = []
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             for line in f:
                 if match := re.match(r'^##\s+(.+)$', line.strip()):
                     header = re.sub(r'\*+', '', match.group(1)).strip()
@@ -85,7 +86,7 @@ def extract_headers(file_path: Path) -> List[str]:
     return headers
 
 
-def categorize_tacops(headers: List[str]) -> Dict[str, List[str]]:
+def categorize_tacops(headers: list[str]) -> dict[str, list[str]]:
     """Categorize tactical ops by archetype (RECON, INFILTRATION, etc.)."""
     categories = {"RECON": [], "INFILTRATION": [], "SECURITY": [], "SEEK & DESTROY": []}
 
@@ -99,7 +100,7 @@ def categorize_tacops(headers: List[str]) -> Dict[str, List[str]]:
     return {k: v for k, v in categories.items() if v}
 
 
-def categorize_team(headers: List[str], team_name: str, exclude: List[str] = None) -> Dict[str, Any]:
+def categorize_team(headers: list[str], team_name: str, exclude: list[str] = None) -> dict[str, Any]:
     """Categorize team headers into faction rules, operatives, ploys, equipment."""
     exclude = exclude or []
     normalized_team = team_name.upper().replace('_', ' ')
@@ -161,7 +162,7 @@ def remove_team_prefix(header: str, team: str) -> str:
 
 
 def process_file(file_path: Path, is_team: bool = False, is_tacops: bool = False,
-                exclude: List[str] = None) -> Any:
+                exclude: list[str] = None) -> Any:
     """Process a markdown file and return its structure."""
     headers = extract_headers(file_path)
 
@@ -197,7 +198,7 @@ def format_key(name: str) -> str:
 
 
 def process_directory(dir_path: Path, is_team_dir: bool = False,
-                     exclude: List[str] = None) -> Dict[str, Any]:
+                     exclude: list[str] = None) -> dict[str, Any]:
     """Process directory recursively and return structure."""
     result = {}
 
@@ -232,7 +233,7 @@ def process_directory(dir_path: Path, is_team_dir: bool = False,
     return result
 
 
-def generate_structures() -> tuple[Dict[str, Any], Dict[str, Any]]:
+def generate_structures() -> tuple[dict[str, Any], dict[str, Any]]:
     """Generate both rules and teams structures."""
     print(f"Scanning directory: {EXTRACTED_RULES_DIR}")
 
@@ -267,7 +268,7 @@ def generate_structures() -> tuple[Dict[str, Any], Dict[str, Any]]:
     return rules, teams
 
 
-def write_yaml(structure: Dict[str, Any], output_path: Path) -> None:
+def write_yaml(structure: dict[str, Any], output_path: Path) -> None:
     """Write structure to YAML file."""
     try:
         with open(output_path, 'w', encoding='utf-8') as f:

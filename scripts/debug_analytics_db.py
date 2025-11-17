@@ -10,6 +10,7 @@ sys.path.insert(0, str(project_root))
 
 from src.lib.database import AnalyticsDatabase
 
+
 def main():
     """Inspect database contents."""
     print("=" * 60)
@@ -25,14 +26,14 @@ def main():
         print("   Set ENABLE_ANALYTICS_DB=true in config/.env")
         return
 
-    print(f"✅ Analytics database is ENABLED")
+    print("✅ Analytics database is ENABLED")
     print(f"   Path: {db.db_path}")
     print(f"   Retention: {db.retention_days} days")
     print()
 
     # Get stats
     stats = db.get_stats()
-    print(f"📊 Database Statistics:")
+    print("📊 Database Statistics:")
     print(f"   Total queries: {stats.get('total_queries', 0)}")
     print(f"   Total upvotes: {stats.get('total_upvotes', 0)}")
     print(f"   Total downvotes: {stats.get('total_downvotes', 0)}")
@@ -79,7 +80,7 @@ def main():
                 print(f"         Score: {chunk['final_score']:.3f}")
                 print(f"         Vector: {chunk['vector_similarity']}, BM25: {chunk['bm25_score']}, RRF: {chunk['rrf_score']}")
         else:
-            print(f"   ⚠️  Chunks: NONE (this is the bug!)")
+            print("   ⚠️  Chunks: NONE (this is the bug!)")
 
         print()
 
@@ -92,7 +93,7 @@ def main():
         print()
 
     # Chunk relevance stats
-    print(f"🎯 Chunk Relevance Stats:")
+    print("🎯 Chunk Relevance Stats:")
     print(f"   Relevant: {stats.get('chunks_relevant', 0)}")
     print(f"   Not relevant: {stats.get('chunks_not_relevant', 0)}")
     print(f"   Not reviewed: {stats.get('chunks_not_reviewed', 0)}")
