@@ -246,7 +246,7 @@ class ChatGPTAdapter(LLMProvider):
             LLMTimeoutError: Extraction timeout
             TokenLimitError: PDF too large
         """
-        start_time = time.time()
+        time.time()
 
         try:
             # Read PDF bytes

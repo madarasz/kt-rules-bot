@@ -274,7 +274,7 @@ async def test_feedback_logger_helpful_reaction():
 
     await logger.on_reaction_add(reaction, user, bot_user_id)
 
-    stats = logger.get_feedback_stats()
+    logger.get_feedback_stats()
     # Note: Without full UUID mapping, feedback won't be cached
     # But it should be logged (checked via manual log inspection)
 

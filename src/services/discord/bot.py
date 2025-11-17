@@ -232,7 +232,7 @@ class KillTeamBotOrchestrator:
 
             if not validation_result.is_valid:
                 # Send fallback message
-                fallback_msg = formatter.format_fallback_message(validation_result.reason)
+                formatter.format_fallback_message(validation_result.reason)
                 #await message.channel.send(fallback_msg)
 
                 logger.warning(

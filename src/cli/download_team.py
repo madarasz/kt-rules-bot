@@ -267,7 +267,7 @@ def download_team_internal(
             "validation_warnings": list[str]
         }
     """
-    config = get_config()
+    get_config()
 
     # Step 1: Download PDF
     if verbose:

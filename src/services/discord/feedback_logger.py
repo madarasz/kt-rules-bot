@@ -137,7 +137,7 @@ class FeedbackLogger:
             short_id = footer_text.split("ID:")[1].split("|")[0].strip()
 
             # Search through response_to_query_map for matching UUID
-            for response_id in self.response_to_query_map.keys():
+            for response_id in self.response_to_query_map:
                 if response_id.startswith(short_id):
                     logger.debug(f"Matched short ID {short_id} to full response_id")
                     try:

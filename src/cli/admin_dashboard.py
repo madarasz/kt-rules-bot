@@ -103,7 +103,7 @@ def render_query_browser(db: AnalyticsDatabase):
     with col3:
         # Get unique LLM models from DB
         all_queries = db.get_all_queries(limit=1000)
-        llm_models = ["All"] + sorted(list(set(q["llm_model"] for q in all_queries)))
+        llm_models = ["All"] + sorted({q["llm_model"] for q in all_queries})
         llm_model_filter = st.selectbox("LLM Model", llm_models)
 
     with col4:
@@ -147,7 +147,7 @@ def render_query_browser(db: AnalyticsDatabase):
     df["confidence"] = df["confidence_score"].round(2)
 
     # Display queries in individual rows with delete buttons
-    for idx, query in enumerate(queries):
+    for _idx, query in enumerate(queries):
         with st.container():
             col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns([2, 3, 1, 1, 1, 1, 0.7, 1, 0.5])
 
@@ -547,14 +547,14 @@ def render_analytics(db: AnalyticsDatabase):
             y=daily_feedback["upvotes"],
             mode="lines+markers",
             name="Upvotes",
-            line=dict(color="green"),
+            line={"color": "green"},
         ))
         fig.add_trace(go.Scatter(
             x=daily_feedback["date"],
             y=daily_feedback["downvotes"],
             mode="lines+markers",
             name="Downvotes",
-            line=dict(color="red"),
+            line={"color": "red"},
         ))
         fig.update_layout(
             title="Daily Feedback Trends",

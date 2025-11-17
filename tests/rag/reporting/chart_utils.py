@@ -262,7 +262,7 @@ def create_heatmap(
     # Add text annotations
     for i in range(len(y_labels)):
         for j in range(len(x_labels)):
-            text = ax.text(
+            ax.text(
                 j, i, f"{data[i, j]:.3f}",
                 ha="center", va="center", color="black", fontsize=9
             )

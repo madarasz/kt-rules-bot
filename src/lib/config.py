@@ -69,41 +69,6 @@ class Config:
             raise ValueError("DISCORD_BOT_TOKEN is required")
 
         # Validate default provider has API key
-        provider_key_mapping = {
-            "claude-4.5-sonnet": self.anthropic_api_key,
-            "claude-4.1-opus": self.anthropic_api_key,
-            "claude-4.5-haiku": self.anthropic_api_key,
-            "gemini-2.5-pro": self.google_api_key,
-            "gemini-2.5-flash": self.google_api_key,
-            "gpt-5": self.openai_api_key,
-            "gpt-5-mini": self.openai_api_key,
-            "gpt-4.1": self.openai_api_key,
-            "gpt-4.1-mini": self.openai_api_key,
-            "gpt-4o": self.openai_api_key,
-            "o3": self.openai_api_key,
-            "o3-mini": self.openai_api_key,
-            "o4-mini": self.openai_api_key,
-            "grok-4-fast-reasoning": self.x_api_key,
-            "grok-4-0709": self.x_api_key,
-            "grok-3": self.x_api_key,
-            "grok-3-mini": self.x_api_key,
-            "deepseek-chat": self.deepseek_api_key,
-            "deepseek-reasoner": self.deepseek_api_key,
-            "dial-gpt-4o": self.dial_api_key,
-            "dial-gpt-4.1": self.dial_api_key,
-            "dial-gpt-5": self.dial_api_key,
-            "dial-gpt-5-chat": self.dial_api_key,
-            "dial-gpt-5-mini": self.dial_api_key,
-            "dial-gpt-o3": self.dial_api_key,
-            "dial-sonet-4.5": self.dial_api_key,
-            "dial-sonet-4.5-thinking": self.dial_api_key,
-            "dial-opus-4.1": self.dial_api_key,
-            "dial-opus-4.1-thinking": self.dial_api_key,
-            "dial-amazon-nova-pro": self.dial_api_key,
-            "dial-amazon-titan": self.dial_api_key,
-            "dial-gemini-2.5-pro": self.dial_api_key,
-            "dial-gemini-2.5-flash": self.dial_api_key,
-        }
 
         # Validate log level
         valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}

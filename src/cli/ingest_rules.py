@@ -42,7 +42,7 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
         source_dir: Path to directory containing markdown files
         force: If True, re-ingest even if document hash exists
     """
-    config = get_config()
+    get_config()
     source_path = Path(source_dir)
 
     logger.info(f"Starting ingestion from {source_path}")
