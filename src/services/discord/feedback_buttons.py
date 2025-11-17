@@ -26,16 +26,14 @@ class FeedbackView(discord.ui.View):
         self.voters = {}  # Track votes: {user_id: feedback_type}
 
     @discord.ui.button(label="Helpful 👍", style=discord.ButtonStyle.success, custom_id="helpful")
-    async def helpful_button(self, interaction: discord.Interaction, _button: discord.ui.Button):
+    async def helpful_button(self, interaction: discord.Interaction):
         """Handle 'Helpful' button click."""
         await self._handle_feedback(interaction, "helpful", "👍")
 
     @discord.ui.button(
         label="Not Helpful 👎", style=discord.ButtonStyle.success, custom_id="not_helpful"
     )
-    async def not_helpful_button(
-        self, interaction: discord.Interaction, _button: discord.ui.Button
-    ):
+    async def not_helpful_button(self, interaction: discord.Interaction):
         """Handle 'Not Helpful' button click."""
         await self._handle_feedback(interaction, "not_helpful", "👎")
 

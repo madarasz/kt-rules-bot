@@ -230,7 +230,8 @@ async def test_context_manager_cleanup_expired():
 # ==================== RESPONSE FORMATTER TESTS ====================
 
 
-def test_create_feedback_view():
+@pytest.mark.asyncio
+async def test_create_feedback_view():
     """Test creating feedback button view."""
     from src.services.discord.feedback_buttons import FeedbackView
 
@@ -274,9 +275,8 @@ async def test_feedback_view_helpful_button():
     interaction.response = Mock()
     interaction.response.defer = AsyncMock()
 
-    # Trigger button click
-    button = Mock(spec=discord.ui.Button)
-    await view.helpful_button(interaction, button)
+    # Trigger button click (call the callback directly)
+    await view.helpful_button.callback(interaction)
 
     # Verify feedback logged
     feedback_logger.record_button_feedback.assert_called_once_with(
@@ -319,9 +319,8 @@ async def test_feedback_view_not_helpful_button():
     interaction.response = Mock()
     interaction.response.defer = AsyncMock()
 
-    # Trigger button click
-    button = Mock(spec=discord.ui.Button)
-    await view.not_helpful_button(interaction, button)
+    # Trigger button click (call the callback directly)
+    await view.not_helpful_button.callback(interaction)
 
     # Verify feedback logged
     feedback_logger.record_button_feedback.assert_called_once_with(
@@ -362,12 +361,11 @@ async def test_feedback_view_allows_vote_changes():
     interaction.response = Mock()
     interaction.response.defer = AsyncMock()
 
-    # First vote: helpful
-    button = Mock(spec=discord.ui.Button)
-    await view.helpful_button(interaction, button)
+    # First vote: helpful (call the callback directly)
+    await view.helpful_button.callback(interaction)
 
     # Second vote: not helpful (changing vote)
-    await view.not_helpful_button(interaction, button)
+    await view.not_helpful_button.callback(interaction)
 
     # Verify both votes were logged
     assert feedback_logger.record_button_feedback.call_count == 2
