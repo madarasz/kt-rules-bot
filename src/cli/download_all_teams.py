@@ -15,6 +15,7 @@ from datetime import date, datetime
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from urllib.parse import urlparse
 
 from src.cli.download_team import download_team_internal
 from src.lib.logging import get_logger
@@ -70,7 +71,6 @@ def fetch_team_list() -> list[dict]:
     logger.info(f"Fetching team list from {WH_API_URL}")
 
     # Validate URL scheme (security: prevent file:// access)
-    from urllib.parse import urlparse
     parsed = urlparse(WH_API_URL)
     if parsed.scheme not in ('http', 'https'):
         raise ValueError(f"Invalid URL scheme: {parsed.scheme}. Only http/https allowed.")

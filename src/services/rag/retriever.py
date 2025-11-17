@@ -5,7 +5,6 @@ Implements retrieve() method from specs/001-we-are-building/contracts/rag-pipeli
 
 import asyncio
 import threading
-from dataclasses import dataclass
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -15,14 +14,13 @@ from src.lib.constants import (
     BM25_WEIGHT,
     RAG_ENABLE_QUERY_EXPANSION,
     RAG_ENABLE_QUERY_NORMALIZATION,
-    RAG_MAX_CHUNKS,
     RAG_MAX_HOPS,
-    RAG_MIN_RELEVANCE,
     RAG_SYNONYM_DICT_PATH,
     RRF_K,
 )
 from src.lib.logging import get_logger
 from src.models.rag_context import DocumentChunk, RAGContext
+from src.models.rag_request import RetrieveRequest
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.hybrid_retriever import HybridRetriever
 from src.services.rag.keyword_extractor import KeywordExtractor
@@ -31,18 +29,6 @@ from src.services.rag.query_expander import QueryExpander
 from src.services.rag.vector_db import VectorDBService
 
 logger = get_logger(__name__)
-
-
-@dataclass
-class RetrieveRequest:
-    """RAG retrieval request parameters."""
-
-    query: str  # User question (sanitized)
-    context_key: str  # "{channel_id}:{user_id}" for conversation tracking
-    max_chunks: int = RAG_MAX_CHUNKS  # Maximum document chunks to retrieve
-    min_relevance: float = RAG_MIN_RELEVANCE  # Minimum cosine similarity threshold
-    use_hybrid: bool = True  # Enable hybrid search (BM25 + vector)
-    use_multi_hop: bool = (RAG_MAX_HOPS > 0)  # Enable multi-hop retrieval (if max_hops > 0)
 
 
 class InvalidQueryError(Exception):

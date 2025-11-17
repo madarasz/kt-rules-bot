@@ -559,7 +559,8 @@ class AnalyticsDatabase:
             params.append(query_id)
 
             # Safe: all column names are hardcoded above, not user input
-            query_sql = "UPDATE queries SET " + ", ".join(set_clauses) + " WHERE query_id = ?"
+            # nosec B608: set_clauses only contains hardcoded SQL fragments ("admin_status = ?", "admin_notes = ?", "updated_at = ?")
+            query_sql = "UPDATE queries SET " + ", ".join(set_clauses) + " WHERE query_id = ?"  # nosec B608
 
             with self._get_connection() as conn:
                 conn.execute(query_sql, params)

@@ -10,8 +10,9 @@ from uuid import uuid4
 
 import pytest
 
+from src.models.rag_request import RetrieveRequest
 from src.services.rag.ingestor import RAGIngestor
-from src.services.rag.retriever import RAGRetriever, RetrieveRequest
+from src.services.rag.retriever import RAGRetriever
 
 
 @pytest.fixture
