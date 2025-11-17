@@ -4,6 +4,8 @@ Usage:
     python -m src.cli download-team https://assets.warhammer-community.com/.../teamrules.pdf
 """
 
+import argparse
+import asyncio
 import re
 import sys
 import tempfile
@@ -343,7 +345,6 @@ def download_team_internal(
             )
 
             # Extract (synchronous wrapper for async method)
-            import asyncio
             response = asyncio.run(llm_provider.extract_pdf(request))
 
         # Clean up temp file
@@ -523,8 +524,6 @@ def download_team(
 
 def main() -> None:
     """Main entry point for download_team CLI."""
-    import argparse
-
     parser = argparse.ArgumentParser(
         description="Download and extract Kill Team rule PDFs"
     )

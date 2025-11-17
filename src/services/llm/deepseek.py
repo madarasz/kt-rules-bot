@@ -5,15 +5,11 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
 import asyncio
+import json
 import time
 from uuid import uuid4
 
-try:
-    from openai import AsyncOpenAI
-except ImportError:
-    AsyncOpenAI = None
-
-import json
+from openai import AsyncOpenAI
 
 from src.lib.logging import get_logger
 from src.services.llm.base import (

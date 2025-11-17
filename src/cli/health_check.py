@@ -3,7 +3,7 @@
 import asyncio
 import sys
 
-from src.lib.config import Config
+from src.lib.config import Config, get_config
 from src.lib.logging import get_logger
 from src.services.discord.health import HealthStatus, check_health
 from src.services.llm.factory import LLMProviderFactory
@@ -140,7 +140,6 @@ def health_check(verbose: bool = False, wait_for_discord: bool = False) -> None:
         wait_for_discord: Wait for Discord connection
     """
     # Load configuration
-    from src.lib.config import get_config
     config = get_config()
 
     # Create and run health checker

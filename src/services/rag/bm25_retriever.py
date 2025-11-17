@@ -4,6 +4,7 @@ Implements BM25 (Best Matching 25) ranking algorithm for keyword matching.
 Complements vector semantic search with exact term matching.
 """
 
+import re
 from dataclasses import dataclass
 
 from rank_bm25 import BM25Okapi
@@ -128,8 +129,6 @@ class BM25Retriever:
         Returns:
             List of tokens
         """
-        import re
-
         # Lowercase
         text = text.lower()
 
