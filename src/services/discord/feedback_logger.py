@@ -169,7 +169,7 @@ class FeedbackLogger:
             extra={"query_id": query_id, "response_id": response_id}
         )
 
-    def get_feedback_stats(self) -> dict:
+    def get_feedback_stats(self) -> dict[str, object]:
         """Get feedback statistics from cache.
 
         Returns:

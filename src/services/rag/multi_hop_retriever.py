@@ -389,7 +389,7 @@ class MultiHopRetriever:
                         error=str(e),
                         response_preview=response_text[:200],
                     )
-                    raise ValueError(f"Failed to parse hop evaluation JSON: {e}. Response: {response_text[:200]}")
+                    raise ValueError(f"Failed to parse hop evaluation JSON: {e}. Response: {response_text[:200]}") from e
 
                 # Validate required fields
                 if "can_answer" not in data or "reasoning" not in data:
@@ -442,13 +442,13 @@ class MultiHopRetriever:
                     error=str(e),
                     response_text=response.answer_text[:1000],
                 )
-                raise ValueError(f"Invalid JSON from evaluation LLM: {e}")
+                raise ValueError(f"Invalid JSON from evaluation LLM: {e}") from e
 
-            except TimeoutError:
+            except TimeoutError as e:
                 logger.error("hop_evaluation_timeout", timeout=self.evaluation_timeout)
                 raise TimeoutError(
                     f"Hop evaluation exceeded {self.evaluation_timeout}s timeout"
-                )
+                ) from e
 
         # Should never reach here, but just in case
         if last_error:

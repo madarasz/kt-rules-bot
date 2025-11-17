@@ -165,28 +165,28 @@ class ClaudeAdapter(LLMProvider):
                 completion_tokens=completion_tokens,
             )
 
-        except TimeoutError:
+        except TimeoutError as e:
             logger.warning(
                 f"Claude API timeout after {request.config.timeout_seconds}s"
             )
             raise LLMTimeoutError(
                 f"Claude generation exceeded {request.config.timeout_seconds}s timeout"
-            )
+            ) from e
 
         except Exception as e:
             error_msg = str(e).lower()
 
             if "rate_limit" in error_msg or "429" in error_msg:
                 logger.warning(f"Claude rate limit exceeded: {e}")
-                raise RateLimitError(f"Claude rate limit: {e}")
+                raise RateLimitError(f"Claude rate limit: {e}") from e
 
             if "authentication" in error_msg or "401" in error_msg:
                 logger.error(f"Claude authentication failed: {e}")
-                raise AuthenticationError(f"Claude auth error: {e}")
+                raise AuthenticationError(f"Claude auth error: {e}") from e
 
             if "content_filter" in error_msg or "blocked" in error_msg:
                 logger.warning(f"Claude content filtered: {e}")
-                raise ContentFilterError(f"Claude content filter: {e}")
+                raise ContentFilterError(f"Claude content filter: {e}") from e
 
             logger.error(f"Claude generation error: {e}")
             raise
@@ -303,23 +303,23 @@ class ClaudeAdapter(LLMProvider):
                 completion_tokens=completion_tokens,
             )
 
-        except TimeoutError:
+        except TimeoutError as e:
             logger.warning("Claude PDF extraction timeout")
             raise LLMTimeoutError(
                 f"Claude extraction exceeded {request.config.timeout_seconds}s timeout"
-            )
+            ) from e
 
         except Exception as e:
             error_msg = str(e).lower()
 
             if "pdf" in error_msg or "parse" in error_msg:
                 logger.error(f"Claude PDF parse error: {e}")
-                raise PDFParseError(f"Claude PDF error: {e}")
+                raise PDFParseError(f"Claude PDF error: {e}") from e
 
             logger.error(f"Claude extraction error: {e}")
             raise
 
-    def _validate_extraction(self, markdown: str) -> list:
+    def _validate_extraction(self, markdown: str) -> list[str]:
         """Validate extracted markdown for required fields.
 
         Args:

@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 class DocumentValidator:
     """Validates markdown rule documents."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize document validator."""
         self.valid_doc_types = {"core-rules", "faq", "team-rules", "ops", "killzone"}
 

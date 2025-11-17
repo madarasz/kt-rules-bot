@@ -167,7 +167,7 @@ class DeepSeekAdapter(LLMProvider):
                 logger.debug(f"Extracted structured JSON from DeepSeek tool call: {len(answer_text)} chars")
             except json.JSONDecodeError as e:
                 logger.error(f"DeepSeek returned invalid JSON in tool call: {e}")
-                raise ValueError(f"DeepSeek returned invalid JSON: {e}")
+                raise ValueError(f"DeepSeek returned invalid JSON: {e}") from e
 
             # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations
@@ -206,24 +206,24 @@ class DeepSeekAdapter(LLMProvider):
                 completion_tokens=completion_tokens,
             )
 
-        except TimeoutError:
+        except TimeoutError as e:
             logger.warning(
                 f"DeepSeek API timeout after {request.config.timeout_seconds}s"
             )
             raise LLMTimeoutError(
                 f"DeepSeek generation exceeded {request.config.timeout_seconds}s timeout"
-            )
+            ) from e
 
         except Exception as e:
             error_msg = str(e).lower()
 
             if "rate_limit" in error_msg or "429" in error_msg:
                 logger.warning(f"DeepSeek rate limit exceeded: {e}")
-                raise RateLimitError(f"DeepSeek rate limit: {e}")
+                raise RateLimitError(f"DeepSeek rate limit: {e}") from e
 
             if "authentication" in error_msg or "401" in error_msg:
                 logger.error(f"DeepSeek authentication failed: {e}")
-                raise AuthenticationError(f"DeepSeek auth error: {e}")
+                raise AuthenticationError(f"DeepSeek auth error: {e}") from e
 
             if (
                 "content_policy" in error_msg
@@ -231,12 +231,12 @@ class DeepSeekAdapter(LLMProvider):
                 or "unsafe" in error_msg
             ):
                 logger.warning(f"DeepSeek content filtered: {e}")
-                raise ContentFilterError(f"DeepSeek content filter: {e}")
+                raise ContentFilterError(f"DeepSeek content filter: {e}") from e
 
             logger.error(f"DeepSeek generation error: {e}")
             raise
 
-    async def extract_pdf(self, request: ExtractionRequest) -> ExtractionResponse:
+    async def extract_pdf(self, _request: ExtractionRequest) -> ExtractionResponse:
         """Extract markdown from PDF using DeepSeek.
 
         Note: DeepSeek API documentation does not currently specify PDF extraction

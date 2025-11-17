@@ -32,10 +32,10 @@ class BotRunner:
         self.bot: KillTeamBot | None = None
         self.shutdown_event = asyncio.Event()
 
-    def _setup_signal_handlers(self):
+    def _setup_signal_handlers(self) -> None:
         """Setup graceful shutdown handlers for SIGINT and SIGTERM."""
 
-        def shutdown_handler(signum, frame):
+        def shutdown_handler(signum, _frame):
             logger.info(f"Received signal {signum}, initiating graceful shutdown...")
             self.shutdown_event.set()
 
@@ -127,7 +127,7 @@ class BotRunner:
                 logger.warning("Bot shutdown timeout, forcing exit")
                 bot_task.cancel()
 
-    async def run(self):
+    async def run(self) -> None:
         """Run the Discord bot with full initialization and graceful shutdown."""
         # Setup signal handlers
         self._setup_signal_handlers()
@@ -172,11 +172,11 @@ class BotRunner:
             sys.exit(1)
 
 
-def run_bot(mode: str = "production") -> None:
+def run_bot(_mode: str = "production") -> None:
     """Start the Discord bot.
 
     Args:
-        mode: Runtime mode ('dev' or 'production')
+        _mode: Runtime mode ('dev' or 'production') - currently unused
     """
     # Load configuration
     from src.lib.config import get_config

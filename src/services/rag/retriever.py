@@ -157,7 +157,7 @@ class RAGRetriever:
             result_container = []
             exception_container = []
 
-            def run_in_thread():
+            def run_in_thread() -> None:
                 try:
                     # Create a new event loop in this thread
                     new_loop = asyncio.new_event_loop()

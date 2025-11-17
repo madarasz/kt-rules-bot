@@ -25,7 +25,7 @@ def mock_rag_retriever():
     """Mock RAG retriever with relevant rules about movement phase."""
     retriever = Mock(spec=RAGRetriever)
 
-    def mock_retrieve(request: RetrieveRequest, query_id: UUID):
+    def mock_retrieve(_request: RetrieveRequest, query_id: UUID):
         # Simulate relevant chunks about movement phase
         rag_context = RAGContext(
             context_id=uuid4(),
@@ -64,7 +64,7 @@ def mock_llm_provider():
     import json
     provider = AsyncMock()
 
-    async def mock_generate(request: GenerationRequest) -> LLMResponse:
+    async def mock_generate(_request: GenerationRequest) -> LLMResponse:
         # Simulate LLM response with structured JSON output
         structured_json = json.dumps({
             "smalltalk": False,
@@ -285,7 +285,7 @@ async def test_basic_query_feedback_buttons_added(
 
     # Mock send to return different messages for different calls
     send_call_count = 0
-    async def mock_send(*args, **kwargs):
+    async def mock_send(*_args, **_kwargs):
         nonlocal send_call_count
         send_call_count += 1
         # First call is acknowledgement, second is actual response

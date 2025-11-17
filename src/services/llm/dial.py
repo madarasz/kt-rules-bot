@@ -196,15 +196,15 @@ class DialAdapter(LLMProvider):
                 )
                 raise LLMTimeoutError(
                     f"Dial generation exceeded {request.config.timeout_seconds}s timeout"
-                )
+                ) from e
 
             if "rate_limit" in error_msg or "429" in error_msg:
                 logger.warning(f"Dial rate limit exceeded: {e}")
-                raise RateLimitError(f"Dial rate limit: {e}")
+                raise RateLimitError(f"Dial rate limit: {e}") from e
 
             if "authentication" in error_msg or "401" in error_msg:
                 logger.error(f"Dial authentication failed: {e}")
-                raise AuthenticationError(f"Dial auth error: {e}")
+                raise AuthenticationError(f"Dial auth error: {e}") from e
 
             if (
                 "content_policy" in error_msg
@@ -212,7 +212,7 @@ class DialAdapter(LLMProvider):
                 or "unsafe" in error_msg
             ):
                 logger.warning(f"Dial content filtered: {e}")
-                raise ContentFilterError(f"Dial content filter: {e}")
+                raise ContentFilterError(f"Dial content filter: {e}") from e
 
             logger.error(f"Dial generation error: {e}")
             raise

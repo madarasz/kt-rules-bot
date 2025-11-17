@@ -177,7 +177,7 @@ class GrokAdapter(LLMProvider):
                 logger.debug(f"Extracted structured JSON from Grok tool call: {len(answer_text)} chars")
             except json.JSONDecodeError as e:
                 logger.error(f"Grok returned invalid JSON in tool call: {e}")
-                raise ValueError(f"Grok returned invalid JSON: {e}")
+                raise ValueError(f"Grok returned invalid JSON: {e}") from e
 
             # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations
@@ -229,15 +229,15 @@ class GrokAdapter(LLMProvider):
                 )
                 raise LLMTimeoutError(
                     f"Grok generation exceeded {request.config.timeout_seconds}s timeout"
-                )
+                ) from e
 
             if "rate_limit" in error_msg or "429" in error_msg:
                 logger.warning(f"Grok rate limit exceeded: {e}")
-                raise RateLimitError(f"Grok rate limit: {e}")
+                raise RateLimitError(f"Grok rate limit: {e}") from e
 
             if "authentication" in error_msg or "401" in error_msg:
                 logger.error(f"Grok authentication failed: {e}")
-                raise AuthenticationError(f"Grok auth error: {e}")
+                raise AuthenticationError(f"Grok auth error: {e}") from e
 
             if (
                 "content_policy" in error_msg
@@ -245,7 +245,7 @@ class GrokAdapter(LLMProvider):
                 or "unsafe" in error_msg
             ):
                 logger.warning(f"Grok content filtered: {e}")
-                raise ContentFilterError(f"Grok content filter: {e}")
+                raise ContentFilterError(f"Grok content filter: {e}") from e
 
             logger.error(f"Grok generation error: {e}")
             raise
@@ -287,11 +287,11 @@ class GrokAdapter(LLMProvider):
                 "Grok PDF extraction requires PDF-to-text conversion"
             )
 
-        except TimeoutError:
+        except TimeoutError as e:
             logger.warning("Grok PDF extraction timeout")
             raise LLMTimeoutError(
                 f"Grok extraction exceeded {request.config.timeout_seconds}s timeout"
-            )
+            ) from e
 
         except NotImplementedError:
             raise
@@ -301,16 +301,16 @@ class GrokAdapter(LLMProvider):
 
             if "token" in error_msg and "limit" in error_msg:
                 logger.error(f"Grok token limit exceeded: {e}")
-                raise TokenLimitError(f"Grok token limit: {e}")
+                raise TokenLimitError(f"Grok token limit: {e}") from e
 
             if "pdf" in error_msg or "parse" in error_msg:
                 logger.error(f"Grok PDF parse error: {e}")
-                raise PDFParseError(f"Grok PDF error: {e}")
+                raise PDFParseError(f"Grok PDF error: {e}") from e
 
             logger.error(f"Grok extraction error: {e}")
             raise
 
-    def _validate_extraction(self, markdown: str) -> list:
+    def _validate_extraction(self, markdown: str) -> list[str]:
         """Validate extracted markdown for required fields.
 
         Args:

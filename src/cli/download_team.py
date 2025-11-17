@@ -151,11 +151,7 @@ def extract_team_name(markdown: str) -> str:
             header = line[3:].strip()
 
             # Extract team name (text before first ' - ')
-            if ' - ' in header:
-                team_name = header.split(' - ')[0].strip()
-            else:
-                # Fallback: use entire header
-                team_name = header
+            team_name = header.split(' - ')[0].strip() if ' - ' in header else header
 
             # Convert to lowercase and replace spaces with underscores
             team_name_clean = team_name.lower().replace(' ', '_')
@@ -244,7 +240,7 @@ def download_team_internal(
     verbose: bool = True,
     team_name: str | None = None,
     update_date: date | None = None,
-) -> dict:
+) -> dict[str, object]:
     """Download and extract team rule PDF (internal function).
 
     Args:
@@ -525,7 +521,7 @@ def download_team(
         sys.exit(1)
 
 
-def main():
+def main() -> None:
     """Main entry point for download_team CLI."""
     import argparse
 

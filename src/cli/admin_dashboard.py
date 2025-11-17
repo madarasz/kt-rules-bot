@@ -6,6 +6,7 @@ Password-protected access.
 Usage:
     streamlit run src/cli/admin_dashboard.py --server.port 8501
 """
+# ruff: noqa: E402
 
 import sys
 from pathlib import Path
@@ -42,7 +43,7 @@ st.set_page_config(
 def check_password() -> bool:
     """Returns True if user entered correct password."""
 
-    def password_entered():
+    def password_entered() -> None:
         """Check if entered password is correct."""
         config = load_config()
         if st.session_state["password"] == config.admin_dashboard_password:
@@ -80,7 +81,7 @@ def check_password() -> bool:
         return True
 
 
-def render_query_browser(db: AnalyticsDatabase):
+def render_query_browser(db: AnalyticsDatabase) -> None:
     """Render the query browser page."""
     st.title("📋 Query Browser")
 
@@ -243,10 +244,12 @@ def render_query_browser(db: AnalyticsDatabase):
         st.session_state["current_page"] = "🔍 Query Detail"
         st.rerun()
 
+
 def bool_to_icon(value: bool) -> str:
     if value is True:
         return "✅"
     return "❌"
+
 
 def render_query_detail(db: AnalyticsDatabase):
     """Render the query detail page."""

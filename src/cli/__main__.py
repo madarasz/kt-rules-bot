@@ -340,7 +340,7 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main():
+def main() -> None:
     """Main CLI entry point."""
     parser = create_parser()
     args = parser.parse_args()
@@ -348,7 +348,7 @@ def main():
     try:
         # Route to appropriate command handler
         if args.command == "run":
-            run_bot(mode=args.mode)
+            run_bot(_mode=args.mode)
 
         elif args.command == "ingest":
             ingest_rules(source_dir=args.source_dir, force=args.force)

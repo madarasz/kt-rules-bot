@@ -50,7 +50,7 @@ def _split_field_value(text: str, max_length: int = 1024) -> list[str]:
 
 def format_response(
     bot_response: BotResponse,
-    validation_result: ValidationResult,
+    _validation_result: ValidationResult,
     smalltalk: bool = False,
 ) -> list[discord.Embed]:
     """Format bot response as Discord embeds with citations.
@@ -59,7 +59,7 @@ def format_response(
 
     Args:
         bot_response: LLM response (markdown or JSON)
-        validation_result: Validation result for confidence display
+        _validation_result: Validation result (currently unused)
         smalltalk: If True, use purple color and skip disclaimer
 
     Returns:
@@ -154,11 +154,14 @@ def _format_structured(
 
     return [embed]
 
+
 def _format_llm_model_name(model_name: str) -> str:
     return re.sub(r'-\d{8}$', '', model_name)
 
+
 def _format_latency_ms(latency_ms: int) -> str:
     return f"{latency_ms / 1000:.2f}s"
+
 
 def _format_markdown(
     bot_response: BotResponse,

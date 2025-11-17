@@ -326,7 +326,7 @@ def download_all_teams(dry_run: bool = False, force: bool = False) -> None:
     total_tokens = 0
     total_cost = 0.0
 
-    for idx, (hit, reason) in enumerate(teams_to_download, 1):
+    for idx, (hit, _reason) in enumerate(teams_to_download, 1):
         title = hit.get('id', {}).get('title', 'Unknown')
         file_name = hit.get('id', {}).get('file', '')
 
@@ -420,7 +420,7 @@ def download_all_teams(dry_run: bool = False, force: bool = False) -> None:
         sys.exit(1)
 
 
-def main():
+def main() -> None:
     """Main entry point for download_all_teams CLI."""
     import argparse
 

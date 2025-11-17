@@ -78,7 +78,7 @@ class StructuredLLMResponse:
         try:
             data = json.loads(json_str)
         except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON from LLM: {e}")
+            raise ValueError(f"Invalid JSON from LLM: {e}") from e
 
         # Validate required fields
         required_fields = [

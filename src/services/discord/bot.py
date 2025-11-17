@@ -225,7 +225,7 @@ class KillTeamBotOrchestrator:
                 raise ValueError(
                     f"LLM provider {llm_response.model_version} returned invalid JSON. "
                     "All providers must return structured JSON output."
-                )
+                ) from e
 
             # Step 5: Validation (FR-013: combined LLM + RAG validation)
             validation_result = self.validator.validate(llm_response, rag_context)

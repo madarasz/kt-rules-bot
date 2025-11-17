@@ -30,6 +30,7 @@ class RagasGenerationMetrics:
     faithfulness: float | None = None
     answer_relevancy: float | None = None
 
+
 def evaluate_retrieval(
     retrieved_contexts: list[str],
     ground_truth_contexts: list[str]
@@ -101,7 +102,7 @@ def evaluate_generation(
     response: str,
     retrieved_contexts: list[str],
     ground_truth_answer: str | None = None,
-    judge_model: str | None = None,
+    _judge_model: str | None = None,
 ) -> RagasGenerationMetrics:
     """Evaluate generation quality using Ragas metrics.
 
@@ -110,7 +111,7 @@ def evaluate_generation(
         response: The generated response from the LLM
         retrieved_contexts: List of retrieved document chunks used for generation
         ground_truth_answer: Optional reference answer for comparison
-        judge_model: Optional LLM model for Ragas evaluation (e.g., "gpt-4o")
+        _judge_model: Optional LLM model for Ragas evaluation (currently unused)
 
     Returns:
         RagasGenerationMetrics with faithfulness and answer_relevancy

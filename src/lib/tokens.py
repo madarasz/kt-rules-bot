@@ -71,7 +71,8 @@ def truncate_to_token_limit(
 
     # Truncate tokens and decode back to text
     truncated_tokens = tokens[:max_tokens]
-    return encoding.decode(truncated_tokens)
+    decoded: str = encoding.decode(truncated_tokens)
+    return decoded
 
 
 def estimate_cost(

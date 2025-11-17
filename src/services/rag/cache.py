@@ -179,7 +179,7 @@ class RAGCache:
 
         return len(to_remove)
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, object]:
         """Get cache statistics.
 
         Returns:

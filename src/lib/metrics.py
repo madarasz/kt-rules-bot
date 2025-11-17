@@ -65,7 +65,7 @@ class MetricsSummary:
 class MetricsCollector:
     """Collects and aggregates performance metrics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize metrics collector."""
         self.latency_metrics: list[LatencyMetric] = []
         self.token_metrics: list[TokenUsageMetric] = []
@@ -177,7 +177,7 @@ class MetricsCollector:
         if not metrics:
             return None
 
-        values = [m.latency_ms for m in metrics]
+        values = [float(m.latency_ms) for m in metrics]
         return self._compute_summary(values)
 
     def get_token_usage_summary(

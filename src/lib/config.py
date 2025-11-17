@@ -29,7 +29,7 @@ class Config:
     deepseek_api_key: str | None = None
 
     # LLM Selection
-    default_llm_provider: LLM_PROVIDERS_LITERAL = os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER)
+    default_llm_provider: LLM_PROVIDERS_LITERAL = os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER)  # type: ignore[assignment, arg-type]
 
     # RAG Configuration
     vector_db_path: str = "./data/chroma_db"

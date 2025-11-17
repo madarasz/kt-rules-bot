@@ -199,24 +199,24 @@ class ChatGPTAdapter(LLMProvider):
                 completion_tokens=completion_tokens,
             )
 
-        except TimeoutError:
+        except TimeoutError as e:
             logger.warning(
                 f"ChatGPT API timeout after {request.config.timeout_seconds}s"
             )
             raise LLMTimeoutError(
                 f"ChatGPT generation exceeded {request.config.timeout_seconds}s timeout"
-            )
+            ) from e
 
         except Exception as e:
             error_msg = str(e).lower()
 
             if "rate_limit" in error_msg or "429" in error_msg:
                 logger.warning(f"ChatGPT rate limit exceeded: {e}")
-                raise RateLimitError(f"ChatGPT rate limit: {e}")
+                raise RateLimitError(f"ChatGPT rate limit: {e}") from e
 
             if "authentication" in error_msg or "401" in error_msg:
                 logger.error(f"ChatGPT authentication failed: {e}")
-                raise AuthenticationError(f"ChatGPT auth error: {e}")
+                raise AuthenticationError(f"ChatGPT auth error: {e}") from e
 
             if (
                 "content_policy" in error_msg
@@ -224,7 +224,7 @@ class ChatGPTAdapter(LLMProvider):
                 or "unsafe" in error_msg
             ):
                 logger.warning(f"ChatGPT content filtered: {e}")
-                raise ContentFilterError(f"ChatGPT content filter: {e}")
+                raise ContentFilterError(f"ChatGPT content filter: {e}") from e
 
             logger.error(f"ChatGPT generation error: {e}")
             raise
@@ -268,11 +268,11 @@ class ChatGPTAdapter(LLMProvider):
                 "ChatGPT PDF extraction requires PDF-to-image conversion"
             )
 
-        except TimeoutError:
+        except TimeoutError as e:
             logger.warning("ChatGPT PDF extraction timeout")
             raise LLMTimeoutError(
                 f"ChatGPT extraction exceeded {request.config.timeout_seconds}s timeout"
-            )
+            ) from e
 
         except NotImplementedError:
             raise
@@ -282,11 +282,11 @@ class ChatGPTAdapter(LLMProvider):
 
             if "token" in error_msg and "limit" in error_msg:
                 logger.error(f"ChatGPT token limit exceeded: {e}")
-                raise TokenLimitError(f"ChatGPT token limit: {e}")
+                raise TokenLimitError(f"ChatGPT token limit: {e}") from e
 
             if "pdf" in error_msg or "parse" in error_msg:
                 logger.error(f"ChatGPT PDF parse error: {e}")
-                raise PDFParseError(f"ChatGPT PDF error: {e}")
+                raise PDFParseError(f"ChatGPT PDF error: {e}") from e
 
             logger.error(f"ChatGPT extraction error: {e}")
             raise
@@ -314,7 +314,7 @@ class ChatGPTAdapter(LLMProvider):
 
         return sum(probs) / len(probs)
 
-    def _validate_extraction(self, markdown: str) -> list:
+    def _validate_extraction(self, markdown: str) -> list[str]:
         """Validate extracted markdown for required fields.
 
         Args:

@@ -37,13 +37,13 @@ def redact_pii(message: str) -> str:
 
 
 def add_correlation_id(
-    logger: Any, method_name: str, event_dict: dict[str, Any]
+    _logger: Any, _method_name: str, event_dict: dict[str, Any]
 ) -> dict[str, Any]:
     """Add correlation ID to log events.
 
     Args:
-        logger: Logger instance
-        method_name: Method name
+        _logger: Logger instance (unused, required by structlog interface)
+        _method_name: Method name (unused, required by structlog interface)
         event_dict: Event dictionary
 
     Returns:
@@ -55,13 +55,13 @@ def add_correlation_id(
 
 
 def redact_pii_processor(
-    logger: Any, method_name: str, event_dict: dict[str, Any]
+    _logger: Any, _method_name: str, event_dict: dict[str, Any]
 ) -> dict[str, Any]:
     """Redact PII from log events.
 
     Args:
-        logger: Logger instance
-        method_name: Method name
+        _logger: Logger instance (unused, required by structlog interface)
+        _method_name: Method name (unused, required by structlog interface)
         event_dict: Event dictionary
 
     Returns:

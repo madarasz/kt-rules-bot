@@ -207,7 +207,7 @@ class GDPRCleanupService:
 
         return deleted_count
 
-    def export_user_data(self, user_id: str) -> dict:
+    def export_user_data(self, user_id: str) -> dict[str, object]:
         """Export all data for a specific user (right to data portability).
 
         Args:

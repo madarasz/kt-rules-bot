@@ -129,7 +129,7 @@ class MarkdownChunker:
         chunks: list[MarkdownChunk] = []
         current_header = ""
         current_header_level = 0
-        current_lines = []
+        current_lines: list[str] = []
         position = 0
 
         for line in lines:
@@ -208,7 +208,7 @@ class MarkdownChunker:
             token_count=token_count,
         )
 
-    def get_chunk_stats(self, chunks: list[MarkdownChunk]) -> dict:
+    def get_chunk_stats(self, chunks: list[MarkdownChunk]) -> dict[str, int | float]:
         """Get statistics about chunks.
 
         Args:

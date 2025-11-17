@@ -191,7 +191,7 @@ class HybridRetriever:
 
         return fused_chunks
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, object]:
         """Get hybrid retriever statistics.
 
         Returns:

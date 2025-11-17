@@ -107,12 +107,12 @@ async def retry_on_content_filter(
     # Wrap retry loop with overall timeout
     try:
         return await asyncio.wait_for(_retry_loop(), timeout=timeout_seconds)
-    except TimeoutError:
+    except TimeoutError as e:
         logger.error(
             f"LLM request timed out after {timeout_seconds}s (including retries)"
         )
         # Convert asyncio.TimeoutError to LLMTimeoutError for better error handling
-        raise LLMTimeoutError(f"LLM request timed out after {timeout_seconds}s (including retries)")
+        raise LLMTimeoutError(f"LLM request timed out after {timeout_seconds}s (including retries)") from e
 
 
 async def retry_with_rate_limit_backoff(
@@ -239,9 +239,9 @@ async def retry_with_rate_limit_backoff(
     # Wrap retry loop with overall timeout
     try:
         return await asyncio.wait_for(_retry_loop(), timeout=timeout_seconds)
-    except TimeoutError:
+    except TimeoutError as e:
         logger.error(
             f"LLM request timed out after {timeout_seconds}s (including retries)"
         )
         # Convert asyncio.TimeoutError to LLMTimeoutError for better error handling
-        raise LLMTimeoutError(f"LLM request timed out after {timeout_seconds}s (including retries)")
+        raise LLMTimeoutError(f"LLM request timed out after {timeout_seconds}s (including retries)") from e

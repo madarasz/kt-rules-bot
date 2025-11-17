@@ -100,7 +100,7 @@ def delete_user_data(user_id: str, confirm: bool = False) -> None:
         sys.exit(1)
 
 
-def main():
+def main() -> None:
     """Main entry point for gdpr_delete CLI."""
     parser = argparse.ArgumentParser(
         description="Delete user data for GDPR compliance"

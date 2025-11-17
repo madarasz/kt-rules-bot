@@ -2,6 +2,7 @@
 
 Evaluates both "contains" and "llm" type requirements.
 """
+# ruff: noqa: E402
 
 import re
 from dataclasses import dataclass

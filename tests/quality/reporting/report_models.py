@@ -28,6 +28,7 @@ class RequirementResult:
             return "❌"
         return "⚠️"
 
+
 @dataclass
 class IndividualTestResult:
     """Represents the result of a single test run for a specific model and test case."""
@@ -99,12 +100,14 @@ class IndividualTestResult:
         """Calculate total cost including all components."""
         return self.cost_usd + self.multi_hop_cost_usd + self.ragas_cost_usd + self.embedding_cost_usd
 
+
 @dataclass
 class TestCaseReport:
     """Aggregates results for a single test case across multiple models and/or runs."""
     test_id: str
     results: list[IndividualTestResult] = field(default_factory=list)
     chart_path: str | None = None
+
 
 @dataclass
 class ModelSummary:
@@ -147,6 +150,7 @@ class ModelSummary:
         if len(self.results) < 2:
             return 0.0
         return np.std([r.total_cost_usd for r in self.results])
+
 
 @dataclass
 class QualityReport:
