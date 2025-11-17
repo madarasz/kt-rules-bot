@@ -36,7 +36,7 @@ class TestClaudeAdapter:
             yield mock
 
     @pytest.fixture
-    def claude_adapter(self, mock_anthropic):
+    def claude_adapter(self):
         """Create Claude adapter with mocked client."""
         adapter = ClaudeAdapter(api_key="test-key", model="claude-sonnet-4-5-20250929")
         return adapter
@@ -80,7 +80,7 @@ class TestChatGPTAdapter:
             yield mock
 
     @pytest.fixture
-    def chatgpt_adapter(self, mock_openai):
+    def chatgpt_adapter(self):
         """Create ChatGPT adapter with mocked client."""
         adapter = ChatGPTAdapter(api_key="test-key", model="gpt-4-turbo")
         return adapter

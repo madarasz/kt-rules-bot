@@ -1,5 +1,6 @@
 """Unit tests for CLI commands."""
 
+import contextlib
 from datetime import UTC, date, datetime
 from unittest.mock import Mock, patch
 from uuid import uuid4
@@ -139,7 +140,7 @@ async def test_bot_runner_initializes_orchestrator(mock_config):
                             mock_context.return_value = Mock()
                             mock_orch.return_value = Mock()
 
-                            orchestrator = await runner._initialize_services()
+                            await runner._initialize_services()
 
                             # Verify all services initialized
                             assert mock_rag.called
@@ -200,10 +201,8 @@ def test_main_routes_run_command(mock_run_bot):
     with patch("sys.argv", ["cli", "run", "--mode", "dev"]):
         from src.cli.__main__ import main
 
-        try:
+        with contextlib.suppress(SystemExit):
             main()
-        except SystemExit:
-            pass
 
         # Verify run_bot was called
         mock_run_bot.assert_called_once_with(mode="dev")
@@ -215,10 +214,8 @@ def test_main_routes_ingest_command(mock_ingest):
     with patch("sys.argv", ["cli", "ingest", "./rules", "--force"]):
         from src.cli.__main__ import main
 
-        try:
+        with contextlib.suppress(SystemExit):
             main()
-        except SystemExit:
-            pass
 
         # Verify ingest_rules was called
         mock_ingest.assert_called_once_with(source_dir="./rules", force=True)
@@ -230,10 +227,8 @@ def test_main_routes_query_command():
         with patch("src.cli.__main__.test_query") as mock_query:
             from src.cli.__main__ import main
 
-            try:
+            with contextlib.suppress(SystemExit):
                 main()
-            except SystemExit:
-                pass
 
             # Verify test_query was called
             mock_query.assert_called_once_with(query="test query", model="claude-4.5-sonnet", max_chunks=5, rag_only=False, max_hops=None)
@@ -245,10 +240,8 @@ def test_main_routes_health_command(mock_health):
     with patch("sys.argv", ["cli", "health", "-v"]):
         from src.cli.__main__ import main
 
-        try:
+        with contextlib.suppress(SystemExit):
             main()
-        except SystemExit:
-            pass
 
         # Verify health_check was called
         mock_health.assert_called_once_with(verbose=True, wait_for_discord=False)
@@ -260,10 +253,8 @@ def test_main_routes_gdpr_delete_command(mock_delete):
     with patch("sys.argv", ["cli", "gdpr-delete", "123456", "--confirm"]):
         from src.cli.__main__ import main
 
-        try:
+        with contextlib.suppress(SystemExit):
             main()
-        except SystemExit:
-            pass
 
         # Verify delete_user_data was called
         mock_delete.assert_called_once_with(user_id="123456", confirm=True)

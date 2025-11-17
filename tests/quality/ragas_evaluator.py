@@ -97,7 +97,7 @@ class RagasEvaluator:
 
     def __init__(self, llm_model: str | None = None):
         """Initialize Ragas evaluator.
-        
+
         Args:
             llm_model: Optional LLM model name for Ragas evaluation (uses default if not specified)
         """
@@ -277,10 +277,10 @@ class RagasEvaluator:
     def _normalize_text(self, text: str) -> str:
         """Normalize text for comparison.
         Removes asterisks, lowercases, and strips whitespace.
-        
+
         Args:
             text: Text to normalize
-            
+
         Returns:
             Normalized text
         """
@@ -288,10 +288,10 @@ class RagasEvaluator:
 
     def calculate_aggregate_score(self, metrics: RagasMetrics) -> float:
         """Calculate an aggregate score from Ragas metrics.
-        
+
         Args:
             metrics: RagasMetrics instance
-            
+
         Returns:
             Aggregate score (0-100 scale)
         """
@@ -320,15 +320,15 @@ class RagasEvaluator:
         self, score: float | None, retrieved_contexts: list[str], ground_truth_contexts: list[str]
     ) -> str:
         """Generate minimal feedback for quote precision.
-        
+
         Quote Precision measures how many of the cited quotes are actually relevant.
         Score alone is sufficient - no detailed explanation needed.
-        
+
         Args:
             score: The quote precision score (0-1)
             retrieved_contexts: Contexts that were retrieved/cited
             ground_truth_contexts: Expected relevant contexts
-            
+
         Returns:
             None (score is sufficient)
         """
@@ -340,16 +340,16 @@ class RagasEvaluator:
         normalized_ground_truth_contexts: list[str], original_ground_truth_contexts: list[str]
     ) -> str:
         """Generate feedback for quote recall with missing ground truths.
-        
+
         Quote Recall measures how much of the expected information was cited.
         Lists which ground truth contexts were not found in the quotes.
-        
+
         Args:
             score: The quote recall score (0-1)
-            retrieved_contexts: Normalized contexts that were retrieved/cited  
+            retrieved_contexts: Normalized contexts that were retrieved/cited
             normalized_ground_truth_contexts: Normalized expected contexts
             original_ground_truth_contexts: Original (non-normalized) expected contexts for display
-            
+
         Returns:
             Feedback listing missing ground truths, or None if perfect score
         """
@@ -381,15 +381,15 @@ class RagasEvaluator:
         self, score: float | None, quotes_combined: str, context_chunks: list[str]
     ) -> str:
         """Generate actionable feedback for quote faithfulness with statement analysis.
-        
+
         Quote Faithfulness measures whether the quotes are grounded in the retrieved context.
         When score is low, attempt to identify potentially unsupported quotes.
-        
+
         Args:
             score: The quote faithfulness score (0-1)
             quotes_combined: The combined quotes from the LLM
             context_chunks: The context chunks provided to the LLM
-            
+
         Returns:
             Detailed feedback string with unsupported statement detection
         """
@@ -460,15 +460,15 @@ class RagasEvaluator:
         self, score: float | None, explanation: str, quotes: list[str]
     ) -> str:
         """Generate actionable feedback for explanation faithfulness with statement analysis.
-        
+
         Explanation Faithfulness measures whether the LLM's explanation is grounded in the quotes.
         When score is low, attempt to identify potentially unsupported statements.
-        
+
         Args:
             score: The explanation faithfulness score (0-1)
             explanation: The LLM's explanation/answer
             quotes: The quotes provided as context (not raw retrieved chunks)
-            
+
         Returns:
             Detailed feedback string with unsupported statement detection
         """
@@ -539,15 +539,15 @@ class RagasEvaluator:
         self, score: float | None, explanation: str, ground_truth_answers: list[str]
     ) -> str:
         """Generate actionable feedback for answer correctness with coverage analysis.
-        
+
         Answer Correctness measures semantic similarity to ground truth answers.
         When score is low, identify which ground truths are missing from the answer.
-        
+
         Args:
             score: The answer correctness score (0-1)
             explanation: The LLM's explanation/answer
             ground_truth_answers: Expected correct answers
-            
+
         Returns:
             Detailed feedback string with missing ground truth analysis
         """

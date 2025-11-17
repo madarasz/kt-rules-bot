@@ -102,7 +102,7 @@ def test_query(
         query_id = uuid4()
 
         # Track initial retrieval time separately
-        initial_start = datetime.now(UTC)
+        datetime.now(UTC)
 
         rag_context, hop_evaluations, chunk_hop_map = rag_retriever.retrieve(
             RetrieveRequest(
@@ -142,7 +142,7 @@ def test_query(
         hop_evaluation_cost = sum(hop_eval.cost_usd for hop_eval in hop_evaluations) if hop_evaluations else 0.0
 
         # Total RAG cost (embedding + hop evaluations)
-        total_rag_cost = initial_embedding_cost + hop_embedding_cost + hop_evaluation_cost
+        initial_embedding_cost + hop_embedding_cost + hop_evaluation_cost
 
         print(f"Retrieved {rag_context.total_chunks} chunks in {rag_time:.2f}s")
         print(f"Average relevance: {rag_context.avg_relevance:.2f}")

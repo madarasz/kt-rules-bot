@@ -355,7 +355,7 @@ class RAGTestRunner:
             'ragas_context_recall': [],
         }
 
-        for test_id, test_results in results_by_test.items():
+        for _test_id, test_results in results_by_test.items():
             # Calculate mean for this test case across all runs
             test_case_means['map'].append(sum(r.map_score for r in test_results) / len(test_results))
             test_case_means['recall_5'].append(sum(r.recall_at_5 for r in test_results) / len(test_results))
@@ -514,7 +514,7 @@ class RAGTestRunner:
                             break
 
                     # Determine if hop was made
-                    hop_was_made = (hop_eval.get('can_answer') == False)
+                    hop_was_made = (not hop_eval.get('can_answer'))
 
                     # Calculate TP/FP/FN
                     if not all_ground_truths_present:

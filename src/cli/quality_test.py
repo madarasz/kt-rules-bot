@@ -157,7 +157,7 @@ def quality_test(
 
         # Generate reports (includes chart generation)
         report_generator = ReportGenerator(report)
-        main_report_path = report_generator.generate_all_reports()
+        report_generator.generate_all_reports()
 
         # Print console summary
         console_output = report_generator.get_console_output()

@@ -134,7 +134,7 @@ class KeywordExtractor:
 
         # Save as JSON (sorted for readability)
         with open(self.cache_path, 'w') as f:
-            json.dump(sorted(list(self.keywords)), f, indent=2)
+            json.dump(sorted(self.keywords), f, indent=2)
 
         logger.info("keywords_saved", path=str(self.cache_path), count=len(self.keywords))
 

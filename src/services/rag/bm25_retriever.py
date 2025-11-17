@@ -151,7 +151,7 @@ class BM25Retriever:
             "indexed": True,
             "chunk_count": len(self.chunks),
             "avg_doc_length": sum(len(t) for t in self.tokenized_corpus) / len(self.tokenized_corpus) if self.tokenized_corpus else 0,
-            "vocabulary_size": len(set(token for doc in self.tokenized_corpus for token in doc)),
+            "vocabulary_size": len({token for doc in self.tokenized_corpus for token in doc}),
             "k1": self.k1,
             "b": self.b
         }

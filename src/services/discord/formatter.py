@@ -106,7 +106,7 @@ def _format_structured(
     )
 
     # Add quotes as embed fields (max 25 fields per embed)
-    for i, quote in enumerate(data.quotes[:25]):
+    for _i, quote in enumerate(data.quotes[:25]):
         embed.add_field(
             name=f"**{quote.quote_title}**",
             value=f"> {quote.quote_text}",

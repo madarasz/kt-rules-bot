@@ -99,7 +99,7 @@ async def test_provider_structured_output_compliance(provider):
     except Exception as e:
         pytest.fail(f"{provider} failed to parse into StructuredLLMResponse: {e}")
 
-    assert structured_response.smalltalk == False, f"{provider} should mark rules questions as not smalltalk"
+    assert not structured_response.smalltalk, f"{provider} should mark rules questions as not smalltalk"
     assert len(structured_response.short_answer) > 0, f"{provider} short_answer cannot be empty"
     assert len(structured_response.quotes) > 0, f"{provider} must provide quotes for rules questions"
 
@@ -127,7 +127,7 @@ async def test_provider_smalltalk_flag(provider):
     response = await llm.generate(request)
     data = json.loads(response.answer_text)
 
-    assert data["smalltalk"] == True, f"{provider} should mark casual conversation as smalltalk"
+    assert data["smalltalk"], f"{provider} should mark casual conversation as smalltalk"
     # Smalltalk can have empty quotes
     assert isinstance(data["quotes"], list), f"{provider} quotes must be array even for smalltalk"
 

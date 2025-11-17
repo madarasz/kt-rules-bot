@@ -131,7 +131,7 @@ class ChartGenerator:
 
     def _generate_test_case_chart(self, test_id: str, results: list[IndividualTestResult]) -> str | None:
         """Generate a chart for a specific test case comparing models."""
-        if not MATPLOTLIB_AVAILABLE or len(set(r.model for r in results)) <= 1:
+        if not MATPLOTLIB_AVAILABLE or len({r.model for r in results}) <= 1:
             return None
 
         chart_path = os.path.join(self.report_dir, f"chart_{test_id}.png")
@@ -221,9 +221,9 @@ class ChartGenerator:
         color_chars = '#8B4513'  # Brown
 
         # Plot score % on primary axis - use stacked bars like the old visualization
-        bars_earned = ax1.bar(pos1, earned_scores, width,
+        ax1.bar(pos1, earned_scores, width,
                              label='Score % (earned)', color=color_earned, alpha=0.8)
-        bars_llm_error = ax1.bar(pos1, llm_error_scores, width, bottom=earned_scores,
+        ax1.bar(pos1, llm_error_scores, width, bottom=earned_scores,
                                 label='LLM Error %', color=color_llm_error, alpha=0.8)
 
         # Add error bars to the total (earned + LLM error) if multi-run
@@ -245,7 +245,7 @@ class ChartGenerator:
 
         # Create secondary axes
         ax2 = ax1.twinx()
-        bars_time = ax2.bar(pos2, avg_times, width, label='Time (s)', color=color_time, alpha=0.8)
+        ax2.bar(pos2, avg_times, width, label='Time (s)', color=color_time, alpha=0.8)
         if show_error_bars:
             ax2.errorbar(pos2, avg_times, yerr=std_times, fmt='none',
                         ecolor=color_llm_error, capsize=5, capthick=2, alpha=0.7)
@@ -258,7 +258,7 @@ class ChartGenerator:
 
         ax3 = ax1.twinx()
         ax3.spines['right'].set_position(('outward', 60))
-        bars_cost = ax3.bar(pos3, avg_costs, width, label='Cost (USD)', color=color_cost, alpha=0.8)
+        ax3.bar(pos3, avg_costs, width, label='Cost (USD)', color=color_cost, alpha=0.8)
         if show_error_bars:
             ax3.errorbar(pos3, avg_costs, yerr=std_costs, fmt='none',
                         ecolor=color_llm_error, capsize=5, capthick=2, alpha=0.7)
@@ -271,7 +271,7 @@ class ChartGenerator:
 
         ax4 = ax1.twinx()
         ax4.spines['right'].set_position(('outward', 120))
-        bars_chars = ax4.bar(pos4, avg_chars, width, label='Characters', color=color_chars, alpha=0.8)
+        ax4.bar(pos4, avg_chars, width, label='Characters', color=color_chars, alpha=0.8)
         if show_error_bars:
             ax4.errorbar(pos4, avg_chars, yerr=std_chars, fmt='none',
                         ecolor=color_llm_error, capsize=5, capthick=2, alpha=0.7)
@@ -478,15 +478,15 @@ class ChartGenerator:
         color_ac = '#f39c12'  # Orange - Answer Correctness
 
         # Plot bars for each metric
-        bars_qp = ax.bar(pos1, avg_quote_precision, width,
+        ax.bar(pos1, avg_quote_precision, width,
                         label='Quote Precision', color=color_qp, alpha=0.8)
-        bars_qr = ax.bar(pos2, avg_quote_recall, width,
+        ax.bar(pos2, avg_quote_recall, width,
                         label='Quote Recall', color=color_qr, alpha=0.8)
-        bars_qf = ax.bar(pos3, avg_quote_faithfulness, width,
+        ax.bar(pos3, avg_quote_faithfulness, width,
                         label='Quote Faithfulness', color=color_qf, alpha=0.8)
-        bars_ef = ax.bar(pos4, avg_explanation_faithfulness, width,
+        ax.bar(pos4, avg_explanation_faithfulness, width,
                         label='Explanation Faithfulness', color=color_ef, alpha=0.8)
-        bars_ac = ax.bar(pos5, avg_answer_correctness, width,
+        ax.bar(pos5, avg_answer_correctness, width,
                         label='Answer Correctness', color=color_ac, alpha=0.8)
 
         # Add error bars if multi-run
