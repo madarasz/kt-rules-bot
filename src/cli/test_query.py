@@ -35,10 +35,10 @@ logger = get_logger(__name__)
 
 def test_query(
     query: str,
-    model: str = None,
+    model: str = None,  # type: ignore[assignment]
     max_chunks: int = RAG_MAX_CHUNKS,
     rag_only: bool = False,
-    max_hops: int = None,
+    max_hops: int = None,  # type: ignore[assignment]
 ) -> None:
     """Test RAG + LLM pipeline locally.
 
@@ -189,7 +189,7 @@ def test_query(
                 hop_num = chunk_hop_map.get(chunk.chunk_id, 0) if hop_evaluations else 0
                 hop_label = f" [Hop {hop_num}]" if hop_evaluations else ""
                 print(f"\n{i}. {chunk.header}{hop_label} (relevance: {chunk.relevance_score:.2f})")
-                #print(f"   Source: {chunk.metadata.get('source', 'unknown')}")
+                # print(f"   Source: {chunk.metadata.get('source', 'unknown')}")
                 print(f"   Text: {chunk.text[:200]}...")
 
     except Exception as e:

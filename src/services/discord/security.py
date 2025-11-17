@@ -76,7 +76,7 @@ def log_unusual_query_pattern(user_id: str, pattern_type: str, details: str) -> 
     )
 
 
-def _detect_patterns(message: str) -> list:
+def _detect_patterns(message: str) -> list[str]:
     """Detect injection patterns in message.
 
     Args:

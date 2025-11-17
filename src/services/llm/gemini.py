@@ -227,7 +227,7 @@ class GeminiAdapter(LLMProvider):
                 raise ContentFilterError(
                     "Gemini response was blocked. The query may have triggered safety filters. "
                     "Try rephrasing or use a different model (--provider claude-4.5-sonnet)."
-                )
+                ) from e
 
             # Validate JSON is parseable (Gemini can sometimes return invalid JSON)
             try:
@@ -238,7 +238,7 @@ class GeminiAdapter(LLMProvider):
                 raise ValueError(
                     f"Gemini returned invalid JSON despite JSON mode. "
                     f"Response may be malformed. Error: {e}"
-                )
+                ) from e
 
             # Validate it's not empty
             if not answer_text or not answer_text.strip():
@@ -289,11 +289,11 @@ class GeminiAdapter(LLMProvider):
                 completion_tokens=completion_tokens,
             )
 
-        except TimeoutError:
+        except TimeoutError as e:
             logger.warning(f"Gemini API timeout after {request.config.timeout_seconds}s")
             raise LLMTimeoutError(
                 f"Gemini generation exceeded {request.config.timeout_seconds}s timeout"
-            )
+            ) from e
 
         except ContentFilterError:
             # Re-raise ContentFilterError without wrapping
@@ -304,16 +304,16 @@ class GeminiAdapter(LLMProvider):
 
             if "quota" in error_msg or "429" in error_msg:
                 logger.warning(f"Gemini rate limit exceeded: {e}")
-                raise RateLimitError(f"Gemini rate limit: {e}")
+                raise RateLimitError(f"Gemini rate limit: {e}") from e
 
             if "api_key" in error_msg or "authentication" in error_msg or "401" in error_msg:
                 logger.error(f"Gemini authentication failed: {e}")
-                raise AuthenticationError(f"Gemini auth error: {e}")
+                raise AuthenticationError(f"Gemini auth error: {e}") from e
 
             # Check for finish_reason errors (blocked content)
             if "finish_reason" in error_msg or "safety" in error_msg or "blocked" in error_msg or "recitation" in error_msg:
                 logger.warning(f"Gemini content filtered: {e}")
-                raise ContentFilterError(f"Gemini content filter: {e}")
+                raise ContentFilterError(f"Gemini content filter: {e}") from e
 
             logger.error(f"Gemini generation error: {e}")
             raise
@@ -410,18 +410,18 @@ class GeminiAdapter(LLMProvider):
                 completion_tokens=completion_tokens,
             )
 
-        except TimeoutError:
+        except TimeoutError as e:
             logger.warning("Gemini PDF extraction timeout")
             raise LLMTimeoutError(
                 f"Gemini extraction exceeded {request.config.timeout_seconds}s timeout"
-            )
+            ) from e
 
         except Exception as e:
             error_msg = str(e).lower()
 
             if "pdf" in error_msg or "parse" in error_msg or "upload" in error_msg:
                 logger.error(f"Gemini PDF parse error: {e}")
-                raise PDFParseError(f"Gemini PDF error: {e}")
+                raise PDFParseError(f"Gemini PDF error: {e}") from e
 
             logger.error(f"Gemini extraction error: {e}")
             raise
@@ -455,7 +455,7 @@ class GeminiAdapter(LLMProvider):
 
         return sum(confidences) / len(confidences) if confidences else 0.7
 
-    def _validate_extraction(self, markdown: str) -> list:
+    def _validate_extraction(self, markdown: str) -> list[str]:
         """Validate extracted markdown for required fields.
 
         Args:

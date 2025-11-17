@@ -35,7 +35,7 @@ STOP_WORDS = {
     # Other common words
     "not", "no", "yes", "also", "just", "only", "very", "too", "so", "such",
     # Game-specific common words (appear in many ability/operative names)
-    #"blood", "field", "battle", "death", "kill", "shot", "fire", "dark", "light",
+    # "blood", "field", "battle", "death", "kill", "shot", "fire", "dark", "light",
 }
 
 # Common abbreviations and alternative names

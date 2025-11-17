@@ -70,7 +70,7 @@ def load_personality(personality_name: str) -> PersonalityConfig:
         with open(yaml_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
     except yaml.YAMLError as e:
-        raise ValueError(f"Invalid YAML in {yaml_file}: {e}")
+        raise ValueError(f"Invalid YAML in {yaml_file}: {e}") from e
 
     # Validate required fields
     required_fields = [

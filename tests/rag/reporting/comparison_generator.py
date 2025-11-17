@@ -233,10 +233,10 @@ class ComparisonGenerator:
 
     def _generate_multi_metric_chart(
         self,
-        sweep_results: list[SweepResult],
-        param_values: list,
-        param_name: str,
-        charts_dir: Path,
+        _sweep_results: list[SweepResult],
+        _param_values: list,
+        _param_name: str,
+        _charts_dir: Path,
     ) -> None:
         """Generate grouped bar chart comparing Ragas metrics."""
         # This method is kept for backwards compatibility but now only handles Ragas
@@ -295,7 +295,7 @@ class ComparisonGenerator:
         param_values: list,
         param_name: str,
         output_dir: Path,
-        charts_dir: Path,
+        _charts_dir: Path,
     ) -> None:
         """Generate markdown comparison report."""
         content = []
@@ -403,7 +403,7 @@ class ComparisonGenerator:
         sweep_results: list[SweepResult],
         param_grid: dict[str, list],
         output_dir: Path,
-        charts_dir: Path,
+        _charts_dir: Path,
     ) -> None:
         """Generate markdown report for grid search."""
         param_names = list(param_grid.keys())

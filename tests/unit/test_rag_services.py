@@ -41,7 +41,6 @@ During the shooting phase, models can shoot at visible enemy models."""
         assert "Movement Phase" in headers
         assert "Shooting Phase" in headers
 
-
     def test_yaml_frontmatter_stripped(self):
         """YAML front matter should be stripped from chunks."""
         chunker = MarkdownChunker()
@@ -72,7 +71,6 @@ This is the second FAQ answer."""
         # Ensure first chunk starts with actual content, not YAML
         assert len(chunks) > 0
         assert chunks[0].text.startswith("## [FAQ] Question 1")
-
 
 
 class TestDocumentValidator:
@@ -178,7 +176,6 @@ class TestRAGCache:
         assert count == 2
         assert cache.get("query1", "channel:user") is None
         assert cache.get("query2", "channel:user") is None
-
 
 
 @pytest.fixture

@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 security_logger = get_logger("security")
 
 
-async def handle_message(bot, message: discord.Message, orchestrator):
+async def handle_message(bot, message: discord.Message, orchestrator) -> None:
     """Handle incoming Discord messages.
 
     Args:

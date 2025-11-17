@@ -132,7 +132,7 @@ def generate_multi_run_visualization(
             error_kw={'elinewidth': 1, 'alpha': 0.7})
 
     # Overlay individual data points for score %
-    for i, model in enumerate(models):
+    for i, _model in enumerate(models):
         # Earned points
         raw_vals = raw_earned_pcts_by_model[i]
         if raw_vals:
@@ -144,7 +144,7 @@ def generate_multi_run_visualization(
         raw_llm_vals = raw_llm_error_pcts_by_model[i]
         if raw_llm_vals and raw_vals:
             # Stack on top of earned
-            stacked_vals = [e + l for e, l in zip(raw_vals, raw_llm_vals, strict=False)]
+            stacked_vals = [e + llm_val for e, llm_val in zip(raw_vals, raw_llm_vals, strict=False)]
             x_positions = np.full(len(stacked_vals), pos1[i])
             ax1.scatter(x_positions, stacked_vals, color=color_llm_error, s=20,
                        alpha=0.6, zorder=10, edgecolors='black', linewidths=0.5)
@@ -163,7 +163,7 @@ def generate_multi_run_visualization(
             error_kw={'elinewidth': 1, 'alpha': 0.7})
 
     # Overlay individual data points for time
-    for i, model in enumerate(models):
+    for i, _model in enumerate(models):
         raw_vals = raw_times_by_model[i]
         if raw_vals:
             x_positions = np.full(len(raw_vals), pos2[i])
@@ -183,7 +183,7 @@ def generate_multi_run_visualization(
             error_kw={'elinewidth': 1, 'alpha': 0.7})
 
     # Overlay individual data points for cost
-    for i, model in enumerate(models):
+    for i, _model in enumerate(models):
         raw_vals = raw_costs_by_model[i]
         if raw_vals:
             x_positions = np.full(len(raw_vals), pos3[i])
@@ -203,7 +203,7 @@ def generate_multi_run_visualization(
             error_kw={'elinewidth': 1, 'alpha': 0.7})
 
     # Overlay individual data points for characters
-    for i, model in enumerate(models):
+    for i, _model in enumerate(models):
         raw_vals = raw_chars_by_model[i]
         if raw_vals:
             x_positions = np.full(len(raw_vals), pos4[i])

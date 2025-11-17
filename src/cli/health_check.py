@@ -93,7 +93,7 @@ class HealthChecker:
             class MockBot:
                 """Mock bot for health checks when bot is not running."""
 
-                def __init__(self):
+                def __init__(self) -> None:
                     self.user = None
 
                 def is_ready(self):

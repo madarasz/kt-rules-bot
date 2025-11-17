@@ -407,7 +407,6 @@ class TestRateLimiter:
         assert is_allowed is False
         assert retry_after > 0
 
-
     def test_reset(self, rate_limiter):
         """Test reset functionality."""
         # Consume all tokens
@@ -420,4 +419,3 @@ class TestRateLimiter:
         # Should be allowed again
         is_allowed, _ = rate_limiter.check_rate_limit("claude", "user1")
         assert is_allowed is True
-

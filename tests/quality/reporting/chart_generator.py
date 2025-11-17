@@ -182,7 +182,7 @@ class ChartGenerator:
         self,
         chart_path: str,
         models: list[str],
-        avg_scores: list[float],
+        _avg_scores: list[float],
         avg_times: list[float],
         avg_costs: list[float],
         avg_chars: list[float],
@@ -228,7 +228,7 @@ class ChartGenerator:
 
         # Add error bars to the total (earned + LLM error) if multi-run
         if show_error_bars:
-            total_scores = [e + l for e, l in zip(earned_scores, llm_error_scores, strict=False)]
+            total_scores = [e + llm_val for e, llm_val in zip(earned_scores, llm_error_scores, strict=False)]
             ax1.errorbar(pos1, total_scores, yerr=std_scores, fmt='none',
                         ecolor=color_llm_error, capsize=5, capthick=2, alpha=0.7)
 

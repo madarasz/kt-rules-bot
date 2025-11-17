@@ -317,7 +317,7 @@ class RagasEvaluator:
         return (sum(scores) / len(scores)) * 100
 
     def _generate_quote_precision_feedback(
-        self, score: float | None, retrieved_contexts: list[str], ground_truth_contexts: list[str]
+        self, _score: float | None, _retrieved_contexts: list[str], _ground_truth_contexts: list[str]
     ) -> str:
         """Generate minimal feedback for quote precision.
 
@@ -325,8 +325,8 @@ class RagasEvaluator:
         Score alone is sufficient - no detailed explanation needed.
 
         Args:
-            score: The quote precision score (0-1)
-            retrieved_contexts: Contexts that were retrieved/cited
+            _score: The quote precision score (0-1) - currently unused
+            _retrieved_contexts: Contexts that were retrieved/cited - currently unused
             ground_truth_contexts: Expected relevant contexts
 
         Returns:

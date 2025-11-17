@@ -131,7 +131,7 @@ class EmbeddingService:
             )
             raise
 
-    def get_model_info(self) -> dict:
+    def get_model_info(self) -> dict[str, object]:
         """Get information about the embedding model.
 
         Returns:

@@ -29,7 +29,7 @@ def setup_plot_style():
     """Set up consistent matplotlib style for all charts."""
     try:
         plt.style.use(CHART_STYLE)
-    except:
+    except OSError:
         # Fall back to default if style not available
         plt.style.use('default')
 

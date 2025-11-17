@@ -1,4 +1,5 @@
 """CLI command for running quality tests."""
+# ruff: noqa: E402
 
 import asyncio
 import sys
@@ -29,7 +30,7 @@ import logging
 logging.getLogger('asyncio').setLevel(logging.CRITICAL)
 
 
-def _suppress_event_loop_closed_errors():
+def _suppress_event_loop_closed_errors() -> None:
     """Suppress 'Event loop is closed' errors during shutdown.
 
     These errors occur when async HTTP clients (from Ragas) try to cleanup
@@ -43,7 +44,7 @@ def _suppress_event_loop_closed_errors():
 
     def custom_excepthook(exc_type, exc_value, exc_traceback):
         # Suppress RuntimeError: Event loop is closed
-        if exc_type == RuntimeError and 'Event loop is closed' in str(exc_value):
+        if exc_type is RuntimeError and 'Event loop is closed' in str(exc_value):
             return  # Silently ignore
         # Call original excepthook for all other exceptions
         original_excepthook(exc_type, exc_value, exc_traceback)

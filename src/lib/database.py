@@ -133,7 +133,7 @@ class AnalyticsDatabase:
             conn.execute("PRAGMA journal_mode=WAL")
 
     @contextmanager
-    def _get_connection(self):
+    def _get_connection(self) -> None:
         """Get database connection context manager.
 
         Yields:

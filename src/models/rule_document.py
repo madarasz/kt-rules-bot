@@ -140,6 +140,8 @@ class RuleDocument:
             raise ValueError(f"Invalid last_update_date format: {last_update_str}")
 
         # Validate document type
+        if not doc_type or not isinstance(doc_type, str):
+            raise ValueError(f"document_type must be a non-empty string, got: {doc_type}")
         if not cls.validate_document_type(doc_type):
             raise ValueError(f"Invalid document_type: {doc_type}")
 

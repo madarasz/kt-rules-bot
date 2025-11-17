@@ -27,7 +27,7 @@ class KillTeamBot(discord.Client):
         self.orchestrator = orchestrator
         self.feedback_logger = FeedbackLogger()
 
-    async def on_ready(self):
+    async def on_ready(self) -> None:
         """Called when bot successfully connects to Discord."""
         logger.info(
             f"Bot connected as {self.user}",
@@ -55,7 +55,7 @@ class KillTeamBot(discord.Client):
         """
         await self.feedback_logger.on_reaction_add(reaction, user, self.user.id)
 
-    async def setup_hook(self):
+    async def setup_hook(self) -> None:
         """Called during bot setup - initialize services here."""
         logger.info("Running bot setup hook")
         # Orchestrator and services will be injected before bot.run()

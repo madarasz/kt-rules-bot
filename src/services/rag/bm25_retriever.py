@@ -138,7 +138,7 @@ class BM25Retriever:
 
         return tokens
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, object]:
         """Get BM25 index statistics.
 
         Returns:

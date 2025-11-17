@@ -147,7 +147,7 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
     )
 
 
-def main():
+def main() -> None:
     """Main entry point for ingest_rules CLI."""
     parser = argparse.ArgumentParser(
         description="Ingest Kill Team markdown rules into vector database"
