@@ -12,8 +12,8 @@ import tempfile
 from datetime import date, datetime
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 from src.lib.config import get_config
 from src.lib.constants import PDF_EXTRACTION_PROVIDERS
