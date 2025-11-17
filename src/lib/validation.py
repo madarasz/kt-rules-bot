@@ -6,8 +6,6 @@ Constitution Principle III: Security by Design
 """
 
 import re
-from typing import Tuple
-
 
 # Prompt injection patterns
 INJECTION_PATTERNS = [
@@ -29,7 +27,7 @@ MARKDOWN_INJECTION_PATTERNS = [
 ]
 
 
-def sanitize_discord_message(message: str) -> Tuple[str, bool]:
+def sanitize_discord_message(message: str) -> tuple[str, bool]:
     """Sanitize Discord message and detect prompt injection.
 
     Args:
@@ -59,7 +57,7 @@ def sanitize_discord_message(message: str) -> Tuple[str, bool]:
     return sanitized, injection_detected
 
 
-def validate_markdown_content(content: str) -> Tuple[bool, str]:
+def validate_markdown_content(content: str) -> tuple[bool, str]:
     """Validate markdown content for security issues.
 
     Args:
@@ -158,7 +156,7 @@ def sanitize_filename(filename: str) -> str:
     return filename
 
 
-def detect_pii(text: str) -> Tuple[bool, list[str]]:
+def detect_pii(text: str) -> tuple[bool, list[str]]:
     """Detect PII in text.
 
     Args:

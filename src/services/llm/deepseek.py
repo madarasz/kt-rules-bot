@@ -6,8 +6,6 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 
 import asyncio
 import time
-from math import exp
-from typing import BinaryIO
 from uuid import uuid4
 
 try:
@@ -15,23 +13,25 @@ try:
 except ImportError:
     AsyncOpenAI = None
 
+import json
+
+from src.lib.logging import get_logger
 from src.services.llm.base import (
-    LLMProvider,
-    GenerationRequest,
-    LLMResponse,
+    HOP_EVALUATION_SCHEMA,
+    STRUCTURED_OUTPUT_SCHEMA,
+    AuthenticationError,
+    ContentFilterError,
     ExtractionRequest,
     ExtractionResponse,
+    GenerationRequest,
+    LLMProvider,
+    LLMResponse,
     RateLimitError,
-    AuthenticationError,
-    TimeoutError as LLMTimeoutError,
-    ContentFilterError,
-    PDFParseError,
     TokenLimitError,
-    STRUCTURED_OUTPUT_SCHEMA,
-    HOP_EVALUATION_SCHEMA,
 )
-from src.lib.logging import get_logger
-import json
+from src.services.llm.base import (
+    TimeoutError as LLMTimeoutError,
+)
 
 logger = get_logger(__name__)
 
@@ -182,7 +182,7 @@ class DeepSeekAdapter(LLMProvider):
             token_count = response.usage.total_tokens
 
             logger.info(
-                f"DeepSeek generation completed",
+                "DeepSeek generation completed",
                 extra={
                     "latency_ms": latency_ms,
                     "token_count": token_count,
@@ -206,7 +206,7 @@ class DeepSeekAdapter(LLMProvider):
                 completion_tokens=completion_tokens,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 f"DeepSeek API timeout after {request.config.timeout_seconds}s"
             )

@@ -4,22 +4,19 @@ Tests: Discord @ mention → RAG retrieval → LLM generation → Response with 
 All components are mocked - this tests the orchestration logic only.
 """
 
-import asyncio
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock, patch
-from uuid import uuid4, UUID
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock
+from uuid import UUID, uuid4
 
 import discord
 import pytest
 
-from src.models.bot_response import BotResponse, Citation
-from src.models.rag_context import RAGContext, DocumentChunk
+from src.models.rag_context import DocumentChunk, RAGContext
 from src.models.user_query import UserQuery
 from src.services.discord.bot import KillTeamBotOrchestrator
-from src.services.discord.client import KillTeamBot
 from src.services.discord.context_manager import ConversationContextManager
-from src.services.llm.base import LLMResponse, GenerationRequest
-from src.services.llm.validator import ResponseValidator, ValidationResult
+from src.services.llm.base import GenerationRequest, LLMResponse
+from src.services.llm.validator import ResponseValidator
 from src.services.rag.retriever import RAGRetriever, RetrieveRequest
 
 
@@ -143,18 +140,18 @@ async def test_basic_query_flow_end_to_end(mock_rag_retriever, mock_llm_provider
         channel_id="987654321",
         message_text="What actions can I take during the movement phase?",
         sanitized_text="What actions can I take during the movement phase?",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         conversation_context_id="987654321:123456789",
         pii_redacted=False,
     )
 
     # Measure response time
-    start_time = datetime.now(timezone.utc)
+    start_time = datetime.now(UTC)
 
     # Process query
     await orchestrator.process_query(message, user_query)
 
-    end_time = datetime.now(timezone.utc)
+    end_time = datetime.now(UTC)
     response_time = (end_time - start_time).total_seconds()
 
     # ASSERTIONS
@@ -233,7 +230,7 @@ async def test_basic_query_with_context_tracking(mock_rag_retriever, mock_llm_pr
         channel_id="987654321",
         message_text="What about movement?",
         sanitized_text="What about movement?",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         conversation_context_id="987654321:123456789",
         pii_redacted=False,
     )
@@ -306,7 +303,7 @@ async def test_basic_query_feedback_buttons_added(
         channel_id="987654321",
         message_text="What about movement?",
         sanitized_text="What about movement?",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         conversation_context_id="987654321:123456789",
         pii_redacted=False,
     )

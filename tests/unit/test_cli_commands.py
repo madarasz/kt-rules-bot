@@ -1,9 +1,7 @@
 """Unit tests for CLI commands."""
 
-import asyncio
-from datetime import date, datetime, timezone
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from datetime import UTC, date, datetime
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
@@ -12,10 +10,7 @@ from src.cli.gdpr_delete import delete_user_data
 from src.cli.health_check import HealthChecker
 from src.cli.run_bot import BotRunner
 from src.models.rule_document import RuleDocument
-from src.models.rag_context import DocumentChunk, RAGContext
 from src.services.discord.health import HealthStatus
-from src.services.llm.base import LLMResponse
-
 
 # --- Fixtures ---
 
@@ -59,7 +54,7 @@ def sample_rule_document():
         version="Test Source v1.0",
         last_update_date=date(2024, 1, 1),
         document_type="core-rules",
-        last_updated=datetime.now(timezone.utc),
+        last_updated=datetime.now(UTC),
         hash=RuleDocument.compute_hash("# Test Rule\n\nThis is a test rule."),
     )
 
@@ -112,7 +107,7 @@ async def test_health_checker_returns_status(mock_config):
                     llm_provider_available=True,
                     recent_error_rate=0.0,
                     avg_latency_ms=0,
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                 )
 
                 is_healthy = await checker.run(verbose=False, wait_for_discord=False)

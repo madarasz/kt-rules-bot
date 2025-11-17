@@ -6,9 +6,9 @@ Optional - controlled by ENABLE_ANALYTICS_DB env var.
 
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from src.lib.logging import get_logger
 
@@ -146,7 +146,7 @@ class AnalyticsDatabase:
         finally:
             conn.close()
 
-    def insert_query(self, query_data: Dict[str, Any]) -> None:
+    def insert_query(self, query_data: dict[str, Any]) -> None:
         """Insert query + response record.
 
         Args:
@@ -156,7 +156,7 @@ class AnalyticsDatabase:
             return
 
         try:
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
 
             with self._get_connection() as conn:
                 conn.execute("""
@@ -204,7 +204,7 @@ class AnalyticsDatabase:
         except Exception as e:
             logger.error(f"Failed to insert query: {e}", exc_info=True)
 
-    def insert_chunks(self, query_id: str, chunks: List[Dict[str, Any]]) -> None:
+    def insert_chunks(self, query_id: str, chunks: list[dict[str, Any]]) -> None:
         """Insert retrieved chunks for a query.
 
         Args:
@@ -251,7 +251,7 @@ class AnalyticsDatabase:
     def insert_hop_evaluations(
         self,
         query_id: str,
-        evaluations: List[Dict[str, Any]],
+        evaluations: list[dict[str, Any]],
         evaluation_model: str,
     ) -> None:
         """Insert hop evaluation results for a query.
@@ -265,7 +265,7 @@ class AnalyticsDatabase:
             return
 
         try:
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
 
             with self._get_connection() as conn:
                 for hop_num, evaluation in enumerate(evaluations, 1):
@@ -293,7 +293,7 @@ class AnalyticsDatabase:
         except Exception as e:
             logger.error(f"Failed to insert hop evaluations: {e}", exc_info=True)
 
-    def get_hop_evaluations_for_query(self, query_id: str) -> List[Dict[str, Any]]:
+    def get_hop_evaluations_for_query(self, query_id: str) -> list[dict[str, Any]]:
         """Get hop evaluation results for a query.
 
         Args:
@@ -339,7 +339,7 @@ class AnalyticsDatabase:
 
         try:
             column = "upvotes" if vote_type == "upvote" else "downvotes"
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
 
             with self._get_connection() as conn:
                 conn.execute(f"""
@@ -351,7 +351,7 @@ class AnalyticsDatabase:
                 conn.commit()
 
             logger.debug(
-                f"Vote incremented in analytics DB",
+                "Vote incremented in analytics DB",
                 extra={"query_id": query_id, "vote_type": vote_type}
             )
 
@@ -369,7 +369,7 @@ class AnalyticsDatabase:
 
         try:
             cutoff_date = (
-                datetime.now(timezone.utc) - timedelta(days=self.retention_days)
+                datetime.now(UTC) - timedelta(days=self.retention_days)
             ).isoformat()
 
             with self._get_connection() as conn:
@@ -397,10 +397,10 @@ class AnalyticsDatabase:
 
     def get_all_queries(
         self,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: dict[str, Any] | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get all queries with optional filters.
 
         Args:
@@ -457,7 +457,7 @@ class AnalyticsDatabase:
             logger.error(f"Failed to get queries: {e}", exc_info=True)
             return []
 
-    def get_query_by_id(self, query_id: str) -> Optional[Dict[str, Any]]:
+    def get_query_by_id(self, query_id: str) -> dict[str, Any] | None:
         """Get a single query by ID.
 
         Args:
@@ -483,7 +483,7 @@ class AnalyticsDatabase:
             logger.error(f"Failed to get query: {e}", exc_info=True)
             return None
 
-    def get_chunks_for_query(self, query_id: str) -> List[Dict[str, Any]]:
+    def get_chunks_for_query(self, query_id: str) -> list[dict[str, Any]]:
         """Get all retrieved chunks for a query.
 
         Args:
@@ -513,8 +513,8 @@ class AnalyticsDatabase:
     def update_query_admin_fields(
         self,
         query_id: str,
-        admin_status: Optional[str] = None,
-        admin_notes: Optional[str] = None,
+        admin_status: str | None = None,
+        admin_notes: str | None = None,
     ) -> None:
         """Update admin status and/or notes for a query.
 
@@ -527,7 +527,7 @@ class AnalyticsDatabase:
             return
 
         try:
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
             updates = []
             params = []
 
@@ -566,7 +566,7 @@ class AnalyticsDatabase:
     def update_chunk_relevance(
         self,
         chunk_id: int,
-        relevant: Optional[bool]
+        relevant: bool | None
     ) -> None:
         """Update relevance flag for a chunk.
 
@@ -635,7 +635,7 @@ class AnalyticsDatabase:
             logger.error(f"Failed to delete query: {e}", exc_info=True)
             return False
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get database statistics for dashboard.
 
         Returns:
@@ -706,7 +706,7 @@ class AnalyticsDatabase:
     def get_queries_with_relevant_chunks(
         self,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get queries that have at least one chunk marked as relevant.
 
         Returns queries ordered by timestamp descending, with their relevant chunks.

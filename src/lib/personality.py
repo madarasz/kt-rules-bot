@@ -11,7 +11,7 @@ Each personality defines:
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+
 import yaml
 
 from src.lib.logging import get_logger
@@ -32,7 +32,7 @@ class PersonalityConfig:
 
 
 # Cached personality config (loaded once)
-_PERSONALITY_CACHE: Optional[PersonalityConfig] = None
+_PERSONALITY_CACHE: PersonalityConfig | None = None
 
 
 def load_personality(personality_name: str) -> PersonalityConfig:
@@ -67,7 +67,7 @@ def load_personality(personality_name: str) -> PersonalityConfig:
 
     # Load and parse YAML
     try:
-        with open(yaml_file, "r", encoding="utf-8") as f:
+        with open(yaml_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
     except yaml.YAMLError as e:
         raise ValueError(f"Invalid YAML in {yaml_file}: {e}")

@@ -4,17 +4,16 @@ Tests chunker, embeddings, retriever, and ingestor with 80%+ coverage.
 Based on specs/001-we-are-building/tasks.md T039.
 """
 
-import pytest
-from uuid import uuid4
 from datetime import date
+from uuid import uuid4
 
-from src.services.rag.chunker import MarkdownChunker, MarkdownChunk
-from src.services.rag.validator import DocumentValidator
-from src.services.rag.cache import RAGCache
+import pytest
+
+from src.models.rag_context import RAGContext
 from src.models.rule_document import RuleDocument
-from src.models.rag_context import RAGContext, DocumentChunk
-from src.lib.tokens import get_embedding_token_limit
-from src.lib.constants import EMBEDDING_MODEL
+from src.services.rag.cache import RAGCache
+from src.services.rag.chunker import MarkdownChunker
+from src.services.rag.validator import DocumentValidator
 
 
 class TestMarkdownChunker:

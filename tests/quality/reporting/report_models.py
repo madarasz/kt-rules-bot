@@ -1,8 +1,9 @@
 """Data models for quality test reporting."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict
+
 import numpy as np
+
 
 @dataclass
 class RequirementResult:
@@ -41,32 +42,32 @@ class IndividualTestResult:
     output_char_count: int
     generation_time_seconds: float
     output_filename: str
-    error: Optional[str] = None
-    
+    error: str | None = None
+
     # Detailed cost breakdown
     multi_hop_cost_usd: float = 0.0
     ragas_cost_usd: float = 0.0
     embedding_cost_usd: float = 0.0
     json_formatted: bool = False  # True if response was valid JSON
     structured_quotes_count: int = 0  # Number of quotes in structured response
-    
+
     # Ragas metrics (0-1 scale, or None if evaluation failed)
-    quote_precision: Optional[float] = None
-    quote_recall: Optional[float] = None
-    quote_faithfulness: Optional[float] = None
-    explanation_faithfulness: Optional[float] = None
-    answer_correctness: Optional[float] = None
-    ragas_error: Optional[str] = None
-    
+    quote_precision: float | None = None
+    quote_recall: float | None = None
+    quote_faithfulness: float | None = None
+    explanation_faithfulness: float | None = None
+    answer_correctness: float | None = None
+    ragas_error: str | None = None
+
     # Ragas detailed feedback
-    quote_precision_feedback: Optional[str] = None
-    quote_recall_feedback: Optional[str] = None
-    quote_faithfulness_feedback: Optional[str] = None
-    explanation_faithfulness_feedback: Optional[str] = None
-    answer_correctness_feedback: Optional[str] = None
-    
+    quote_precision_feedback: str | None = None
+    quote_recall_feedback: str | None = None
+    quote_faithfulness_feedback: str | None = None
+    explanation_faithfulness_feedback: str | None = None
+    answer_correctness_feedback: str | None = None
+
     # Legacy support - optional for backward compatibility
-    requirements: Optional[List[RequirementResult]] = None
+    requirements: list[RequirementResult] | None = None
 
     @property
     def score_percentage(self) -> float:
@@ -81,18 +82,18 @@ class IndividualTestResult:
         if self.score_percentage < 50:
             return "❌"
         return "⚠️"
-    
+
     @property
     def ragas_metrics_available(self) -> bool:
         """Check if Ragas metrics are available."""
         return (
-            self.quote_precision is not None 
+            self.quote_precision is not None
             or self.quote_recall is not None
             or self.quote_faithfulness is not None
             or self.explanation_faithfulness is not None
             or self.answer_correctness is not None
         )
-    
+
     @property
     def total_cost_usd(self) -> float:
         """Calculate total cost including all components."""
@@ -102,14 +103,14 @@ class IndividualTestResult:
 class TestCaseReport:
     """Aggregates results for a single test case across multiple models and/or runs."""
     test_id: str
-    results: List[IndividualTestResult] = field(default_factory=list)
-    chart_path: Optional[str] = None
+    results: list[IndividualTestResult] = field(default_factory=list)
+    chart_path: str | None = None
 
 @dataclass
 class ModelSummary:
     """Aggregates results for a single model across multiple test cases and/or runs."""
     model_name: str
-    results: List[IndividualTestResult] = field(default_factory=list)
+    results: list[IndividualTestResult] = field(default_factory=list)
 
     @property
     def avg_score_pct(self) -> float:
@@ -150,20 +151,20 @@ class ModelSummary:
 @dataclass
 class QualityReport:
     """The main container for a full quality test report, covering all runs, tests, and models."""
-    results: List[IndividualTestResult]
+    results: list[IndividualTestResult]
     total_time_seconds: float
     total_cost_usd: float
     runs: int
-    models: List[str]
-    test_cases: List[str]
+    models: list[str]
+    test_cases: list[str]
     report_dir: str
-    prompt_path: Optional[str] = None
-    chart_path: Optional[str] = None
-    ragas_chart_path: Optional[str] = None
+    prompt_path: str | None = None
+    chart_path: str | None = None
+    ragas_chart_path: str | None = None
 
     # Populated by the aggregator
-    per_test_case_reports: Dict[str, TestCaseReport] = field(default_factory=dict)
-    per_model_summaries: Dict[str, ModelSummary] = field(default_factory=dict)
+    per_test_case_reports: dict[str, TestCaseReport] = field(default_factory=dict)
+    per_model_summaries: dict[str, ModelSummary] = field(default_factory=dict)
 
     @property
     def total_queries(self) -> int:

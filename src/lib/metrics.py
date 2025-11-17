@@ -5,10 +5,10 @@ Based on specs/001-we-are-building/tasks.md T031
 Constitution Principle V: Observable and Debuggable
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from statistics import mean, median, stdev
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -67,9 +67,9 @@ class MetricsCollector:
 
     def __init__(self):
         """Initialize metrics collector."""
-        self.latency_metrics: List[LatencyMetric] = []
-        self.token_metrics: List[TokenUsageMetric] = []
-        self.confidence_metrics: List[ConfidenceMetric] = []
+        self.latency_metrics: list[LatencyMetric] = []
+        self.token_metrics: list[TokenUsageMetric] = []
+        self.confidence_metrics: list[ConfidenceMetric] = []
 
     def record_latency(self, operation: str, latency_ms: int) -> None:
         """Record latency metric.
@@ -81,7 +81,7 @@ class MetricsCollector:
         metric = LatencyMetric(
             operation=operation,
             latency_ms=latency_ms,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         self.latency_metrics.append(metric)
 
@@ -115,7 +115,7 @@ class MetricsCollector:
             completion_tokens=completion_tokens,
             total_tokens=prompt_tokens + completion_tokens,
             estimated_cost_usd=estimated_cost_usd,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         self.token_metrics.append(metric)
 
@@ -147,7 +147,7 @@ class MetricsCollector:
             llm_confidence=llm_confidence,
             rag_score=rag_score,
             validation_passed=validation_passed,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         self.confidence_metrics.append(metric)
 
@@ -160,8 +160,8 @@ class MetricsCollector:
         )
 
     def get_latency_summary(
-        self, operation: Optional[str] = None
-    ) -> Optional[MetricsSummary]:
+        self, operation: str | None = None
+    ) -> MetricsSummary | None:
         """Get latency summary statistics.
 
         Args:
@@ -181,8 +181,8 @@ class MetricsCollector:
         return self._compute_summary(values)
 
     def get_token_usage_summary(
-        self, operation: Optional[str] = None, provider: Optional[str] = None
-    ) -> Dict[str, float]:
+        self, operation: str | None = None, provider: str | None = None
+    ) -> dict[str, float]:
         """Get token usage summary.
 
         Args:
@@ -213,7 +213,7 @@ class MetricsCollector:
             "avg_cost_per_request": total_cost / len(metrics),
         }
 
-    def get_confidence_summary(self) -> Dict[str, float]:
+    def get_confidence_summary(self) -> dict[str, float]:
         """Get confidence score summary.
 
         Returns:
@@ -236,7 +236,7 @@ class MetricsCollector:
             "count": len(self.confidence_metrics),
         }
 
-    def _compute_summary(self, values: List[float]) -> MetricsSummary:
+    def _compute_summary(self, values: list[float]) -> MetricsSummary:
         """Compute summary statistics.
 
         Args:
@@ -260,7 +260,7 @@ class MetricsCollector:
             p99=self._percentile(sorted_values, 99),
         )
 
-    def _percentile(self, sorted_values: List[float], percentile: int) -> float:
+    def _percentile(self, sorted_values: list[float], percentile: int) -> float:
         """Calculate percentile.
 
         Args:
@@ -287,7 +287,7 @@ class MetricsCollector:
 
 
 # Global metrics collector
-_metrics_collector: Optional[MetricsCollector] = None
+_metrics_collector: MetricsCollector | None = None
 
 
 def get_metrics_collector() -> MetricsCollector:

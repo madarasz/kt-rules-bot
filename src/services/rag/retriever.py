@@ -3,29 +3,29 @@
 Implements retrieve() method from specs/001-we-are-building/contracts/rag-pipeline.md
 """
 
-from typing import List, Dict, Any
-from uuid import UUID, uuid4
 from dataclasses import dataclass
+from typing import Any
+from uuid import UUID, uuid4
 
-from src.models.rag_context import RAGContext, DocumentChunk
+from src.lib.constants import (
+    BM25_B,
+    BM25_K1,
+    BM25_WEIGHT,
+    RAG_ENABLE_QUERY_EXPANSION,
+    RAG_ENABLE_QUERY_NORMALIZATION,
+    RAG_MAX_CHUNKS,
+    RAG_MAX_HOPS,
+    RAG_MIN_RELEVANCE,
+    RAG_SYNONYM_DICT_PATH,
+    RRF_K,
+)
+from src.lib.logging import get_logger
+from src.models.rag_context import DocumentChunk, RAGContext
 from src.services.rag.embeddings import EmbeddingService
-from src.services.rag.vector_db import VectorDBService
 from src.services.rag.hybrid_retriever import HybridRetriever
 from src.services.rag.keyword_extractor import KeywordExtractor
 from src.services.rag.query_expander import QueryExpander
-from src.lib.constants import (
-    RAG_MAX_CHUNKS,
-    RAG_MIN_RELEVANCE,
-    RRF_K,
-    BM25_K1,
-    BM25_B,
-    BM25_WEIGHT,
-    RAG_ENABLE_QUERY_NORMALIZATION,
-    RAG_ENABLE_QUERY_EXPANSION,
-    RAG_SYNONYM_DICT_PATH,
-    RAG_MAX_HOPS,
-)
-from src.lib.logging import get_logger
+from src.services.rag.vector_db import VectorDBService
 
 logger = get_logger(__name__)
 
@@ -126,7 +126,7 @@ class RAGRetriever:
 
     def retrieve(
         self, request: RetrieveRequest, query_id: UUID
-    ) -> tuple[RAGContext, List[Any], Dict[UUID, int]]:
+    ) -> tuple[RAGContext, list[Any], dict[UUID, int]]:
         """Retrieve relevant rule documents for a user query.
 
         Implements the RAG pipeline contract from contracts/rag-pipeline.md.
@@ -298,7 +298,7 @@ class RAGRetriever:
 
     def _results_to_chunks(
         self, results: dict, min_relevance: float
-    ) -> List[DocumentChunk]:
+    ) -> list[DocumentChunk]:
         """Convert vector DB results to DocumentChunk objects.
 
         Args:
@@ -308,7 +308,7 @@ class RAGRetriever:
         Returns:
             List of DocumentChunk objects sorted by relevance DESC
         """
-        chunks: List[DocumentChunk] = []
+        chunks: list[DocumentChunk] = []
 
         # Chroma returns results as lists in the first index
         if not results["ids"] or not results["ids"][0]:
@@ -366,7 +366,7 @@ class RAGRetriever:
                 return
 
             # Convert to DocumentChunk objects
-            chunks: List[DocumentChunk] = []
+            chunks: list[DocumentChunk] = []
             for i, chunk_id_str in enumerate(all_results["ids"]):
                 metadata = all_results["metadatas"][i]
                 chunk = DocumentChunk(

@@ -4,13 +4,12 @@ Represents an official Kill Team rules document (PDF).
 Based on specs/001-we-are-building/data-model.md
 """
 
-from dataclasses import dataclass
-from datetime import date, datetime, timezone
-from typing import Literal, Optional
-from uuid import UUID, uuid4
 import hashlib
 import re
-
+from dataclasses import dataclass
+from datetime import UTC, date, datetime
+from typing import Literal
+from uuid import UUID, uuid4
 
 ExtractionStatus = Literal["pending", "success", "failed"]
 
@@ -28,7 +27,7 @@ class PDFUpdate:
     file_size_bytes: int
     file_hash: str  # SHA-256 for duplicate detection
     extraction_status: ExtractionStatus
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
     @staticmethod
     def compute_file_hash(file_content: bytes) -> str:
@@ -138,7 +137,7 @@ class PDFUpdate:
             update_id=uuid4(),
             pdf_filename=pdf_filename,
             pdf_url=pdf_url,
-            download_date=datetime.now(timezone.utc),
+            download_date=datetime.now(UTC),
             last_update_date=last_update_date,
             version=version,
             file_size_bytes=len(file_content),

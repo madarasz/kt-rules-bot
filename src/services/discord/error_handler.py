@@ -1,7 +1,7 @@
 """Centralized error handling for Discord bot."""
 
 import discord
-from discord.errors import HTTPException, Forbidden
+from discord.errors import Forbidden, HTTPException
 
 from src.lib.logging import get_logger
 from src.services.llm.base import RateLimitError

@@ -1,9 +1,7 @@
 """Unit tests for BotResponse model - business logic only."""
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from uuid import uuid4
-
-import pytest
 
 from src.models.bot_response import BotResponse, Citation
 
@@ -32,7 +30,7 @@ class TestBotResponse:
             llm_model="gpt-4.1",
             token_count=100,
             latency_ms=1000,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         assert response.should_send() is True
@@ -58,7 +56,7 @@ class TestBotResponse:
             llm_model="gpt-4.1",
             token_count=100,
             latency_ms=1000,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         assert response.should_send() is False
@@ -84,7 +82,7 @@ class TestBotResponse:
             llm_model="gpt-4.1",
             token_count=100,
             latency_ms=1000,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         assert response.should_send() is False
@@ -112,7 +110,7 @@ class TestBotResponse:
             llm_model="gpt-4.1",
             token_count=100,
             latency_ms=1000,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         chunks = response.split_for_discord()

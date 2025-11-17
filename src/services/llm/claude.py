@@ -5,28 +5,30 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
 import asyncio
+import json
 import time
 from uuid import uuid4
-from anthropic import AsyncAnthropic, Anthropic
 
+from anthropic import Anthropic, AsyncAnthropic
 
-from src.services.llm.base import (
-    LLMProvider,
-    GenerationRequest,
-    LLMResponse,
-    ExtractionRequest,
-    ExtractionResponse,
-    RateLimitError,
-    AuthenticationError,
-    TimeoutError as LLMTimeoutError,
-    ContentFilterError,
-    PDFParseError,
-    STRUCTURED_OUTPUT_SCHEMA,
-    HOP_EVALUATION_SCHEMA,
-)
 from src.lib.logging import get_logger
 from src.lib.pdf_utils import decompress_pdf_with_cleanup
-import json
+from src.services.llm.base import (
+    HOP_EVALUATION_SCHEMA,
+    STRUCTURED_OUTPUT_SCHEMA,
+    AuthenticationError,
+    ContentFilterError,
+    ExtractionRequest,
+    ExtractionResponse,
+    GenerationRequest,
+    LLMProvider,
+    LLMResponse,
+    PDFParseError,
+    RateLimitError,
+)
+from src.services.llm.base import (
+    TimeoutError as LLMTimeoutError,
+)
 
 logger = get_logger(__name__)
 
@@ -140,7 +142,7 @@ class ClaudeAdapter(LLMProvider):
             token_count = prompt_tokens + completion_tokens
 
             logger.info(
-                f"Claude generation completed",
+                "Claude generation completed",
                 extra={
                     "latency_ms": latency_ms,
                     "token_count": token_count,
@@ -163,7 +165,7 @@ class ClaudeAdapter(LLMProvider):
                 completion_tokens=completion_tokens,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 f"Claude API timeout after {request.config.timeout_seconds}s"
             )
@@ -279,7 +281,7 @@ class ClaudeAdapter(LLMProvider):
             validation_warnings = self._validate_extraction(markdown_content)
 
             logger.info(
-                f"Claude PDF extraction completed",
+                "Claude PDF extraction completed",
                 extra={
                     "latency_ms": latency_ms,
                     "token_count": token_count,
@@ -301,8 +303,8 @@ class ClaudeAdapter(LLMProvider):
                 completion_tokens=completion_tokens,
             )
 
-        except asyncio.TimeoutError:
-            logger.warning(f"Claude PDF extraction timeout")
+        except TimeoutError:
+            logger.warning("Claude PDF extraction timeout")
             raise LLMTimeoutError(
                 f"Claude extraction exceeded {request.config.timeout_seconds}s timeout"
             )

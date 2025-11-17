@@ -1,9 +1,7 @@
 """Unit tests for UserQuery model - business logic only."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
-
-import pytest
 
 from src.models.user_query import UserQuery
 
@@ -19,7 +17,7 @@ class TestUserQuery:
             channel_id="channel123",
             message_text="Can I overwatch?",
             sanitized_text="Can I overwatch?",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             conversation_context_id="channel123:user456",
         )
 
@@ -27,7 +25,7 @@ class TestUserQuery:
 
     def test_is_expired_expired(self):
         """Test query is expired after 7 days."""
-        old_timestamp = datetime.now(timezone.utc) - timedelta(days=8)
+        old_timestamp = datetime.now(UTC) - timedelta(days=8)
 
         query = UserQuery(
             query_id=UUID("12345678-1234-5678-1234-567812345678"),

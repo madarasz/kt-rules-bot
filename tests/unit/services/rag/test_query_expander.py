@@ -1,9 +1,10 @@
 """Unit tests for QueryExpander service."""
 
 import json
-import pytest
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+
+import pytest
 
 from src.services.rag.query_expander import QueryExpander
 

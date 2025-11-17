@@ -7,16 +7,18 @@ while respecting overall timeout limits.
 """
 
 import asyncio
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
-from src.services.llm.base import ContentFilterError, RateLimitError, TimeoutError as LLMTimeoutError
 from src.lib.constants import (
-    LLM_MAX_RETRIES,
     LLM_GENERATION_TIMEOUT,
+    LLM_MAX_RETRIES,
     QUALITY_TEST_MAX_RETRIES_ON_RATE_LIMIT,
     QUALITY_TEST_RATE_LIMIT_INITIAL_DELAY,
 )
 from src.lib.logging import get_logger
+from src.services.llm.base import ContentFilterError, RateLimitError
+from src.services.llm.base import TimeoutError as LLMTimeoutError
 
 logger = get_logger(__name__)
 
@@ -105,7 +107,7 @@ async def retry_on_content_filter(
     # Wrap retry loop with overall timeout
     try:
         return await asyncio.wait_for(_retry_loop(), timeout=timeout_seconds)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error(
             f"LLM request timed out after {timeout_seconds}s (including retries)"
         )
@@ -237,7 +239,7 @@ async def retry_with_rate_limit_backoff(
     # Wrap retry loop with overall timeout
     try:
         return await asyncio.wait_for(_retry_loop(), timeout=timeout_seconds)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error(
             f"LLM request timed out after {timeout_seconds}s (including retries)"
         )

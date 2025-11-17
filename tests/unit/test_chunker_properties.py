@@ -4,7 +4,8 @@ Uses Hypothesis to generate random markdown content and verify chunker propertie
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings, HealthCheck
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 from src.services.rag.chunker import MarkdownChunker
 

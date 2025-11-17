@@ -12,9 +12,8 @@ import sys
 import time
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-from urllib.error import URLError, HTTPError
 
 from src.cli.download_team import download_team_internal
 from src.lib.logging import get_logger
@@ -124,10 +123,7 @@ def filter_team_rules(hits: list[dict]) -> list[dict]:
         # Check both string format and object format
         is_team_rules = False
         for category in download_categories:
-            if isinstance(category, str) and category == "team-rules":
-                is_team_rules = True
-                break
-            elif isinstance(category, dict) and category.get('slug') == "team-rules":
+            if isinstance(category, str) and category == "team-rules" or isinstance(category, dict) and category.get('slug') == "team-rules":
                 is_team_rules = True
                 break
 
@@ -138,7 +134,7 @@ def filter_team_rules(hits: list[dict]) -> list[dict]:
     return team_rules
 
 
-def get_existing_team_date(team_filename: str) -> Optional[date]:
+def get_existing_team_date(team_filename: str) -> date | None:
     """Get last_update_date from existing team markdown file.
 
     Args:
@@ -182,7 +178,7 @@ def get_existing_team_date(team_filename: str) -> Optional[date]:
         return None
 
 
-def parse_api_date(hit: dict) -> Optional[date]:
+def parse_api_date(hit: dict) -> date | None:
     """Parse last_updated date from API hit.
 
     Args:
@@ -311,7 +307,7 @@ def download_all_teams(dry_run: bool = False, force: bool = False) -> None:
                 print(f"  ⊘ {title} ({reason})")
 
         print("\n" + "=" * 60)
-        print(f"Summary (dry-run):")
+        print("Summary (dry-run):")
         print(f"  Would download: {len(teams_to_download)} teams")
         print(f"  Already up-to-date: {len(teams_skipped)} teams")
         print(f"  Total teams: {len(team_rules)} teams")
@@ -323,7 +319,7 @@ def download_all_teams(dry_run: bool = False, force: bool = False) -> None:
         print("\n✓ All teams are up-to-date")
         return
 
-    print(f"\nDownloading teams...")
+    print("\nDownloading teams...")
 
     results_success = []
     results_failed = []

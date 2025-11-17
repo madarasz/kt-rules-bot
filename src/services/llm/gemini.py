@@ -6,7 +6,6 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 
 import asyncio
 import time
-from typing import BinaryIO
 from uuid import uuid4
 
 try:
@@ -16,20 +15,23 @@ except ImportError:
     genai = None
     genai_types = None
 
+import json
+
+from src.lib.logging import get_logger
 from src.services.llm.base import (
-    LLMProvider,
-    GenerationRequest,
-    LLMResponse,
+    AuthenticationError,
+    ContentFilterError,
     ExtractionRequest,
     ExtractionResponse,
-    RateLimitError,
-    AuthenticationError,
-    TimeoutError as LLMTimeoutError,
-    ContentFilterError,
+    GenerationRequest,
+    LLMProvider,
+    LLMResponse,
     PDFParseError,
+    RateLimitError,
 )
-from src.lib.logging import get_logger
-import json
+from src.services.llm.base import (
+    TimeoutError as LLMTimeoutError,
+)
 
 logger = get_logger(__name__)
 
@@ -206,13 +208,13 @@ class GeminiAdapter(LLMProvider):
                     )
                 elif finish_reason_str == 'MAX_TOKENS' and not candidate.content.parts:
                     # MAX_TOKENS with no parts typically means truncation/blocking
-                    logger.warning(f"Gemini content blocked: finish_reason=MAX_TOKENS (no parts)")
+                    logger.warning("Gemini content blocked: finish_reason=MAX_TOKENS (no parts)")
                     raise ContentFilterError(
                         "Gemini response was truncated or blocked (MAX_TOKENS with no content). "
                         "Try rephrasing or use a different model (--provider claude-4.5-sonnet)."
                     )
                 elif finish_reason_str == 'MAX_TOKENS':  # MAX_TOKENS with parts
-                    logger.warning(f"Gemini response truncated: finish_reason=MAX_TOKENS")
+                    logger.warning("Gemini response truncated: finish_reason=MAX_TOKENS")
                 elif finish_reason_str not in ['STOP', 'FINISH_REASON_UNSPECIFIED']:  # Not normal completion
                     logger.warning(f"Gemini unexpected finish_reason: {finish_reason}")
 
@@ -264,7 +266,7 @@ class GeminiAdapter(LLMProvider):
                 token_count = 0
 
             logger.info(
-                f"Gemini generation completed",
+                "Gemini generation completed",
                 extra={
                     "latency_ms": latency_ms,
                     "token_count": token_count,
@@ -287,7 +289,7 @@ class GeminiAdapter(LLMProvider):
                 completion_tokens=completion_tokens,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(f"Gemini API timeout after {request.config.timeout_seconds}s")
             raise LLMTimeoutError(
                 f"Gemini generation exceeded {request.config.timeout_seconds}s timeout"
@@ -386,7 +388,7 @@ class GeminiAdapter(LLMProvider):
             validation_warnings = self._validate_extraction(markdown_content)
 
             logger.info(
-                f"Gemini PDF extraction completed",
+                "Gemini PDF extraction completed",
                 extra={
                     "latency_ms": latency_ms,
                     "token_count": token_count,
@@ -408,8 +410,8 @@ class GeminiAdapter(LLMProvider):
                 completion_tokens=completion_tokens,
             )
 
-        except asyncio.TimeoutError:
-            logger.warning(f"Gemini PDF extraction timeout")
+        except TimeoutError:
+            logger.warning("Gemini PDF extraction timeout")
             raise LLMTimeoutError(
                 f"Gemini extraction exceeded {request.config.timeout_seconds}s timeout"
             )

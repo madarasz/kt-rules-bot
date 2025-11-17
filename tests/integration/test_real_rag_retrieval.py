@@ -3,14 +3,15 @@
 These tests use real ChromaDB but mock LLM calls to test the RAG pipeline.
 """
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
 from uuid import uuid4
 
-from src.services.rag.retriever import RAGRetriever, RetrieveRequest
+import pytest
+
 from src.services.rag.ingestor import RAGIngestor
+from src.services.rag.retriever import RAGRetriever, RetrieveRequest
 
 
 @pytest.fixture

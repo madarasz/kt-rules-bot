@@ -4,35 +4,35 @@ This module provides wrapper functions to integrate Ragas metrics into our testi
 It converts our data formats to Ragas format and provides helper functions for metric calculation.
 """
 
-from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
+from typing import Any
+
+from datasets import Dataset
 from ragas import evaluate
 from ragas.metrics import (
-    context_precision,
-    context_recall,
-    faithfulness,
     answer_relevancy,
+    faithfulness,
 )
-from datasets import Dataset
+
 
 @dataclass
 class RagasRetrievalMetrics:
     """Ragas metrics for retrieval evaluation."""
 
-    context_precision: Optional[float] = None
-    context_recall: Optional[float] = None
+    context_precision: float | None = None
+    context_recall: float | None = None
 
 
 @dataclass
 class RagasGenerationMetrics:
     """Ragas metrics for generation evaluation."""
 
-    faithfulness: Optional[float] = None
-    answer_relevancy: Optional[float] = None
+    faithfulness: float | None = None
+    answer_relevancy: float | None = None
 
 def evaluate_retrieval(
-    retrieved_contexts: List[str],
-    ground_truth_contexts: List[str]
+    retrieved_contexts: list[str],
+    ground_truth_contexts: list[str]
 ) -> RagasRetrievalMetrics:
     """Evaluate retrieval quality using Ragas metrics.
 
@@ -99,9 +99,9 @@ def evaluate_retrieval(
 def evaluate_generation(
     query: str,
     response: str,
-    retrieved_contexts: List[str],
-    ground_truth_answer: Optional[str] = None,
-    judge_model: Optional[str] = None,
+    retrieved_contexts: list[str],
+    ground_truth_answer: str | None = None,
+    judge_model: str | None = None,
 ) -> RagasGenerationMetrics:
     """Evaluate generation quality using Ragas metrics.
 
@@ -151,9 +151,9 @@ def evaluate_generation(
 
 
 def format_ragas_metrics_for_display(
-    retrieval_metrics: Optional[RagasRetrievalMetrics] = None,
-    generation_metrics: Optional[RagasGenerationMetrics] = None,
-) -> Dict[str, Any]:
+    retrieval_metrics: RagasRetrievalMetrics | None = None,
+    generation_metrics: RagasGenerationMetrics | None = None,
+) -> dict[str, Any]:
     """Format Ragas metrics for display in reports.
 
     Args:
@@ -180,7 +180,7 @@ def format_ragas_metrics_for_display(
     return formatted
 
 
-def get_ragas_metric_descriptions() -> Dict[str, str]:
+def get_ragas_metric_descriptions() -> dict[str, str]:
     """Get descriptions of Ragas metrics for documentation.
 
     Returns:

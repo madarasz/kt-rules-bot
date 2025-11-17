@@ -1,6 +1,6 @@
 """Discord message handlers for @ mentions."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import discord
@@ -62,7 +62,7 @@ async def handle_message(bot, message: discord.Message, orchestrator):
         channel_id=str(message.channel.id),
         message_text=query_text,
         sanitized_text=sanitized_text,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         conversation_context_id=f"{message.channel.id}:{message.author.id}",
         pii_redacted=False,
     )

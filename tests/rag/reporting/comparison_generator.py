@@ -4,20 +4,18 @@ Creates markdown reports and matplotlib charts comparing RAG performance
 across different parameter values.
 """
 
-from typing import List, Dict, Optional
-from pathlib import Path
-from datetime import datetime
 import csv
+from datetime import datetime
+from pathlib import Path
+
 import numpy as np
 
-from tests.rag.sweep_runner import SweepResult, ParameterConfig
-from tests.rag.reporting.chart_utils import (
-    create_line_chart,
-    create_multi_line_chart,
-    create_grouped_bar_chart,
-    create_heatmap,
-)
 from src.lib.logging import get_logger
+from tests.rag.reporting.chart_utils import (
+    create_heatmap,
+    create_multi_line_chart,
+)
+from tests.rag.sweep_runner import SweepResult
 
 logger = get_logger(__name__)
 
@@ -27,7 +25,7 @@ class ComparisonGenerator:
 
     def generate_parameter_sweep_report(
         self,
-        sweep_results: List[SweepResult],
+        sweep_results: list[SweepResult],
         param_name: str,
         output_dir: Path,
     ) -> None:
@@ -87,8 +85,8 @@ class ComparisonGenerator:
 
     def generate_grid_search_report(
         self,
-        sweep_results: List[SweepResult],
-        param_grid: Dict[str, List],
+        sweep_results: list[SweepResult],
+        param_grid: dict[str, list],
         output_dir: Path,
     ) -> None:
         """Generate full comparison report for grid search.
@@ -134,7 +132,7 @@ class ComparisonGenerator:
 
     def _generate_csv(
         self,
-        sweep_results: List[SweepResult],
+        sweep_results: list[SweepResult],
         param_name: str,
         output_path: Path,
     ) -> None:
@@ -171,8 +169,8 @@ class ComparisonGenerator:
 
     def _generate_grid_csv(
         self,
-        sweep_results: List[SweepResult],
-        param_grid: Dict[str, List],
+        sweep_results: list[SweepResult],
+        param_grid: dict[str, list],
         output_path: Path,
     ) -> None:
         """Generate CSV file for grid search results."""
@@ -207,8 +205,8 @@ class ComparisonGenerator:
 
     def _generate_metric_charts(
         self,
-        sweep_results: List[SweepResult],
-        param_values: List,
+        sweep_results: list[SweepResult],
+        param_values: list,
         param_name: str,
         charts_dir: Path,
     ) -> None:
@@ -235,8 +233,8 @@ class ComparisonGenerator:
 
     def _generate_multi_metric_chart(
         self,
-        sweep_results: List[SweepResult],
-        param_values: List,
+        sweep_results: list[SweepResult],
+        param_values: list,
         param_name: str,
         charts_dir: Path,
     ) -> None:
@@ -247,8 +245,8 @@ class ComparisonGenerator:
 
     def _generate_heatmaps(
         self,
-        sweep_results: List[SweepResult],
-        param_grid: Dict[str, List],
+        sweep_results: list[SweepResult],
+        param_grid: dict[str, list],
         charts_dir: Path,
     ) -> None:
         """Generate heatmaps for 2D grid search."""
@@ -293,8 +291,8 @@ class ComparisonGenerator:
 
     def _generate_markdown_report(
         self,
-        sweep_results: List[SweepResult],
-        param_values: List,
+        sweep_results: list[SweepResult],
+        param_values: list,
         param_name: str,
         output_dir: Path,
         charts_dir: Path,
@@ -334,7 +332,7 @@ class ComparisonGenerator:
             content.append(f"| {param_name} | Context Precision | Context Recall | Avg Time (s) | Cost (USD) |")
             content.append("|" + "-" * 12 + "|" + "-" * 19 + "|" + "-" * 16 + "|" + "-" * 14 + "|" + "-" * 12 + "|")
 
-            for param_val, result in zip(param_values, sweep_results):
+            for param_val, result in zip(param_values, sweep_results, strict=False):
                 s = result.summary
                 content.append(
                     f"| {param_val} | {s.mean_ragas_context_precision:.3f} | {s.mean_ragas_context_recall:.3f} | "
@@ -344,7 +342,7 @@ class ComparisonGenerator:
             content.append(f"| {param_name} | Avg Time (s) | Cost (USD) |")
             content.append("|" + "-" * 12 + "|" + "-" * 14 + "|" + "-" * 12 + "|")
 
-            for param_val, result in zip(param_values, sweep_results):
+            for param_val, result in zip(param_values, sweep_results, strict=False):
                 s = result.summary
                 content.append(
                     f"| {param_val} | {s.avg_retrieval_time_seconds:.3f} | ${s.total_cost_usd:.6f} |"
@@ -402,8 +400,8 @@ class ComparisonGenerator:
 
     def _generate_grid_markdown_report(
         self,
-        sweep_results: List[SweepResult],
-        param_grid: Dict[str, List],
+        sweep_results: list[SweepResult],
+        param_grid: dict[str, list],
         output_dir: Path,
         charts_dir: Path,
     ) -> None:
@@ -448,7 +446,7 @@ class ComparisonGenerator:
         content.append("")
 
         if has_ragas:
-            content.append(f"**Ragas Metrics:**")
+            content.append("**Ragas Metrics:**")
             content.append(f"- Context Precision: {best_result.summary.mean_ragas_context_precision:.3f}")
             content.append(f"- Context Recall: {best_result.summary.mean_ragas_context_recall:.3f}")
             content.append("")

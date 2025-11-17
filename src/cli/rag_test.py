@@ -6,13 +6,13 @@ Usage:
 """
 
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
-from tests.rag.test_runner import RAGTestRunner
-from tests.rag.reporting.report_generator import RAGReportGenerator
 from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE
 from src.lib.logging import get_logger
+from tests.rag.reporting.report_generator import RAGReportGenerator
+from tests.rag.test_runner import RAGTestRunner
 
 logger = get_logger(__name__)
 
@@ -34,7 +34,7 @@ def rag_test(
     test_desc = f"test '{test_id}'" if test_id else "all tests"
     print(f"Running {test_desc} with {runs} run(s)")
     print(f"Configuration: max_chunks={max_chunks}, min_relevance={min_relevance}")
-    print(f"Evaluation: Ragas metrics")
+    print("Evaluation: Ragas metrics")
 
     # Initialize runner
     runner = RAGTestRunner()
@@ -50,7 +50,7 @@ def rag_test(
             min_relevance=min_relevance,
         )
 
-        print(f"\nRunning RAG retrieval tests...")
+        print("\nRunning RAG retrieval tests...")
         print(f"Test ID: {test_id or 'all'}")
         print(f"Runs: {runs}")
         print("")
@@ -97,7 +97,7 @@ def rag_test(
                 for missing_chunk in result.missing_chunks:
                     print(f"- {result.test_id}: {missing_chunk}")
                     count_missing_chunks += 1
-        
+
         if not missing_chunks_found:
             print("No missing chunks - all required chunks were retrieved!")
         else:

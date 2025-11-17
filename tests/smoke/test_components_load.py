@@ -3,13 +3,12 @@
 These tests run on every commit to catch basic configuration/import issues.
 """
 
-import pytest
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from uuid import uuid4
-from unittest.mock import Mock
+
+import pytest
 
 from src.models.bot_response import BotResponse, Citation
-from src.services.llm.base import GenerationRequest, GenerationConfig
 from src.services.llm.validator import ValidationResult
 
 
@@ -62,7 +61,7 @@ def test_discord_formatter_basic():
         llm_model="gpt-4.1",
         token_count=100,
         latency_ms=1000,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
 
     validation_result = ValidationResult(
@@ -83,8 +82,8 @@ def test_discord_formatter_basic():
 @pytest.mark.fast
 def test_models_can_be_created():
     """Test critical models can be instantiated."""
-    from src.models.user_query import UserQuery
     from src.models.rag_context import RAGContext
+    from src.models.user_query import UserQuery
 
     # UserQuery
     query = UserQuery.from_discord_message(
@@ -122,9 +121,9 @@ def test_chunker_can_be_imported():
 @pytest.mark.fast
 def test_validator_basic_validation():
     """Test validator can validate LLM responses."""
-    from src.services.llm.validator import ResponseValidator
-    from src.services.llm.base import LLMResponse
     from src.models.rag_context import RAGContext
+    from src.services.llm.base import LLMResponse
+    from src.services.llm.validator import ResponseValidator
 
     validator = ResponseValidator()
 

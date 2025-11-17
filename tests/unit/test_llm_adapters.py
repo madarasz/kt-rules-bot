@@ -4,26 +4,26 @@ Tests LLM provider implementations with mocked API calls.
 Based on specs/001-we-are-building/tasks.md T047
 """
 
-import pytest
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
+import pytest
+
+from src.models.rag_context import DocumentChunk, RAGContext
 from src.services.llm.base import (
-    GenerationRequest,
+    AuthenticationError,
     GenerationConfig,
+    GenerationRequest,
     LLMResponse,
     RateLimitError,
-    AuthenticationError,
-    TimeoutError,
 )
-from src.services.llm.claude import ClaudeAdapter
 from src.services.llm.chatgpt import ChatGPTAdapter
+from src.services.llm.claude import ClaudeAdapter
+from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.gemini import GeminiAdapter
 from src.services.llm.grok import GrokAdapter
-from src.services.llm.factory import LLMProviderFactory, get_provider
-from src.services.llm.validator import ResponseValidator, ValidationResult
-from src.services.llm.rate_limiter import RateLimiter, RateLimitConfig
-from src.models.rag_context import RAGContext, DocumentChunk
+from src.services.llm.rate_limiter import RateLimitConfig, RateLimiter
+from src.services.llm.validator import ResponseValidator
 
 
 class TestClaudeAdapter:
@@ -156,11 +156,11 @@ class TestGrokAdapter:
         # Mock the AsyncClient context manager properly
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(return_value=mock_response)
-        
+
         mock_context_manager = AsyncMock()
         mock_context_manager.__aenter__ = AsyncMock(return_value=mock_client)
         mock_context_manager.__aexit__ = AsyncMock(return_value=None)
-        
+
         mock_httpx.AsyncClient.return_value = mock_context_manager
 
         request = GenerationRequest(
@@ -182,11 +182,11 @@ class TestGrokAdapter:
         # Mock the AsyncClient context manager properly
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(return_value=mock_response)
-        
+
         mock_context_manager = AsyncMock()
         mock_context_manager.__aenter__ = AsyncMock(return_value=mock_client)
         mock_context_manager.__aexit__ = AsyncMock(return_value=None)
-        
+
         mock_httpx.AsyncClient.return_value = mock_context_manager
 
         request = GenerationRequest(

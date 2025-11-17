@@ -4,10 +4,7 @@ Implements LLMProvider interface for Grok models.
 Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
-import asyncio
 import time
-from math import exp
-from typing import BinaryIO
 from uuid import uuid4
 
 try:
@@ -15,23 +12,26 @@ try:
 except ImportError:
     httpx = None
 
+import json
+
+from src.lib.logging import get_logger
 from src.services.llm.base import (
-    LLMProvider,
-    GenerationRequest,
-    LLMResponse,
+    HOP_EVALUATION_SCHEMA,
+    STRUCTURED_OUTPUT_SCHEMA,
+    AuthenticationError,
+    ContentFilterError,
     ExtractionRequest,
     ExtractionResponse,
-    RateLimitError,
-    AuthenticationError,
-    TimeoutError as LLMTimeoutError,
-    ContentFilterError,
+    GenerationRequest,
+    LLMProvider,
+    LLMResponse,
     PDFParseError,
+    RateLimitError,
     TokenLimitError,
-    STRUCTURED_OUTPUT_SCHEMA,
-    HOP_EVALUATION_SCHEMA,
 )
-from src.lib.logging import get_logger
-import json
+from src.services.llm.base import (
+    TimeoutError as LLMTimeoutError,
+)
 
 logger = get_logger(__name__)
 
@@ -192,7 +192,7 @@ class GrokAdapter(LLMProvider):
             token_count = usage.get("total_tokens", 0)
 
             logger.info(
-                f"Grok generation completed",
+                "Grok generation completed",
                 extra={
                     "latency_ms": latency_ms,
                     "token_count": token_count,
@@ -218,11 +218,11 @@ class GrokAdapter(LLMProvider):
         except Exception as e:
             if isinstance(e, (RateLimitError, AuthenticationError, LLMTimeoutError, ContentFilterError, TokenLimitError)):
                 raise
-                
+
             error_msg = str(e).lower()
 
             # Check for timeout-related errors
-            if ("timeout" in error_msg or hasattr(e, '__class__') and 
+            if ("timeout" in error_msg or hasattr(e, '__class__') and
                 e.__class__.__name__ in ('TimeoutException', 'TimeoutError')):
                 logger.warning(
                     f"Grok API timeout after {request.config.timeout_seconds}s"
@@ -287,8 +287,8 @@ class GrokAdapter(LLMProvider):
                 "Grok PDF extraction requires PDF-to-text conversion"
             )
 
-        except asyncio.TimeoutError:
-            logger.warning(f"Grok PDF extraction timeout")
+        except TimeoutError:
+            logger.warning("Grok PDF extraction timeout")
             raise LLMTimeoutError(
                 f"Grok extraction exceeded {request.config.timeout_seconds}s timeout"
             )

@@ -5,11 +5,11 @@ Based on specs/001-we-are-building/tasks.md T037.
 """
 
 import re
-from typing import Tuple, Dict, Any, List
 from pathlib import Path
+from typing import Any
+
 import yaml
 
-from src.models.rule_document import DocumentType
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -22,7 +22,7 @@ class DocumentValidator:
         """Initialize document validator."""
         self.valid_doc_types = {"core-rules", "faq", "team-rules", "ops", "killzone"}
 
-    def validate_file(self, file_path: str | Path) -> Tuple[bool, str, Dict[str, Any]]:
+    def validate_file(self, file_path: str | Path) -> tuple[bool, str, dict[str, Any]]:
         """Validate a markdown file.
 
         Args:
@@ -52,7 +52,7 @@ class DocumentValidator:
 
     def validate_content(
         self, content: str, filename: str = ""
-    ) -> Tuple[bool, str, Dict[str, Any]]:
+    ) -> tuple[bool, str, dict[str, Any]]:
         """Validate markdown content.
 
         Args:
@@ -76,7 +76,7 @@ class DocumentValidator:
 
     def _extract_frontmatter(
         self, content: str
-    ) -> Tuple[bool, Dict[str, Any], str]:
+    ) -> tuple[bool, dict[str, Any], str]:
         """Extract YAML frontmatter from markdown.
 
         Args:
@@ -106,8 +106,8 @@ class DocumentValidator:
             return False, {}, f"Invalid YAML syntax: {e}"
 
     def _validate_metadata(
-        self, metadata: Dict[str, Any], filename: str
-    ) -> Tuple[bool, str]:
+        self, metadata: dict[str, Any], filename: str
+    ) -> tuple[bool, str]:
         """Validate metadata fields.
 
         Args:
@@ -173,7 +173,7 @@ class DocumentValidator:
 
     def validate_directory(
         self, directory: str | Path
-    ) -> Tuple[List[str], List[Tuple[str, str]]]:
+    ) -> tuple[list[str], list[tuple[str, str]]]:
         """Validate all markdown files in a directory.
 
         Args:
@@ -188,8 +188,8 @@ class DocumentValidator:
             logger.error("invalid_directory", path=str(directory))
             return [], [(str(directory), "Directory not found")]
 
-        valid_files: List[str] = []
-        invalid_files: List[Tuple[str, str]] = []
+        valid_files: list[str] = []
+        invalid_files: list[tuple[str, str]] = []
 
         # Find all .md files
         for md_file in directory.glob("*.md"):

@@ -5,22 +5,22 @@ Generates charts showing averaged metrics with error bars across multiple runs.
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import matplotlib
+
 matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import numpy as np
 
-from tests.quality.models import MultiRunTestSuite
-from tests.quality.aggregator import MultiRunAggregator
 from src.lib.logging import get_logger
+from tests.quality.aggregator import MultiRunAggregator
+from tests.quality.models import MultiRunTestSuite
 
 logger = get_logger(__name__)
 
 
 def generate_multi_run_visualization(
-    multi_run_suite: MultiRunTestSuite, output_file: Optional[str] = None
+    multi_run_suite: MultiRunTestSuite, output_file: str | None = None
 ) -> str:
     """Generate visualization chart from multi-run test suite results.
 
@@ -144,7 +144,7 @@ def generate_multi_run_visualization(
         raw_llm_vals = raw_llm_error_pcts_by_model[i]
         if raw_llm_vals and raw_vals:
             # Stack on top of earned
-            stacked_vals = [e + l for e, l in zip(raw_vals, raw_llm_vals)]
+            stacked_vals = [e + l for e, l in zip(raw_vals, raw_llm_vals, strict=False)]
             x_positions = np.full(len(stacked_vals), pos1[i])
             ax1.scatter(x_positions, stacked_vals, color=color_llm_error, s=20,
                        alpha=0.6, zorder=10, edgecolors='black', linewidths=0.5)
