@@ -32,6 +32,8 @@ SMALLTALK_CONTEXT = []
 
 @pytest.mark.parametrize("provider", PROVIDERS_TO_TEST)
 @pytest.mark.asyncio
+@pytest.mark.contract
+@pytest.mark.llm_api
 async def test_provider_structured_output_compliance(provider):
     """Test provider returns valid structured JSON with all required fields.
 
@@ -106,6 +108,8 @@ async def test_provider_structured_output_compliance(provider):
 
 @pytest.mark.parametrize("provider", ["gpt-4.1"])
 @pytest.mark.asyncio
+@pytest.mark.contract
+@pytest.mark.llm_api
 async def test_provider_smalltalk_flag(provider):
     """Test provider correctly sets smalltalk flag.
 
@@ -132,6 +136,8 @@ async def test_provider_smalltalk_flag(provider):
 
 @pytest.mark.parametrize("provider", ["gpt-4.1"])
 @pytest.mark.asyncio
+@pytest.mark.contract
+@pytest.mark.llm_api
 async def test_provider_markdown_conversion(provider):
     """Test provider response converts to markdown correctly.
 
@@ -164,6 +170,8 @@ class TestProviderSpecificEdgeCases:
     """Provider-specific edge case tests."""
 
     @pytest.mark.asyncio
+    @pytest.mark.contract
+    @pytest.mark.llm_api
     async def test_gpt_4_1_strict_mode(self):
         """Test GPT-4.1 uses strict mode for schema enforcement."""
         llm = LLMProviderFactory.create("gpt-4.1")
@@ -184,6 +192,8 @@ class TestProviderSpecificEdgeCases:
         print("✓ GPT-4.1 strict mode validated")
 
     @pytest.mark.asyncio
+    @pytest.mark.contract
+    @pytest.mark.llm_api
     async def test_deepseek_chat_vs_reasoner(self):
         """Test both DeepSeek models support structured output."""
         for model in ["deepseek-chat"]:  # deepseek-reasoner can be added when available
