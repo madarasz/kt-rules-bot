@@ -79,12 +79,22 @@ async def test_provider_structured_output_compliance(provider):
     assert len(quotes) > 0, f"{provider} must return at least one quote for rules questions"
 
     for i, quote in enumerate(quotes):
+        # Required fields
         assert "quote_title" in quote, f"{provider} quote[{i}] missing quote_title"
         assert "quote_text" in quote, f"{provider} quote[{i}] missing quote_text"
         assert isinstance(quote["quote_title"], str), f"{provider} quote[{i}] title must be string"
         assert isinstance(quote["quote_text"], str), f"{provider} quote[{i}] text must be string"
         assert len(quote["quote_title"]) > 0, f"{provider} quote[{i}] title cannot be empty"
         assert len(quote["quote_text"]) > 0, f"{provider} quote[{i}] text cannot be empty"
+
+        # Optional chunk_id field (for quote validation)
+        if "chunk_id" in quote:
+            assert isinstance(quote["chunk_id"], str), f"{provider} quote[{i}] chunk_id must be string"
+            # chunk_id should be last 8 chars of UUID (e.g., 'a1b2c3d4')
+            if quote["chunk_id"]:  # If not empty
+                assert len(quote["chunk_id"]) <= 36, (
+                    f"{provider} quote[{i}] chunk_id looks invalid: {quote['chunk_id']}"
+                )
 
     print(f"✓ {provider} returned {len(quotes)} valid quotes")
 

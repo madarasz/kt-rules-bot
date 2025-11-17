@@ -55,8 +55,12 @@ STRUCTURED_OUTPUT_SCHEMA_GEMINI = {
                         "type": "string",
                         "description": "Relevant excerpt from the rule",
                     },
+                    "chunk_id": {
+                        "type": "string",
+                        "description": "Chunk ID from context (last 8 chars of UUID, e.g., 'a1b2c3d4'). Optional for backward compatibility.",
+                    },
                 },
-                "required": ["quote_title", "quote_text"],
+                "required": ["quote_title", "quote_text", "chunk_id"],
             },
         },
         "explanation": {
