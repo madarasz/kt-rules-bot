@@ -58,6 +58,7 @@ class RAGIngestor:
         embedding_service: EmbeddingService | None = None,
         vector_db_service: VectorDBService | None = None,
         keyword_extractor: KeywordExtractor | None = None,
+        db_path: str | None = None,
     ):
         """Initialize RAG ingestor.
 
@@ -66,10 +67,11 @@ class RAGIngestor:
             embedding_service: Embedding service (creates if None)
             vector_db_service: Vector DB service (creates if None)
             keyword_extractor: Keyword extractor (creates if None)
+            db_path: Optional database path (only used if vector_db_service is None)
         """
         self.chunker = chunker or MarkdownChunker()
         self.embedding_service = embedding_service or EmbeddingService()
-        self.vector_db = vector_db_service or VectorDBService()
+        self.vector_db = vector_db_service or VectorDBService(db_path=db_path)
         self.keyword_extractor = keyword_extractor or KeywordExtractor()
         self.document_hashes: dict[str, str] = {}  # filename -> hash mapping
 

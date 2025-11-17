@@ -69,6 +69,7 @@ class RAGRetriever:
         bm25_k1: float = BM25_K1,
         bm25_b: float = BM25_B,
         bm25_weight: float = BM25_WEIGHT,
+        db_path: str | None = None,
     ):
         """Initialize RAG retriever.
 
@@ -83,9 +84,10 @@ class RAGRetriever:
             bm25_k1: BM25 term frequency saturation parameter (default: 1.5)
             bm25_b: BM25 document length normalization parameter (default: 0.75)
             bm25_weight: Weight for BM25 in fusion (default: 0.5, vector gets 1-bm25_weight)
+            db_path: Optional database path (only used if vector_db_service is None)
         """
         self.embedding_service = embedding_service or EmbeddingService()
-        self.vector_db = vector_db_service or VectorDBService()
+        self.vector_db = vector_db_service or VectorDBService(db_path=db_path)
         self.keyword_extractor = keyword_extractor or KeywordExtractor()
         self.query_expander = query_expander or QueryExpander(RAG_SYNONYM_DICT_PATH)
         self.enable_hybrid = enable_hybrid

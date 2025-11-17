@@ -9,9 +9,8 @@ import shutil
 from pathlib import Path
 from uuid import uuid4
 
-from src.services.rag.multi_hop_retriever import MultiHopRetriever
+from src.services.rag.retriever import RAGRetriever, RetrieveRequest
 from src.services.rag.ingestor import RAGIngestor
-from src.services.rag.retriever import RetrieveRequest
 
 
 @pytest.fixture
@@ -53,29 +52,60 @@ Barricades provide cover to models. You can shoot through barricades but the tar
     shutil.rmtree(temp_dir, ignore_errors=True)
 
 
+def _ingest_test_document(temp_chroma_db: str, temp_rules_dir: str) -> RAGIngestor:
+    """Helper to ingest test documents and return the ingestor.
+
+    Args:
+        temp_chroma_db: Path to temporary ChromaDB
+        temp_rules_dir: Path to temporary rules directory
+
+    Returns:
+        Configured RAGIngestor instance
+    """
+    from src.models.rule_document import RuleDocument
+    from src.services.rag.validator import DocumentValidator
+
+    ingestor = RAGIngestor(db_path=temp_chroma_db)
+
+    rules_file = Path(temp_rules_dir) / "test-rules.md"
+    content = rules_file.read_text()
+
+    # Validate and extract metadata
+    validator = DocumentValidator()
+    is_valid, error, metadata = validator.validate_content(content, "test-rules.md")
+    assert is_valid, f"Document validation failed: {error}"
+
+    doc = RuleDocument.from_markdown_file(
+        filename="test-rules.md",
+        content=content,
+        metadata=metadata
+    )
+
+    result = ingestor.ingest([doc])
+    assert result.documents_processed > 0
+    assert result.embedding_count > 0
+
+    return ingestor
+
+
 @pytest.mark.slow
 @pytest.mark.integration
 def test_real_rag_retrieval_basic(temp_chroma_db, temp_rules_dir):
     """Test real RAG retrieval with ChromaDB."""
     # Ingest test documents
-    ingestor = RAGIngestor(db_path=temp_chroma_db)
-    stats = ingestor.ingest_directory(temp_rules_dir)
+    _ingest_test_document(temp_chroma_db, temp_rules_dir)
 
-    assert stats["files_processed"] > 0
-    assert stats["chunks_created"] > 0
-
-    # Create retriever
-    retriever = MultiHopRetriever(db_path=temp_chroma_db)
+    # Create retriever (disable multi-hop for simpler testing)
+    retriever = RAGRetriever(db_path=temp_chroma_db, enable_multi_hop=False)
 
     # Retrieve with query about barricades
     request = RetrieveRequest(
-        query_id=uuid4(),
-        query_text="Can I shoot through barricades?",
-        conversation_context_id="test:123",
-        top_k=5
+        query="Can I shoot through barricades?",
+        context_key="test:123",
+        max_chunks=5
     )
 
-    context = retriever.retrieve(request)
+    context, _, _ = retriever.retrieve(request, query_id=uuid4())
 
     # Should find relevant chunks
     assert context.total_chunks > 0
@@ -94,21 +124,19 @@ def test_real_rag_retrieval_basic(temp_chroma_db, temp_rules_dir):
 def test_real_rag_retrieval_no_results(temp_chroma_db, temp_rules_dir):
     """Test RAG retrieval with query that has no good matches."""
     # Ingest test documents
-    ingestor = RAGIngestor(db_path=temp_chroma_db)
-    ingestor.ingest_directory(temp_rules_dir)
+    _ingest_test_document(temp_chroma_db, temp_rules_dir)
 
     # Create retriever
-    retriever = MultiHopRetriever(db_path=temp_chroma_db)
+    retriever = RAGRetriever(db_path=temp_chroma_db, enable_multi_hop=False)
 
     # Query about something not in the rules
     request = RetrieveRequest(
-        query_id=uuid4(),
-        query_text="What is the airspeed velocity of an unladen swallow?",
-        conversation_context_id="test:456",
-        top_k=5
+        query="What is the airspeed velocity of an unladen swallow?",
+        context_key="test:456",
+        max_chunks=5
     )
 
-    context = retriever.retrieve(request)
+    context, _, _ = retriever.retrieve(request, query_id=uuid4())
 
     # Should return something (might be low relevance)
     assert context.total_chunks >= 0
@@ -123,29 +151,26 @@ def test_real_rag_retrieval_no_results(temp_chroma_db, temp_rules_dir):
 def test_real_rag_keyword_normalization(temp_chroma_db, temp_rules_dir):
     """Test that keyword normalization works with real retrieval."""
     # Ingest test documents
-    ingestor = RAGIngestor(db_path=temp_chroma_db)
-    ingestor.ingest_directory(temp_rules_dir)
+    _ingest_test_document(temp_chroma_db, temp_rules_dir)
 
     # Create retriever
-    retriever = MultiHopRetriever(db_path=temp_chroma_db)
+    retriever = RAGRetriever(db_path=temp_chroma_db, enable_multi_hop=False)
 
     # Query with different capitalization
     request1 = RetrieveRequest(
-        query_id=uuid4(),
-        query_text="Can I shoot during the SHOOTING phase?",
-        conversation_context_id="test:789",
-        top_k=5
+        query="Can I shoot during the SHOOTING phase?",
+        context_key="test:789",
+        max_chunks=5
     )
 
     request2 = RetrieveRequest(
-        query_id=uuid4(),
-        query_text="Can I shoot during the shooting phase?",
-        conversation_context_id="test:789",
-        top_k=5
+        query="Can I shoot during the shooting phase?",
+        context_key="test:789",
+        max_chunks=5
     )
 
-    context1 = retriever.retrieve(request1)
-    context2 = retriever.retrieve(request2)
+    context1, _, _ = retriever.retrieve(request1, query_id=uuid4())
+    context2, _, _ = retriever.retrieve(request2, query_id=uuid4())
 
     # Both should find relevant content
     assert context1.total_chunks > 0
