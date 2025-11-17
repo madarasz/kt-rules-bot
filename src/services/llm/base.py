@@ -138,7 +138,11 @@ STRUCTURED_OUTPUT_SCHEMA = {
                     },
                     "quote_text": {
                         "type": "string",
-                        "description": "Relevant excerpt from the rule",
+                        "description": "Relevant excerpt from the rule (must be verbatim from context)",
+                    },
+                    "chunk_id": {
+                        "type": "string",
+                        "description": "Chunk ID from context (last 8 chars of UUID, e.g., 'a1b2c3d4'). Optional for backward compatibility.",
                     },
                 },
                 "required": ["quote_title", "quote_text"],
@@ -212,6 +216,7 @@ class GenerationRequest:
     prompt: str  # User query (sanitized)
     context: list[str]  # Retrieved document chunks (up to 5)
     config: GenerationConfig
+    chunk_ids: list[str] | None = None  # Optional chunk IDs for attribution (UUIDs)
 
 
 @dataclass
@@ -318,7 +323,9 @@ class LLMProvider(ABC):
         """
         pass
 
-    def _build_prompt(self, user_query: str, context: list[str]) -> str:
+    def _build_prompt(
+        self, user_query: str, context: list[str], chunk_ids: list[str] | None = None
+    ) -> str:
         """Build user prompt with retrieved context.
 
         Note: System prompt is configured separately in GenerationConfig.
@@ -326,15 +333,35 @@ class LLMProvider(ABC):
         Args:
             user_query: Sanitized user question
             context: Retrieved document chunks
+            chunk_ids: Optional list of chunk IDs (UUIDs) for attribution
 
         Returns:
             Formatted user prompt with context
         """
-        context_text = "\n\n".join(
-            [f"[Context {i + 1}]:\n{chunk}" for i, chunk in enumerate(context)]
-        )
+        if chunk_ids and len(chunk_ids) == len(context):
+            # Format with chunk IDs for quote attribution
+            context_text = "\n\n".join(
+                [
+                    f"[CHUNK_{chunk_id[-8:]}]:\n{chunk}"
+                    for chunk_id, chunk in zip(chunk_ids, context, strict=True)
+                ]
+            )
 
-        return f"""Context from Kill Team 3rd Edition rules:
+            return f"""Context from Kill Team 3rd Edition rules:
+{context_text}
+
+User Question: {user_query}
+
+When quoting rules, reference the chunk ID in the chunk_id field (e.g., "{chunk_ids[0][-8:]}" for the first chunk).
+
+Answer:"""
+        else:
+            # Fallback to numbered context (backward compatibility)
+            context_text = "\n\n".join(
+                [f"[Context {i + 1}]:\n{chunk}" for i, chunk in enumerate(context)]
+            )
+
+            return f"""Context from Kill Team 3rd Edition rules:
 {context_text}
 
 User Question: {user_query}

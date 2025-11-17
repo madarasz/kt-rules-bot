@@ -40,6 +40,10 @@ CREATE TABLE IF NOT EXISTS queries (
     multi_hop_enabled INTEGER DEFAULT 0,
     hops_used INTEGER DEFAULT 0,
     cost REAL DEFAULT 0.0,
+    quote_validation_score REAL DEFAULT NULL,
+    quote_total_count INTEGER DEFAULT 0,
+    quote_valid_count INTEGER DEFAULT 0,
+    quote_invalid_count INTEGER DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -50,6 +54,7 @@ CREATE INDEX IF NOT EXISTS idx_llm_model ON queries(llm_model);
 CREATE INDEX IF NOT EXISTS idx_channel_id ON queries(channel_id);
 CREATE INDEX IF NOT EXISTS idx_multi_hop ON queries(multi_hop_enabled);
 CREATE INDEX IF NOT EXISTS idx_cost ON queries(cost);
+CREATE INDEX IF NOT EXISTS idx_quote_validation_score ON queries(quote_validation_score);
 
 CREATE TABLE IF NOT EXISTS retrieved_chunks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -87,6 +92,19 @@ CREATE TABLE IF NOT EXISTS hop_evaluations (
 
 CREATE INDEX IF NOT EXISTS idx_hop_eval_query_id ON hop_evaluations(query_id);
 CREATE INDEX IF NOT EXISTS idx_hop_eval_hop_num ON hop_evaluations(query_id, hop_number);
+
+CREATE TABLE IF NOT EXISTS invalid_quotes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    query_id TEXT NOT NULL,
+    quote_title TEXT,
+    quote_text TEXT NOT NULL,
+    claimed_chunk_id TEXT,
+    reason TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (query_id) REFERENCES queries(query_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_invalid_quotes_query_id ON invalid_quotes(query_id);
 """
 
 
@@ -166,8 +184,10 @@ class AnalyticsDatabase:
                         confidence_score, rag_score, validation_passed,
                         latency_ms, timestamp, upvotes, downvotes,
                         admin_status, admin_notes, multi_hop_enabled, hops_used,
-                        cost, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        cost, quote_validation_score, quote_total_count,
+                        quote_valid_count, quote_invalid_count,
+                        created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
                         query_data["query_id"],
@@ -191,6 +211,10 @@ class AnalyticsDatabase:
                         query_data.get("multi_hop_enabled", 0),
                         query_data.get("hops_used", 0),
                         query_data.get("cost", 0.0),
+                        query_data.get("quote_validation_score"),
+                        query_data.get("quote_total_count", 0),
+                        query_data.get("quote_valid_count", 0),
+                        query_data.get("quote_invalid_count", 0),
                         now,
                         now,
                     ),
@@ -252,6 +276,47 @@ class AnalyticsDatabase:
 
         except Exception as e:
             logger.error(f"Failed to insert chunks: {e}", exc_info=True)
+
+    def insert_invalid_quotes(self, query_id: str, invalid_quotes: list[dict[str, Any]]) -> None:
+        """Insert invalid quotes for a query.
+
+        Args:
+            query_id: Query UUID
+            invalid_quotes: List of invalid quote dictionaries
+        """
+        if not self.enabled:
+            return
+
+        try:
+            now = datetime.now(UTC).isoformat()
+
+            with self._get_connection() as conn:
+                for quote in invalid_quotes:
+                    conn.execute(
+                        """
+                        INSERT INTO invalid_quotes (
+                            query_id, quote_title, quote_text,
+                            claimed_chunk_id, reason, created_at
+                        ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                        (
+                            query_id,
+                            quote.get("quote_title", ""),
+                            quote.get("quote_text", ""),
+                            quote.get("claimed_chunk_id", ""),
+                            quote.get("reason", ""),
+                            now,
+                        ),
+                    )
+                conn.commit()
+
+            logger.debug(
+                "Invalid quotes inserted",
+                extra={"query_id": query_id, "invalid_quotes_count": len(invalid_quotes)},
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to insert invalid quotes: {e}", exc_info=True)
 
     def insert_hop_evaluations(
         self, query_id: str, evaluations: list[dict[str, Any]], evaluation_model: str
@@ -329,6 +394,39 @@ class AnalyticsDatabase:
 
         except Exception as e:
             logger.error(f"Failed to get hop evaluations: {e}", exc_info=True)
+            return []
+
+    def get_invalid_quotes_for_query(self, query_id: str) -> list[dict[str, Any]]:
+        """Get invalid quotes for a query.
+
+        Args:
+            query_id: Query UUID
+
+        Returns:
+            List of invalid quote dictionaries
+        """
+        if not self.enabled:
+            return []
+
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    """
+                    SELECT
+                        quote_title, quote_text, claimed_chunk_id,
+                        reason, created_at
+                    FROM invalid_quotes
+                    WHERE query_id = ?
+                    ORDER BY created_at ASC
+                """,
+                    (query_id,),
+                )
+
+                rows = cursor.fetchall()
+                return [dict(row) for row in rows]
+
+        except Exception as e:
+            logger.error(f"Failed to get invalid quotes: {e}", exc_info=True)
             return []
 
     def increment_vote(self, query_id: str, vote_type: Literal["upvote", "downvote"]) -> None:

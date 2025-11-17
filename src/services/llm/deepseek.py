@@ -72,8 +72,8 @@ class DeepSeekAdapter(LLMProvider):
         """
         start_time = time.time()
 
-        # Build prompt with context
-        full_prompt = self._build_prompt(request.prompt, request.context)
+        # Build prompt with context and optional chunk IDs
+        full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
         token_limit = (
             request.config.max_tokens * 3
             if self.model == "deepseek-reasoner"

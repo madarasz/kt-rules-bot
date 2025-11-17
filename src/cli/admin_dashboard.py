@@ -328,6 +328,51 @@ def render_query_detail(db: AnalyticsDatabase):
         cost = query.get("cost", 0.0)
         st.write(f"**Cost:** ${cost:.5f}")
 
+        # Quote validation
+        quote_validation_score = query.get("quote_validation_score")
+        if quote_validation_score is not None:
+            quote_total = query.get("quote_total_count", 0)
+            quote_valid = query.get("quote_valid_count", 0)
+
+            if quote_validation_score >= 0.95:
+                score_icon = "✅"
+            elif quote_validation_score >= 0.7:
+                score_icon = "⚠️"
+            else:
+                score_icon = "❌"
+
+            st.write(
+                f"**Quote Validation:** {score_icon} {quote_validation_score:.1%} ({quote_valid}/{quote_total} valid)"
+            )
+        else:
+            st.write("**Quote Validation:** N/A")
+
+    # Quote validation details (if there are invalid quotes)
+    quote_invalid_count = query.get("quote_invalid_count", 0)
+    if quote_invalid_count > 0:
+        st.subheader("⚠️ Invalid Quotes Detected")
+        invalid_quotes = db.get_invalid_quotes_for_query(query_id)
+
+        if invalid_quotes:
+            for i, invalid_quote in enumerate(invalid_quotes, 1):
+                with st.expander(
+                    f"❌ Invalid Quote {i}: {invalid_quote.get('quote_title', 'No title')}"
+                ):
+                    st.write(f"**Title:** {invalid_quote.get('quote_title', 'N/A')}")
+                    st.text_area(
+                        "Quote Text",
+                        value=invalid_quote.get("quote_text", ""),
+                        height=100,
+                        disabled=True,
+                        key=f"invalid_quote_{i}",
+                    )
+                    st.write(
+                        f"**Claimed Chunk ID:** {invalid_quote.get('claimed_chunk_id', 'N/A')}"
+                    )
+                    st.write(f"**Reason:** {invalid_quote.get('reason', 'N/A')}")
+        else:
+            st.info("Invalid quotes count is non-zero but no invalid quotes found in database.")
+
     # Hop evaluations (if multi-hop was used)
     if query.get("hops_used", 0) > 0:
         st.subheader("🔄 Multi-Hop Evaluations")

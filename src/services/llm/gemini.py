@@ -135,7 +135,7 @@ class GeminiAdapter(LLMProvider):
         start_time = time.time()
 
         # Build prompt with system message and context
-        full_prompt = f"{request.config.system_prompt}\n\n{self._build_prompt(request.prompt, request.context)}"
+        full_prompt = f"{request.config.system_prompt}\n\n{self._build_prompt(request.prompt, request.context, request.chunk_ids)}"
 
         try:
             # Select schema based on configuration
