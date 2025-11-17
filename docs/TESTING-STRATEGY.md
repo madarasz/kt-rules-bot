@@ -42,6 +42,7 @@ tests/
 ├── contract/                 # Contract/interface compliance tests
 │   └── test_llm_structured_output.py
 └── quality/                  # End-to-end quality tests (not run in CI)
+└── rag/                      # RAG tests (not run in CI)
 ```
 
 ### Test Categories and Markers
@@ -690,17 +691,6 @@ Delete a test if:
 - `tests/unit/test_chunker_properties.py` - Property-based invariants
 - `tests/unit/models/test_user_query.py::test_is_expired` - Business logic
 - `tests/unit/test_discord_services.py::test_context_manager_limits_history` - State transitions
-
-### Tests We Removed ❌
-
-- `tests/unit/models/test_user_query.py::test_hash_user_id_unique` - Tests hashlib
-- `tests/unit/models/test_bot_response.py::test_citation_creation` - Tests field assignment
-- `tests/unit/test_statistics.py::test_time_precision` - Tests string formatting
-- `tests/unit/test_rag_services.py::test_cache_stats` - Tests dict has keys
-- `tests/contract/test_llm_adapter.py::test_provider_consistency` - All mocked
-- `tests/unit/test_discord_services.py::test_feedback_logger_ignores_*` - Redundant (3 tests for 1 guard clause)
-
-**Result**: 324 tests → 160 tests (-51%), but better behavior coverage.
 
 ---
 

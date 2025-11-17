@@ -18,17 +18,21 @@ logger = get_logger(__name__)
 class VectorDBService:
     """Service for vector database operations using Chroma."""
 
-    def __init__(self, collection_name: str = "kill_team_rules"):
+    def __init__(self, collection_name: str = "kill_team_rules", db_path: str | None = None):
         """Initialize vector database service.
 
         Args:
             collection_name: Name of the Chroma collection
+            db_path: Optional path to database (defaults to config path)
         """
         config = get_config()
 
+        # Use provided path or fall back to config
+        path = db_path if db_path is not None else config.vector_db_path
+
         # Initialize Chroma client with persistence
         self.client = chromadb.PersistentClient(
-            path=config.vector_db_path,
+            path=path,
             settings=Settings(
                 anonymized_telemetry=False,
                 allow_reset=True,
@@ -44,7 +48,7 @@ class VectorDBService:
         logger.info(
             "vector_db_initialized",
             collection=collection_name,
-            path=config.vector_db_path,
+            path=path,
             count=self.collection.count(),
         )
 
