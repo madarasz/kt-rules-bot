@@ -20,12 +20,7 @@ def check_command(cmd: list[str], name: str) -> tuple[bool, str]:
         Tuple of (success, message)
     """
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
         # Most --version commands return 0, but some return non-zero
         return True, f"✅ {name} installed"
     except FileNotFoundError:
@@ -156,8 +151,7 @@ def main() -> int:
     # Check GitHub Actions
     print("CI/CD:")
     result = check_file(
-        project_root / ".github" / "workflows" / "quality.yml",
-        "GitHub Actions workflow"
+        project_root / ".github" / "workflows" / "quality.yml", "GitHub Actions workflow"
     )
     checks.append(result)
     print(result[1])

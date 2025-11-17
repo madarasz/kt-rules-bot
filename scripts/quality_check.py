@@ -278,7 +278,9 @@ class QualityChecker:
     def get_summary_stats(self) -> dict:
         """Calculate summary statistics."""
         scored_metrics = [m for m in self.metrics if m.score >= 0]
-        overall_score = sum(m.score for m in scored_metrics) / len(scored_metrics) if scored_metrics else 0
+        overall_score = (
+            sum(m.score for m in scored_metrics) / len(scored_metrics) if scored_metrics else 0
+        )
 
         return {
             "overall_score": round(overall_score, 1),
@@ -338,10 +340,7 @@ def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Run code quality checks")
     parser.add_argument(
-        "--format",
-        choices=["text", "json"],
-        default="text",
-        help="Output format (default: text)",
+        "--format", choices=["text", "json"], default="text", help="Output format (default: text)"
     )
     args = parser.parse_args()
 

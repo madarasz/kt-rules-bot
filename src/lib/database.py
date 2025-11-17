@@ -805,12 +805,14 @@ class AnalyticsDatabase:
                 avg_latency = cursor.fetchone()[0] or 0
 
                 # Feedback stats
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT
                         SUM(upvotes) as total_upvotes,
                         SUM(downvotes) as total_downvotes
                     FROM queries
-                """)
+                """
+                )
                 row = cursor.fetchone()
                 total_upvotes = row[0] or 0
                 total_downvotes = row[1] or 0
@@ -818,21 +820,25 @@ class AnalyticsDatabase:
                 helpful_rate = total_upvotes / total_feedback if total_feedback > 0 else 0
 
                 # Admin status counts
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT admin_status, COUNT(*)
                     FROM queries
                     GROUP BY admin_status
-                """)
+                """
+                )
                 status_counts = dict(cursor.fetchall())
 
                 # Chunk relevance stats
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT
                         SUM(CASE WHEN relevant = 1 THEN 1 ELSE 0 END) as relevant_count,
                         SUM(CASE WHEN relevant = 0 THEN 1 ELSE 0 END) as not_relevant_count,
                         SUM(CASE WHEN relevant IS NULL THEN 1 ELSE 0 END) as not_reviewed_count
                     FROM retrieved_chunks
-                """)
+                """
+                )
                 row = cursor.fetchone()
 
                 return {

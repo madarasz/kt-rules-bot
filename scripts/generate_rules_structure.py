@@ -27,15 +27,15 @@ EXTRACTED_RULES_DIR = Path(__file__).parent.parent / "extracted-rules"
 RULES_OUTPUT_FILE = Path(__file__).parent.parent / RULES_STRUCTURE_PATH
 TEAMS_OUTPUT_FILE = Path(__file__).parent.parent / TEAMS_STRUCTURE_PATH
 # TEAMS_EXCLUDE_CATEGORIES = ['Operative Selection', 'Strategy Ploys', 'Firefight Ploys', 'Faction Equipment']
-TEAMS_EXCLUDE_CATEGORIES = ['Operative Selection']
-EXCLUDE_HEADERS = ['WEAPON RULES']
+TEAMS_EXCLUDE_CATEGORIES = ["Operative Selection"]
+EXCLUDE_HEADERS = ["WEAPON RULES"]
 TRIM_HEADER_TEXT = [
-    'BHETA-DECIMA - ',
-    'GALLOWDARK - ',
-    'GALLOWDARK CLOSE QUARTERS RULES - ',
-    'TOMB WORLD - ',
-    'VOLKUS - ',
-    'UNIVERSAL EQUIPMENT - ',
+    "BHETA-DECIMA - ",
+    "GALLOWDARK - ",
+    "GALLOWDARK CLOSE QUARTERS RULES - ",
+    "TOMB WORLD - ",
+    "VOLKUS - ",
+    "UNIVERSAL EQUIPMENT - ",
 ]
 
 
@@ -50,19 +50,24 @@ def trim_leaf_text(text: str) -> str:
     """
     for prefix in TRIM_HEADER_TEXT:
         if text.startswith(prefix):
-            return text[len(prefix):].strip()
+            return text[len(prefix) :].strip()
     return text
 
 
 def clean_header(header: str) -> str:
     """Remove markdown formatting and unwanted suffixes from headers."""
     # Remove markdown bold markers
-    cleaned = re.sub(r'\*+', '', header)
+    cleaned = re.sub(r"\*+", "", header)
 
     # Remove category suffixes
-    for suffix in [' - Faction Rule', ' - Strategy Ploy', ' - Firefight Ploy', ' - Faction Equipment']:
+    for suffix in [
+        " - Faction Rule",
+        " - Strategy Ploy",
+        " - Firefight Ploy",
+        " - Faction Equipment",
+    ]:
         if cleaned.endswith(suffix):
-            return cleaned[:-len(suffix)].strip()
+            return cleaned[: -len(suffix)].strip()
 
     return cleaned.strip()
 
@@ -71,10 +76,10 @@ def extract_headers(file_path: Path) -> list[str]:
     """Extract all level 2 (##) headers from a markdown file, excluding specified headers."""
     headers = []
     try:
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             for line in f:
-                if match := re.match(r'^##\s+(.+)$', line.strip()):
-                    header = re.sub(r'\*+', '', match.group(1)).strip()
+                if match := re.match(r"^##\s+(.+)$", line.strip()):
+                    header = re.sub(r"\*+", "", match.group(1)).strip()
                     # Skip excluded headers
                     if header.upper() not in EXCLUDE_HEADERS:
                         # Apply trimming to remove unwanted prefixes
@@ -100,10 +105,12 @@ def categorize_tacops(headers: list[str]) -> dict[str, list[str]]:
     return {k: v for k, v in categories.items() if v}
 
 
-def categorize_team(headers: list[str], team_name: str, exclude: list[str] = None) -> dict[str, Any]:
+def categorize_team(
+    headers: list[str], team_name: str, exclude: list[str] = None
+) -> dict[str, Any]:
     """Categorize team headers into faction rules, operatives, ploys, equipment."""
     exclude = exclude or []
-    normalized_team = team_name.upper().replace('_', ' ')
+    normalized_team = team_name.upper().replace("_", " ")
 
     categories = {
         "Operative Selection": [],
@@ -111,7 +118,7 @@ def categorize_team(headers: list[str], team_name: str, exclude: list[str] = Non
         "Operatives": [],
         "Strategy Ploys": [],
         "Firefight Ploys": [],
-        "Faction Equipment": []
+        "Faction Equipment": [],
     }
 
     for header in headers:
@@ -146,7 +153,17 @@ def is_operative_header(header: str, upper: str, team: str) -> bool:
         return False
 
     # Must contain team name or operative keywords
-    operative_keywords = [team, "LEADER", "WARRIOR", "GUNNER", "SNIPER", "SERGEANT", "CAPTAIN", "GRENADIER", "OPERATIVE"]
+    operative_keywords = [
+        team,
+        "LEADER",
+        "WARRIOR",
+        "GUNNER",
+        "SNIPER",
+        "SERGEANT",
+        "CAPTAIN",
+        "GRENADIER",
+        "OPERATIVE",
+    ]
     if not any(kw in upper for kw in operative_keywords):
         return False
 
@@ -157,12 +174,13 @@ def is_operative_header(header: str, upper: str, team: str) -> bool:
 
 def remove_team_prefix(header: str, team: str) -> str:
     """Remove 'TEAM_NAME - ' prefix from operative name."""
-    pattern = re.compile(r'^' + re.escape(team) + r'\s*-\s*', re.IGNORECASE)
-    return pattern.sub('', header)
+    pattern = re.compile(r"^" + re.escape(team) + r"\s*-\s*", re.IGNORECASE)
+    return pattern.sub("", header)
 
 
-def process_file(file_path: Path, is_team: bool = False, is_tacops: bool = False,
-                exclude: list[str] = None) -> Any:
+def process_file(
+    file_path: Path, is_team: bool = False, is_tacops: bool = False, exclude: list[str] = None
+) -> Any:
     """Process a markdown file and return its structure."""
     headers = extract_headers(file_path)
 
@@ -178,7 +196,7 @@ def has_markdown_files(dir_path: Path) -> bool:
     """Check if directory contains any .md files recursively."""
     try:
         return any(
-            item.suffix == '.md' if item.is_file() else has_markdown_files(item)
+            item.suffix == ".md" if item.is_file() else has_markdown_files(item)
             for item in dir_path.iterdir()
         )
     except Exception:
@@ -187,18 +205,21 @@ def has_markdown_files(dir_path: Path) -> bool:
 
 def should_skip_file(item: Path) -> bool:
     """Check if file should be skipped during processing."""
-    return (item.name.startswith('.') or
-            item.name in ['rules-structure.yml', 'teams-structure.yml'] or
-            'faq' in item.stem.lower())
+    return (
+        item.name.startswith(".")
+        or item.name in ["rules-structure.yml", "teams-structure.yml"]
+        or "faq" in item.stem.lower()
+    )
 
 
 def format_key(name: str) -> str:
     """Format filename/dirname as a readable key."""
-    return name.replace('_', ' ').replace('-', ' ').title()
+    return name.replace("_", " ").replace("-", " ").title()
 
 
-def process_directory(dir_path: Path, is_team_dir: bool = False,
-                     exclude: list[str] = None) -> dict[str, Any]:
+def process_directory(
+    dir_path: Path, is_team_dir: bool = False, exclude: list[str] = None
+) -> dict[str, Any]:
     """Process directory recursively and return structure."""
     result = {}
 
@@ -209,21 +230,17 @@ def process_directory(dir_path: Path, is_team_dir: bool = False,
             if should_skip_file(item):
                 continue
 
-            if item.is_file() and item.suffix == '.md':
+            if item.is_file() and item.suffix == ".md":
                 structure = process_file(
                     item,
                     is_team=is_team_dir,
-                    is_tacops=(item.stem.lower() == 'tacops'),
-                    exclude=exclude
+                    is_tacops=(item.stem.lower() == "tacops"),
+                    exclude=exclude,
                 )
                 result[format_key(item.stem)] = structure
 
             elif item.is_dir() and has_markdown_files(item):
-                subdir = process_directory(
-                    item,
-                    is_team_dir=(item.name == 'team'),
-                    exclude=exclude
-                )
+                subdir = process_directory(item, is_team_dir=(item.name == "team"), exclude=exclude)
                 if subdir:
                     result[format_key(item.name)] = subdir
 
@@ -247,14 +264,16 @@ def generate_structures() -> tuple[dict[str, Any], dict[str, Any]]:
             if should_skip_file(item):
                 continue
 
-            if item.is_file() and item.suffix == '.md':
+            if item.is_file() and item.suffix == ".md":
                 # Top-level markdown files
                 rules[format_key(item.stem)] = extract_headers(item)
 
             elif item.is_dir() and has_markdown_files(item):
-                if item.name == 'team':
+                if item.name == "team":
                     # Process teams separately with exclusions
-                    teams = process_directory(item, is_team_dir=True, exclude=TEAMS_EXCLUDE_CATEGORIES)
+                    teams = process_directory(
+                        item, is_team_dir=True, exclude=TEAMS_EXCLUDE_CATEGORIES
+                    )
                 else:
                     # Process other directories for rules
                     structure = process_directory(item)
@@ -271,9 +290,16 @@ def generate_structures() -> tuple[dict[str, Any], dict[str, Any]]:
 def write_yaml(structure: dict[str, Any], output_path: Path) -> None:
     """Write structure to YAML file."""
     try:
-        with open(output_path, 'w', encoding='utf-8') as f:
-            yaml.dump(structure, f, default_flow_style=False, allow_unicode=True,
-                     sort_keys=False, width=120, indent=2)
+        with open(output_path, "w", encoding="utf-8") as f:
+            yaml.dump(
+                structure,
+                f,
+                default_flow_style=False,
+                allow_unicode=True,
+                sort_keys=False,
+                width=120,
+                indent=2,
+            )
         print(f"✓ Successfully wrote structure to {output_path}")
     except Exception as e:
         print(f"Error: Could not write to {output_path}: {e}")

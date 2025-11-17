@@ -30,6 +30,7 @@ def reset_database(force: bool = False) -> None:
     try:
         # Initialize vector DB service and get config
         from src.lib.config import get_config
+
         config = get_config()
 
         vector_db = VectorDBService()
@@ -62,9 +63,7 @@ def reset_database(force: bool = False) -> None:
         print(f"   Current embeddings: {count_after}")
 
         logger.info(
-            "vector_db_reset_via_script",
-            embeddings_deleted=count_before,
-            current_count=count_after
+            "vector_db_reset_via_script", embeddings_deleted=count_before, current_count=count_after
         )
 
     except Exception as e:
@@ -79,9 +78,7 @@ def main():
         description="Reset the RAG vector database (delete all embeddings)"
     )
     parser.add_argument(
-        "--confirm",
-        action="store_true",
-        help="Skip confirmation prompt and reset immediately"
+        "--confirm", action="store_true", help="Skip confirmation prompt and reset immediately"
     )
 
     args = parser.parse_args()
