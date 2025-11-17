@@ -164,7 +164,7 @@ Anthropic's citation API automatically returns paragraph/page references from do
 
 ## Proposed Grounding Strategies
 
-### Strategy 1: Enhanced Prompt Engineering
+### Strategy 1: Enhanced Prompt Engineering ✅
 
 **Description**: Add explicit quote extraction protocol to system prompt.
 
@@ -212,7 +212,7 @@ Quote: "This weapon allows shooting while concealed." ❌ (Not verbatim)
 
 ---
 
-### Strategy 2: Context Chunk Attribution
+### Strategy 2: Context Chunk Attribution ✅
 
 **Description**: Add unique chunk IDs to context and require quotes to reference them.
 
@@ -340,7 +340,7 @@ async def generate(self, request: GenerationRequest) -> LLMResponse:
 
 ---
 
-### Strategy 4: Post-Generation Quote Validator
+### Strategy 4: Post-Generation Quote Validator ✅
 
 **Description**: Validate that each quoted rule actually appears in RAG context before returning response.
 

@@ -10,8 +10,8 @@ Suggested improvements for the multi-hop retrieval system to enhance query answe
 
 - [Current Implementation Summary](#current-implementation-summary)
 - [Recommended Improvements](#recommended-improvements)
-  - [1. Increase Max Hops (Quick Win)] ✅(#1-increase-max-hops-quick-win)
-  - [2. Improve Hop Evaluation Prompt] ✅(#2-improve-hop-evaluation-prompt)
+  - [1. Increase Max Hops (Quick Win)](#1-increase-max-hops-quick-win) ✅
+  - [2. Improve Hop Evaluation Prompt](#2-improve-hop-evaluation-prompt) ✅
   - [3. Add Metadata-Based Filtering](#3-add-metadata-based-filtering)
   - [4. Implement Query Decomposition](#4-implement-query-decomposition)
   - [5. Add Confidence Scoring](#5-add-confidence-scoring)
