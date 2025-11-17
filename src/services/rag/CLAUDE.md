@@ -215,10 +215,36 @@ Output shows:
 - Gap analysis reasoning for each hop
 - Which chunks came from which hop (`[Hop 0]`, `[Hop 1]`, etc.)
 
+### Team Filtering (Cost Optimization)
+
+**Purpose**: Reduce hop evaluation prompt costs by filtering teams structure to only relevant teams.
+
+Multi-hop evaluation prompts include the full teams structure (~48 teams, ~2000 tokens). Team filtering reduces this by detecting which teams are mentioned in the query and filtering out irrelevant ones.
+
+**How it works** ([team_filter.py](team_filter.py)):
+- Extracts team names from queries using 4 matching strategies:
+  - Operative names (e.g., "Burna Boy" → Kommandos)
+  - Abilities/ploys (e.g., "Ere We Go" → Kommandos)
+  - Team aliases (e.g., "orks" → Kommandos, "tau" → Pathfinders)
+  - Fuzzy team name matching (80% threshold)
+- Filters teams structure to include only detected teams
+- Falls back to full structure if no teams detected
+
+**Impact**:
+```
+Query: "Can kommando use stikkbombs?"
+Detected: ["Kommandos"] (1 of 48 teams)
+Reduction: 95% fewer tokens in hop evaluation prompt
+Savings: ~$0.0003 per hop evaluation
+```
+
+**Configuration**: Team aliases in `TEAM_ALIASES` constant ([team_filter.py](team_filter.py))
+
 ### Implementation Details
 
 **Components**:
 - [multi_hop_retriever.py](multi_hop_retriever.py): Orchestrates multi-hop process
+- [team_filter.py](team_filter.py): Filters teams structure for cost optimization
 - Prompt: [prompts/hop-evaluation-prompt.md](../../../prompts/hop-evaluation-prompt.md)
 - Schema: `HOP_EVALUATION_SCHEMA` in [src/services/llm/base.py](../llm/base.py)
 
