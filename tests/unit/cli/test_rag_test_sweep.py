@@ -4,31 +4,28 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.cli.rag_test_sweep import (
-    rag_test_sweep,
-    _parse_parameter_values,
-    _parse_grid_params,
-)
+from src.cli.rag_test_sweep import rag_test_sweep
+from src.cli.testing.parameter_parser import ParameterParser
 
 
 class TestParseParameterValues:
-    """Tests for _parse_parameter_values function."""
+    """Tests for ParameterParser.parse_parameter_values function."""
 
     def test_parses_integer_parameters(self):
         """Test parsing integer parameters."""
-        result = _parse_parameter_values("max_chunks", "10,20,30")
+        result = ParameterParser.parse_parameter_values("max_chunks", "10,20,30")
 
         assert result == [10, 20, 30]
 
     def test_parses_float_parameters(self):
         """Test parsing float parameters."""
-        result = _parse_parameter_values("min_relevance", "0.4,0.5,0.6")
+        result = ParameterParser.parse_parameter_values("min_relevance", "0.4,0.5,0.6")
 
         assert result == [0.4, 0.5, 0.6]
 
     def test_parses_string_parameters(self):
         """Test parsing string parameters."""
-        result = _parse_parameter_values(
+        result = ParameterParser.parse_parameter_values(
             "embedding_model",
             "text-embedding-3-small,text-embedding-3-large"
         )
@@ -37,45 +34,45 @@ class TestParseParameterValues:
 
     def test_handles_whitespace_in_values(self):
         """Test that whitespace is stripped from values."""
-        result = _parse_parameter_values("max_chunks", " 10 , 20 , 30 ")
+        result = ParameterParser.parse_parameter_values("max_chunks", " 10 , 20 , 30 ")
 
         assert result == [10, 20, 30]
 
     def test_raises_error_for_unknown_parameter(self):
         """Test that error is raised for unknown parameter."""
         with pytest.raises(ValueError, match="Unknown parameter"):
-            _parse_parameter_values("unknown_param", "1,2,3")
+            ParameterParser.parse_parameter_values("unknown_param", "1,2,3")
 
     def test_parses_rrf_k_as_integer(self):
         """Test that rrf_k is parsed as integer."""
-        result = _parse_parameter_values("rrf_k", "40,60,80")
+        result = ParameterParser.parse_parameter_values("rrf_k", "40,60,80")
 
         assert result == [40, 60, 80]
 
     def test_parses_chunk_header_level_as_integer(self):
         """Test that chunk_header_level is parsed as integer."""
-        result = _parse_parameter_values("chunk_header_level", "2,3,4")
+        result = ParameterParser.parse_parameter_values("chunk_header_level", "2,3,4")
 
         assert result == [2, 3, 4]
 
     def test_parses_bm25_parameters_as_float(self):
         """Test that BM25 parameters are parsed as float."""
-        result = _parse_parameter_values("bm25_k1", "1.2,1.5,1.8")
+        result = ParameterParser.parse_parameter_values("bm25_k1", "1.2,1.5,1.8")
         assert result == [1.2, 1.5, 1.8]
 
-        result = _parse_parameter_values("bm25_b", "0.5,0.75,1.0")
+        result = ParameterParser.parse_parameter_values("bm25_b", "0.5,0.75,1.0")
         assert result == [0.5, 0.75, 1.0]
 
-        result = _parse_parameter_values("bm25_weight", "0.3,0.5,0.7")
+        result = ParameterParser.parse_parameter_values("bm25_weight", "0.3,0.5,0.7")
         assert result == [0.3, 0.5, 0.7]
 
 
 class TestParseGridParams:
-    """Tests for _parse_grid_params function."""
+    """Tests for ParameterParser.parse_grid_params function."""
 
     def test_parses_multiple_parameters(self):
         """Test parsing multiple grid parameters."""
-        result = _parse_grid_params(
+        result = ParameterParser.parse_grid_params(
             max_chunks="10,20",
             min_relevance="0.4,0.5",
             rrf_k=None,
@@ -93,7 +90,7 @@ class TestParseGridParams:
 
     def test_returns_empty_dict_when_no_parameters(self):
         """Test that empty dict is returned when no parameters provided."""
-        result = _parse_grid_params(
+        result = ParameterParser.parse_grid_params(
             max_chunks=None,
             min_relevance=None,
             rrf_k=None,
@@ -108,7 +105,7 @@ class TestParseGridParams:
 
     def test_handles_all_parameter_types(self):
         """Test parsing all parameter types."""
-        result = _parse_grid_params(
+        result = ParameterParser.parse_grid_params(
             max_chunks="10,20",
             min_relevance="0.4,0.5",
             rrf_k="40,60",
