@@ -1,31 +1,31 @@
 """Main bot orchestrator - coordinates all services (Orchestrator Pattern)."""
 
-from datetime import date
 import json
+from datetime import UTC, date
 
 import discord
 
 from src.lib.constants import (
-    LLM_GENERATION_TIMEOUT,
-    RAG_MAX_HOPS,
-    RAG_HOP_EVALUATION_MODEL,
     EMBEDDING_MODEL,
+    LLM_GENERATION_TIMEOUT,
+    RAG_HOP_EVALUATION_MODEL,
+    RAG_MAX_HOPS,
 )
 from src.lib.database import AnalyticsDatabase
 from src.lib.discord_utils import get_random_acknowledgement
 from src.lib.logging import get_logger
-from src.lib.tokens import estimate_embedding_cost, estimate_cost
+from src.lib.tokens import estimate_cost, estimate_embedding_cost
 from src.models.bot_response import BotResponse, Citation
 from src.models.structured_response import StructuredLLMResponse
 from src.models.user_query import UserQuery
 from src.services.discord import formatter
 from src.services.discord.context_manager import ConversationContextManager
+from src.services.llm.base import GenerationConfig, GenerationRequest
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.rate_limiter import RateLimiter
+from src.services.llm.retry import retry_on_content_filter
 from src.services.llm.validator import ResponseValidator
 from src.services.rag.retriever import RAGRetriever, RetrieveRequest
-from src.services.llm.base import GenerationRequest, GenerationConfig
-from src.services.llm.retry import retry_on_content_filter
 
 logger = get_logger(__name__)
 
@@ -61,7 +61,7 @@ class KillTeamBotOrchestrator:
         # If no global .env keys, this will be None and we'll create per-query
         try:
             self.llm = self.llm_factory.create()  # Get default LLM provider (for rate limiting)
-        except KeyError as e:
+        except KeyError:
             logger.warning(
                 "No global LLM API key found in .env, will use per-server keys only. "
                 "Rate limiting may not work correctly without a default provider."
@@ -232,7 +232,7 @@ class KillTeamBotOrchestrator:
 
             if not validation_result.is_valid:
                 # Send fallback message
-                fallback_msg = formatter.format_fallback_message(validation_result.reason)
+                formatter.format_fallback_message(validation_result.reason)
                 #await message.channel.send(fallback_msg)
 
                 logger.warning(
@@ -356,7 +356,7 @@ class KillTeamBotOrchestrator:
             # Step 11: Store in analytics DB (if enabled)
             if self.analytics_db.enabled:
                 try:
-                    from datetime import datetime, timezone
+                    from datetime import datetime
 
                     logger.info(
                         "Storing query in analytics DB",
@@ -378,7 +378,7 @@ class KillTeamBotOrchestrator:
                         "rag_score": rag_context.avg_relevance,
                         "validation_passed": validation_result.is_valid,
                         "latency_ms": llm_response.latency_ms,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                         "multi_hop_enabled": 1 if RAG_MAX_HOPS > 0 else 0,
                         "hops_used": len(hop_evaluations),
                         "cost": total_cost,

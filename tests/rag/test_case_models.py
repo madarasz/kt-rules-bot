@@ -4,24 +4,24 @@ Based on tests/rag/CLAUDE.md specification.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
 from pathlib import Path
+
 import yaml
 
 from src.lib.constants import (
-    RAG_MAX_CHUNKS,
-    RAG_MIN_RELEVANCE,
+    BM25_B,
+    BM25_K1,
+    BM25_WEIGHT,
     EMBEDDING_MODEL,
     MARKDOWN_CHUNK_HEADER_LEVEL,
-    RRF_K,
-    BM25_K1,
-    BM25_B,
-    BM25_WEIGHT,
-    RAG_ENABLE_QUERY_NORMALIZATION,
     RAG_ENABLE_QUERY_EXPANSION,
-    RAG_MAX_HOPS,
+    RAG_ENABLE_QUERY_NORMALIZATION,
     RAG_HOP_CHUNK_LIMIT,
     RAG_HOP_EVALUATION_MODEL,
+    RAG_MAX_CHUNKS,
+    RAG_MAX_HOPS,
+    RAG_MIN_RELEVANCE,
+    RRF_K,
 )
 
 
@@ -31,10 +31,10 @@ class RAGTestCase:
 
     test_id: str
     query: str
-    ground_truth_contexts: List[str]  # Substrings of expected chunks for evaluation
+    ground_truth_contexts: list[str]  # Substrings of expected chunks for evaluation
 
     @classmethod
-    def from_yaml(cls, file_path: Path) -> List["RAGTestCase"]:
+    def from_yaml(cls, file_path: Path) -> list["RAGTestCase"]:
         """Load test case(s) from YAML file.
 
         Supports both formats:
@@ -47,7 +47,7 @@ class RAGTestCase:
         Returns:
             List of RAGTestCase instances (even if single test)
         """
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             data = yaml.safe_load(f)
 
         # Handle both single test case (dict) and multiple test cases (list)
@@ -81,11 +81,11 @@ class RAGTestResult:
 
     test_id: str
     query: str
-    ground_truth_contexts: List[str]
-    retrieved_chunks: List[str]  # Headers of retrieved chunks in order
-    retrieved_chunk_texts: List[str]  # Full text of retrieved chunks
-    retrieved_relevance_scores: List[float]  # Relevance scores for each retrieved chunk
-    retrieved_chunk_metadata: List[dict]  # Metadata including vector_similarity, rrf_score, etc.
+    ground_truth_contexts: list[str]
+    retrieved_chunks: list[str]  # Headers of retrieved chunks in order
+    retrieved_chunk_texts: list[str]  # Full text of retrieved chunks
+    retrieved_relevance_scores: list[float]  # Relevance scores for each retrieved chunk
+    retrieved_chunk_metadata: list[dict]  # Metadata including vector_similarity, rrf_score, etc.
 
     # Custom IR Metrics
     map_score: float  # Mean Average Precision
@@ -97,9 +97,9 @@ class RAGTestResult:
     mrr: float  # Mean Reciprocal Rank
 
     # Details
-    found_chunks: List[str]  # Which ground_truth_contexts were found
-    missing_chunks: List[str]  # Which ground_truth_contexts were not found
-    ranks_of_required: List[int]  # Rank positions of ground_truth_contexts (1-indexed)
+    found_chunks: list[str]  # Which ground_truth_contexts were found
+    missing_chunks: list[str]  # Which ground_truth_contexts were not found
+    ranks_of_required: list[int]  # Rank positions of ground_truth_contexts (1-indexed)
 
     # Performance
     retrieval_time_seconds: float  # Time taken for retrieval
@@ -108,13 +108,13 @@ class RAGTestResult:
     run_number: int = 1  # For multi-run tests
 
     # Ragas Metrics (optional, calculated if ground_truth_contexts provided)
-    ragas_context_precision: Optional[float] = None  # Ragas context precision (0-1)
-    ragas_context_recall: Optional[float] = None  # Ragas context recall (0-1)
+    ragas_context_precision: float | None = None  # Ragas context precision (0-1)
+    ragas_context_recall: float | None = None  # Ragas context recall (0-1)
 
     # Multi-hop retrieval data (if enabled)
     hops_used: int = 0  # Number of hops performed
-    hop_evaluations: List[dict] = None  # List of hop evaluation dicts (can_answer, reasoning, missing_query)
-    chunk_hop_numbers: List[int] = None  # Hop number for each retrieved chunk (parallel to retrieved_chunks)
+    hop_evaluations: list[dict] = None  # List of hop evaluation dicts (can_answer, reasoning, missing_query)
+    chunk_hop_numbers: list[int] = None  # Hop number for each retrieved chunk (parallel to retrieved_chunks)
 
 
 @dataclass
@@ -142,8 +142,8 @@ class RAGTestSummary:
     std_dev_precision_at_3: float = 0.0
 
     # Ragas aggregate metrics (optional, if any tests have ground_truth_contexts)
-    mean_ragas_context_precision: Optional[float] = None
-    mean_ragas_context_recall: Optional[float] = None
+    mean_ragas_context_precision: float | None = None
+    mean_ragas_context_recall: float | None = None
     std_dev_ragas_context_precision: float = 0.0
     std_dev_ragas_context_recall: float = 0.0
 
@@ -170,6 +170,6 @@ class RAGTestSummary:
     avg_hops_used: float = 0.0  # Average hops performed per test
     hop_evaluation_cost_usd: float = 0.0  # Total cost for hop evaluation LLM calls
     avg_ground_truth_found_improvement: float = 0.0  # Average number of ground truth chunks found via hops
-    ground_truth_chunks_per_hop: List[int] = None  # List of ground truth chunks found in each hop [hop1, hop2, ...]
+    ground_truth_chunks_per_hop: list[int] = None  # List of ground truth chunks found in each hop [hop1, hop2, ...]
     hop_can_answer_recall: float = 0.0  # Recall: times ground truth missing & hop made / total times ground truth missing
     hop_can_answer_precision: float = 0.0  # Precision: times ground truth missing & hop made / total hops made

@@ -238,7 +238,7 @@ class TeamFilter:
                     score=score,
                 )
 
-        result = sorted(list(relevant_teams))
+        result = sorted(relevant_teams)
         logger.info(
             "teams_extracted",
             query=query,

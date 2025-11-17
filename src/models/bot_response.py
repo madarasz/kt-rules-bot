@@ -5,8 +5,8 @@ Based on specs/001-we-are-building/data-model.md
 """
 
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
-from typing import TYPE_CHECKING, List, Literal, Optional
+from datetime import UTC, date, datetime
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
@@ -52,7 +52,7 @@ class BotResponse:
     response_id: UUID
     query_id: UUID  # FK to UserQuery
     answer_text: str  # JSON string if structured, markdown if not
-    citations: List[Citation]
+    citations: list[Citation]
     confidence_score: float  # LLM confidence (0-1)
     rag_score: float  # RAG avg relevance (0-1)
     validation_passed: bool  # FR-013 combined validation
@@ -107,7 +107,7 @@ class BotResponse:
 
         return llm_valid and rag_valid
 
-    def split_for_discord(self) -> List[str]:
+    def split_for_discord(self) -> list[str]:
         """Split answer into Discord-compatible message chunks.
 
         Discord has a 2000 character limit per message.
@@ -146,7 +146,7 @@ class BotResponse:
         cls,
         query_id: UUID,
         answer_text: str,
-        citations: List[Citation],
+        citations: list[Citation],
         confidence_score: float,
         rag_score: float,
         llm_model: LLMModel,
@@ -188,6 +188,6 @@ class BotResponse:
             llm_model=llm_model,
             token_count=token_count,
             latency_ms=latency_ms,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             structured_data=structured_data,
         )

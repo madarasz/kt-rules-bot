@@ -1,6 +1,7 @@
 """Tests for team filtering functionality."""
 
 import pytest
+
 from src.services.rag.team_filter import TeamFilter, filter_teams_for_query
 
 

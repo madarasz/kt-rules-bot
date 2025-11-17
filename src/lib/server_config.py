@@ -4,13 +4,13 @@ Allows different Discord servers to use different LLM API keys, with fallback to
 Each server is identified by its Discord guild ID.
 """
 
-from dataclasses import dataclass, field
-from typing import Optional, Dict
+from dataclasses import dataclass
 from pathlib import Path
+
 import yaml
 
+from src.lib.constants import LLM_PROVIDERS_LITERAL
 from src.lib.logging import get_logger
-from src.lib.constants import LLM_PROVIDERS_LITERAL, DEFAULT_LLM_PROVIDER
 
 logger = get_logger(__name__)
 
@@ -24,18 +24,18 @@ class ServerConfig:
 
     guild_id: str
     llm_provider: LLM_PROVIDERS_LITERAL  # REQUIRED: LLM model for this server
-    name: Optional[str] = None  # Human-readable name (for documentation)
+    name: str | None = None  # Human-readable name (for documentation)
 
     # LLM Provider API Keys (optional overrides)
-    anthropic_api_key: Optional[str] = None
-    openai_api_key: Optional[str] = None
-    google_api_key: Optional[str] = None
-    x_api_key: Optional[str] = None
-    dial_api_key: Optional[str] = None
-    deepseek_api_key: Optional[str] = None
+    anthropic_api_key: str | None = None
+    openai_api_key: str | None = None
+    google_api_key: str | None = None
+    x_api_key: str | None = None
+    dial_api_key: str | None = None
+    deepseek_api_key: str | None = None
 
     # RAG Configuration (optional override)
-    rag_hop_evaluation_model: Optional[LLM_PROVIDERS_LITERAL] = None  # Model for multi-hop RAG evaluation
+    rag_hop_evaluation_model: LLM_PROVIDERS_LITERAL | None = None  # Model for multi-hop RAG evaluation
 
     def validate(self) -> None:
         """Validate server configuration.
@@ -60,7 +60,7 @@ class MultiServerConfig:
             config_path: Path to servers.yaml file
         """
         self.config_path = Path(config_path)
-        self.servers: Dict[str, ServerConfig] = {}
+        self.servers: dict[str, ServerConfig] = {}
         self._load_config()
 
     def _load_config(self) -> None:
@@ -75,7 +75,7 @@ class MultiServerConfig:
         logger.info(f"Loading server config from {self.config_path}")
 
         try:
-            with open(self.config_path, 'r') as f:
+            with open(self.config_path) as f:
                 data = yaml.safe_load(f)
 
             if not data or 'servers' not in data:
@@ -131,7 +131,7 @@ class MultiServerConfig:
         except Exception as e:
             logger.error(f"Error loading server config: {e}")
 
-    def get_server_config(self, guild_id: Optional[str]) -> Optional[ServerConfig]:
+    def get_server_config(self, guild_id: str | None) -> ServerConfig | None:
         """Get configuration for a specific Discord server.
 
         Args:
@@ -145,7 +145,7 @@ class MultiServerConfig:
 
         return self.servers.get(str(guild_id))
 
-    def has_server_config(self, guild_id: Optional[str]) -> bool:
+    def has_server_config(self, guild_id: str | None) -> bool:
         """Check if a server has specific configuration.
 
         Args:
@@ -168,7 +168,7 @@ class MultiServerConfig:
 
 
 # Global instance (loaded on import, similar to Config)
-_multi_server_config: Optional[MultiServerConfig] = None
+_multi_server_config: MultiServerConfig | None = None
 
 
 def get_multi_server_config() -> MultiServerConfig:

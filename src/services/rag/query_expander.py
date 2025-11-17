@@ -8,7 +8,6 @@ game terminology (e.g., "regain wounds").
 import json
 import re
 from pathlib import Path
-from typing import Dict, List, Set
 
 from src.lib.logging import get_logger
 
@@ -25,8 +24,8 @@ class QueryExpander:
             synonym_dict_path: Path to synonym dictionary JSON file
         """
         self.synonym_dict_path = Path(synonym_dict_path)
-        self.official_to_synonyms: Dict[str, List[str]] = {}
-        self.synonym_to_official: Dict[str, str] = {}
+        self.official_to_synonyms: dict[str, list[str]] = {}
+        self.synonym_to_official: dict[str, str] = {}
 
         # Load synonyms if file exists
         if self.synonym_dict_path.exists():
@@ -48,7 +47,7 @@ class QueryExpander:
         }
         """
         try:
-            with open(self.synonym_dict_path, 'r') as f:
+            with open(self.synonym_dict_path) as f:
                 self.official_to_synonyms = json.load(f)
 
             # Build reverse mapping: synonym -> official term
@@ -91,7 +90,7 @@ class QueryExpander:
             return query
 
         query_lower = query.lower()
-        matched_official_terms: Set[str] = set()
+        matched_official_terms: set[str] = set()
 
         # Check for multi-word phrase matches first (longer matches = more specific)
         for synonym, official_term in sorted(
@@ -127,7 +126,7 @@ class QueryExpander:
 
         return query
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Get synonym dictionary statistics.
 
         Returns:
@@ -139,7 +138,7 @@ class QueryExpander:
             "loaded": len(self.synonym_to_official) > 0
         }
 
-    def get_official_terms(self) -> List[str]:
+    def get_official_terms(self) -> list[str]:
         """Get all official terms in dictionary.
 
         Returns:
@@ -147,7 +146,7 @@ class QueryExpander:
         """
         return list(self.official_to_synonyms.keys())
 
-    def get_synonyms_for_term(self, official_term: str) -> List[str]:
+    def get_synonyms_for_term(self, official_term: str) -> list[str]:
         """Get all synonyms for a given official term.
 
         Args:

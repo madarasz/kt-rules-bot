@@ -4,15 +4,13 @@ Implements Reciprocal Rank Fusion (RRF) to merge keyword and semantic search res
 Based on best practices from 2025 RAG research.
 """
 
-from typing import List, Dict
-from uuid import UUID
 from collections import defaultdict
 from dataclasses import replace
 
-from src.models.rag_context import DocumentChunk
-from src.services.rag.bm25_retriever import BM25Retriever, BM25Result
-from src.lib.constants import RRF_K, BM25_K1, BM25_B, BM25_WEIGHT
+from src.lib.constants import BM25_B, BM25_K1, BM25_WEIGHT, RRF_K
 from src.lib.logging import get_logger
+from src.models.rag_context import DocumentChunk
+from src.services.rag.bm25_retriever import BM25Result, BM25Retriever
 
 logger = get_logger(__name__)
 
@@ -49,7 +47,7 @@ class HybridRetriever:
             vector_weight=self.vector_weight,
         )
 
-    def index_chunks(self, chunks: List[DocumentChunk]) -> None:
+    def index_chunks(self, chunks: list[DocumentChunk]) -> None:
         """Index chunks for BM25 search.
 
         Args:
@@ -59,10 +57,10 @@ class HybridRetriever:
 
     def fuse_results(
         self,
-        vector_chunks: List[DocumentChunk],
-        bm25_results: List[BM25Result],
+        vector_chunks: list[DocumentChunk],
+        bm25_results: list[BM25Result],
         top_k: int = 15
-    ) -> List[DocumentChunk]:
+    ) -> list[DocumentChunk]:
         """Fuse vector and BM25 results using Reciprocal Rank Fusion.
 
         RRF formula: score(doc) = Σ (1 / (k + rank_i))
@@ -77,9 +75,9 @@ class HybridRetriever:
             Fused and ranked list of DocumentChunk objects
         """
         # Calculate RRF scores for each document
-        rrf_scores: Dict[str, float] = defaultdict(float)
-        chunk_map: Dict[str, DocumentChunk] = {}
-        bm25_score_map: Dict[str, float] = {}  # Store BM25 scores
+        rrf_scores: dict[str, float] = defaultdict(float)
+        chunk_map: dict[str, DocumentChunk] = {}
+        bm25_score_map: dict[str, float] = {}  # Store BM25 scores
 
         # Process vector search results (ranked by relevance_score DESC)
         for rank, chunk in enumerate(vector_chunks, start=1):
@@ -120,7 +118,7 @@ class HybridRetriever:
                 raw_rrf_score = rrf_scores[cid]
 
                 # Get BM25 score if available
-                bm25_score = bm25_score_map.get(cid, None)
+                bm25_score = bm25_score_map.get(cid)
 
                 # Normalize RRF score to 0.45-1.0 range (matching min threshold)
                 normalized_score = 0.45 + (raw_rrf_score - min_rrf) / rrf_range * 0.55
@@ -160,9 +158,9 @@ class HybridRetriever:
     def retrieve_hybrid(
         self,
         query: str,
-        vector_chunks: List[DocumentChunk],
+        vector_chunks: list[DocumentChunk],
         top_k: int = 15
-    ) -> List[DocumentChunk]:
+    ) -> list[DocumentChunk]:
         """Perform hybrid retrieval combining vector and BM25 search.
 
         Args:
@@ -193,7 +191,7 @@ class HybridRetriever:
 
         return fused_chunks
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get hybrid retriever statistics.
 
         Returns:

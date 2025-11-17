@@ -1,8 +1,7 @@
 """Conversation context manager for tracking message history."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List
+from datetime import UTC, datetime, timedelta
 
 from src.lib.logging import get_logger
 
@@ -23,8 +22,8 @@ class ConversationContext:
     """Conversation context for a user in a channel."""
 
     context_key: str
-    message_history: List[Message] = field(default_factory=list)
-    last_activity: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    message_history: list[Message] = field(default_factory=list)
+    last_activity: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 class ConversationContextManager:
@@ -36,7 +35,7 @@ class ConversationContextManager:
         Args:
             ttl_seconds: Time-to-live for inactive contexts (default 30 minutes)
         """
-        self._contexts: Dict[str, ConversationContext] = {}
+        self._contexts: dict[str, ConversationContext] = {}
         self.ttl = timedelta(seconds=ttl_seconds)
         self.max_history = 10  # Keep last 10 messages only
 
@@ -53,7 +52,7 @@ class ConversationContextManager:
             self._contexts[context_key] = ConversationContext(
                 context_key=context_key,
                 message_history=[],
-                last_activity=datetime.now(timezone.utc),
+                last_activity=datetime.now(UTC),
             )
             logger.debug(
                 "Created new conversation context",
@@ -75,7 +74,7 @@ class ConversationContextManager:
             Message(
                 role=role,
                 text=text,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
         )
 
@@ -83,7 +82,7 @@ class ConversationContextManager:
         if len(context.message_history) > self.max_history:
             context.message_history = context.message_history[-self.max_history :]
 
-        context.last_activity = datetime.now(timezone.utc)
+        context.last_activity = datetime.now(UTC)
 
         logger.debug(
             "Added message to context",
@@ -94,7 +93,7 @@ class ConversationContextManager:
             },
         )
 
-    def get_history(self, context_key: str) -> List[Message]:
+    def get_history(self, context_key: str) -> list[Message]:
         """Get message history for context.
 
         Args:
@@ -112,7 +111,7 @@ class ConversationContextManager:
         Returns:
             Number of contexts cleaned up
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expired = [
             key
             for key, ctx in self._contexts.items()
@@ -130,7 +129,7 @@ class ConversationContextManager:
 
         return len(expired)
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Get context manager statistics.
 
         Returns:

@@ -3,23 +3,23 @@
 import argparse
 import sys
 
+from src.cli.download_all_teams import download_all_teams
+from src.cli.download_team import download_team
 from src.cli.gdpr_delete import delete_user_data
 from src.cli.health_check import health_check
 from src.cli.ingest_rules import ingest_rules
-from src.cli.run_bot import run_bot
-from src.cli.test_query import test_query
 from src.cli.quality_test import quality_test
 from src.cli.rag_test import rag_test
 from src.cli.rag_test_sweep import rag_test_sweep
-from src.cli.download_team import download_team
-from src.cli.download_all_teams import download_all_teams
+from src.cli.run_bot import run_bot
+from src.cli.test_query import test_query
 from src.lib.constants import (
-    QUALITY_TEST_JUDGE_MODEL,
-    RAG_MAX_CHUNKS,
-    RAG_MIN_RELEVANCE,
     ALL_LLM_PROVIDERS,
     PDF_EXTRACTION_PROVIDERS,
+    QUALITY_TEST_JUDGE_MODEL,
+    RAG_MAX_CHUNKS,
     RAG_MAX_HOPS,
+    RAG_MIN_RELEVANCE,
 )
 
 

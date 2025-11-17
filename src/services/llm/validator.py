@@ -5,11 +5,10 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
 from dataclasses import dataclass
-from typing import Tuple
 
-from src.services.llm.base import LLMResponse
-from src.models.rag_context import RAGContext
 from src.lib.logging import get_logger
+from src.models.rag_context import RAGContext
+from src.services.llm.base import LLMResponse
 
 logger = get_logger(__name__)
 
@@ -107,7 +106,7 @@ class ResponseValidator:
         self,
         llm_response: LLMResponse,
         rag_context: RAGContext,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """Check if response should be sent to user.
 
         Convenience method that returns boolean and reason string.

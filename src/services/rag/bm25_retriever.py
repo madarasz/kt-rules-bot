@@ -4,14 +4,13 @@ Implements BM25 (Best Matching 25) ranking algorithm for keyword matching.
 Complements vector semantic search with exact term matching.
 """
 
-from typing import List, Dict, Tuple
-from uuid import UUID
 from dataclasses import dataclass
+
 from rank_bm25 import BM25Okapi
 
-from src.models.rag_context import DocumentChunk
-from src.lib.constants import BM25_K1, BM25_B
+from src.lib.constants import BM25_B, BM25_K1
 from src.lib.logging import get_logger
+from src.models.rag_context import DocumentChunk
 
 logger = get_logger(__name__)
 
@@ -39,12 +38,12 @@ class BM25Retriever:
         self.k1 = k1
         self.b = b
         self.bm25: BM25Okapi | None = None
-        self.chunks: List[DocumentChunk] = []
-        self.tokenized_corpus: List[List[str]] = []
+        self.chunks: list[DocumentChunk] = []
+        self.tokenized_corpus: list[list[str]] = []
 
         logger.info("bm25_retriever_initialized", k1=k1, b=b)
 
-    def index_chunks(self, chunks: List[DocumentChunk]) -> None:
+    def index_chunks(self, chunks: list[DocumentChunk]) -> None:
         """Index document chunks for BM25 search.
 
         Args:
@@ -73,7 +72,7 @@ class BM25Retriever:
             b=self.b
         )
 
-    def search(self, query: str, top_k: int = 15) -> List[BM25Result]:
+    def search(self, query: str, top_k: int = 15) -> list[BM25Result]:
         """Search for relevant chunks using BM25.
 
         Args:
@@ -118,7 +117,7 @@ class BM25Retriever:
 
         return results
 
-    def _tokenize(self, text: str) -> List[str]:
+    def _tokenize(self, text: str) -> list[str]:
         """Tokenize text for BM25 indexing.
 
         Simple tokenization: lowercase, split on whitespace and basic punctuation.
@@ -139,7 +138,7 @@ class BM25Retriever:
 
         return tokens
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get BM25 index statistics.
 
         Returns:
@@ -152,7 +151,7 @@ class BM25Retriever:
             "indexed": True,
             "chunk_count": len(self.chunks),
             "avg_doc_length": sum(len(t) for t in self.tokenized_corpus) / len(self.tokenized_corpus) if self.tokenized_corpus else 0,
-            "vocabulary_size": len(set(token for doc in self.tokenized_corpus for token in doc)),
+            "vocabulary_size": len({token for doc in self.tokenized_corpus for token in doc}),
             "k1": self.k1,
             "b": self.b
         }

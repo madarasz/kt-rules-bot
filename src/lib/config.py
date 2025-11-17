@@ -4,13 +4,13 @@ Loads environment variables and provides validated Config dataclass.
 Based on specs/001-we-are-building/tasks.md T026
 """
 
-from dataclasses import dataclass
-from typing import Optional
-from pathlib import Path
 import os
+from dataclasses import dataclass
+from pathlib import Path
+
 from dotenv import load_dotenv
 
-from src.lib.constants import EMBEDDING_MODEL, DEFAULT_LLM_PROVIDER, LLM_PROVIDERS_LITERAL
+from src.lib.constants import DEFAULT_LLM_PROVIDER, EMBEDDING_MODEL, LLM_PROVIDERS_LITERAL
 
 
 @dataclass
@@ -21,12 +21,12 @@ class Config:
     discord_bot_token: str
 
     # LLM Providers
-    anthropic_api_key: Optional[str] = None
-    openai_api_key: Optional[str] = None
-    google_api_key: Optional[str] = None
-    x_api_key: Optional[str] = None
-    dial_api_key: Optional[str] = None
-    deepseek_api_key: Optional[str] = None
+    anthropic_api_key: str | None = None
+    openai_api_key: str | None = None
+    google_api_key: str | None = None
+    x_api_key: str | None = None
+    dial_api_key: str | None = None
+    deepseek_api_key: str | None = None
 
     # LLM Selection
     default_llm_provider: LLM_PROVIDERS_LITERAL = os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER)
@@ -34,7 +34,7 @@ class Config:
     # RAG Configuration
     vector_db_path: str = "./data/chroma_db"
     embedding_model: str = EMBEDDING_MODEL
-    rag_hop_evaluation_model: Optional[LLM_PROVIDERS_LITERAL] = None  # Model for multi-hop RAG evaluation (defaults to constant)
+    rag_hop_evaluation_model: LLM_PROVIDERS_LITERAL | None = None  # Model for multi-hop RAG evaluation (defaults to constant)
 
     # Logging
     log_level: str = "INFO"
@@ -69,41 +69,6 @@ class Config:
             raise ValueError("DISCORD_BOT_TOKEN is required")
 
         # Validate default provider has API key
-        provider_key_mapping = {
-            "claude-4.5-sonnet": self.anthropic_api_key,
-            "claude-4.1-opus": self.anthropic_api_key,
-            "claude-4.5-haiku": self.anthropic_api_key,
-            "gemini-2.5-pro": self.google_api_key,
-            "gemini-2.5-flash": self.google_api_key,
-            "gpt-5": self.openai_api_key,
-            "gpt-5-mini": self.openai_api_key,
-            "gpt-4.1": self.openai_api_key,
-            "gpt-4.1-mini": self.openai_api_key,
-            "gpt-4o": self.openai_api_key,
-            "o3": self.openai_api_key,
-            "o3-mini": self.openai_api_key,
-            "o4-mini": self.openai_api_key,
-            "grok-4-fast-reasoning": self.x_api_key,
-            "grok-4-0709": self.x_api_key,
-            "grok-3": self.x_api_key,
-            "grok-3-mini": self.x_api_key,
-            "deepseek-chat": self.deepseek_api_key,
-            "deepseek-reasoner": self.deepseek_api_key,
-            "dial-gpt-4o": self.dial_api_key,
-            "dial-gpt-4.1": self.dial_api_key,
-            "dial-gpt-5": self.dial_api_key,
-            "dial-gpt-5-chat": self.dial_api_key,
-            "dial-gpt-5-mini": self.dial_api_key,
-            "dial-gpt-o3": self.dial_api_key,
-            "dial-sonet-4.5": self.dial_api_key,
-            "dial-sonet-4.5-thinking": self.dial_api_key,
-            "dial-opus-4.1": self.dial_api_key,
-            "dial-opus-4.1-thinking": self.dial_api_key,
-            "dial-amazon-nova-pro": self.dial_api_key,
-            "dial-amazon-titan": self.dial_api_key,
-            "dial-gemini-2.5-pro": self.dial_api_key,
-            "dial-gemini-2.5-flash": self.dial_api_key,
-        }
 
         # Validate log level
         valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
@@ -150,7 +115,7 @@ class Config:
             raise ValueError("analytics_retention_days must be at least 1")
 
     @classmethod
-    def from_env(cls, env_file: Optional[str] = None) -> "Config":
+    def from_env(cls, env_file: str | None = None) -> "Config":
         """Load configuration from environment variables.
 
         Args:
@@ -213,7 +178,7 @@ class Config:
 
 
 # Global config instance (loaded on import)
-_config: Optional[Config] = None
+_config: Config | None = None
 
 
 def get_config() -> Config:

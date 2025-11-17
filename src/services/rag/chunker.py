@@ -6,11 +6,10 @@ For example, level 3 chunks at both ## and ### headers.
 
 import re
 from dataclasses import dataclass
-from typing import List
 from uuid import UUID, uuid4
 
-from src.lib.tokens import count_tokens
 from src.lib.constants import MARKDOWN_CHUNK_HEADER_LEVEL
+from src.lib.tokens import count_tokens
 
 
 @dataclass
@@ -38,11 +37,11 @@ class MarkdownChunker:
         """
         self.chunk_level = chunk_level if chunk_level is not None else MARKDOWN_CHUNK_HEADER_LEVEL
         self.model = model
-        
+
         if self.chunk_level < 2 or self.chunk_level > 4:
             raise ValueError("chunk_level must be 2, 3, or 4 (for ##, ###, or #### headers)")
 
-    def chunk(self, content: str) -> List[MarkdownChunk]:
+    def chunk(self, content: str) -> list[MarkdownChunk]:
         """Chunk markdown content at the configured header level and above.
 
         Chunks at all header levels from 2 (##) up to and including the configured level.
@@ -56,7 +55,7 @@ class MarkdownChunker:
         """
         # Strip YAML front matter before processing
         content = self._strip_yaml_frontmatter(content)
-        
+
         # Create regex pattern for all header levels from 2 up to target level
         header_patterns = [rf"(^{'#' * level} .+$)" for level in range(2, self.chunk_level + 1)]
         combined_pattern = "|".join(header_patterns)
@@ -91,13 +90,13 @@ class MarkdownChunker:
         # Check if content starts with YAML front matter delimiter
         if not content.strip().startswith('---'):
             return content
-        
+
         lines = content.split('\n')
-        
+
         # Find the closing --- delimiter
         in_frontmatter = False
         content_start_line = 0
-        
+
         for i, line in enumerate(lines):
             if i == 0 and line.strip() == '---':
                 in_frontmatter = True
@@ -106,17 +105,17 @@ class MarkdownChunker:
                 # Found closing delimiter, content starts after this line
                 content_start_line = i + 1
                 break
-        
+
         # If we found valid front matter, return content without it
         if content_start_line > 0:
             content_after_frontmatter = '\n'.join(lines[content_start_line:])
             # Strip leading whitespace/empty lines
             return content_after_frontmatter.lstrip()
-        
+
         # No valid front matter found, return original content
         return content
 
-    def _split_at_multiple_levels(self, content: str) -> List[MarkdownChunk]:
+    def _split_at_multiple_levels(self, content: str) -> list[MarkdownChunk]:
         """Split content at multiple header levels (from ## up to configured level).
 
         Args:
@@ -127,7 +126,7 @@ class MarkdownChunker:
         """
         # Find all headers and their positions
         lines = content.split('\n')
-        chunks: List[MarkdownChunk] = []
+        chunks: list[MarkdownChunk] = []
         current_header = ""
         current_header_level = 0
         current_lines = []
@@ -174,7 +173,7 @@ class MarkdownChunker:
         """
         if not text.startswith('#'):
             return 0
-        
+
         # Count consecutive # characters
         level = 0
         for char in text:
@@ -184,7 +183,7 @@ class MarkdownChunker:
                 break
             else:
                 return 0  # Not a valid header
-        
+
         return level if level <= 6 else 0
 
     def _create_chunk_with_level(self, text: str, header: str, header_level: int, position: int) -> MarkdownChunk:
@@ -209,7 +208,7 @@ class MarkdownChunker:
             token_count=token_count,
         )
 
-    def get_chunk_stats(self, chunks: List[MarkdownChunk]) -> dict:
+    def get_chunk_stats(self, chunks: list[MarkdownChunk]) -> dict:
         """Get statistics about chunks.
 
         Args:

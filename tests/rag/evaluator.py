@@ -7,9 +7,8 @@ Implements standard Information Retrieval metrics:
 - Mean Reciprocal Rank (MRR)
 """
 
-from typing import List, Set
-from tests.rag.test_case_models import RAGTestCase, RAGTestResult
 from src.models.rag_context import DocumentChunk
+from tests.rag.test_case_models import RAGTestCase, RAGTestResult
 
 
 class RAGEvaluator:
@@ -18,7 +17,7 @@ class RAGEvaluator:
     def evaluate(
         self,
         test_case: RAGTestCase,
-        retrieved_chunks: List[DocumentChunk],
+        retrieved_chunks: list[DocumentChunk],
         retrieval_time_seconds: float,
         embedding_cost_usd: float,
         run_number: int = 1
@@ -58,7 +57,7 @@ class RAGEvaluator:
                     ranks_of_required.append(i)
                     found_match = True
                     break  # Only count first match
-            
+
             # Check if ground truth is contained in any retrieved text (if not found in header)
             if not found_match:
                 for i, retr_text in enumerate(retrieved_texts, start=1):
@@ -103,7 +102,7 @@ class RAGEvaluator:
             run_number=run_number,
         )
 
-    def _calculate_map(self, ranks: List[int], total_relevant: int) -> float:
+    def _calculate_map(self, ranks: list[int], total_relevant: int) -> float:
         """Calculate Mean Average Precision.
 
         MAP = (1/R) * Σ (Precision@k * rel(k))
@@ -137,7 +136,7 @@ class RAGEvaluator:
 
         return ap
 
-    def _calculate_recall_at_k(self, ranks: List[int], total_relevant: int, k: int) -> float:
+    def _calculate_recall_at_k(self, ranks: list[int], total_relevant: int, k: int) -> float:
         """Calculate Recall@k.
 
         Recall@k = (# of relevant docs in top-k) / (total relevant docs)
@@ -175,7 +174,7 @@ class RAGEvaluator:
 
         return found_count / total_relevant
 
-    def _calculate_precision_at_k(self, ranks: List[int], k: int) -> float:
+    def _calculate_precision_at_k(self, ranks: list[int], k: int) -> float:
         """Calculate Precision@k.
 
         Precision@k = (# of relevant docs in top-k) / k
@@ -192,7 +191,7 @@ class RAGEvaluator:
 
         return relevant_in_top_k / k
 
-    def _calculate_mrr(self, ranks: List[int]) -> float:
+    def _calculate_mrr(self, ranks: list[int]) -> float:
         """Calculate Mean Reciprocal Rank.
 
         MRR = 1 / rank_of_first_relevant_doc

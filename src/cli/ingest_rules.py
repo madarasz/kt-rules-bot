@@ -7,20 +7,19 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
-from typing import List
 
 from src.lib.config import get_config
 from src.lib.logging import get_logger
 from src.models.rule_document import RuleDocument
+from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.ingestor import RAGIngestor
 from src.services.rag.validator import DocumentValidator
 from src.services.rag.vector_db import VectorDBService
-from src.services.rag.embeddings import EmbeddingService
 
 logger = get_logger(__name__)
 
 
-def find_markdown_files(source_dir: Path) -> List[Path]:
+def find_markdown_files(source_dir: Path) -> list[Path]:
     """Find all markdown files in source directory.
 
     Args:
@@ -43,7 +42,7 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
         source_dir: Path to directory containing markdown files
         force: If True, re-ingest even if document hash exists
     """
-    config = get_config()
+    get_config()
     source_path = Path(source_dir)
 
     logger.info(f"Starting ingestion from {source_path}")
@@ -130,7 +129,7 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
 
     # Summary
     print(f"\n{'='*60}")
-    print(f"Ingestion complete")
+    print("Ingestion complete")
     print(f"  Documents processed: {documents_processed}")
     print(f"  Documents skipped: {documents_skipped}")
     print(f"  Validation errors: {validation_errors}")

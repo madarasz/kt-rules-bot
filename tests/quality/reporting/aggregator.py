@@ -1,14 +1,12 @@
 """Aggregates quality test results for reporting."""
 
 from collections import defaultdict
-from typing import Dict, List
-import numpy as np
 
 from tests.quality.reporting.report_models import (
+    IndividualTestResult,
+    ModelSummary,
     QualityReport,
     TestCaseReport,
-    ModelSummary,
-    IndividualTestResult,
 )
 
 
@@ -17,8 +15,8 @@ def aggregate_results(report: QualityReport) -> None:
     Populates the report object with aggregated data.
     This function modifies the report object in-place.
     """
-    per_test_case: Dict[str, List[IndividualTestResult]] = defaultdict(list)
-    per_model: Dict[str, List[IndividualTestResult]] = defaultdict(list)
+    per_test_case: dict[str, list[IndividualTestResult]] = defaultdict(list)
+    per_model: dict[str, list[IndividualTestResult]] = defaultdict(list)
 
     for result in report.results:
         per_test_case[result.test_id].append(result)

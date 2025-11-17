@@ -4,10 +4,10 @@ Represents a question from a Discord user about Kill Team rules.
 Based on specs/001-we-are-building/data-model.md
 """
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from uuid import UUID, uuid4
 import hashlib
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from uuid import UUID, uuid4
 
 
 @dataclass
@@ -59,7 +59,7 @@ class UserQuery:
             raise ValueError("message_text exceeds 2000 character limit")
 
         # Timestamp within 7 days for GDPR retention
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         seven_days_ago = now - timedelta(days=7)
         if self.timestamp < seven_days_ago:
             raise ValueError("timestamp exceeds 7-day retention period")
@@ -76,7 +76,7 @@ class UserQuery:
         Returns:
             True if query should be deleted
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         seven_days_ago = now - timedelta(days=7)
         return self.timestamp < seven_days_ago
 
@@ -110,7 +110,7 @@ class UserQuery:
             channel_id=channel_id,
             message_text=message_text,
             sanitized_text=sanitized_text,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             conversation_context_id=context_id,
             pii_redacted=pii_redacted,
         )

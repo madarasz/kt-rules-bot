@@ -1,9 +1,10 @@
 """Unit tests for QueryExpander service."""
 
 import json
-import pytest
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+
+import pytest
 
 from src.services.rag.query_expander import QueryExpander
 
@@ -64,7 +65,7 @@ class TestQueryExpanderInit:
     def test_case_insensitive_mapping(self, expander):
         """Test that reverse mapping is lowercase for case-insensitive matching."""
         # All keys should be lowercase
-        for key in expander.synonym_to_official.keys():
+        for key in expander.synonym_to_official:
             assert key == key.lower()
 
 
