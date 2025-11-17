@@ -280,7 +280,9 @@ def _render_admin_controls(query_id: str, query: dict, db: AnalyticsDatabase) ->
     col_save, _col_reset = st.columns([1, 4])
     with col_save:
         if st.button("💾 Save Changes", type="primary", disabled=not has_changes):
-            db.update_query_admin_fields(query_id=query_id, admin_status=new_status, admin_notes=new_notes)
+            db.update_query_admin_fields(
+                query_id=query_id, admin_status=new_status, admin_notes=new_notes
+            )
             st.success("✅ Changes saved successfully!")
 
     if has_changes:
