@@ -2,11 +2,10 @@
 
 import asyncio
 import sys
-from datetime import datetime
 
 from src.lib.config import Config
 from src.lib.logging import get_logger
-from src.services.discord.health import check_health, HealthStatus
+from src.services.discord.health import HealthStatus, check_health
 from src.services.llm.factory import LLMProviderFactory
 from src.services.rag.retriever import RAGRetriever
 

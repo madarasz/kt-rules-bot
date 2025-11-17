@@ -4,14 +4,13 @@
 Based on specs/001-we-are-building/contracts/rag-pipeline.md idempotency requirement.
 """
 
-from typing import Dict, Optional
-from datetime import datetime, timedelta, timezone
-from dataclasses import dataclass
-from uuid import UUID
 import hashlib
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
-from src.models.rag_context import RAGContext
 from src.lib.logging import get_logger
+from src.models.rag_context import RAGContext
 
 logger = get_logger(__name__)
 
@@ -32,7 +31,7 @@ class CacheEntry:
         Returns:
             True if expired
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expiry = self.timestamp + timedelta(seconds=self.ttl_seconds)
         return now > expiry
 
@@ -49,7 +48,7 @@ class RAGCache:
         """
         self.ttl_seconds = ttl_seconds
         self.max_entries = max_entries
-        self._cache: Dict[str, CacheEntry] = {}
+        self._cache: dict[str, CacheEntry] = {}
 
         logger.info(
             "rag_cache_initialized",
@@ -57,7 +56,7 @@ class RAGCache:
             max_entries=max_entries,
         )
 
-    def get(self, query: str, context_key: str) -> Optional[RAGContext]:
+    def get(self, query: str, context_key: str) -> RAGContext | None:
         """Get cached RAG result.
 
         Args:
@@ -83,7 +82,7 @@ class RAGCache:
         logger.debug(
             "cache_hit",
             query_hash=cache_key[:16],
-            age_seconds=(datetime.now(timezone.utc) - entry.timestamp).total_seconds(),
+            age_seconds=(datetime.now(UTC) - entry.timestamp).total_seconds(),
         )
 
         return entry.result
@@ -106,7 +105,7 @@ class RAGCache:
             query_hash=cache_key,
             context_key=context_key,
             result=result,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             ttl_seconds=self.ttl_seconds,
         )
 
@@ -226,7 +225,7 @@ class RAGCache:
 
 
 # Global cache instance
-_rag_cache: Optional[RAGCache] = None
+_rag_cache: RAGCache | None = None
 
 
 def get_rag_cache() -> RAGCache:

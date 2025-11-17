@@ -5,10 +5,9 @@ Based on specs/001-we-are-building/data-model.md
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import List, Literal, Optional
+from datetime import UTC, datetime
+from typing import Literal
 from uuid import UUID, uuid4
-
 
 JobStatus = Literal["running", "success", "failed"]
 
@@ -21,16 +20,16 @@ class IngestionJob:
     update_id: UUID  # FK to PDFUpdate
     status: JobStatus
     started_at: datetime
-    completed_at: Optional[datetime] = None
-    processed_files: List[str] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    completed_at: datetime | None = None
+    processed_files: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     documents_created: int = 0
     documents_updated: int = 0
     reingestion_triggered: bool = False
     extraction_token_count: int = 0
-    extraction_cost_usd: Optional[float] = None
-    extraction_latency_ms: Optional[int] = None
+    extraction_cost_usd: float | None = None
+    extraction_latency_ms: int | None = None
 
     def validate(self) -> None:
         """Validate IngestionJob fields.
@@ -58,7 +57,7 @@ class IngestionJob:
     def mark_success(self) -> None:
         """Mark job as successful."""
         self.status = "success"
-        self.completed_at = datetime.now(timezone.utc)
+        self.completed_at = datetime.now(UTC)
 
     def mark_failed(self, error: str) -> None:
         """Mark job as failed.
@@ -67,7 +66,7 @@ class IngestionJob:
             error: Error message
         """
         self.status = "failed"
-        self.completed_at = datetime.now(timezone.utc)
+        self.completed_at = datetime.now(UTC)
         if error not in self.errors:
             self.errors.append(error)
 
@@ -120,7 +119,7 @@ class IngestionJob:
         self.extraction_cost_usd = cost_usd
         self.extraction_latency_ms = latency_ms
 
-    def get_duration_seconds(self) -> Optional[float]:
+    def get_duration_seconds(self) -> float | None:
         """Get job duration in seconds.
 
         Returns:
@@ -146,5 +145,5 @@ class IngestionJob:
             job_id=uuid4(),
             update_id=update_id,
             status="running",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
         )

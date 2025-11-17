@@ -1,17 +1,16 @@
 """Discord response formatter with citations and feedback buttons."""
 
-from datetime import datetime, timezone
-from typing import List
+import re
+from datetime import UTC, datetime
 
 import discord
-import re
 
 from src.lib.discord_utils import get_random_disclaimer
 from src.models.bot_response import BotResponse
 from src.services.llm.validator import ValidationResult
 
 
-def _split_field_value(text: str, max_length: int = 1024) -> List[str]:
+def _split_field_value(text: str, max_length: int = 1024) -> list[str]:
     """Split text into chunks at sentence boundaries, respecting Discord's field limit.
 
     Args:
@@ -53,7 +52,7 @@ def format_response(
     bot_response: BotResponse,
     validation_result: ValidationResult,
     smalltalk: bool = False,
-) -> List[discord.Embed]:
+) -> list[discord.Embed]:
     """Format bot response as Discord embeds with citations.
 
     Handles both markdown and structured JSON responses.
@@ -80,7 +79,7 @@ def format_response(
 def _format_structured(
     bot_response: BotResponse,
     smalltalk: bool = False,
-) -> List[discord.Embed]:
+) -> list[discord.Embed]:
     """Format structured JSON response as Discord embeds.
 
     Args:
@@ -103,7 +102,7 @@ def _format_structured(
         title=None,
         description=description,
         color=color,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
 
     # Add quotes as embed fields (max 25 fields per embed)
@@ -164,7 +163,7 @@ def _format_latency_ms(latency_ms: int) -> str:
 def _format_markdown(
     bot_response: BotResponse,
     smalltalk: bool = False,
-) -> List[discord.Embed]:
+) -> list[discord.Embed]:
     """Format markdown response as Discord embeds (existing implementation).
 
     This is the current implementation - kept for backwards compatibility.
@@ -184,7 +183,7 @@ def _format_markdown(
         title="Kill Team Rules Bot",
         description=bot_response.answer_text[:2000],
         color=color,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
 
     if not smalltalk:

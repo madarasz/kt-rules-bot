@@ -4,7 +4,7 @@ Tests: Message handler, context manager, response formatter, orchestrator, feedb
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
@@ -12,23 +12,16 @@ import discord
 import pytest
 
 from src.models.bot_response import BotResponse, Citation
-from src.models.rag_context import RAGContext, DocumentChunk
+from src.models.rag_context import DocumentChunk, RAGContext
 from src.models.user_query import UserQuery
 from src.services.discord.context_manager import (
-    ConversationContext,
     ConversationContextManager,
-    Message,
 )
 from src.services.discord.feedback_logger import FeedbackLogger
 from src.services.discord.formatter import (
     add_feedback_reactions,
-    format_fallback_message,
-    format_response,
 )
 from src.services.discord.handlers import handle_message
-from src.services.llm.base import LLMResponse
-from src.services.llm.validator import ValidationResult
-
 
 # ==================== FIXTURES ====================
 
@@ -72,7 +65,7 @@ def sample_user_query():
         channel_id="987654321",
         message_text="Can I shoot through barricades?",
         sanitized_text="Can I shoot through barricades?",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         conversation_context_id="987654321:123456789",
         pii_redacted=False,
     )
@@ -91,7 +84,7 @@ def sample_bot_response():
                 section="Cover and Terrain",
                 quote="Units can shoot through barricades...",
                 document_type="core-rules",
-                last_update_date=datetime.now(timezone.utc).date(),
+                last_update_date=datetime.now(UTC).date(),
             )
         ],
         confidence_score=0.85,
@@ -100,7 +93,7 @@ def sample_bot_response():
         llm_model="claude-sonnet-4-5-20250929",
         token_count=150,
         latency_ms=1200,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
 
 

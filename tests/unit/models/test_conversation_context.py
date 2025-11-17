@@ -1,10 +1,8 @@
 """Unit tests for ConversationContext model - business logic only."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-import pytest
-
-from src.models.conversation_context import ConversationContext, Message
+from src.models.conversation_context import ConversationContext
 
 
 class TestConversationContext:
@@ -33,7 +31,7 @@ class TestConversationContext:
         context = ConversationContext.create("channel123", "user456", ttl_seconds=1)
 
         # Set last activity to 2 seconds ago
-        context.last_activity = datetime.now(timezone.utc) - timedelta(seconds=2)
+        context.last_activity = datetime.now(UTC) - timedelta(seconds=2)
 
         assert context.is_expired() is True
 

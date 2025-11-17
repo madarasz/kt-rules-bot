@@ -4,8 +4,9 @@ Stores and retrieves embeddings with metadata filtering.
 Based on specs/001-we-are-building/research.md Decision 2.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Any
 from uuid import UUID
+
 import chromadb
 from chromadb.config import Settings
 
@@ -54,10 +55,10 @@ class VectorDBService:
 
     def add_embeddings(
         self,
-        ids: List[str],
-        embeddings: List[List[float]],
-        documents: List[str],
-        metadatas: List[Dict[str, Any]],
+        ids: list[str],
+        embeddings: list[list[float]],
+        documents: list[str],
+        metadatas: list[dict[str, Any]],
     ) -> None:
         """Add embeddings to the vector database.
 
@@ -97,10 +98,10 @@ class VectorDBService:
 
     def upsert_embeddings(
         self,
-        ids: List[str],
-        embeddings: List[List[float]],
-        documents: List[str],
-        metadatas: List[Dict[str, Any]],
+        ids: list[str],
+        embeddings: list[list[float]],
+        documents: list[str],
+        metadatas: list[dict[str, Any]],
     ) -> None:
         """Upsert embeddings (update if exists, insert if not).
 
@@ -137,10 +138,10 @@ class VectorDBService:
 
     def query(
         self,
-        query_embeddings: List[List[float]],
+        query_embeddings: list[list[float]],
         n_results: int = 5,
-        where: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        where: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Query the vector database for similar embeddings.
 
         Args:

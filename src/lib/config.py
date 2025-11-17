@@ -4,13 +4,13 @@ Loads environment variables and provides validated Config dataclass.
 Based on specs/001-we-are-building/tasks.md T026
 """
 
-from dataclasses import dataclass
-from typing import Optional
-from pathlib import Path
 import os
+from dataclasses import dataclass
+from pathlib import Path
+
 from dotenv import load_dotenv
 
-from src.lib.constants import EMBEDDING_MODEL, DEFAULT_LLM_PROVIDER, LLM_PROVIDERS_LITERAL
+from src.lib.constants import DEFAULT_LLM_PROVIDER, EMBEDDING_MODEL, LLM_PROVIDERS_LITERAL
 
 
 @dataclass
@@ -21,12 +21,12 @@ class Config:
     discord_bot_token: str
 
     # LLM Providers
-    anthropic_api_key: Optional[str] = None
-    openai_api_key: Optional[str] = None
-    google_api_key: Optional[str] = None
-    x_api_key: Optional[str] = None
-    dial_api_key: Optional[str] = None
-    deepseek_api_key: Optional[str] = None
+    anthropic_api_key: str | None = None
+    openai_api_key: str | None = None
+    google_api_key: str | None = None
+    x_api_key: str | None = None
+    dial_api_key: str | None = None
+    deepseek_api_key: str | None = None
 
     # LLM Selection
     default_llm_provider: LLM_PROVIDERS_LITERAL = os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER)
@@ -34,7 +34,7 @@ class Config:
     # RAG Configuration
     vector_db_path: str = "./data/chroma_db"
     embedding_model: str = EMBEDDING_MODEL
-    rag_hop_evaluation_model: Optional[LLM_PROVIDERS_LITERAL] = None  # Model for multi-hop RAG evaluation (defaults to constant)
+    rag_hop_evaluation_model: LLM_PROVIDERS_LITERAL | None = None  # Model for multi-hop RAG evaluation (defaults to constant)
 
     # Logging
     log_level: str = "INFO"
@@ -150,7 +150,7 @@ class Config:
             raise ValueError("analytics_retention_days must be at least 1")
 
     @classmethod
-    def from_env(cls, env_file: Optional[str] = None) -> "Config":
+    def from_env(cls, env_file: str | None = None) -> "Config":
         """Load configuration from environment variables.
 
         Args:
@@ -213,7 +213,7 @@ class Config:
 
 
 # Global config instance (loaded on import)
-_config: Optional[Config] = None
+_config: Config | None = None
 
 
 def get_config() -> Config:

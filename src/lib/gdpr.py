@@ -5,10 +5,11 @@ Based on specs/001-we-are-building/tasks.md T030
 Constitution Principle III: Security by Design (GDPR compliance)
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import List, Protocol
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import Protocol
 from uuid import UUID
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -47,7 +48,7 @@ class GDPRCleanupService:
             retention_days: Number of days to retain data (default: 7)
         """
         self.retention_days = retention_days
-        self.audit_logs: List[DeletionAuditLog] = []
+        self.audit_logs: list[DeletionAuditLog] = []
 
     def get_cutoff_date(self) -> datetime:
         """Get cutoff date for data retention.
@@ -55,7 +56,7 @@ class GDPRCleanupService:
         Returns:
             Cutoff datetime (UTC)
         """
-        return datetime.now(timezone.utc) - timedelta(days=self.retention_days)
+        return datetime.now(UTC) - timedelta(days=self.retention_days)
 
     def should_delete(self, entity: GDPREntity) -> bool:
         """Check if entity should be deleted.
@@ -87,7 +88,7 @@ class GDPRCleanupService:
             deleted_by: Who triggered deletion
         """
         audit_entry = DeletionAuditLog(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             entity_type=entity_type,
             entity_id=entity_id,
             user_id=user_id,
@@ -110,7 +111,7 @@ class GDPRCleanupService:
         self,
         entity_type: str | None = None,
         user_id: str | None = None,
-    ) -> List[DeletionAuditLog]:
+    ) -> list[DeletionAuditLog]:
         """Get deletion audit logs.
 
         Args:
@@ -132,7 +133,7 @@ class GDPRCleanupService:
 
     def cleanup_expired_entities(
         self,
-        entities: List[GDPREntity],
+        entities: list[GDPREntity],
         entity_type: str,
     ) -> int:
         """Clean up expired entities.
@@ -172,7 +173,7 @@ class GDPRCleanupService:
     def delete_user_data(
         self,
         user_id: str,
-        entity_types: List[str],
+        entity_types: list[str],
     ) -> int:
         """Delete all data for a specific user (right to erasure).
 
@@ -221,7 +222,7 @@ class GDPRCleanupService:
         # For now, return placeholder
         return {
             "user_id": user_id,
-            "export_date": datetime.now(timezone.utc).isoformat(),
+            "export_date": datetime.now(UTC).isoformat(),
             "queries": [],
             "responses": [],
         }

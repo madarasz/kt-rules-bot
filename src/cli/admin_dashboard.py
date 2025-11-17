@@ -14,17 +14,17 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-import streamlit as st
+from datetime import datetime, timedelta
+from typing import Any
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
-from typing import Any, Dict, List
+import streamlit as st
 
-from src.lib.database import AnalyticsDatabase
 from src.lib.config import load_config
+from src.lib.database import AnalyticsDatabase
 from src.models.structured_response import StructuredLLMResponse
-
 
 # Constants
 ADMIN_STATUS_OPTIONS = ["pending", "approved", "reviewed", "issues", "flagged", "RAG issue", "LLM issue"]
@@ -317,7 +317,7 @@ def render_query_detail(db: AnalyticsDatabase):
         if multi_hop_enabled:
             st.write(f"**Multi-Hop:** 🔄 {hops_used} hops")
         else:
-            st.write(f"**Multi-Hop:** Disabled")
+            st.write("**Multi-Hop:** Disabled")
 
         # Cost
         cost = query.get("cost", 0.0)
@@ -666,7 +666,7 @@ def render_rag_tests(db: AnalyticsDatabase):
         words = query_text.lower().split()[:3]
         return "-".join(word.strip(".,!?;:") for word in words)
 
-    def generate_yaml(queries_data: List[Dict[str, Any]]) -> str:
+    def generate_yaml(queries_data: list[dict[str, Any]]) -> str:
         """Generate YAML content for test cases."""
         yaml_lines = []
 
@@ -682,13 +682,13 @@ def render_rag_tests(db: AnalyticsDatabase):
 
             # Format YAML entry
             yaml_lines.append(f"- test_id: {test_id}")
-            yaml_lines.append(f"  query: >")
+            yaml_lines.append("  query: >")
 
             # Format multi-line query text (indent by 4 spaces)
             for line in query_text.split("\n"):
                 yaml_lines.append(f"    {line}")
 
-            yaml_lines.append(f"  required_chunks:")
+            yaml_lines.append("  required_chunks:")
             for header in chunk_headers:
                 # Escape quotes in header
                 escaped_header = header.replace('"', '\\"')

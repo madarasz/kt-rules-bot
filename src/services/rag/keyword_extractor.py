@@ -4,14 +4,13 @@ Automatically extracts game-specific keywords from rule documents during ingesti
 to enable case-insensitive query matching.
 """
 
-import re
 import json
+import re
 from pathlib import Path
-from typing import Set, List
 
-from src.services.rag.chunker import MarkdownChunk
 from src.lib.constants import RAG_KEYWORD_CACHE_PATH
 from src.lib.logging import get_logger
+from src.services.rag.chunker import MarkdownChunk
 
 logger = get_logger(__name__)
 
@@ -26,7 +25,7 @@ class KeywordExtractor:
             cache_path: Path to keyword cache file
         """
         self.cache_path = Path(cache_path)
-        self.keywords: Set[str] = set()
+        self.keywords: set[str] = set()
 
         # Load existing keywords if cache exists
         if self.cache_path.exists():
@@ -34,7 +33,7 @@ class KeywordExtractor:
         else:
             logger.info("keyword_cache_not_found", path=str(self.cache_path))
 
-    def extract_from_chunks(self, chunks: List[MarkdownChunk]) -> Set[str]:
+    def extract_from_chunks(self, chunks: list[MarkdownChunk]) -> set[str]:
         """Extract keywords from document chunks.
 
         Extracts capitalized terms from markdown headers (## Keyword pattern).
@@ -45,7 +44,7 @@ class KeywordExtractor:
         Returns:
             Set of extracted keywords
         """
-        new_keywords: Set[str] = set()
+        new_keywords: set[str] = set()
 
         for chunk in chunks:
             # Extract from header text directly
@@ -63,7 +62,7 @@ class KeywordExtractor:
         logger.debug("keywords_extracted_from_chunks", count=len(new_keywords))
         return new_keywords
 
-    def _extract_keywords_from_header(self, header: str) -> Set[str]:
+    def _extract_keywords_from_header(self, header: str) -> set[str]:
         """Extract keywords from a single header string.
 
         Patterns:
@@ -78,7 +77,7 @@ class KeywordExtractor:
         Returns:
             Set of extracted keywords (minimum 4 characters)
         """
-        keywords: Set[str] = set()
+        keywords: set[str] = set()
 
         # Remove common patterns that are not keywords
         # Pattern 1: "Keyword x" or "Keyword N+" (e.g., "Accurate x", "Lethal 5+")
@@ -110,7 +109,7 @@ class KeywordExtractor:
 
         return keywords
 
-    def add_keywords(self, new_keywords: Set[str]) -> int:
+    def add_keywords(self, new_keywords: set[str]) -> int:
         """Add new keywords to the library.
 
         Args:
@@ -142,7 +141,7 @@ class KeywordExtractor:
     def _load_keywords(self) -> None:
         """Load keywords from cache file."""
         try:
-            with open(self.cache_path, 'r') as f:
+            with open(self.cache_path) as f:
                 keyword_list = json.load(f)
                 self.keywords = set(keyword_list)
 
@@ -160,7 +159,7 @@ class KeywordExtractor:
         """
         return len(self.keywords)
 
-    def get_keywords(self) -> Set[str]:
+    def get_keywords(self) -> set[str]:
         """Get all keywords.
 
         Returns:

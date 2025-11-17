@@ -1,6 +1,5 @@
 """Tests for statistics formatting utilities - behavior-critical tests only."""
 
-import pytest
 from src.lib.statistics import format_statistics_summary
 
 

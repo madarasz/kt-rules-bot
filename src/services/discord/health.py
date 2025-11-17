@@ -2,7 +2,7 @@
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.lib.logging import get_logger
 
@@ -134,7 +134,7 @@ async def check_health(
         llm_provider_available=llm_ok,
         recent_error_rate=get_error_rate(),
         avg_latency_ms=get_avg_latency(),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
 
     logger.info(

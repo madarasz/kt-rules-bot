@@ -6,7 +6,7 @@ Usage:
 
 import argparse
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.lib.logging import get_logger
 from src.models.user_query import UserQuery
@@ -24,16 +24,16 @@ def delete_user_data(user_id: str, confirm: bool = False) -> None:
     """
     # Hash the user ID if it's not already hashed
     if len(user_id) != 64:  # Not a SHA-256 hash
-        print(f"Converting Discord user ID to hashed ID...")
+        print("Converting Discord user ID to hashed ID...")
         hashed_id = UserQuery.hash_user_id(user_id)
         print(f"Hashed ID: {hashed_id}")
     else:
         hashed_id = user_id
 
-    print(f"\nGDPR Data Deletion Request")
+    print("\nGDPR Data Deletion Request")
     print(f"{'='*60}")
     print(f"User ID (hashed): {hashed_id[:16]}...")
-    print(f"Timestamp: {datetime.now(timezone.utc).isoformat()}")
+    print(f"Timestamp: {datetime.now(UTC).isoformat()}")
     print(f"{'='*60}\n")
 
     # Confirmation
@@ -49,7 +49,7 @@ def delete_user_data(user_id: str, confirm: bool = False) -> None:
         extra={
             "event_type": "gdpr_deletion",
             "user_id": hashed_id[:16],  # Partial hash for privacy
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "initiated_by": "cli",
         },
     )
@@ -82,7 +82,7 @@ def delete_user_data(user_id: str, confirm: bool = False) -> None:
             extra={
                 "event_type": "gdpr_deletion_complete",
                 "user_id": hashed_id[:16],
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 

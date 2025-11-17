@@ -3,10 +3,11 @@
 Helper functions for consistent chart styling and layout.
 """
 
-from typing import List, Optional, Dict, Any
 from pathlib import Path
-import matplotlib.pyplot as plt
+from typing import Any
+
 import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 
 # Use non-interactive backend for server environments
@@ -57,15 +58,15 @@ def save_and_close(fig, output_path: Path):
 
 
 def create_line_chart(
-    x_values: List[Any],
-    y_values: List[float],
+    x_values: list[Any],
+    y_values: list[float],
     x_label: str,
     y_label: str,
     title: str,
     output_path: Path,
-    y_errors: Optional[List[float]] = None,
-    y_min: Optional[float] = None,
-    y_max: Optional[float] = None,
+    y_errors: list[float] | None = None,
+    y_min: float | None = None,
+    y_max: float | None = None,
 ):
     """Create line chart with optional error bars.
 
@@ -121,8 +122,8 @@ def create_line_chart(
 
 
 def create_multi_line_chart(
-    x_values: List[Any],
-    y_values_dict: Dict[str, List[float]],
+    x_values: list[Any],
+    y_values_dict: dict[str, list[float]],
     x_label: str,
     y_label: str,
     title: str,
@@ -164,8 +165,8 @@ def create_multi_line_chart(
 
 
 def create_grouped_bar_chart(
-    categories: List[str],
-    values_dict: Dict[str, List[float]],
+    categories: list[str],
+    values_dict: dict[str, list[float]],
     x_label: str,
     y_label: str,
     title: str,
@@ -214,15 +215,15 @@ def create_grouped_bar_chart(
 
 def create_heatmap(
     data: np.ndarray,
-    x_labels: List[str],
-    y_labels: List[str],
+    x_labels: list[str],
+    y_labels: list[str],
     x_param_name: str,
     y_param_name: str,
     value_label: str,
     title: str,
     output_path: Path,
-    vmin: Optional[float] = None,
-    vmax: Optional[float] = None,
+    vmin: float | None = None,
+    vmax: float | None = None,
 ):
     """Create heatmap for grid search results.
 

@@ -3,9 +3,8 @@
 Generates comprehensive reports with metrics, test breakdowns, and configuration.
 """
 
-from pathlib import Path
-from typing import List
 from datetime import datetime
+from pathlib import Path
 
 from tests.rag.test_case_models import RAGTestResult, RAGTestSummary
 
@@ -15,7 +14,7 @@ class RAGReportGenerator:
 
     def generate_report(
         self,
-        results: List[RAGTestResult],
+        results: list[RAGTestResult],
         summary: RAGTestSummary,
         output_path: Path,
     ) -> None:
@@ -80,7 +79,7 @@ class RAGReportGenerator:
                     content.append(f"- **{result.test_id}**: *{missing_chunk}*")
                     count_missing_chunks += 1
         content.append(f"\n\n**Number of missing chunks**: {count_missing_chunks}")
-        
+
         if not missing_chunks_found:
             content.append("No missing chunks - all required chunks were retrieved!")
         content.append("")
@@ -133,7 +132,7 @@ class RAGReportGenerator:
 
         # Add multi-hop configuration if enabled
         if summary.rag_max_hops > 0:
-            content.append(f"| **Multi-Hop Settings** | |")
+            content.append("| **Multi-Hop Settings** | |")
             content.append(f"| RAG_MAX_HOPS | {summary.rag_max_hops} |")
             content.append(f"| RAG_HOP_CHUNK_LIMIT | {summary.rag_hop_chunk_limit} |")
             content.append(f"| RAG_HOP_EVALUATION_MODEL | {summary.rag_hop_evaluation_model} |")
@@ -206,7 +205,7 @@ class RAGReportGenerator:
                         zip(
                             first_result.retrieved_chunks,
                             first_result.retrieved_relevance_scores,
-                            first_result.retrieved_chunk_metadata
+                            first_result.retrieved_chunk_metadata, strict=False
                         ),
                         start=1
                     ):
@@ -223,7 +222,7 @@ class RAGReportGenerator:
                             zip(
                                 first_result.retrieved_chunk_texts,
                                 first_result.retrieved_relevance_scores,
-                                first_result.retrieved_chunk_metadata
+                                first_result.retrieved_chunk_metadata, strict=False
                             ),
                             start=1
                         ):
@@ -261,7 +260,7 @@ class RAGReportGenerator:
             else:
                 content.append("- (none)")
             content.append("")
-         
+
             if first_result.missing_chunks:
                 content.append("**Missing** ❌:")
                 for chunk in first_result.missing_chunks:
@@ -305,7 +304,7 @@ class RAGReportGenerator:
                     first_result.retrieved_chunk_texts,
                     first_result.retrieved_relevance_scores,
                     first_result.retrieved_chunk_metadata,
-                    chunk_hop_numbers
+                    chunk_hop_numbers, strict=False
                 ),
                 start=1
             ):
@@ -372,7 +371,7 @@ class RAGReportGenerator:
         content.append("=" * 80)
         content.append("")
 
-        for i, (header, text) in enumerate(zip(result.retrieved_chunks, result.retrieved_chunk_texts), start=1):
+        for i, (header, text) in enumerate(zip(result.retrieved_chunks, result.retrieved_chunk_texts, strict=False), start=1):
             # Use substring matching to mark required chunks (same logic as evaluator)
             marker = ""
             header_lower = header.strip().lower().replace("*", "")

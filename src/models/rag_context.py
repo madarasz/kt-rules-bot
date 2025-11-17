@@ -5,7 +5,7 @@ Based on specs/001-we-are-building/data-model.md
 """
 
 from dataclasses import dataclass
-from typing import Dict, Any, List
+from typing import Any
 from uuid import UUID, uuid4
 
 from src.lib.constants import RAG_MIN_RELEVANCE
@@ -20,7 +20,7 @@ class DocumentChunk:
     text: str  # Complete section from ## or ### header (no overlap)
     header: str  # Section header (e.g., "Movement Phase")
     header_level: int  # 2 for ##, 3 for ###
-    metadata: Dict[str, Any]  # source, doc_type, last_update_date, section
+    metadata: dict[str, Any]  # source, doc_type, last_update_date, section
     relevance_score: float  # 0-1 cosine similarity
     position_in_doc: int  # Section number for citation
 
@@ -58,8 +58,8 @@ class RAGContext:
 
     context_id: UUID
     query_id: UUID  # FK to UserQuery
-    document_chunks: List[DocumentChunk]
-    relevance_scores: List[float]
+    document_chunks: list[DocumentChunk]
+    relevance_scores: list[float]
     total_chunks: int
     avg_relevance: float
     meets_threshold: bool  # True if avg_relevance >= 0.6
@@ -114,7 +114,7 @@ class RAGContext:
     def from_retrieval(
         cls,
         query_id: UUID,
-        chunks: List[DocumentChunk],
+        chunks: list[DocumentChunk],
         min_relevance: float = RAG_MIN_RELEVANCE,
     ) -> "RAGContext":
         """Create RAGContext from retrieval results.

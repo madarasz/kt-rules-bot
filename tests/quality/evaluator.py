@@ -3,9 +3,7 @@
 Evaluates both "contains" and "llm" type requirements.
 """
 
-import asyncio
 import re
-from typing import List
 from dataclasses import dataclass
 
 from tests.quality.test_case_models import TestRequirement
@@ -19,16 +17,16 @@ class RequirementResult:
     points_earned: int
     details: str = ""
     judge_malfunction: bool = False
-from src.services.llm.factory import LLMProviderFactory
-from src.services.llm.base import GenerationRequest, GenerationConfig
-from src.services.llm.retry import retry_on_content_filter
-from src.lib.logging import get_logger
 from src.lib.constants import (
-    QUALITY_TEST_JUDGE_MODEL,
-    QUALITY_TEST_JUDGE_MAX_TOKENS,
-    QUALITY_TEST_JUDGE_TEMPERATURE,
     LLM_JUDGE_TIMEOUT,
+    QUALITY_TEST_JUDGE_MAX_TOKENS,
+    QUALITY_TEST_JUDGE_MODEL,
+    QUALITY_TEST_JUDGE_TEMPERATURE,
 )
+from src.lib.logging import get_logger
+from src.services.llm.base import GenerationConfig, GenerationRequest
+from src.services.llm.factory import LLMProviderFactory
+from src.services.llm.retry import retry_on_content_filter
 
 logger = get_logger(__name__)
 
@@ -52,8 +50,8 @@ class RequirementEvaluator:
         return self._judge_provider
 
     async def evaluate_all(
-        self, requirements: List[TestRequirement], response: str
-    ) -> List[RequirementResult]:
+        self, requirements: list[TestRequirement], response: str
+    ) -> list[RequirementResult]:
         """Evaluate all requirements against a response.
 
         Args:
@@ -178,7 +176,7 @@ Is the claim accurate? Answer YES or NO, then briefly explain."""
                     requirement=requirement,
                     passed=False,
                     points_earned=0,
-                    details=f"LLM malfunction during scoring (content filter)",
+                    details="LLM malfunction during scoring (content filter)",
                     judge_malfunction=True,
                 )
 

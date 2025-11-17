@@ -1,11 +1,13 @@
 """Tests for multi-hop retrieval functionality."""
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from uuid import uuid4
 import json
-from src.services.rag.multi_hop_retriever import MultiHopRetriever, HopEvaluation
-from src.models.rag_context import RAGContext, DocumentChunk
+from unittest.mock import AsyncMock, Mock, patch
+from uuid import uuid4
+
+import pytest
+
+from src.models.rag_context import DocumentChunk, RAGContext
+from src.services.rag.multi_hop_retriever import HopEvaluation, MultiHopRetriever
 
 
 @pytest.fixture

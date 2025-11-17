@@ -4,13 +4,12 @@ Represents a markdown file in extracted-rules/ folder.
 Based on specs/001-we-are-building/data-model.md
 """
 
-from dataclasses import dataclass
-from datetime import date, datetime, timezone
-from typing import Dict, Any, Literal
-from uuid import UUID, uuid4
 import hashlib
 import re
-
+from dataclasses import dataclass
+from datetime import UTC, date, datetime
+from typing import Any, Literal
+from uuid import UUID, uuid4
 
 DocumentType = Literal["core-rules", "faq", "team-rules", "ops", "killzone"]
 
@@ -22,7 +21,7 @@ class RuleDocument:
     document_id: UUID
     filename: str
     content: str
-    metadata: Dict[str, Any]  # YAML frontmatter
+    metadata: dict[str, Any]  # YAML frontmatter
     version: str
     last_update_date: date
     document_type: DocumentType
@@ -82,7 +81,7 @@ class RuleDocument:
         # Document type validation
         if not self.validate_document_type(self.document_type):
             raise ValueError(
-                f"document_type must be one of: core-rules, faq, team-rules, ops, killzone"
+                "document_type must be one of: core-rules, faq, team-rules, ops, killzone"
             )
 
         # Required metadata fields
@@ -112,7 +111,7 @@ class RuleDocument:
         cls,
         filename: str,
         content: str,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
     ) -> "RuleDocument":
         """Create RuleDocument from markdown file data.
 
@@ -152,6 +151,6 @@ class RuleDocument:
             version=version,
             last_update_date=last_update_date,
             document_type=doc_type,
-            last_updated=datetime.now(timezone.utc),
+            last_updated=datetime.now(UTC),
             hash=cls.compute_hash(content),
         )

@@ -6,7 +6,6 @@ using function calling, tool use, or JSON mode.
 
 import json
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass
@@ -32,7 +31,7 @@ class StructuredLLMResponse:
     smalltalk: bool             # True if casual conversation, False if rules question
     short_answer: str           # Direct answer (e.g., "Yes.")
     persona_short_answer: str   # Persona phrase
-    quotes: List[StructuredQuote]  # Rule quotations
+    quotes: list[StructuredQuote]  # Rule quotations
     explanation: str            # Rules-based explanation
     persona_afterword: str      # Concluding persona sentence
 

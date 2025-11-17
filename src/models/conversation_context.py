@@ -5,9 +5,8 @@ Based on specs/001-we-are-building/data-model.md
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import List, Literal
-
+from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 MessageRole = Literal["user", "bot"]
 
@@ -28,8 +27,8 @@ class ConversationContext:
     context_key: str  # {channel_id}:{user_id}
     user_id: str
     channel_id: str
-    message_history: List[Message] = field(default_factory=list)
-    last_activity: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    message_history: list[Message] = field(default_factory=list)
+    last_activity: datetime = field(default_factory=lambda: datetime.now(UTC))
     ttl_seconds: int = 1800  # 30 minutes
 
     @staticmethod
@@ -75,7 +74,7 @@ class ConversationContext:
         message = Message(
             role=role,
             text=text,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         self.message_history.append(message)
@@ -85,7 +84,7 @@ class ConversationContext:
             self.message_history = self.message_history[-10:]
 
         # Update last activity
-        self.last_activity = datetime.now(timezone.utc)
+        self.last_activity = datetime.now(UTC)
 
     def is_expired(self) -> bool:
         """Check if context has exceeded TTL.
@@ -93,11 +92,11 @@ class ConversationContext:
         Returns:
             True if context should be cleaned up
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expiry_time = self.last_activity + timedelta(seconds=self.ttl_seconds)
         return now > expiry_time
 
-    def get_recent_messages(self, count: int = 5) -> List[Message]:
+    def get_recent_messages(self, count: int = 5) -> list[Message]:
         """Get most recent messages.
 
         Args:
@@ -111,7 +110,7 @@ class ConversationContext:
     def clear(self) -> None:
         """Clear message history."""
         self.message_history = []
-        self.last_activity = datetime.now(timezone.utc)
+        self.last_activity = datetime.now(UTC)
 
     @classmethod
     def create(
@@ -137,6 +136,6 @@ class ConversationContext:
             user_id=user_id,
             channel_id=channel_id,
             message_history=[],
-            last_activity=datetime.now(timezone.utc),
+            last_activity=datetime.now(UTC),
             ttl_seconds=ttl_seconds,
         )

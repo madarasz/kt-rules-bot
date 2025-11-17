@@ -3,17 +3,16 @@
 Implements ingest() method from specs/001-we-are-building/contracts/rag-pipeline.md
 """
 
-from typing import List
-from uuid import UUID, uuid4
-from dataclasses import dataclass
 import time
+from dataclasses import dataclass
+from uuid import UUID, uuid4
 
+from src.lib.logging import get_logger
 from src.models.rule_document import RuleDocument
 from src.services.rag.chunker import MarkdownChunker
 from src.services.rag.embeddings import EmbeddingService
-from src.services.rag.vector_db import VectorDBService
 from src.services.rag.keyword_extractor import KeywordExtractor
-from src.lib.logging import get_logger
+from src.services.rag.vector_db import VectorDBService
 
 logger = get_logger(__name__)
 
@@ -26,8 +25,8 @@ class IngestionResult:
     documents_processed: int
     documents_failed: int
     embedding_count: int  # Total embeddings created
-    errors: List[str]  # Filenames that failed
-    warnings: List[str]  # Non-fatal issues
+    errors: list[str]  # Filenames that failed
+    warnings: list[str]  # Non-fatal issues
     duration_seconds: float
 
 
@@ -77,7 +76,7 @@ class RAGIngestor:
 
         logger.info("rag_ingestor_initialized")
 
-    def ingest(self, documents: List[RuleDocument]) -> IngestionResult:
+    def ingest(self, documents: list[RuleDocument]) -> IngestionResult:
         """Ingest rule documents into the RAG system.
 
         Implements the RAG pipeline contract from contracts/rag-pipeline.md.
@@ -103,8 +102,8 @@ class RAGIngestor:
         documents_processed = 0
         documents_failed = 0
         embedding_count = 0
-        errors: List[str] = []
-        warnings: List[str] = []
+        errors: list[str] = []
+        warnings: list[str] = []
         all_chunks = []  # Collect all chunks for keyword extraction
 
         logger.info(
@@ -255,7 +254,7 @@ class RAGIngestor:
         return result
 
     def _validate_document(
-        self, document: RuleDocument, warnings: List[str]
+        self, document: RuleDocument, warnings: list[str]
     ) -> None:
         """Validate document has required metadata.
 
@@ -284,8 +283,8 @@ class RAGIngestor:
             logger.warning("ambiguous_markdown_structure", filename=document.filename)
 
     def _generate_embeddings_with_retry(
-        self, texts: List[str], filename: str, max_retries: int = 3
-    ) -> List[List[float]]:
+        self, texts: list[str], filename: str, max_retries: int = 3
+    ) -> list[list[float]]:
         """Generate embeddings with retry logic.
 
         Args:

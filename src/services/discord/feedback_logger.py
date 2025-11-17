@@ -1,7 +1,6 @@
 """Feedback logging service for tracking user reactions."""
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import discord
@@ -16,7 +15,7 @@ logger = get_logger(__name__)
 class FeedbackLogger:
     """Logs user feedback from reaction buttons (👍👎) for analytics."""
 
-    def __init__(self, analytics_db: Optional[AnalyticsDatabase] = None):
+    def __init__(self, analytics_db: AnalyticsDatabase | None = None):
         """Initialize feedback logger.
 
         Args:
@@ -84,7 +83,7 @@ class FeedbackLogger:
                 vote_type = "upvote" if reaction.emoji == "👍" else "downvote"
                 self.analytics_db.increment_vote(query_id, vote_type)
                 logger.debug(
-                    f"Vote incremented in analytics DB",
+                    "Vote incremented in analytics DB",
                     extra={"query_id": query_id, "vote_type": vote_type}
                 )
             except Exception as e:
@@ -100,7 +99,7 @@ class FeedbackLogger:
                 "query_id": query_id,
                 "user_id": hashed_user_id[:16],  # Partial hash for privacy
                 "feedback_type": feedback_type,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -109,7 +108,7 @@ class FeedbackLogger:
         self.feedback_cache[cache_key] = {
             "feedback_id": feedback_id,
             "feedback_type": feedback_type,
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
         }
 
     def _extract_response_id(self, message: discord.Message) -> UUID | None:

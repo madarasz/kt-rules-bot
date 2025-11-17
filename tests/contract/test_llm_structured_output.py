@@ -5,12 +5,12 @@ Requires API keys - run with: pytest tests/contract/test_llm_structured_output.p
 """
 
 import json
+
 import pytest
 
-from src.services.llm.factory import LLMProviderFactory
-from src.services.llm.base import GenerationRequest, GenerationConfig, STRUCTURED_OUTPUT_SCHEMA
 from src.models.structured_response import StructuredLLMResponse
-
+from src.services.llm.base import STRUCTURED_OUTPUT_SCHEMA, GenerationConfig, GenerationRequest
+from src.services.llm.factory import LLMProviderFactory
 
 # All providers that must support structured output
 PROVIDERS_TO_TEST = [

@@ -3,29 +3,28 @@
 Loads test cases, runs retrieval, evaluates metrics, generates reports.
 """
 
-from pathlib import Path
-from typing import List, Optional
-from uuid import uuid4
 import time
+from pathlib import Path
+from uuid import uuid4
 
-from tests.rag.test_case_models import RAGTestCase, RAGTestResult, RAGTestSummary
-from tests.rag.evaluator import RAGEvaluator
-from tests.rag.ragas_evaluator import RagasRAGEvaluator, add_ragas_metrics_to_result
-from src.services.rag.retriever import RAGRetriever, RetrieveRequest
-from src.services.rag.embeddings import EmbeddingService
 from src.lib.constants import (
-    RAG_MAX_CHUNKS,
-    RAG_MIN_RELEVANCE,
-    RAG_MAX_HOPS,
+    BM25_B,
+    BM25_K1,
+    BM25_WEIGHT,
     EMBEDDING_MODEL,
     MARKDOWN_CHUNK_HEADER_LEVEL,
+    RAG_MAX_CHUNKS,
+    RAG_MAX_HOPS,
+    RAG_MIN_RELEVANCE,
     RRF_K,
-    BM25_K1,
-    BM25_B,
-    BM25_WEIGHT
 )
-from src.lib.tokens import estimate_embedding_cost
 from src.lib.logging import get_logger
+from src.lib.tokens import estimate_embedding_cost
+from src.services.rag.embeddings import EmbeddingService
+from src.services.rag.retriever import RAGRetriever, RetrieveRequest
+from tests.rag.evaluator import RAGEvaluator
+from tests.rag.ragas_evaluator import RagasRAGEvaluator, add_ragas_metrics_to_result
+from tests.rag.test_case_models import RAGTestCase, RAGTestResult, RAGTestSummary
 
 logger = get_logger(__name__)
 
@@ -89,7 +88,7 @@ class RAGTestRunner:
             embedding_model=embedding_model
         )
 
-    def load_test_cases(self, test_id: Optional[str] = None) -> List[RAGTestCase]:
+    def load_test_cases(self, test_id: str | None = None) -> list[RAGTestCase]:
         """Load test cases from YAML files.
 
         Args:
@@ -255,11 +254,11 @@ class RAGTestRunner:
 
     def run_tests(
         self,
-        test_id: Optional[str] = None,
+        test_id: str | None = None,
         runs: int = 1,
         max_chunks: int = RAG_MAX_CHUNKS,
         min_relevance: float = RAG_MIN_RELEVANCE,
-    ) -> tuple[List[RAGTestResult], float]:
+    ) -> tuple[list[RAGTestResult], float]:
         """Run all or specific test(s) multiple times.
 
         Args:
@@ -292,7 +291,7 @@ class RAGTestRunner:
 
     def calculate_summary(
         self,
-        results: List[RAGTestResult],
+        results: list[RAGTestResult],
         total_time_seconds: float,
         max_chunks: int = RAG_MAX_CHUNKS,
         min_relevance: float = RAG_MIN_RELEVANCE,
@@ -328,8 +327,8 @@ class RAGTestRunner:
             )
 
         # Group results by test_id to separate test cases
-        from collections import defaultdict
         import statistics
+        from collections import defaultdict
 
         results_by_test = defaultdict(list)
         for result in results:
