@@ -38,7 +38,7 @@ class TestChunkAttribution:
 
         # Should use CHUNK_ID format
         assert "[CHUNK_90abcdef]:" in prompt  # Last 8 chars of first UUID
-        assert "[CHUNK_4567890]:" in prompt  # Last 8 chars of second UUID (corrected)
+        assert "[CHUNK_34567890]:" in prompt  # Last 8 chars of second UUID (corrected)
         assert "[Context 1]:" not in prompt
         assert "User Question: Can I shoot while concealed?" in prompt
         assert "reference the chunk ID in the chunk_id field" in prompt
