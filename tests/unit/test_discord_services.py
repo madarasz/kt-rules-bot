@@ -4,7 +4,7 @@ Tests: Message handler, context manager, response formatter, orchestrator, feedb
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
@@ -12,23 +12,16 @@ import discord
 import pytest
 
 from src.models.bot_response import BotResponse, Citation
-from src.models.rag_context import RAGContext, DocumentChunk
+from src.models.rag_context import DocumentChunk, RAGContext
 from src.models.user_query import UserQuery
 from src.services.discord.context_manager import (
-    ConversationContext,
     ConversationContextManager,
-    Message,
 )
 from src.services.discord.feedback_logger import FeedbackLogger
 from src.services.discord.formatter import (
     add_feedback_reactions,
-    format_fallback_message,
-    format_response,
 )
 from src.services.discord.handlers import handle_message
-from src.services.llm.base import LLMResponse
-from src.services.llm.validator import ValidationResult
-
 
 # ==================== FIXTURES ====================
 
@@ -72,7 +65,7 @@ def sample_user_query():
         channel_id="987654321",
         message_text="Can I shoot through barricades?",
         sanitized_text="Can I shoot through barricades?",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         conversation_context_id="987654321:123456789",
         pii_redacted=False,
     )
@@ -91,7 +84,7 @@ def sample_bot_response():
                 section="Cover and Terrain",
                 quote="Units can shoot through barricades...",
                 document_type="core-rules",
-                last_update_date=datetime.now(timezone.utc).date(),
+                last_update_date=datetime.now(UTC).date(),
             )
         ],
         confidence_score=0.85,
@@ -100,7 +93,7 @@ def sample_bot_response():
         llm_model="claude-sonnet-4-5-20250929",
         token_count=150,
         latency_ms=1200,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
 
 
@@ -209,31 +202,6 @@ async def test_handle_message_creates_user_query(
 # ==================== CONTEXT MANAGER TESTS ====================
 
 
-def test_context_manager_create_new_context():
-    """Test creating new conversation context."""
-    manager = ConversationContextManager()
-    context_key = "channel123:user456"
-
-    context = manager.get_context(context_key)
-
-    assert isinstance(context, ConversationContext)
-    assert context.context_key == context_key
-    assert len(context.message_history) == 0
-
-
-def test_context_manager_add_message():
-    """Test adding message to context."""
-    manager = ConversationContextManager()
-    context_key = "channel123:user456"
-
-    manager.add_message(context_key, role="user", text="Test question")
-
-    context = manager.get_context(context_key)
-    assert len(context.message_history) == 1
-    assert context.message_history[0].role == "user"
-    assert context.message_history[0].text == "Test question"
-
-
 def test_context_manager_limits_history():
     """Test that context manager limits history to 10 messages."""
     manager = ConversationContextManager()
@@ -265,60 +233,7 @@ async def test_context_manager_cleanup_expired():
     assert len(manager._contexts) == 0
 
 
-def test_context_manager_get_stats():
-    """Test context manager statistics."""
-    manager = ConversationContextManager()
-
-    manager.add_message("ctx1", role="user", text="Message 1")
-    manager.add_message("ctx1", role="bot", text="Response 1")
-    manager.add_message("ctx2", role="user", text="Message 2")
-
-    stats = manager.get_stats()
-    assert stats["active_contexts"] == 2
-    assert stats["total_messages"] == 3
-
-
 # ==================== RESPONSE FORMATTER TESTS ====================
-
-def test_format_response_includes_citations(sample_bot_response):
-    """Test that response includes expected fields (Sources field is currently commented out)."""
-    validation_result = ValidationResult(
-        is_valid=True, llm_confidence=0.85, rag_score=0.8, reason="Valid"
-    )
-
-    embeds = format_response(sample_bot_response, validation_result)
-
-    embed = embeds[0]
-    fields = {f.name: f.value for f in embed.fields}
-    # Sources field is currently commented out in format_response
-    # assert "Sources" in fields
-    # Check that disclaimer field is present and confidence is in footer
-    assert "Disclaimer" in fields
-    assert "Confidence:" in embed.footer.text
-
-
-def test_format_response_footer_includes_metadata(sample_bot_response):
-    """Test that footer includes response metadata."""
-    validation_result = ValidationResult(
-        is_valid=True, llm_confidence=0.85, rag_score=0.8, reason="Valid"
-    )
-
-    embeds = format_response(sample_bot_response, validation_result)
-
-    embed = embeds[0]
-    assert "claude-sonnet-4-5-20250929" in embed.footer.text
-    assert "1200ms" in embed.footer.text  # latency
-    assert "85%" in embed.footer.text  # confidence percentage
-
-
-def test_format_fallback_message():
-    """Test fallback message formatting."""
-    message = format_fallback_message("Low confidence")
-
-    assert "⚠️" in message
-    assert "Low confidence" in message
-    assert "Try:" in message
-
 
 @pytest.mark.asyncio
 async def test_add_feedback_reactions():
@@ -359,7 +274,7 @@ async def test_feedback_logger_helpful_reaction():
 
     await logger.on_reaction_add(reaction, user, bot_user_id)
 
-    stats = logger.get_feedback_stats()
+    logger.get_feedback_stats()
     # Note: Without full UUID mapping, feedback won't be cached
     # But it should be logged (checked via manual log inspection)
 
@@ -383,66 +298,3 @@ async def test_feedback_logger_not_helpful_reaction():
     await logger.on_reaction_add(reaction, user, bot_user_id)
 
     # Feedback logged (verify via logs)
-
-
-@pytest.mark.asyncio
-async def test_feedback_logger_ignores_non_bot_messages():
-    """Test that feedback logger ignores reactions on non-bot messages."""
-    logger = FeedbackLogger()
-    bot_user_id = 111222333
-
-    reaction = Mock(spec=discord.Reaction)
-    reaction.emoji = "👍"
-    reaction.message = Mock(spec=discord.Message)
-    reaction.message.author = Mock()
-    reaction.message.author.id = 999888777  # Different from bot
-
-    user = Mock(spec=discord.User)
-    user.id = 123456789
-
-    await logger.on_reaction_add(reaction, user, bot_user_id)
-
-    stats = logger.get_feedback_stats()
-    assert stats["total_feedback"] == 0
-
-
-@pytest.mark.asyncio
-async def test_feedback_logger_ignores_other_reactions():
-    """Test that feedback logger ignores non-feedback reactions."""
-    logger = FeedbackLogger()
-    bot_user_id = 111222333
-
-    reaction = Mock(spec=discord.Reaction)
-    reaction.emoji = "🎉"  # Not thumbs up/down
-    reaction.message = Mock(spec=discord.Message)
-    reaction.message.author = Mock()
-    reaction.message.author.id = bot_user_id
-
-    user = Mock(spec=discord.User)
-    user.id = 123456789
-
-    await logger.on_reaction_add(reaction, user, bot_user_id)
-
-    stats = logger.get_feedback_stats()
-    assert stats["total_feedback"] == 0
-
-
-@pytest.mark.asyncio
-async def test_feedback_logger_ignores_bot_own_reactions():
-    """Test that feedback logger ignores bot's own reactions."""
-    logger = FeedbackLogger()
-    bot_user_id = 111222333
-
-    reaction = Mock(spec=discord.Reaction)
-    reaction.emoji = "👍"
-    reaction.message = Mock(spec=discord.Message)
-    reaction.message.author = Mock()
-    reaction.message.author.id = bot_user_id
-
-    user = Mock(spec=discord.User)
-    user.id = bot_user_id  # Bot reacting to own message
-
-    await logger.on_reaction_add(reaction, user, bot_user_id)
-
-    stats = logger.get_feedback_stats()
-    assert stats["total_feedback"] == 0

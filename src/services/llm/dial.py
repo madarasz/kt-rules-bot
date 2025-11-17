@@ -12,19 +12,21 @@ try:
 except ImportError:
     httpx = None
 
+from src.lib.logging import get_logger
 from src.services.llm.base import (
-    LLMProvider,
-    GenerationRequest,
-    LLMResponse,
+    AuthenticationError,
+    ContentFilterError,
     ExtractionRequest,
     ExtractionResponse,
+    GenerationRequest,
+    LLMProvider,
+    LLMResponse,
     RateLimitError,
-    AuthenticationError,
-    TimeoutError as LLMTimeoutError,
-    ContentFilterError,
     TokenLimitError,
 )
-from src.lib.logging import get_logger
+from src.services.llm.base import (
+    TimeoutError as LLMTimeoutError,
+)
 
 logger = get_logger(__name__)
 
@@ -87,14 +89,14 @@ class DialAdapter(LLMProvider):
                 ],
                 "stream": False,
             }
-            
+
             # Add optional parameters based on model capabilities
             if self.supports_max_tokens:
                 payload["max_tokens"] = request.config.max_tokens
-                
+
             if self.supports_temperature:
                 payload["temperature"] = request.config.temperature
-                
+
             if self.supports_logprobs:
                 payload["logprobs"] = True
                 payload["top_logprobs"] = 5
@@ -122,18 +124,18 @@ class DialAdapter(LLMProvider):
 
             # Parse response
             response_data = response.json()
-            
+
             # Extract answer text
             if not response_data.get("choices") or len(response_data["choices"]) == 0:
                 raise Exception("Dial returned no choices in response")
-                
+
             choice = response_data["choices"][0]
             answer_text = choice.get("message", {}).get("content")
 
             if not answer_text:
                 finish_reason = choice.get("finish_reason")
                 logger.warning(f"Dial returned empty content. Finish reason: {finish_reason}")
-                
+
                 if finish_reason == "content_filter":
                     raise ContentFilterError("Dial content filter blocked response")
                 elif finish_reason == "length":
@@ -157,7 +159,7 @@ class DialAdapter(LLMProvider):
             token_count = usage.get("total_tokens", 0)
 
             logger.info(
-                f"Dial generation completed",
+                "Dial generation completed",
                 extra={
                     "latency_ms": latency_ms,
                     "token_count": token_count,
@@ -183,11 +185,11 @@ class DialAdapter(LLMProvider):
         except Exception as e:
             if isinstance(e, (RateLimitError, AuthenticationError, LLMTimeoutError, ContentFilterError, TokenLimitError)):
                 raise
-                
+
             error_msg = str(e).lower()
 
             # Check for timeout-related errors
-            if ("timeout" in error_msg or hasattr(e, '__class__') and 
+            if ("timeout" in error_msg or hasattr(e, '__class__') and
                 e.__class__.__name__ in ('TimeoutException', 'TimeoutError')):
                 logger.warning(
                     f"Dial API timeout after {request.config.timeout_seconds}s"

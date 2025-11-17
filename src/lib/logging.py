@@ -4,13 +4,13 @@ Based on specs/001-we-are-building/tasks.md T027
 Constitution Principle V: Observable and Debuggable
 """
 
-import structlog
 import logging
-import sys
 import re
-from typing import Any, Dict
+import sys
+from typing import Any
 from uuid import uuid4
 
+import structlog
 
 # PII patterns to redact
 PII_PATTERNS = [
@@ -37,8 +37,8 @@ def redact_pii(message: str) -> str:
 
 
 def add_correlation_id(
-    logger: Any, method_name: str, event_dict: Dict[str, Any]
-) -> Dict[str, Any]:
+    logger: Any, method_name: str, event_dict: dict[str, Any]
+) -> dict[str, Any]:
     """Add correlation ID to log events.
 
     Args:
@@ -55,8 +55,8 @@ def add_correlation_id(
 
 
 def redact_pii_processor(
-    logger: Any, method_name: str, event_dict: Dict[str, Any]
-) -> Dict[str, Any]:
+    logger: Any, method_name: str, event_dict: dict[str, Any]
+) -> dict[str, Any]:
     """Redact PII from log events.
 
     Args:

@@ -11,13 +11,10 @@ Note: Changes to embedding_model or chunk_header_level will automatically reset 
 """
 
 import sys
-from pathlib import Path
-from typing import List, Dict, Any
 
-from tests.rag.sweep_runner import RAGSweepRunner, ParameterConfig
-from tests.rag.reporting.comparison_generator import ComparisonGenerator
-from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE
 from src.lib.logging import get_logger
+from tests.rag.reporting.comparison_generator import ComparisonGenerator
+from tests.rag.sweep_runner import RAGSweepRunner
 
 logger = get_logger(__name__)
 
@@ -93,13 +90,13 @@ def rag_test_sweep(
         sys.exit(1)
 
     if grid:
-        print(f"Grid Search Mode")
-        print(f"Parameters:")
+        print("Grid Search Mode")
+        print("Parameters:")
         for pname, pvalues in param_grid.items():
             print(f"  {pname}: {pvalues}")
         print(f"Total configurations: {total_configs}")
     else:
-        print(f"Parameter Sweep Mode")
+        print("Parameter Sweep Mode")
         print(f"Parameter: {param}")
         print(f"Values: {param_values}")
         print(f"Configurations: {len(param_values)}")
@@ -123,10 +120,10 @@ def rag_test_sweep(
                 runs=runs,
             )
 
-            print(f"\nRunning grid search...")
+            print("\nRunning grid search...")
             print(f"Parameters: {list(param_grid.keys())}")
             print(f"Total configurations: {total_configs}")
-            print(f"Evaluation: Ragas metrics")
+            print("Evaluation: Ragas metrics")
             print("")
 
             sweep_results = sweep_runner.grid_search(
@@ -156,10 +153,10 @@ def rag_test_sweep(
                 runs=runs,
             )
 
-            print(f"\nRunning parameter sweep...")
+            print("\nRunning parameter sweep...")
             print(f"Parameter: {param}")
             print(f"Values: {param_values}")
-            print(f"Evaluation: Ragas metrics")
+            print("Evaluation: Ragas metrics")
             print("")
 
             sweep_results = sweep_runner.sweep_parameter(
@@ -191,7 +188,7 @@ def rag_test_sweep(
         else:
             best_result = sweep_results[0]
 
-        print(f"Best configuration:")
+        print("Best configuration:")
         print(f"  {best_result.config.get_description()}")
         if best_result.summary.mean_ragas_context_precision is not None:
             print(f"  Context Precision: {best_result.summary.mean_ragas_context_precision:.3f}")
@@ -224,7 +221,7 @@ def rag_test_sweep(
         sys.exit(1)
 
 
-def _parse_parameter_values(param_name: str, values_str: str) -> List:
+def _parse_parameter_values(param_name: str, values_str: str) -> list:
     """Parse comma-separated parameter values.
 
     Args:
@@ -262,7 +259,7 @@ def _parse_grid_params(
     bm25_weight: str | None,
     embedding_model: str | None,
     chunk_header_level: str | None,
-) -> Dict[str, List]:
+) -> dict[str, list]:
     """Parse grid search parameters.
 
     Args:

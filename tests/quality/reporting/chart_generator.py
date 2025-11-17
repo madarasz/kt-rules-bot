@@ -1,9 +1,8 @@
 """Chart generation for quality test reports."""
 
 import os
-from typing import List, Optional, Dict, Set
+
 import numpy as np
-from pathlib import Path
 
 try:
     import matplotlib
@@ -14,8 +13,8 @@ except ImportError:
     MATPLOTLIB_AVAILABLE = False
 
 from tests.quality.reporting.report_models import (
-    QualityReport,
     IndividualTestResult,
+    QualityReport,
 )
 
 
@@ -49,7 +48,7 @@ class ChartGenerator:
                 if chart_path:
                     test_case_report.chart_path = chart_path
 
-    def _generate_main_chart(self) -> Optional[str]:
+    def _generate_main_chart(self) -> str | None:
         """Generate the main visualization chart comparing models."""
         if not MATPLOTLIB_AVAILABLE or not self.report.is_multi_model:
             return None
@@ -130,13 +129,13 @@ class ChartGenerator:
             title="Model Performance Comparison"
         )
 
-    def _generate_test_case_chart(self, test_id: str, results: List[IndividualTestResult]) -> Optional[str]:
+    def _generate_test_case_chart(self, test_id: str, results: list[IndividualTestResult]) -> str | None:
         """Generate a chart for a specific test case comparing models."""
-        if not MATPLOTLIB_AVAILABLE or len(set(r.model for r in results)) <= 1:
+        if not MATPLOTLIB_AVAILABLE or len({r.model for r in results}) <= 1:
             return None
-        
+
         chart_path = os.path.join(self.report_dir, f"chart_{test_id}.png")
-        
+
         # Aggregate data by model for this test case
         model_data = {}
         for result in results:
@@ -151,19 +150,19 @@ class ChartGenerator:
             model_data[result.model]['times'].append(result.generation_time_seconds)
             model_data[result.model]['costs'].append(result.cost_usd)
             model_data[result.model]['chars'].append(result.output_char_count)
-        
+
         models = list(model_data.keys())
         avg_scores = [np.mean(model_data[m]['scores']) for m in models]
         avg_times = [np.mean(model_data[m]['times']) for m in models]
         avg_costs = [np.mean(model_data[m]['costs']) for m in models]
         avg_chars = [np.mean(model_data[m]['chars']) for m in models]
-        
+
         # Error bars for multi-run scenarios
         std_scores = [np.std(model_data[m]['scores']) if len(model_data[m]['scores']) > 1 else 0 for m in models]
         std_times = [np.std(model_data[m]['times']) if len(model_data[m]['times']) > 1 else 0 for m in models]
         std_costs = [np.std(model_data[m]['costs']) if len(model_data[m]['costs']) > 1 else 0 for m in models]
         std_chars = [np.std(model_data[m]['chars']) if len(model_data[m]['chars']) > 1 else 0 for m in models]
-        
+
         return self._create_chart(
             chart_path=chart_path,
             models=models,
@@ -182,73 +181,73 @@ class ChartGenerator:
     def _create_chart(
         self,
         chart_path: str,
-        models: List[str],
-        avg_scores: List[float],
-        avg_times: List[float],
-        avg_costs: List[float],
-        avg_chars: List[float],
-        std_scores: List[float],
-        std_times: List[float],
-        std_costs: List[float],
-        std_chars: List[float],
-        test_queries: Set[str],
+        models: list[str],
+        avg_scores: list[float],
+        avg_times: list[float],
+        avg_costs: list[float],
+        avg_chars: list[float],
+        std_scores: list[float],
+        std_times: list[float],
+        std_costs: list[float],
+        std_chars: list[float],
+        test_queries: set[str],
         title: str
     ) -> str:
         """Create a chart with the given data."""
         # Create figure
         fig, ax1 = plt.subplots(figsize=(14, 8))
-        
+
         # Set up x-axis
         x = np.arange(len(models))
         width = 0.2
-        
+
         # Bar positions
         pos1 = x - 1.5 * width
         pos2 = x - 0.5 * width
         pos3 = x + 0.5 * width
         pos4 = x + 1.5 * width
-        
+
         # Determine if we should show error bars (multi-run scenario)
         show_error_bars = self.report.is_multi_run
-        
+
         # Calculate LLM error percentages and earned scores
         earned_scores, llm_error_scores = self._calculate_score_breakdown(models)
-        
+
         # Colors
         color_earned = '#2ecc71'  # Green for earned points
         color_llm_error = '#95a5a6'  # Grey for LLM errors
         color_time = '#3498db'  # Blue
         color_cost = '#e74c3c'  # Red
         color_chars = '#8B4513'  # Brown
-        
+
         # Plot score % on primary axis - use stacked bars like the old visualization
-        bars_earned = ax1.bar(pos1, earned_scores, width, 
+        ax1.bar(pos1, earned_scores, width,
                              label='Score % (earned)', color=color_earned, alpha=0.8)
-        bars_llm_error = ax1.bar(pos1, llm_error_scores, width, bottom=earned_scores,
+        ax1.bar(pos1, llm_error_scores, width, bottom=earned_scores,
                                 label='LLM Error %', color=color_llm_error, alpha=0.8)
-        
+
         # Add error bars to the total (earned + LLM error) if multi-run
         if show_error_bars:
-            total_scores = [e + l for e, l in zip(earned_scores, llm_error_scores)]
-            ax1.errorbar(pos1, total_scores, yerr=std_scores, fmt='none', 
+            total_scores = [e + l for e, l in zip(earned_scores, llm_error_scores, strict=False)]
+            ax1.errorbar(pos1, total_scores, yerr=std_scores, fmt='none',
                         ecolor=color_llm_error, capsize=5, capthick=2, alpha=0.7)
-        
+
         # Add individual data points for different queries if multi-run or multi-test-case
         if self.report.is_multi_run or self.report.is_multi_test_case:
             self._add_individual_points(ax1, pos1, models, 'scores')
-        
+
         ax1.set_xlabel('Model', fontsize=12, fontweight='bold')
         ax1.set_ylabel('Score %', fontsize=12, fontweight='bold', color=color_earned)
         ax1.tick_params(axis='y', labelcolor=color_earned)
         ax1.set_ylim(0, 100)
         ax1.set_xticks(x)
         ax1.set_xticklabels(models, rotation=45, ha='right')
-        
+
         # Create secondary axes
         ax2 = ax1.twinx()
-        bars_time = ax2.bar(pos2, avg_times, width, label='Time (s)', color=color_time, alpha=0.8)
+        ax2.bar(pos2, avg_times, width, label='Time (s)', color=color_time, alpha=0.8)
         if show_error_bars:
-            ax2.errorbar(pos2, avg_times, yerr=std_times, fmt='none', 
+            ax2.errorbar(pos2, avg_times, yerr=std_times, fmt='none',
                         ecolor=color_llm_error, capsize=5, capthick=2, alpha=0.7)
         if self.report.is_multi_run or self.report.is_multi_test_case:
             self._add_individual_points(ax2, pos2, models, 'times')
@@ -256,12 +255,12 @@ class ChartGenerator:
         ax2.tick_params(axis='y', labelcolor=color_time)
         # Ensure time axis starts from 0
         ax2.set_ylim(bottom=0)
-        
+
         ax3 = ax1.twinx()
         ax3.spines['right'].set_position(('outward', 60))
-        bars_cost = ax3.bar(pos3, avg_costs, width, label='Cost (USD)', color=color_cost, alpha=0.8)
+        ax3.bar(pos3, avg_costs, width, label='Cost (USD)', color=color_cost, alpha=0.8)
         if show_error_bars:
-            ax3.errorbar(pos3, avg_costs, yerr=std_costs, fmt='none', 
+            ax3.errorbar(pos3, avg_costs, yerr=std_costs, fmt='none',
                         ecolor=color_llm_error, capsize=5, capthick=2, alpha=0.7)
         if self.report.is_multi_run or self.report.is_multi_test_case:
             self._add_individual_points(ax3, pos3, models, 'costs')
@@ -269,12 +268,12 @@ class ChartGenerator:
         ax3.tick_params(axis='y', labelcolor=color_cost)
         # Ensure cost axis starts from 0
         ax3.set_ylim(bottom=0)
-        
+
         ax4 = ax1.twinx()
         ax4.spines['right'].set_position(('outward', 120))
-        bars_chars = ax4.bar(pos4, avg_chars, width, label='Characters', color=color_chars, alpha=0.8)
+        ax4.bar(pos4, avg_chars, width, label='Characters', color=color_chars, alpha=0.8)
         if show_error_bars:
-            ax4.errorbar(pos4, avg_chars, yerr=std_chars, fmt='none', 
+            ax4.errorbar(pos4, avg_chars, yerr=std_chars, fmt='none',
                         ecolor=color_llm_error, capsize=5, capthick=2, alpha=0.7)
         if self.report.is_multi_run or self.report.is_multi_test_case:
             self._add_individual_points(ax4, pos4, models, 'chars')
@@ -282,18 +281,18 @@ class ChartGenerator:
         ax4.tick_params(axis='y', labelcolor=color_chars)
         # Ensure characters axis starts from 0
         ax4.set_ylim(bottom=0)
-        
+
         # Title and legend
         plt.title(title, fontsize=14, fontweight='bold', pad=20)
-        
+
         lines1, labels1 = ax1.get_legend_handles_labels()
         lines2, labels2 = ax2.get_legend_handles_labels()
         lines3, labels3 = ax3.get_legend_handles_labels()
         lines4, labels4 = ax4.get_legend_handles_labels()
         ax1.legend(lines1 + lines2 + lines3 + lines4, labels1 + labels2 + labels3 + labels4, loc='upper left')
-        
+
         ax1.grid(axis='y', alpha=0.3, linestyle='--')
-        
+
         # Add test queries at bottom if provided
         if test_queries:
             sorted_queries = sorted(test_queries)
@@ -303,46 +302,46 @@ class ChartGenerator:
             plt.subplots_adjust(bottom=0.25)
         else:
             plt.tight_layout()
-        
+
         plt.savefig(chart_path, dpi=150, bbox_inches='tight')
         plt.close()
-        
+
         return chart_path
 
-    def _calculate_score_breakdown(self, models: List[str]) -> tuple:
+    def _calculate_score_breakdown(self, models: list[str]) -> tuple:
         """Calculate earned scores and LLM error scores for each model."""
         earned_scores = []
         llm_error_scores = []
-        
+
         for model in models:
             model_results = [r for r in self.report.results if r.model == model]
             if not model_results:
                 earned_scores.append(0.0)
                 llm_error_scores.append(0.0)
                 continue
-            
+
             total_score = sum(r.score for r in model_results)
             total_max = sum(r.max_score for r in model_results)
-            
+
             # Calculate LLM errors - look for results with errors
             total_llm_error = 0
             for result in model_results:
                 if result.error:  # LLM generation failed
                     total_llm_error += result.max_score - result.score
-            
+
             if total_max > 0:
                 earned_pct = (total_score / total_max) * 100
                 llm_error_pct = (total_llm_error / total_max) * 100
             else:
                 earned_pct = 0.0
                 llm_error_pct = 0.0
-            
+
             earned_scores.append(earned_pct)
             llm_error_scores.append(llm_error_pct)
-        
+
         return earned_scores, llm_error_scores
 
-    def _add_individual_points(self, ax, positions, models: List[str], metric: str):
+    def _add_individual_points(self, ax, positions, models: list[str], metric: str):
         """Add individual data points as small circles on the chart."""
         for i, model in enumerate(models):
             model_results = [r for r in self.report.results if r.model == model]
@@ -366,7 +365,7 @@ class ChartGenerator:
                 ax.scatter(x_positions, values, color='white', s=20, alpha=0.8,
                           edgecolors='black', linewidth=1, zorder=10)
 
-    def _generate_ragas_metrics_chart(self) -> Optional[str]:
+    def _generate_ragas_metrics_chart(self) -> str | None:
         """Generate a chart showing individual Ragas metrics per model.
 
         Returns:
@@ -479,15 +478,15 @@ class ChartGenerator:
         color_ac = '#f39c12'  # Orange - Answer Correctness
 
         # Plot bars for each metric
-        bars_qp = ax.bar(pos1, avg_quote_precision, width,
+        ax.bar(pos1, avg_quote_precision, width,
                         label='Quote Precision', color=color_qp, alpha=0.8)
-        bars_qr = ax.bar(pos2, avg_quote_recall, width,
+        ax.bar(pos2, avg_quote_recall, width,
                         label='Quote Recall', color=color_qr, alpha=0.8)
-        bars_qf = ax.bar(pos3, avg_quote_faithfulness, width,
+        ax.bar(pos3, avg_quote_faithfulness, width,
                         label='Quote Faithfulness', color=color_qf, alpha=0.8)
-        bars_ef = ax.bar(pos4, avg_explanation_faithfulness, width,
+        ax.bar(pos4, avg_explanation_faithfulness, width,
                         label='Explanation Faithfulness', color=color_ef, alpha=0.8)
-        bars_ac = ax.bar(pos5, avg_answer_correctness, width,
+        ax.bar(pos5, avg_answer_correctness, width,
                         label='Answer Correctness', color=color_ac, alpha=0.8)
 
         # Add error bars if multi-run

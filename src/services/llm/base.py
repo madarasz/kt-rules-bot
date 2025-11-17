@@ -7,22 +7,21 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import BinaryIO, List, Optional
+from typing import BinaryIO
 from uuid import UUID
 
 from src.lib.constants import (
     LLM_DEFAULT_MAX_TOKENS,
     LLM_DEFAULT_TEMPERATURE,
-    LLM_GENERATION_TIMEOUT,
     LLM_EXTRACTION_MAX_TOKENS,
     LLM_EXTRACTION_TEMPERATURE,
     LLM_EXTRACTION_TIMEOUT,
+    LLM_GENERATION_TIMEOUT,
     LLM_SYSTEM_PROMPT_FILE_PATH,
 )
 
-
 # Cached system prompt (loaded once from file)
-_SYSTEM_PROMPT_CACHE: Optional[str] = None
+_SYSTEM_PROMPT_CACHE: str | None = None
 
 
 def load_system_prompt() -> str:
@@ -59,9 +58,9 @@ def load_system_prompt() -> str:
     # Import personality module to get personality-specific content
     # Import here to avoid circular dependency at module level
     from src.lib.personality import (
+        get_afterword_example,
         get_personality_description,
         get_short_answer_example,
-        get_afterword_example,
     )
 
     # Replace personality placeholders
@@ -221,7 +220,7 @@ class GenerationRequest:
     """Request for answer generation."""
 
     prompt: str  # User query (sanitized)
-    context: List[str]  # Retrieved document chunks (up to 5)
+    context: list[str]  # Retrieved document chunks (up to 5)
     config: GenerationConfig
 
 
@@ -270,7 +269,7 @@ class ExtractionResponse:
     latency_ms: int  # Extraction time
     provider: str  # "claude", "gemini", "chatgpt"
     model_version: str
-    validation_warnings: List[str]  # E.g., "Missing YAML frontmatter"
+    validation_warnings: list[str]  # E.g., "Missing YAML frontmatter"
     prompt_tokens: int = 0  # Input tokens (PDF + prompt)
     completion_tokens: int = 0  # Output tokens (markdown)
 
@@ -329,7 +328,7 @@ class LLMProvider(ABC):
         """
         pass
 
-    def _build_prompt(self, user_query: str, context: List[str]) -> str:
+    def _build_prompt(self, user_query: str, context: list[str]) -> str:
         """Build user prompt with retrieved context.
 
         Note: System prompt is configured separately in GenerationConfig.

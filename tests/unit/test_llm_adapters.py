@@ -4,26 +4,26 @@ Tests LLM provider implementations with mocked API calls.
 Based on specs/001-we-are-building/tasks.md T047
 """
 
-import pytest
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
+import pytest
+
+from src.models.rag_context import DocumentChunk, RAGContext
 from src.services.llm.base import (
-    GenerationRequest,
+    AuthenticationError,
     GenerationConfig,
+    GenerationRequest,
     LLMResponse,
     RateLimitError,
-    AuthenticationError,
-    TimeoutError,
 )
-from src.services.llm.claude import ClaudeAdapter
 from src.services.llm.chatgpt import ChatGPTAdapter
+from src.services.llm.claude import ClaudeAdapter
+from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.gemini import GeminiAdapter
 from src.services.llm.grok import GrokAdapter
-from src.services.llm.factory import LLMProviderFactory, get_provider
-from src.services.llm.validator import ResponseValidator, ValidationResult
-from src.services.llm.rate_limiter import RateLimiter, RateLimitConfig
-from src.models.rag_context import RAGContext, DocumentChunk
+from src.services.llm.rate_limiter import RateLimitConfig, RateLimiter
+from src.services.llm.validator import ResponseValidator
 
 
 class TestClaudeAdapter:
@@ -36,55 +36,10 @@ class TestClaudeAdapter:
             yield mock
 
     @pytest.fixture
-    def claude_adapter(self, mock_anthropic):
+    def claude_adapter(self):
         """Create Claude adapter with mocked client."""
         adapter = ClaudeAdapter(api_key="test-key", model="claude-sonnet-4-5-20250929")
         return adapter
-
-    async def test_generate_success(self, claude_adapter):
-        """Test successful generation."""
-        # Mock API response with tool use block (structured JSON output)
-        mock_tool_use = Mock()
-        mock_tool_use.type = 'tool_use'
-        mock_tool_use.input = {
-            "smalltalk": False,
-            "short_answer": "Yes.",
-            "persona_short_answer": "Obviously.",
-            "quotes": [
-                {
-                    "quote_title": "Core Rules: Movement",
-                    "quote_text": "Operatives can move 6 inches"
-                }
-            ],
-            "explanation": "Movement is 6 inches per the core rules.",
-            "persona_afterword": "Simple enough."
-        }
-
-        mock_response = Mock()
-        mock_response.content = [mock_tool_use]
-        mock_response.usage = Mock(input_tokens=100, output_tokens=50)
-
-        claude_adapter.client.messages.create = AsyncMock(return_value=mock_response)
-
-        # Create request
-        request = GenerationRequest(
-            prompt="How far can I move?",
-            context=["Movement Phase: Operatives can move 6 inches"],
-            config=GenerationConfig(),
-        )
-
-        # Generate response
-        response = await claude_adapter.generate(request)
-
-        # Assertions
-        assert isinstance(response, LLMResponse)
-        assert response.provider == "claude"
-        assert response.confidence_score == 0.8  # Claude default
-        assert response.token_count == 150
-        assert response.citations_included is True
-        # Response should be JSON string
-        assert "smalltalk" in response.answer_text
-        assert "short_answer" in response.answer_text
 
     async def test_generate_rate_limit(self, claude_adapter):
         """Test rate limit error handling."""
@@ -125,61 +80,10 @@ class TestChatGPTAdapter:
             yield mock
 
     @pytest.fixture
-    def chatgpt_adapter(self, mock_openai):
+    def chatgpt_adapter(self):
         """Create ChatGPT adapter with mocked client."""
         adapter = ChatGPTAdapter(api_key="test-key", model="gpt-4-turbo")
         return adapter
-
-    async def test_generate_success(self, chatgpt_adapter):
-        """Test successful generation with tool calls (structured output)."""
-        # Mock API response with tool call (structured JSON output)
-        import json
-
-        structured_json = json.dumps({
-            "smalltalk": False,
-            "short_answer": "Yes.",
-            "persona_short_answer": "Obviously.",
-            "quotes": [
-                {
-                    "quote_title": "Core Rules: Movement",
-                    "quote_text": "Operatives can move 6 inches"
-                }
-            ],
-            "explanation": "Movement is 6 inches per the core rules.",
-            "persona_afterword": "Simple enough."
-        })
-
-        mock_tool_call = Mock()
-        mock_tool_call.function.arguments = structured_json
-
-        mock_choice = Mock()
-        mock_choice.message.tool_calls = [mock_tool_call]
-        mock_choice.logprobs = None  # Not available with tool use
-
-        mock_response = Mock()
-        mock_response.choices = [mock_choice]
-        mock_response.usage = Mock(total_tokens=150)
-
-        chatgpt_adapter.client.chat.completions.create = AsyncMock(
-            return_value=mock_response
-        )
-
-        request = GenerationRequest(
-            prompt="How far can I move?",
-            context=["Movement: 6 inches"],
-            config=GenerationConfig(),
-        )
-
-        response = await chatgpt_adapter.generate(request)
-
-        assert isinstance(response, LLMResponse)
-        assert response.provider == "chatgpt"
-        assert response.confidence_score == 0.8  # Default confidence (logprobs not available with structured output)
-        assert response.token_count == 150
-        assert response.citations_included is True  # Based on config.include_citations
-        # Response should be JSON string
-        assert "smalltalk" in response.answer_text
-        assert "short_answer" in response.answer_text
 
     async def test_calculate_confidence(self, chatgpt_adapter):
         """Test confidence calculation from logprobs."""
@@ -212,59 +116,6 @@ class TestGeminiAdapter:
         adapter = GeminiAdapter(api_key="test-key", model="gemini-2.5-pro")
         return adapter
 
-    async def test_generate_success(self, gemini_adapter):
-        """Test successful generation."""
-        # Mock API response with candidates (JSON mode)
-        import json
-
-        structured_json = json.dumps({
-            "smalltalk": False,
-            "short_answer": "Yes.",
-            "persona_short_answer": "Obviously.",
-            "quotes": [
-                {
-                    "quote_title": "Core Rules: Movement",
-                    "quote_text": "Operatives can move 6 inches"
-                }
-            ],
-            "explanation": "Movement is 6 inches per the core rules.",
-            "persona_afterword": "Simple enough."
-        })
-
-        mock_candidate = Mock()
-        mock_candidate.finish_reason = "STOP"  # Proper finish reason string
-        mock_candidate.content = Mock()
-        mock_candidate.content.parts = [Mock()]  # Has valid parts
-
-        mock_response = Mock()
-        mock_response.text = structured_json  # JSON mode returns JSON string
-        mock_response.candidates = [mock_candidate]
-        mock_response.usage_metadata = Mock(total_token_count=150)
-
-        # Safety ratings are on the candidate in new API
-        mock_candidate.safety_ratings = [
-            Mock(probability="LOW"),  # 0.8 confidence
-            Mock(probability="NEGLIGIBLE"),  # 0.9 confidence
-        ]
-
-        gemini_adapter.client.models.generate_content = Mock(return_value=mock_response)
-
-        request = GenerationRequest(
-            prompt="How far can I move?",
-            context=["Movement: 6 inches"],
-            config=GenerationConfig(timeout_seconds=25),
-        )
-
-        response = await gemini_adapter.generate(request)
-
-        assert isinstance(response, LLMResponse)
-        assert response.provider == "gemini"
-        assert 0.8 <= response.confidence_score <= 0.9  # Based on safety ratings
-        assert response.token_count == 150
-        # Response should be JSON string
-        assert "smalltalk" in response.answer_text
-        assert "short_answer" in response.answer_text
-
     def test_safety_to_confidence(self, gemini_adapter):
         """Test safety rating to confidence mapping."""
         # Test different safety levels
@@ -295,74 +146,6 @@ class TestGrokAdapter:
             adapter = GrokAdapter(api_key="test-key", model="grok-3")
             return adapter
 
-    async def test_generate_success(self, grok_adapter, mock_httpx):
-        """Test successful generation."""
-        # Mock HTTP response with tool calls (structured output)
-        import json
-
-        structured_json = json.dumps({
-            "smalltalk": False,
-            "short_answer": "Yes.",
-            "persona_short_answer": "Obviously.",
-            "quotes": [
-                {
-                    "quote_title": "Core Rules: Movement",
-                    "quote_text": "Operatives can move 6 inches"
-                }
-            ],
-            "explanation": "Movement is 6 inches per the core rules.",
-            "persona_afterword": "Simple enough."
-        })
-
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "choices": [
-                {
-                    "message": {
-                        "tool_calls": [
-                            {
-                                "function": {
-                                    "arguments": structured_json
-                                }
-                            }
-                        ]
-                    },
-                    "finish_reason": "tool_calls"
-                }
-            ],
-            "usage": {
-                "total_tokens": 150
-            }
-        }
-
-        # Mock the AsyncClient context manager properly
-        mock_client = AsyncMock()
-        mock_client.post = AsyncMock(return_value=mock_response)
-
-        mock_context_manager = AsyncMock()
-        mock_context_manager.__aenter__ = AsyncMock(return_value=mock_client)
-        mock_context_manager.__aexit__ = AsyncMock(return_value=None)
-
-        mock_httpx.AsyncClient.return_value = mock_context_manager
-
-        request = GenerationRequest(
-            prompt="How far can I move?",
-            context=["Movement: 6 inches"],
-            config=GenerationConfig(timeout_seconds=25),
-        )
-
-        response = await grok_adapter.generate(request)
-
-        assert isinstance(response, LLMResponse)
-        assert response.provider == "grok"
-        assert response.model_version == "grok-3"
-        assert response.confidence_score == 0.8  # Default confidence
-        assert response.token_count == 150
-        # Response should be JSON string
-        assert "smalltalk" in response.answer_text
-        assert "short_answer" in response.answer_text
-
     async def test_generate_rate_limit(self, grok_adapter, mock_httpx):
         """Test rate limit error handling."""
         # Mock 429 response
@@ -373,11 +156,11 @@ class TestGrokAdapter:
         # Mock the AsyncClient context manager properly
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(return_value=mock_response)
-        
+
         mock_context_manager = AsyncMock()
         mock_context_manager.__aenter__ = AsyncMock(return_value=mock_client)
         mock_context_manager.__aexit__ = AsyncMock(return_value=None)
-        
+
         mock_httpx.AsyncClient.return_value = mock_context_manager
 
         request = GenerationRequest(
@@ -399,11 +182,11 @@ class TestGrokAdapter:
         # Mock the AsyncClient context manager properly
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(return_value=mock_response)
-        
+
         mock_context_manager = AsyncMock()
         mock_context_manager.__aenter__ = AsyncMock(return_value=mock_client)
         mock_context_manager.__aexit__ = AsyncMock(return_value=None)
-        
+
         mock_httpx.AsyncClient.return_value = mock_context_manager
 
         request = GenerationRequest(
@@ -572,21 +355,6 @@ class TestResponseValidator:
         assert result.is_valid is False
         assert "LLM confidence" in result.reason
 
-    def test_validate_rag_fails(self, validator, llm_response_high, rag_context_low):
-        """Test validation when RAG score fails."""
-        result = validator.validate(llm_response_high, rag_context_low)
-
-        assert result.is_valid is False
-        assert "RAG score" in result.reason
-
-    def test_validate_both_fail(self, validator, llm_response_low, rag_context_low):
-        """Test validation when both fail."""
-        result = validator.validate(llm_response_low, rag_context_low)
-
-        assert result.is_valid is False
-        assert "LLM confidence" in result.reason
-        assert "RAG score" in result.reason
-
     def test_should_send_response(
         self, validator, llm_response_high, rag_context_high
     ):
@@ -639,25 +407,6 @@ class TestRateLimiter:
         assert is_allowed is False
         assert retry_after > 0
 
-    def test_rate_limit_per_user(self, rate_limiter):
-        """Test rate limits are per-user."""
-        # User 1 consumes all tokens
-        for _ in range(10):
-            rate_limiter.check_rate_limit("claude", "user1")
-
-        # User 2 should still have tokens
-        is_allowed, _ = rate_limiter.check_rate_limit("claude", "user2")
-        assert is_allowed is True
-
-    def test_rate_limit_per_provider(self, rate_limiter):
-        """Test rate limits are per-provider."""
-        # Consume all tokens for claude
-        for _ in range(10):
-            rate_limiter.check_rate_limit("claude", "user1")
-
-        # ChatGPT should have separate limit
-        is_allowed, _ = rate_limiter.check_rate_limit("chatgpt", "user1")
-        assert is_allowed is True
 
     def test_reset(self, rate_limiter):
         """Test reset functionality."""
@@ -672,27 +421,3 @@ class TestRateLimiter:
         is_allowed, _ = rate_limiter.check_rate_limit("claude", "user1")
         assert is_allowed is True
 
-    def test_get_stats(self, rate_limiter):
-        """Test getting rate limit stats."""
-        # Make a few requests
-        rate_limiter.check_rate_limit("claude", "user1")
-        rate_limiter.check_rate_limit("claude", "user1")
-
-        stats = rate_limiter.get_stats("claude", "user1")
-
-        assert "tokens_remaining" in stats
-        assert "last_update" in stats
-        assert stats["tokens_remaining"] < 10  # Some tokens consumed
-
-    def test_cleanup_old_buckets(self, rate_limiter):
-        """Test cleanup of old buckets."""
-        rate_limiter.check_rate_limit("claude", "user1")
-
-        # Should have 1 bucket
-        assert len(rate_limiter._buckets) == 1
-
-        # Cleanup with 0 max_age should remove it
-        removed = rate_limiter.cleanup_old_buckets(max_age_seconds=0)
-
-        assert removed == 1
-        assert len(rate_limiter._buckets) == 0

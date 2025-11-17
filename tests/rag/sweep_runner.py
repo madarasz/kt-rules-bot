@@ -3,32 +3,31 @@
 Runs RAG tests with different parameter values to find optimal configurations.
 """
 
-from dataclasses import dataclass, asdict
-from typing import List, Dict, Any, Optional
-from pathlib import Path
-from datetime import datetime
 import itertools
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-from tests.rag.test_runner import RAGTestRunner
-from tests.rag.test_case_models import RAGTestResult, RAGTestSummary
 from src.lib.constants import (
-    RAG_MAX_CHUNKS,
-    RAG_MIN_RELEVANCE,
-    RRF_K,
-    BM25_K1,
     BM25_B,
+    BM25_K1,
     BM25_WEIGHT,
     EMBEDDING_MODEL,
     MARKDOWN_CHUNK_HEADER_LEVEL,
+    RAG_MAX_CHUNKS,
+    RAG_MIN_RELEVANCE,
+    RRF_K,
 )
 from src.lib.logging import get_logger
-from src.services.rag.vector_db import VectorDBService
-from src.services.rag.ingestor import RAGIngestor
+from src.models.rule_document import RuleDocument
 from src.services.rag.chunker import MarkdownChunker
 from src.services.rag.embeddings import EmbeddingService
+from src.services.rag.ingestor import RAGIngestor
 from src.services.rag.validator import DocumentValidator
-from src.models.rule_document import RuleDocument
-from src.lib.tokens import get_embedding_token_limit
+from src.services.rag.vector_db import VectorDBService
+from tests.rag.test_case_models import RAGTestResult, RAGTestSummary
+from tests.rag.test_runner import RAGTestRunner
 
 logger = get_logger(__name__)
 
@@ -46,7 +45,7 @@ class ParameterConfig:
     embedding_model: str = EMBEDDING_MODEL
     chunk_header_level: int = MARKDOWN_CHUNK_HEADER_LEVEL
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return asdict(self)
 
@@ -84,7 +83,7 @@ class SweepResult:
     """Result of a single parameter configuration run."""
 
     config: ParameterConfig
-    results: List[RAGTestResult]
+    results: list[RAGTestResult]
     summary: RAGTestSummary
     total_time: float
 
@@ -107,8 +106,8 @@ class RAGSweepRunner:
         self.results_base_dir = results_base_dir
 
         # Track last ingested configuration to avoid unnecessary reingestion
-        self.last_ingested_embedding_model: Optional[str] = None
-        self.last_ingested_chunk_header_level: Optional[int] = None
+        self.last_ingested_embedding_model: str | None = None
+        self.last_ingested_chunk_header_level: int | None = None
 
         # Track if we're sweeping embedding/chunking parameters (determines if re-ingestion is needed)
         self.sweeping_embedding_or_chunking = False
@@ -122,11 +121,11 @@ class RAGSweepRunner:
     def sweep_parameter(
         self,
         param_name: str,
-        param_values: List[Any],
-        test_id: Optional[str] = None,
+        param_values: list[Any],
+        test_id: str | None = None,
         runs: int = 1,
-        base_config: Optional[ParameterConfig] = None,
-    ) -> List[SweepResult]:
+        base_config: ParameterConfig | None = None,
+    ) -> list[SweepResult]:
         """Run tests sweeping a single parameter.
 
         Args:
@@ -194,10 +193,10 @@ class RAGSweepRunner:
 
     def grid_search(
         self,
-        param_grid: Dict[str, List[Any]],
-        test_id: Optional[str] = None,
+        param_grid: dict[str, list[Any]],
+        test_id: str | None = None,
         runs: int = 1,
-    ) -> List[SweepResult]:
+    ) -> list[SweepResult]:
         """Run tests for all combinations of parameters (grid search).
 
         Args:
@@ -233,7 +232,7 @@ class RAGSweepRunner:
         for i, combination in enumerate(combinations, start=1):
             # Create configuration for this combination
             config = ParameterConfig()
-            for param_name, value in zip(param_names, combination):
+            for param_name, value in zip(param_names, combination, strict=False):
                 setattr(config, param_name, value)
 
             logger.info(
@@ -267,7 +266,7 @@ class RAGSweepRunner:
     def _run_config(
         self,
         config: ParameterConfig,
-        test_id: Optional[str],
+        test_id: str | None,
         runs: int,
     ) -> SweepResult:
         """Run tests for a single configuration.
@@ -304,9 +303,9 @@ class RAGSweepRunner:
             )
 
             if self.last_ingested_embedding_model is None:
-                print(f"\n⚠️  Initial database setup required:")
+                print("\n⚠️  Initial database setup required:")
             else:
-                print(f"\n⚠️  Configuration change requires database reset and re-ingestion:")
+                print("\n⚠️  Configuration change requires database reset and re-ingestion:")
                 print(f"   Previous embedding model: {self.last_ingested_embedding_model}")
                 print(f"   Previous chunk header level: {self.last_ingested_chunk_header_level}")
 
@@ -366,7 +365,7 @@ class RAGSweepRunner:
             embedding_model: Embedding model to use
             chunk_header_level: Markdown chunk header level (2-4)
         """
-        print(f"\n🗑️  Resetting vector database...")
+        print("\n🗑️  Resetting vector database...")
 
         # Reset vector DB
         vector_db = VectorDBService()
@@ -381,7 +380,7 @@ class RAGSweepRunner:
         print(f"   Deleted {count_before} embeddings")
 
         # Re-ingest with custom parameters
-        print(f"\n📥 Re-ingesting rules...")
+        print("\n📥 Re-ingesting rules...")
         print(f"   Embedding model: {embedding_model}")
         print(f"   Chunk header level: {chunk_header_level}")
 
@@ -446,7 +445,7 @@ class RAGSweepRunner:
 
     def save_sweep_results(
         self,
-        sweep_results: List[SweepResult],
+        sweep_results: list[SweepResult],
         sweep_name: str,
     ) -> Path:
         """Save sweep results to timestamped directory.

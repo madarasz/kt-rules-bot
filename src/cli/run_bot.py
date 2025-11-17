@@ -3,7 +3,6 @@
 import asyncio
 import signal
 import sys
-from typing import Optional
 
 from src.lib.config import Config
 from src.lib.database import AnalyticsDatabase
@@ -30,7 +29,7 @@ class BotRunner:
             config: Application configuration
         """
         self.config = config
-        self.bot: Optional[KillTeamBot] = None
+        self.bot: KillTeamBot | None = None
         self.shutdown_event = asyncio.Event()
 
     def _setup_signal_handlers(self):
@@ -124,7 +123,7 @@ class BotRunner:
             # Wait for bot task to complete
             try:
                 await asyncio.wait_for(bot_task, timeout=10.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("Bot shutdown timeout, forcing exit")
                 bot_task.cancel()
 
@@ -156,9 +155,9 @@ class BotRunner:
             print(f"  Kill Team Rules Bot - Starting in {mode.upper()} mode")
             print(f"{'=' * 60}")
             print(f"  LLM Provider: {self.config.default_llm_provider}")
-            print(f"  Rate Limit: 10 requests/minute per user")
-            print(f"  Context TTL: 30 minutes")
-            print(f"  Max History: 10 messages")
+            print("  Rate Limit: 10 requests/minute per user")
+            print("  Context TTL: 30 minutes")
+            print("  Max History: 10 messages")
             print(f"{'=' * 60}\n")
 
             logger.info(f"Starting bot in {mode} mode...")

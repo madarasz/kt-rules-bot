@@ -4,19 +4,18 @@ Creates LLM provider instances based on configuration.
 Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
-from typing import Optional
 
+from src.lib.config import get_config
+from src.lib.constants import LLM_PROVIDERS_LITERAL
+from src.lib.logging import get_logger
+from src.lib.server_config import get_multi_server_config
 from src.services.llm.base import LLMProvider
-from src.services.llm.claude import ClaudeAdapter
 from src.services.llm.chatgpt import ChatGPTAdapter
+from src.services.llm.claude import ClaudeAdapter
+from src.services.llm.deepseek import DeepSeekAdapter
+from src.services.llm.dial import DialAdapter
 from src.services.llm.gemini import GeminiAdapter
 from src.services.llm.grok import GrokAdapter
-from src.services.llm.dial import DialAdapter
-from src.services.llm.deepseek import DeepSeekAdapter
-from src.lib.config import get_config
-from src.lib.server_config import get_multi_server_config
-from src.lib.logging import get_logger
-from src.lib.constants import LLM_PROVIDERS_LITERAL
 
 logger = get_logger(__name__)
 
@@ -61,7 +60,7 @@ class LLMProviderFactory:
     }
 
     @classmethod
-    def create(cls, provider_name: LLM_PROVIDERS_LITERAL = None, guild_id: Optional[str] = None) -> LLMProvider:
+    def create(cls, provider_name: LLM_PROVIDERS_LITERAL = None, guild_id: str | None = None) -> LLMProvider:
         """Create LLM provider instance.
 
         Args:

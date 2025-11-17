@@ -5,12 +5,12 @@ Requires API keys - run with: pytest tests/contract/test_llm_structured_output.p
 """
 
 import json
+
 import pytest
 
-from src.services.llm.factory import LLMProviderFactory
-from src.services.llm.base import GenerationRequest, GenerationConfig, STRUCTURED_OUTPUT_SCHEMA
 from src.models.structured_response import StructuredLLMResponse
-
+from src.services.llm.base import STRUCTURED_OUTPUT_SCHEMA, GenerationConfig, GenerationRequest
+from src.services.llm.factory import LLMProviderFactory
 
 # All providers that must support structured output
 PROVIDERS_TO_TEST = [
@@ -32,6 +32,8 @@ SMALLTALK_CONTEXT = []
 
 @pytest.mark.parametrize("provider", PROVIDERS_TO_TEST)
 @pytest.mark.asyncio
+@pytest.mark.contract
+@pytest.mark.llm_api
 async def test_provider_structured_output_compliance(provider):
     """Test provider returns valid structured JSON with all required fields.
 
@@ -97,7 +99,7 @@ async def test_provider_structured_output_compliance(provider):
     except Exception as e:
         pytest.fail(f"{provider} failed to parse into StructuredLLMResponse: {e}")
 
-    assert structured_response.smalltalk == False, f"{provider} should mark rules questions as not smalltalk"
+    assert not structured_response.smalltalk, f"{provider} should mark rules questions as not smalltalk"
     assert len(structured_response.short_answer) > 0, f"{provider} short_answer cannot be empty"
     assert len(structured_response.quotes) > 0, f"{provider} must provide quotes for rules questions"
 
@@ -106,6 +108,8 @@ async def test_provider_structured_output_compliance(provider):
 
 @pytest.mark.parametrize("provider", ["gpt-4.1"])
 @pytest.mark.asyncio
+@pytest.mark.contract
+@pytest.mark.llm_api
 async def test_provider_smalltalk_flag(provider):
     """Test provider correctly sets smalltalk flag.
 
@@ -123,7 +127,7 @@ async def test_provider_smalltalk_flag(provider):
     response = await llm.generate(request)
     data = json.loads(response.answer_text)
 
-    assert data["smalltalk"] == True, f"{provider} should mark casual conversation as smalltalk"
+    assert data["smalltalk"], f"{provider} should mark casual conversation as smalltalk"
     # Smalltalk can have empty quotes
     assert isinstance(data["quotes"], list), f"{provider} quotes must be array even for smalltalk"
 
@@ -132,6 +136,8 @@ async def test_provider_smalltalk_flag(provider):
 
 @pytest.mark.parametrize("provider", ["gpt-4.1"])
 @pytest.mark.asyncio
+@pytest.mark.contract
+@pytest.mark.llm_api
 async def test_provider_markdown_conversion(provider):
     """Test provider response converts to markdown correctly.
 
@@ -164,6 +170,8 @@ class TestProviderSpecificEdgeCases:
     """Provider-specific edge case tests."""
 
     @pytest.mark.asyncio
+    @pytest.mark.contract
+    @pytest.mark.llm_api
     async def test_gpt_4_1_strict_mode(self):
         """Test GPT-4.1 uses strict mode for schema enforcement."""
         llm = LLMProviderFactory.create("gpt-4.1")
@@ -184,6 +192,8 @@ class TestProviderSpecificEdgeCases:
         print("✓ GPT-4.1 strict mode validated")
 
     @pytest.mark.asyncio
+    @pytest.mark.contract
+    @pytest.mark.llm_api
     async def test_deepseek_chat_vs_reasoner(self):
         """Test both DeepSeek models support structured output."""
         for model in ["deepseek-chat"]:  # deepseek-reasoner can be added when available

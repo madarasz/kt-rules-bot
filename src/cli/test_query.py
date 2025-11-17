@@ -5,30 +5,30 @@ Usage:
 """
 
 import argparse
-import sys
-import json
-from datetime import datetime, timezone
-from uuid import uuid4
 import asyncio
+import json
+import sys
+from datetime import UTC, datetime
+from uuid import uuid4
 
 from src.lib.config import get_config
 from src.lib.constants import (
+    ALL_LLM_PROVIDERS,
+    EMBEDDING_MODEL,
     LLM_GENERATION_TIMEOUT,
     RAG_MAX_CHUNKS,
-    ALL_LLM_PROVIDERS,
     RAG_MAX_HOPS,
-    EMBEDDING_MODEL,
 )
 from src.lib.logging import get_logger
-from src.lib.tokens import estimate_cost, estimate_embedding_cost
 from src.lib.statistics import format_statistics_summary
+from src.lib.tokens import estimate_cost, estimate_embedding_cost
+from src.services.llm.base import GenerationConfig, GenerationRequest
 from src.services.llm.factory import LLMProviderFactory
+from src.services.llm.retry import retry_on_content_filter
 from src.services.llm.validator import ResponseValidator
+from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.retriever import RAGRetriever, RetrieveRequest
 from src.services.rag.vector_db import VectorDBService
-from src.services.rag.embeddings import EmbeddingService
-from src.services.llm.base import GenerationRequest, GenerationConfig
-from src.services.llm.retry import retry_on_content_filter
 
 logger = get_logger(__name__)
 
@@ -63,7 +63,7 @@ def test_query(
     if not rag_only:
         print(f"Model: {model or config.default_llm_provider}")
     else:
-        print(f"Mode: RAG-only (no LLM generation)")
+        print("Mode: RAG-only (no LLM generation)")
     print(f"{'='*60}\n")
 
     print(f"Multi-hop: {'enabled' if current_max_hops > 0 else 'disabled'} (max_hops={current_max_hops})")
@@ -96,13 +96,13 @@ def test_query(
     print("Step 1: RAG Retrieval")
     print("-" * 60)
 
-    start_time = datetime.now(timezone.utc)
+    start_time = datetime.now(UTC)
 
     try:
         query_id = uuid4()
 
         # Track initial retrieval time separately
-        initial_start = datetime.now(timezone.utc)
+        datetime.now(UTC)
 
         rag_context, hop_evaluations, chunk_hop_map = rag_retriever.retrieve(
             RetrieveRequest(
@@ -115,7 +115,7 @@ def test_query(
             query_id=query_id,
         )
 
-        rag_time = (datetime.now(timezone.utc) - start_time).total_seconds()
+        rag_time = (datetime.now(UTC) - start_time).total_seconds()
 
         # Calculate initial retrieval time (total minus hop times)
         hop_total_time = sum(
@@ -142,7 +142,7 @@ def test_query(
         hop_evaluation_cost = sum(hop_eval.cost_usd for hop_eval in hop_evaluations) if hop_evaluations else 0.0
 
         # Total RAG cost (embedding + hop evaluations)
-        total_rag_cost = initial_embedding_cost + hop_embedding_cost + hop_evaluation_cost
+        initial_embedding_cost + hop_embedding_cost + hop_evaluation_cost
 
         print(f"Retrieved {rag_context.total_chunks} chunks in {rag_time:.2f}s")
         print(f"Average relevance: {rag_context.avg_relevance:.2f}")
@@ -165,7 +165,7 @@ def test_query(
                     print(f"Missing Query: \"{hop_eval.missing_query}\"")
 
             print(f"\n{'='*60}")
-            print(f"CHUNKS BY HOP")
+            print("CHUNKS BY HOP")
             print(f"{'='*60}")
 
             chunks_by_hop = {}
@@ -217,7 +217,7 @@ def test_query(
     print("Step 2: LLM Generation")
     print("-" * 60)
 
-    llm_start = datetime.now(timezone.utc)
+    llm_start = datetime.now(UTC)
 
     try:
         # Wrap LLM generation with retry logic for ContentFilterError
@@ -235,7 +235,7 @@ def test_query(
             )
         )
 
-        llm_time = (datetime.now(timezone.utc) - llm_start).total_seconds()
+        llm_time = (datetime.now(UTC) - llm_start).total_seconds()
 
         # Calculate LLM cost using actual token counts
         llm_cost = estimate_cost(
@@ -283,7 +283,7 @@ def test_query(
         sys.exit(1)
 
     # Summary
-    total_time = (datetime.now(timezone.utc) - start_time).total_seconds()
+    total_time = (datetime.now(UTC) - start_time).total_seconds()
 
     summary = format_statistics_summary(
         total_time=total_time,

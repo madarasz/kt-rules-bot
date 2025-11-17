@@ -4,11 +4,10 @@ Uses tiktoken library for accurate token counting.
 Based on specs/001-we-are-building/tasks.md T029
 """
 
+
 import tiktoken
-from typing import Optional
 
 from src.lib.constants import EMBEDDING_MODEL
-
 
 # Default encoding for OpenAI models
 DEFAULT_ENCODING = "cl100k_base"

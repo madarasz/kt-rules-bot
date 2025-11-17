@@ -4,8 +4,9 @@ Stores and retrieves embeddings with metadata filtering.
 Based on specs/001-we-are-building/research.md Decision 2.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Any
 from uuid import UUID
+
 import chromadb
 from chromadb.config import Settings
 
@@ -18,17 +19,21 @@ logger = get_logger(__name__)
 class VectorDBService:
     """Service for vector database operations using Chroma."""
 
-    def __init__(self, collection_name: str = "kill_team_rules"):
+    def __init__(self, collection_name: str = "kill_team_rules", db_path: str | None = None):
         """Initialize vector database service.
 
         Args:
             collection_name: Name of the Chroma collection
+            db_path: Optional path to database (defaults to config path)
         """
         config = get_config()
 
+        # Use provided path or fall back to config
+        path = db_path if db_path is not None else config.vector_db_path
+
         # Initialize Chroma client with persistence
         self.client = chromadb.PersistentClient(
-            path=config.vector_db_path,
+            path=path,
             settings=Settings(
                 anonymized_telemetry=False,
                 allow_reset=True,
@@ -44,16 +49,16 @@ class VectorDBService:
         logger.info(
             "vector_db_initialized",
             collection=collection_name,
-            path=config.vector_db_path,
+            path=path,
             count=self.collection.count(),
         )
 
     def add_embeddings(
         self,
-        ids: List[str],
-        embeddings: List[List[float]],
-        documents: List[str],
-        metadatas: List[Dict[str, Any]],
+        ids: list[str],
+        embeddings: list[list[float]],
+        documents: list[str],
+        metadatas: list[dict[str, Any]],
     ) -> None:
         """Add embeddings to the vector database.
 
@@ -93,10 +98,10 @@ class VectorDBService:
 
     def upsert_embeddings(
         self,
-        ids: List[str],
-        embeddings: List[List[float]],
-        documents: List[str],
-        metadatas: List[Dict[str, Any]],
+        ids: list[str],
+        embeddings: list[list[float]],
+        documents: list[str],
+        metadatas: list[dict[str, Any]],
     ) -> None:
         """Upsert embeddings (update if exists, insert if not).
 
@@ -133,10 +138,10 @@ class VectorDBService:
 
     def query(
         self,
-        query_embeddings: List[List[float]],
+        query_embeddings: list[list[float]],
         n_results: int = 5,
-        where: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        where: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Query the vector database for similar embeddings.
 
         Args:

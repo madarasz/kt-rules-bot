@@ -6,7 +6,6 @@ Based on specs/001-we-are-building/tasks.md T046
 
 import time
 from dataclasses import dataclass
-from typing import Dict, Tuple
 
 from src.lib.logging import get_logger
 
@@ -38,14 +37,14 @@ class RateLimiter:
         self.config = config or RateLimitConfig()
 
         # Store buckets: {(provider, user_id): (tokens, last_update)}
-        self._buckets: Dict[Tuple[str, str], Tuple[float, float]] = {}
+        self._buckets: dict[tuple[str, str], tuple[float, float]] = {}
 
         logger.info(
             f"Initialized RateLimiter: "
             f"{self.config.max_requests} requests per {self.config.window_seconds}s"
         )
 
-    def check_rate_limit(self, provider: str, user_id: str) -> Tuple[bool, float]:
+    def check_rate_limit(self, provider: str, user_id: str) -> tuple[bool, float]:
         """Check if request is allowed under rate limit.
 
         Args:
@@ -127,7 +126,7 @@ class RateLimiter:
             del self._buckets[key]
             logger.info(f"Reset rate limit for {provider}:{user_id[:8]}...")
 
-    def get_stats(self, provider: str, user_id: str) -> Dict:
+    def get_stats(self, provider: str, user_id: str) -> dict:
         """Get current rate limit stats for a user.
 
         Args:

@@ -4,13 +4,13 @@ Uses OpenAI text-embedding-3-small for document embedding.
 Based on specs/001-we-are-building/contracts/rag-pipeline.md
 """
 
-from typing import List
+
 import openai
 from openai import OpenAI
 
 from src.lib.config import get_config
-from src.lib.logging import get_logger
 from src.lib.constants import EMBEDDING_MODEL
+from src.lib.logging import get_logger
 from src.lib.tokens import get_embedding_dimensions, get_embedding_token_limit
 
 logger = get_logger(__name__)
@@ -43,7 +43,7 @@ class EmbeddingService:
             max_tokens=self.max_tokens,
         )
 
-    def embed_text(self, text: str) -> List[float]:
+    def embed_text(self, text: str) -> list[float]:
         """Generate embedding for a single text.
 
         Args:
@@ -83,7 +83,7 @@ class EmbeddingService:
             )
             raise
 
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Generate embeddings for multiple texts in a batch.
 
         More efficient than calling embed_text() multiple times.

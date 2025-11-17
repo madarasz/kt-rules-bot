@@ -6,39 +6,41 @@ Runs quality tests against the RAG + LLM pipeline.
 import asyncio
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import List, Optional
+
 import yaml
 
-from tests.quality.test_case_models import TestCase
+from src.lib.config import get_config
+from src.lib.constants import (
+    LLM_GENERATION_TIMEOUT,
+    QUALITY_TEST_JUDGE_MODEL,
+    QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS,
+    RAG_MAX_CHUNKS,
+)
+from src.lib.logging import get_logger
+from src.lib.tokens import estimate_cost, estimate_embedding_cost
+from src.models.structured_response import StructuredLLMResponse
+from src.services.llm.base import (
+    AuthenticationError,
+    ContentFilterError,
+    GenerationConfig,
+    GenerationRequest,
+    RateLimitError,
+)
+from src.services.llm.base import (
+    TimeoutError as LLMTimeoutError,
+)
+from src.services.llm.factory import LLMProviderFactory
+from src.services.llm.retry import retry_with_rate_limit_backoff
+from src.services.rag.embeddings import EmbeddingService
+from src.services.rag.retriever import RAGRetriever, RetrieveRequest
+from src.services.rag.vector_db import VectorDBService
 from tests.quality.ragas_evaluator import RagasEvaluator
 from tests.quality.reporting.report_models import (
     IndividualTestResult,
 )
-from src.models.structured_response import StructuredLLMResponse
-from src.services.llm.factory import LLMProviderFactory
-from src.services.rag.retriever import RAGRetriever, RetrieveRequest
-from src.services.rag.vector_db import VectorDBService
-from src.services.rag.embeddings import EmbeddingService
-from src.services.llm.base import (
-    GenerationRequest,
-    GenerationConfig,
-    ContentFilterError,
-    RateLimitError,
-    TimeoutError as LLMTimeoutError,
-    AuthenticationError,
-)
-from src.services.llm.retry import retry_with_rate_limit_backoff
-from src.lib.constants import (
-    QUALITY_TEST_JUDGE_MODEL,
-    RAG_MAX_CHUNKS,
-    LLM_GENERATION_TIMEOUT,
-    QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS,
-)
-from src.lib.config import get_config
-from src.lib.logging import get_logger
-from src.lib.tokens import estimate_cost, estimate_embedding_cost
+from tests.quality.test_case_models import TestCase
 
 logger = get_logger(__name__)
 
@@ -67,7 +69,7 @@ class QualityTestRunner:
         # Semaphore to serialize Ragas evaluations (Ragas is not thread-safe for parallel execution)
         self.ragas_semaphore = asyncio.Semaphore(1)
 
-    def load_test_cases(self, test_id: Optional[str] = None) -> List[TestCase]:
+    def load_test_cases(self, test_id: str | None = None) -> list[TestCase]:
         """Load test cases from YAML files."""
         test_cases = []
         files = (
@@ -80,9 +82,9 @@ class QualityTestRunner:
                 logger.warning(f"Test file not found: {file}")
                 continue
             try:
-                with open(file, "r") as f:
+                with open(file) as f:
                     data = yaml.safe_load(f)
-                
+
                 # Support both new format (ground_truth) and legacy format (requirements)
                 test_cases.append(
                     TestCase(
@@ -167,7 +169,7 @@ class QualityTestRunner:
             # Use semaphore to limit concurrent requests and prevent rate limits
             async with self.llm_semaphore:
                 # Start timing right before LLM API call
-                llm_start_time = datetime.now(timezone.utc)
+                llm_start_time = datetime.now(UTC)
                 llm_response = await retry_with_rate_limit_backoff(
                     llm_provider.generate,
                     GenerationRequest(
@@ -178,7 +180,7 @@ class QualityTestRunner:
                     timeout_seconds=LLM_GENERATION_TIMEOUT,
                 )
                 # Stop timing immediately after LLM response
-                generation_time = (datetime.now(timezone.utc) - llm_start_time).total_seconds()
+                generation_time = (datetime.now(UTC) - llm_start_time).total_seconds()
             llm_response_text = llm_response.answer_text
             token_count = llm_response.token_count
 
@@ -313,10 +315,10 @@ class QualityTestRunner:
         self,
         runs: int,
         report_dir: Path,
-        test_id: Optional[str] = None,
-        models: Optional[List[str]] = None,
+        test_id: str | None = None,
+        models: list[str] | None = None,
         no_eval: bool = False,
-    ) -> List[IndividualTestResult]:
+    ) -> list[IndividualTestResult]:
         """Run all test combinations in parallel with concurrency control.
 
         Tests are run in parallel but LLM requests are limited by semaphore

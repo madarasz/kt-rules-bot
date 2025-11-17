@@ -1,9 +1,10 @@
 """Unit tests for Analytics Database."""
 
-import pytest
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+
+import pytest
 
 from src.lib.database import AnalyticsDatabase
 
@@ -56,7 +57,7 @@ def test_insert_query(temp_db):
         "rag_score": 0.85,
         "validation_passed": True,
         "latency_ms": 1200,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     temp_db.insert_query(query_data)
@@ -84,7 +85,7 @@ def test_insert_chunks(temp_db):
         "query_text": "Test query",
         "response_text": "Test response",
         "llm_model": "gpt-4.1",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
     temp_db.insert_query(query_data)
 
@@ -138,7 +139,7 @@ def test_increment_vote(temp_db):
         "query_text": "Test query",
         "response_text": "Test response",
         "llm_model": "gpt-4.1",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
     temp_db.insert_query(query_data)
 
@@ -166,7 +167,7 @@ def test_update_admin_fields(temp_db):
         "query_text": "Test query",
         "response_text": "Test response",
         "llm_model": "gpt-4.1",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
     temp_db.insert_query(query_data)
 
@@ -194,7 +195,7 @@ def test_update_chunk_relevance(temp_db):
         "query_text": "Test query",
         "response_text": "Test response",
         "llm_model": "gpt-4.1",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
     temp_db.insert_query(query_data)
 
@@ -231,7 +232,7 @@ def test_update_chunk_relevance(temp_db):
 def test_cleanup_old_records(temp_db):
     """Test GDPR cleanup of old records."""
     # Insert an old query (31 days ago)
-    old_timestamp = (datetime.now(timezone.utc) - timedelta(days=31)).isoformat()
+    old_timestamp = (datetime.now(UTC) - timedelta(days=31)).isoformat()
     old_query_data = {
         "query_id": "old-query-123",
         "discord_server_id": "server-456",
@@ -245,7 +246,7 @@ def test_cleanup_old_records(temp_db):
     temp_db.insert_query(old_query_data)
 
     # Insert a recent query
-    recent_timestamp = datetime.now(timezone.utc).isoformat()
+    recent_timestamp = datetime.now(UTC).isoformat()
     recent_query_data = {
         "query_id": "recent-query-456",
         "discord_server_id": "server-456",
@@ -283,7 +284,7 @@ def test_get_all_queries_with_filters(temp_db):
             "query_text": f"Test query {i}",
             "response_text": f"Test response {i}",
             "llm_model": "gpt-4.1" if i % 2 == 0 else "claude-sonnet",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         temp_db.insert_query(query_data)
 
@@ -320,7 +321,7 @@ def test_get_stats(temp_db):
             "response_text": f"Test response {i}",
             "llm_model": "gpt-4.1",
             "latency_ms": 1000 + (i * 100),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         temp_db.insert_query(query_data)
 
@@ -357,7 +358,7 @@ def test_disabled_database_no_ops(disabled_db):
         "query_text": "Test query",
         "response_text": "Test response",
         "llm_model": "gpt-4.1",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     # Insert should be no-op
@@ -390,7 +391,7 @@ def test_search_filter(temp_db):
         "query_text": "Can I charge through terrain?",
         "response_text": "Yes you can",
         "llm_model": "gpt-4.1",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
     query_data_2 = {
         "query_id": "query-2",
@@ -400,7 +401,7 @@ def test_search_filter(temp_db):
         "query_text": "How does overwatch work?",
         "response_text": "Overwatch lets you shoot",
         "llm_model": "gpt-4.1",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     temp_db.insert_query(query_data_1)

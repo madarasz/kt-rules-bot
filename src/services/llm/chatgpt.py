@@ -7,7 +7,6 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 import asyncio
 import time
 from math import exp
-from typing import BinaryIO
 from uuid import uuid4
 
 try:
@@ -15,22 +14,24 @@ try:
 except ImportError:
     AsyncOpenAI = None
 
+from src.lib.logging import get_logger
 from src.services.llm.base import (
-    LLMProvider,
-    GenerationRequest,
-    LLMResponse,
+    HOP_EVALUATION_SCHEMA,
+    STRUCTURED_OUTPUT_SCHEMA,
+    AuthenticationError,
+    ContentFilterError,
     ExtractionRequest,
     ExtractionResponse,
-    RateLimitError,
-    AuthenticationError,
-    TimeoutError as LLMTimeoutError,
-    ContentFilterError,
+    GenerationRequest,
+    LLMProvider,
+    LLMResponse,
     PDFParseError,
+    RateLimitError,
     TokenLimitError,
-    STRUCTURED_OUTPUT_SCHEMA,
-    HOP_EVALUATION_SCHEMA,
 )
-from src.lib.logging import get_logger
+from src.services.llm.base import (
+    TimeoutError as LLMTimeoutError,
+)
 
 logger = get_logger(__name__)
 
@@ -175,7 +176,7 @@ class ChatGPTAdapter(LLMProvider):
             token_count = response.usage.total_tokens
 
             logger.info(
-                f"ChatGPT generation completed",
+                "ChatGPT generation completed",
                 extra={
                     "latency_ms": latency_ms,
                     "token_count": token_count,
@@ -198,7 +199,7 @@ class ChatGPTAdapter(LLMProvider):
                 completion_tokens=completion_tokens,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 f"ChatGPT API timeout after {request.config.timeout_seconds}s"
             )
@@ -245,7 +246,7 @@ class ChatGPTAdapter(LLMProvider):
             LLMTimeoutError: Extraction timeout
             TokenLimitError: PDF too large
         """
-        start_time = time.time()
+        time.time()
 
         try:
             # Read PDF bytes
@@ -267,8 +268,8 @@ class ChatGPTAdapter(LLMProvider):
                 "ChatGPT PDF extraction requires PDF-to-image conversion"
             )
 
-        except asyncio.TimeoutError:
-            logger.warning(f"ChatGPT PDF extraction timeout")
+        except TimeoutError:
+            logger.warning("ChatGPT PDF extraction timeout")
             raise LLMTimeoutError(
                 f"ChatGPT extraction exceeded {request.config.timeout_seconds}s timeout"
             )

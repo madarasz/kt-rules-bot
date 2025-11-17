@@ -2,18 +2,17 @@
 
 import asyncio
 import sys
-import warnings
-from typing import Optional, List
-from datetime import datetime, timezone
-from pathlib import Path
 import time
+import warnings
+from datetime import UTC, datetime
+from pathlib import Path
 
-from tests.quality.test_runner import QualityTestRunner
-from tests.quality.reporting.report_models import QualityReport
+from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_PROVIDERS
+from src.lib.logging import get_logger
 from tests.quality.reporting.aggregator import aggregate_results
 from tests.quality.reporting.report_generator import ReportGenerator
-from src.lib.logging import get_logger
-from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_PROVIDERS, RAG_MAX_HOPS
+from tests.quality.reporting.report_models import QualityReport
+from tests.quality.test_runner import QualityTestRunner
 
 logger = get_logger(__name__)
 
@@ -26,6 +25,7 @@ warnings.filterwarnings('ignore', category=ResourceWarning, message='.*unclosed.
 # These happen when Ragas' async HTTP clients try to close after the event loop is shut down
 # The errors occur AFTER we get our results, so they don't affect functionality
 import logging
+
 logging.getLogger('asyncio').setLevel(logging.CRITICAL)
 
 
@@ -52,13 +52,13 @@ def _suppress_event_loop_closed_errors():
 
 
 def quality_test(
-    test_id: Optional[str] = None,
-    model: Optional[str] = None,
+    test_id: str | None = None,
+    model: str | None = None,
     all_models: bool = False,
     judge_model: str = QUALITY_TEST_JUDGE_MODEL,
     skip_confirm: bool = False,
     runs: int = 1,
-    max_hops: Optional[int] = None,
+    max_hops: int | None = None,
     no_eval: bool = False,
 ) -> None:
     """Run quality tests for RAG + LLM pipeline.
@@ -86,7 +86,7 @@ def quality_test(
     else:
         original_max_hops = None
 
-    models_to_run: List[str]
+    models_to_run: list[str]
     if all_models:
         models_to_run = QUALITY_TEST_PROVIDERS
     elif model:
@@ -96,7 +96,7 @@ def quality_test(
         models_to_run = [get_config().default_llm_provider]
 
     runner = QualityTestRunner(judge_model=judge_model)
-    
+
     try:
         test_cases_to_run = runner.load_test_cases(test_id)
     except Exception as e:
@@ -105,7 +105,7 @@ def quality_test(
         sys.exit(1)
 
     if not test_cases_to_run:
-        print(f"❌ No test cases found" + (f" for test ID: {test_id}" if test_id else ""))
+        print("❌ No test cases found" + (f" for test ID: {test_id}" if test_id else ""))
         sys.exit(1)
 
     # Configuration and Confirmation
@@ -117,7 +117,7 @@ def quality_test(
             sys.exit(0)
 
     # Setup report directory
-    timestamp_str = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
+    timestamp_str = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
     report_dir = Path(f"tests/quality/results/{timestamp_str}")
     report_dir.mkdir(parents=True, exist_ok=True)
 
@@ -157,7 +157,7 @@ def quality_test(
 
         # Generate reports (includes chart generation)
         report_generator = ReportGenerator(report)
-        main_report_path = report_generator.generate_all_reports()
+        report_generator.generate_all_reports()
 
         # Print console summary
         console_output = report_generator.get_console_output()
@@ -185,7 +185,7 @@ def _print_configuration(test_cases, models, runs, judge_model, no_eval=False):
     print(f"Runs per test: {runs}")
     print(f"Total queries: {len(test_cases) * len(models) * runs}")
     if no_eval:
-        print(f"Evaluation: DISABLED (outputs only)")
+        print("Evaluation: DISABLED (outputs only)")
     else:
         print(f"Judge model: {judge_model}")
     print("=" * 60)

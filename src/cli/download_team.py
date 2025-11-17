@@ -7,23 +7,22 @@ Usage:
 import re
 import sys
 import tempfile
-from pathlib import Path
-from typing import Optional, Tuple
-from urllib.request import urlopen, Request
-from urllib.error import URLError, HTTPError
 from datetime import date, datetime
+from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from src.lib.config import get_config
-from src.lib.logging import get_logger
 from src.lib.constants import PDF_EXTRACTION_PROVIDERS
+from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost
-from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.base import ExtractionConfig, ExtractionRequest
+from src.services.llm.factory import LLMProviderFactory
 
 logger = get_logger(__name__)
 
 
-def extract_date_from_url(url: str) -> Optional[date]:
+def extract_date_from_url(url: str) -> date | None:
     """Extract date from Warhammer Community URL pattern.
 
     Args:
@@ -74,7 +73,7 @@ def extract_date_from_url(url: str) -> Optional[date]:
         return None
 
 
-def download_pdf(url: str) -> Tuple[bytes, int]:
+def download_pdf(url: str) -> tuple[bytes, int]:
     """Download PDF from URL.
 
     Args:
@@ -216,7 +215,7 @@ def validate_final_markdown(markdown: str, team_name: str) -> list[str]:
     # Check for team name in content (H2 headers with team name)
     team_name_display = team_name.replace('_', ' ').upper()
     if f"## {team_name_display}" not in markdown.upper():
-        warnings.append(f"Team name heading not found in markdown")
+        warnings.append("Team name heading not found in markdown")
 
     # Check for key sections
     if "## " not in markdown:
@@ -243,8 +242,8 @@ def download_team_internal(
     url: str,
     model: str = "gemini-2.5-pro",
     verbose: bool = True,
-    team_name: Optional[str] = None,
-    update_date: Optional[date] = None,
+    team_name: str | None = None,
+    update_date: date | None = None,
 ) -> dict:
     """Download and extract team rule PDF (internal function).
 
@@ -268,11 +267,11 @@ def download_team_internal(
             "validation_warnings": list[str]
         }
     """
-    config = get_config()
+    get_config()
 
     # Step 1: Download PDF
     if verbose:
-        print(f"Downloading PDF from URL...")
+        print("Downloading PDF from URL...")
     try:
         pdf_bytes, file_size = download_pdf(url)
         size_mb = file_size / (1024 * 1024)
@@ -355,7 +354,7 @@ def download_team_internal(
         Path(temp_pdf_path).unlink(missing_ok=True)
 
         if verbose:
-            print(f"✓ Extraction complete")
+            print("✓ Extraction complete")
 
         # Note: We skip validation warnings from the LLM adapter here because
         # they check for YAML frontmatter, which we add in the next step
@@ -428,7 +427,7 @@ def download_team_internal(
     # Step 5b: Validate final markdown
     validation_warnings = validate_final_markdown(markdown_with_frontmatter, team_name)
     if validation_warnings and verbose:
-        print(f"\n⚠️  Validation warnings:")
+        print("\n⚠️  Validation warnings:")
         for warning in validation_warnings:
             print(f"   - {warning}")
         logger.warning(f"Validation warnings: {validation_warnings}")
@@ -462,13 +461,13 @@ def download_team_internal(
 
     if verbose:
         latency_s = response.latency_ms / 1000
-        print(f"\nMetrics:")
+        print("\nMetrics:")
         print(f"  Tokens: {response.token_count:,}")
         print(f"  Time: {latency_s:.1f}s")
         print(f"  Estimated cost: ${cost:.2f}")
 
     logger.info(
-        f"Extraction metrics",
+        "Extraction metrics",
         extra={
             "team_name": team_name,
             "tokens": response.token_count,
@@ -493,8 +492,8 @@ def download_team_internal(
 def download_team(
     url: str,
     model: str = "gemini-2.5-pro",
-    team_name: Optional[str] = None,
-    update_date: Optional[str] = None,
+    team_name: str | None = None,
+    update_date: str | None = None,
 ) -> None:
     """Download and extract team rule PDF (CLI entry point).
 

@@ -5,8 +5,8 @@ Provides PDF processing utilities including decompression for Claude compatibili
 
 import os
 import tempfile
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator, Tuple
 
 import pikepdf
 
@@ -56,7 +56,7 @@ def decompress_pdf(pdf_path: str) -> str:
 
 
 @contextmanager
-def decompress_pdf_with_cleanup(pdf_bytes: bytes) -> Iterator[Tuple[str, str]]:
+def decompress_pdf_with_cleanup(pdf_bytes: bytes) -> Iterator[tuple[str, str]]:
     """Context manager for PDF decompression with automatic cleanup.
 
     Creates a temporary PDF file from bytes, decompresses it, and ensures
