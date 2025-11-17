@@ -6,11 +6,7 @@ from collections import defaultdict
 import numpy as np
 
 from tests.quality.reporting.chart_generator import ChartGenerator
-from tests.quality.reporting.report_models import (
-    IndividualTestResult,
-    ModelSummary,
-    QualityReport,
-)
+from tests.quality.reporting.report_models import IndividualTestResult, ModelSummary, QualityReport
 
 
 class ReportGenerator:
@@ -42,13 +38,19 @@ class ReportGenerator:
                 self._write_file(path, content)
 
         # Per-test-case-and-model reports for very detailed analysis in complex scenarios
-        if self.report.is_multi_run and self.report.is_multi_test_case and self.report.is_multi_model:
+        if (
+            self.report.is_multi_run
+            and self.report.is_multi_test_case
+            and self.report.is_multi_model
+        ):
             for test_id, test_case_report in self.report.per_test_case_reports.items():
                 for model_name in self.report.models:
                     results = [r for r in test_case_report.results if r.model == model_name]
                     if results:
                         path = os.path.join(self.report_dir, f"report_{test_id}_{model_name}.md")
-                        content = self._generate_test_case_model_report(test_id, model_name, results)
+                        content = self._generate_test_case_model_report(
+                            test_id, model_name, results
+                        )
                         self._write_file(path, content)
 
         return main_report_path
@@ -61,7 +63,11 @@ class ReportGenerator:
         if self.report.is_multi_model:
             content.append("\n" + self._get_model_comparison_table())
 
-        if self.report.is_multi_run and self.report.is_multi_test_case and not self.report.is_multi_model:
+        if (
+            self.report.is_multi_run
+            and self.report.is_multi_test_case
+            and not self.report.is_multi_model
+        ):
             content.append(self._get_test_case_summary_table())
 
         # Link to sub-reports or show individual results
@@ -72,8 +78,12 @@ class ReportGenerator:
                 if test_id in self.report.per_test_case_reports:
                     test_case_report = self.report.per_test_case_reports[test_id]
                     if test_case_report.results:
-                        avg_score = sum(r.score_percentage for r in test_case_report.results) / len(test_case_report.results)
-                        content.append(f"- [Report for {test_id}](./report_{test_id}.md) - {avg_score:.1f}%")
+                        avg_score = sum(r.score_percentage for r in test_case_report.results) / len(
+                            test_case_report.results
+                        )
+                        content.append(
+                            f"- [Report for {test_id}](./report_{test_id}.md) - {avg_score:.1f}%"
+                        )
                     else:
                         content.append(f"- [Report for {test_id}](./report_{test_id}.md)")
                 else:
@@ -106,27 +116,35 @@ class ReportGenerator:
 
         content.append("\n## Individual Results")
         if self.report.is_multi_run and self.report.is_multi_model:
-             content.append("\n### Detailed Run Reports")
-             for model_name in self.report.models:
-                 content.append(f"- [Report for {test_id} on {model_name}](./report_{test_id}_{model_name}.md)")
+            content.append("\n### Detailed Run Reports")
+            for model_name in self.report.models:
+                content.append(
+                    f"- [Report for {test_id} on {model_name}](./report_{test_id}_{model_name}.md)"
+                )
         else:
             content.append(self._get_grouped_individual_results(results))
 
         return "\n".join(content)
 
-    def _generate_test_case_model_report(self, test_id: str, model_name: str, results: list[IndividualTestResult]) -> str:
+    def _generate_test_case_model_report(
+        self, test_id: str, model_name: str, results: list[IndividualTestResult]
+    ) -> str:
         """Generates a report for a specific test case and model, showing all runs."""
         content = [f"# Report for {test_id} on {model_name}\n"]
 
         summary = ModelSummary(model_name, results)
         content.append("## Summary of Runs")
-        content.append(f"- **Average Score:** {summary.avg_score_pct:.2f}% (±{summary.std_dev_score_pct:.2f})")
+        content.append(
+            f"- **Average Score:** {summary.avg_score_pct:.2f}% (±{summary.std_dev_score_pct:.2f})"
+        )
         content.append(f"- **Average Time:** {summary.avg_time:.2f}s (±{summary.std_dev_time:.2f})")
-        content.append(f"- **Average Cost:** ${summary.avg_cost:.4f} (±${summary.std_dev_cost:.4f})")
+        content.append(
+            f"- **Average Cost:** ${summary.avg_cost:.4f} (±${summary.std_dev_cost:.4f})"
+        )
 
         content.append("\n## Individual Run Results")
         for i, result in enumerate(results):
-            content.append(f"\n### Run #{i+1}")
+            content.append(f"\n### Run #{i + 1}")
             content.append(self._get_individual_test_result_section(result, include_header=False))
 
         return "\n".join(content)
@@ -140,8 +158,12 @@ class ReportGenerator:
             f"- **Total queries**: {self.report.total_queries}",
         ]
         if self.report.is_multi_model or self.report.is_multi_run:
-            best_model = max(self.report.per_model_summaries.values(), key=lambda s: s.avg_score_pct)
-            header.append(f"- **Best score**: {best_model.avg_score_pct:.1f}% - {best_model.model_name}")
+            best_model = max(
+                self.report.per_model_summaries.values(), key=lambda s: s.avg_score_pct
+            )
+            header.append(
+                f"- **Best score**: {best_model.avg_score_pct:.1f}% - {best_model.model_name}"
+            )
 
         header.append(f"- **Test cases**: {', '.join(self.report.test_cases)}")
 
@@ -166,7 +188,9 @@ class ReportGenerator:
             "|-" + "-|-".join(["-" * len(h) for h in headers]) + "-|",
         ]
         for summary in sorted(summaries, key=lambda s: s.avg_score_pct, reverse=True):
-            score_std_dev = f" (±{summary.std_dev_score_pct:.1f})" if self.report.is_multi_run else ""
+            score_std_dev = (
+                f" (±{summary.std_dev_score_pct:.1f})" if self.report.is_multi_run else ""
+            )
             time_std_dev = f" (±{summary.std_dev_time:.2f})" if self.report.is_multi_run else ""
             cost_std_dev = f" (±{summary.std_dev_cost:.4f})" if self.report.is_multi_run else ""
             row = [
@@ -247,7 +271,9 @@ class ReportGenerator:
 
                     # Use bullet points for metrics
                     content.append(f"- **Status:** {status_emoji} {status_text}")
-                    content.append(f"- **Score:** {result.score}/{result.max_score} ({result.score_percentage:.1f}%)")
+                    content.append(
+                        f"- **Score:** {result.score}/{result.max_score} ({result.score_percentage:.1f}%)"
+                    )
 
                     # Display Ragas metrics if available
                     if result.ragas_metrics_available:
@@ -258,7 +284,7 @@ class ReportGenerator:
                             content.append(f"- **Quote Precision:** {result.quote_precision:.3f}")
                             if result.quote_precision_feedback:
                                 # Indent feedback for better readability
-                                feedback_lines = result.quote_precision_feedback.split('\n')
+                                feedback_lines = result.quote_precision_feedback.split("\n")
                                 for line in feedback_lines:
                                     if line.strip():
                                         content.append(f"  {line}")
@@ -267,34 +293,42 @@ class ReportGenerator:
                         if result.quote_recall is not None:
                             content.append(f"- **Quote Recall:** {result.quote_recall:.3f}")
                             if result.quote_recall_feedback:
-                                feedback_lines = result.quote_recall_feedback.split('\n')
+                                feedback_lines = result.quote_recall_feedback.split("\n")
                                 for line in feedback_lines:
                                     if line.strip():
                                         content.append(f"  {line}")
 
                         # Quote Faithfulness
                         if result.quote_faithfulness is not None:
-                            content.append(f"- **Quote Faithfulness:** {result.quote_faithfulness:.3f}")
+                            content.append(
+                                f"- **Quote Faithfulness:** {result.quote_faithfulness:.3f}"
+                            )
                             if result.quote_faithfulness_feedback:
-                                feedback_lines = result.quote_faithfulness_feedback.split('\n')
+                                feedback_lines = result.quote_faithfulness_feedback.split("\n")
                                 for line in feedback_lines:
                                     if line.strip():
                                         content.append(f"  {line}")
 
                         # Explanation Faithfulness
                         if result.explanation_faithfulness is not None:
-                            content.append(f"- **Explanation Faithfulness:** {result.explanation_faithfulness:.3f}")
+                            content.append(
+                                f"- **Explanation Faithfulness:** {result.explanation_faithfulness:.3f}"
+                            )
                             if result.explanation_faithfulness_feedback:
-                                feedback_lines = result.explanation_faithfulness_feedback.split('\n')
+                                feedback_lines = result.explanation_faithfulness_feedback.split(
+                                    "\n"
+                                )
                                 for line in feedback_lines:
                                     if line.strip():
                                         content.append(f"  {line}")
 
                         # Answer Correctness
                         if result.answer_correctness is not None:
-                            content.append(f"- **Answer Correctness:** {result.answer_correctness:.3f}")
+                            content.append(
+                                f"- **Answer Correctness:** {result.answer_correctness:.3f}"
+                            )
                             if result.answer_correctness_feedback:
-                                feedback_lines = result.answer_correctness_feedback.split('\n')
+                                feedback_lines = result.answer_correctness_feedback.split("\n")
                                 for line in feedback_lines:
                                     if line.strip():
                                         content.append(f"  {line}")
@@ -305,7 +339,11 @@ class ReportGenerator:
 
                     content.append(f"- **Tokens:** {result.tokens}")
                     content.append(f"- **Cost:** ${result.total_cost_usd:.4f}")
-                    if result.multi_hop_cost_usd > 0 or result.ragas_cost_usd > 0 or result.embedding_cost_usd > 0:
+                    if (
+                        result.multi_hop_cost_usd > 0
+                        or result.ragas_cost_usd > 0
+                        or result.embedding_cost_usd > 0
+                    ):
                         content.append(f"  - Main LLM: ${result.cost_usd:.4f}")
                         if result.multi_hop_cost_usd > 0:
                             content.append(f"  - Multi-hop: ${result.multi_hop_cost_usd:.4f}")
@@ -314,7 +352,9 @@ class ReportGenerator:
                         if result.embedding_cost_usd > 0:
                             content.append(f"  - Embeddings: ${result.embedding_cost_usd:.4f}")
                     content.append(f"- **Generation Time:** {result.generation_time_seconds:.2f}s")
-                    content.append(f"- **Output File:** [{result.output_filename}](./{result.output_filename})")
+                    content.append(
+                        f"- **Output File:** [{result.output_filename}](./{result.output_filename})"
+                    )
 
                     if result.error:
                         content.append(f"- **Error:** {result.error}")
@@ -328,32 +368,40 @@ class ReportGenerator:
                             content.append(req_line)
 
                             # Add judge response as sub-bullet for LLM requirements
-                            if req.type == "llm" and hasattr(req, 'outcome') and req.outcome:
+                            if req.type == "llm" and hasattr(req, "outcome") and req.outcome:
                                 content.append(f"  - *{req.outcome}*")
 
                     content.append("")  # Add spacing between runs
 
         return "\n".join(content)
 
-    def _get_individual_test_result_section(self, result: IndividualTestResult, include_header: bool = True) -> str:
+    def _get_individual_test_result_section(
+        self, result: IndividualTestResult, include_header: bool = True
+    ) -> str:
         """Generate individual test result section (legacy method, kept for compatibility)."""
         content = []
 
         if include_header:
-            content.extend([
-                f"\n### {result.test_id}",
-                f"\n**Model:** {result.model}",
-                f"**Query:** {result.query}",
-                f"**Status:** {'Passed' if result.passed else 'Failed'}"
-            ])
+            content.extend(
+                [
+                    f"\n### {result.test_id}",
+                    f"\n**Model:** {result.model}",
+                    f"**Query:** {result.query}",
+                    f"**Status:** {'Passed' if result.passed else 'Failed'}",
+                ]
+            )
         else:
-            content.extend([
-                f"\n**Model:** {result.model}",
-                f"**Query:** {result.query}",
-                f"**Status:** {'Passed' if result.passed else 'Failed'}"
-            ])
+            content.extend(
+                [
+                    f"\n**Model:** {result.model}",
+                    f"**Query:** {result.query}",
+                    f"**Status:** {'Passed' if result.passed else 'Failed'}",
+                ]
+            )
 
-        content.append(f"**Score:** {result.score}/{result.max_score} ({result.score_percentage:.1f}%)")
+        content.append(
+            f"**Score:** {result.score}/{result.max_score} ({result.score_percentage:.1f}%)"
+        )
 
         # Display Ragas metrics if available
         if result.ragas_metrics_available:
@@ -418,9 +466,13 @@ class ReportGenerator:
         # Calculate JSON formatting statistics
         json_formatted_count = sum(1 for r in self.report.results if r.json_formatted)
         total_responses = len([r for r in self.report.results if not r.error])
-        json_success_rate = (json_formatted_count / total_responses * 100) if total_responses > 0 else 0
+        json_success_rate = (
+            (json_formatted_count / total_responses * 100) if total_responses > 0 else 0
+        )
 
-        content.append(f"JSON formatted: {json_formatted_count}/{total_responses} ({json_success_rate:.1f}%)")
+        content.append(
+            f"JSON formatted: {json_formatted_count}/{total_responses} ({json_success_rate:.1f}%)"
+        )
 
         # Calculate average quotes per response (for successfully formatted JSON)
         json_results = [r for r in self.report.results if r.json_formatted]
@@ -434,23 +486,37 @@ class ReportGenerator:
             content.append("")
             content.append("Average Ragas Metrics:")
 
-            quote_precision_vals = [r.quote_precision for r in results_with_ragas if r.quote_precision is not None]
+            quote_precision_vals = [
+                r.quote_precision for r in results_with_ragas if r.quote_precision is not None
+            ]
             if quote_precision_vals:
                 content.append(f"  Quote Precision: {np.mean(quote_precision_vals):.3f}")
 
-            quote_recall_vals = [r.quote_recall for r in results_with_ragas if r.quote_recall is not None]
+            quote_recall_vals = [
+                r.quote_recall for r in results_with_ragas if r.quote_recall is not None
+            ]
             if quote_recall_vals:
                 content.append(f"  Quote Recall: {np.mean(quote_recall_vals):.3f}")
 
-            quote_faithfulness_vals = [r.quote_faithfulness for r in results_with_ragas if r.quote_faithfulness is not None]
+            quote_faithfulness_vals = [
+                r.quote_faithfulness for r in results_with_ragas if r.quote_faithfulness is not None
+            ]
             if quote_faithfulness_vals:
                 content.append(f"  Quote Faithfulness: {np.mean(quote_faithfulness_vals):.3f}")
 
-            explanation_faithfulness_vals = [r.explanation_faithfulness for r in results_with_ragas if r.explanation_faithfulness is not None]
+            explanation_faithfulness_vals = [
+                r.explanation_faithfulness
+                for r in results_with_ragas
+                if r.explanation_faithfulness is not None
+            ]
             if explanation_faithfulness_vals:
-                content.append(f"  Explanation Faithfulness: {np.mean(explanation_faithfulness_vals):.3f}")
+                content.append(
+                    f"  Explanation Faithfulness: {np.mean(explanation_faithfulness_vals):.3f}"
+                )
 
-            answer_correctness_vals = [r.answer_correctness for r in results_with_ragas if r.answer_correctness is not None]
+            answer_correctness_vals = [
+                r.answer_correctness for r in results_with_ragas if r.answer_correctness is not None
+            ]
             if answer_correctness_vals:
                 content.append(f"  Answer Correctness: {np.mean(answer_correctness_vals):.3f}")
 
@@ -468,9 +534,13 @@ class ReportGenerator:
             headers = ["Model", "Avg Score %", "Avg Time/Query", "Avg Cost/Query"]
             table = [headers]
             for summary in sorted(summaries, key=lambda s: s.avg_score_pct, reverse=True):
-                score_std_dev = f" (±{summary.std_dev_score_pct:.1f})" if self.report.is_multi_run else ""
+                score_std_dev = (
+                    f" (±{summary.std_dev_score_pct:.1f})" if self.report.is_multi_run else ""
+                )
                 time_std_dev = f" (±{summary.std_dev_time:.2f})" if self.report.is_multi_run else ""
-                cost_std_dev = f" (±${summary.std_dev_cost:.4f})" if self.report.is_multi_run else ""
+                cost_std_dev = (
+                    f" (±${summary.std_dev_cost:.4f})" if self.report.is_multi_run else ""
+                )
                 row = [
                     summary.model_name,
                     f"{summary.avg_score_pct:.1f}%{score_std_dev}",
@@ -482,9 +552,13 @@ class ReportGenerator:
             # Simple console table formatting
             col_widths = [max(len(str(item)) for item in col) for col in zip(*table, strict=False)]
             for row in table:
-                content.append(" | ".join(str(item).ljust(width) for item, width in zip(row, col_widths, strict=False)))
+                content.append(
+                    " | ".join(
+                        str(item).ljust(width) for item, width in zip(row, col_widths, strict=False)
+                    )
+                )
 
-        else: # Single model view
+        else:  # Single model view
             for result in self.report.results:
                 content.append(
                     f"{result.status_emoji} {result.test_id} [{result.model}]: "

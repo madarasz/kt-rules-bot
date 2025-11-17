@@ -26,10 +26,7 @@ class FeedbackLogger:
         self.response_to_query_map = {}  # response_id -> query_id mapping
 
     async def on_reaction_add(
-        self,
-        reaction: discord.Reaction,
-        user: discord.User,
-        bot_user_id: int,
+        self, reaction: discord.Reaction, user: discord.User, bot_user_id: int
     ) -> None:
         """Log feedback from reaction buttons.
 
@@ -68,8 +65,7 @@ class FeedbackLogger:
 
         if not query_id:
             logger.warning(
-                "Could not map response_id to query_id",
-                extra={"response_id": str(response_id)},
+                "Could not map response_id to query_id", extra={"response_id": str(response_id)}
             )
             # Continue anyway for structured logging
 
@@ -84,7 +80,7 @@ class FeedbackLogger:
                 self.analytics_db.increment_vote(query_id, vote_type)
                 logger.debug(
                     "Vote incremented in analytics DB",
-                    extra={"query_id": query_id, "vote_type": vote_type}
+                    extra={"query_id": query_id, "vote_type": vote_type},
                 )
             except Exception as e:
                 logger.error(f"Failed to increment vote in DB: {e}", exc_info=True)
@@ -148,7 +144,7 @@ class FeedbackLogger:
 
             logger.warning(
                 f"Could not find full response_id for short ID: {short_id}",
-                extra={"short_id": short_id}
+                extra={"short_id": short_id},
             )
             return None
 
@@ -166,7 +162,7 @@ class FeedbackLogger:
         self.response_to_query_map[response_id] = query_id
         logger.debug(
             "Response registered for feedback tracking",
-            extra={"query_id": query_id, "response_id": response_id}
+            extra={"query_id": query_id, "response_id": response_id},
         )
 
     def get_feedback_stats(self) -> dict[str, object]:
@@ -182,9 +178,7 @@ class FeedbackLogger:
             1 for f in self.feedback_cache.values() if f["feedback_type"] == "helpful"
         )
         not_helpful_count = sum(
-            1
-            for f in self.feedback_cache.values()
-            if f["feedback_type"] == "not_helpful"
+            1 for f in self.feedback_cache.values() if f["feedback_type"] == "not_helpful"
         )
 
         return {
@@ -192,8 +186,6 @@ class FeedbackLogger:
             "helpful": helpful_count,
             "not_helpful": not_helpful_count,
             "helpful_rate": (
-                helpful_count / len(self.feedback_cache)
-                if self.feedback_cache
-                else 0.0
+                helpful_count / len(self.feedback_cache) if self.feedback_cache else 0.0
             ),
         }

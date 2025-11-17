@@ -40,9 +40,7 @@ class Citation:
         # Document type validation
         valid_types = {"core-rules", "faq", "team-rules", "ops", "killzone"}
         if self.document_type not in valid_types:
-            raise ValueError(
-                f"document_type must be one of: {', '.join(valid_types)}"
-            )
+            raise ValueError(f"document_type must be one of: {', '.join(valid_types)}")
 
 
 @dataclass
@@ -125,9 +123,7 @@ class BotResponse:
 
         for sentence in sentences:
             # Add period back except for last sentence
-            sentence_with_period = (
-                sentence + "." if not sentence.endswith(".") else sentence
-            )
+            sentence_with_period = sentence + "." if not sentence.endswith(".") else sentence
 
             if len(current_chunk) + len(sentence_with_period) <= 1900:
                 current_chunk += sentence_with_period + " "
@@ -173,9 +169,7 @@ class BotResponse:
             BotResponse instance
         """
         # Compute combined validation
-        validation_passed = (
-            confidence_score >= confidence_threshold and rag_score >= 0.6
-        )
+        validation_passed = confidence_score >= confidence_threshold and rag_score >= 0.6
 
         return cls(
             response_id=uuid4(),

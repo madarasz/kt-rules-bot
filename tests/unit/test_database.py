@@ -32,9 +32,7 @@ def test_database_initialization(temp_db):
 
     # Tables should exist
     with temp_db._get_connection() as conn:
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-        )
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
         tables = [row[0] for row in cursor.fetchall()]
 
     assert "queries" in tables
@@ -173,9 +171,7 @@ def test_update_admin_fields(temp_db):
 
     # Update admin fields
     temp_db.update_query_admin_fields(
-        query_id="test-query-123",
-        admin_status="approved",
-        admin_notes="Looks good!",
+        query_id="test-query-123", admin_status="approved", admin_notes="Looks good!"
     )
 
     # Verify updates
@@ -200,12 +196,7 @@ def test_update_chunk_relevance(temp_db):
     temp_db.insert_query(query_data)
 
     chunks_data = [
-        {
-            "query_id": "test-query-123",
-            "rank": 1,
-            "chunk_text": "Test chunk",
-            "final_score": 0.9,
-        }
+        {"query_id": "test-query-123", "rank": 1, "chunk_text": "Test chunk", "final_score": 0.9}
     ]
     temp_db.insert_chunks("test-query-123", chunks_data)
 

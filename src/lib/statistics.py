@@ -11,7 +11,9 @@ class TimeFormatter:
     """Formats time breakdown sections."""
 
     @staticmethod
-    def format(total_time: float, initial_time: float, hop_evals: list | None, llm_time: float | None) -> list[str]:  # type: ignore[type-arg]
+    def format(
+        total_time: float, initial_time: float, hop_evals: list | None, llm_time: float | None
+    ) -> list[str]:  # type: ignore[type-arg]
         """Format time breakdown section."""
         rag_time = total_time - (llm_time or 0.0)
         lines = [
@@ -116,14 +118,25 @@ def format_statistics_summary(
     ]
 
     # Time breakdown
-    lines.extend(TimeFormatter.format(total_time, initial_retrieval_time, hop_evaluations, llm_time))
+    lines.extend(
+        TimeFormatter.format(total_time, initial_retrieval_time, hop_evaluations, llm_time)
+    )
     lines.append("")
 
     # Cost breakdown
-    lines.extend(CostFormatter.format(
-        query, initial_embedding_cost, hop_embedding_cost, hop_evaluation_cost,
-        llm_cost, llm_model, llm_prompt_tokens, llm_completion_tokens, hop_evaluations
-    ))
+    lines.extend(
+        CostFormatter.format(
+            query,
+            initial_embedding_cost,
+            hop_embedding_cost,
+            hop_evaluation_cost,
+            llm_cost,
+            llm_model,
+            llm_prompt_tokens,
+            llm_completion_tokens,
+            hop_evaluations,
+        )
+    )
 
     lines.extend(["=" * 60, ""])
     return "\n".join(lines)

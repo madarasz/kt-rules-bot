@@ -74,9 +74,7 @@ class RuleDocument:
         """
         # Filename pattern validation
         if not self.validate_filename(self.filename):
-            raise ValueError(
-                f"filename '{self.filename}' must match pattern [a-z0-9-]+.md"
-            )
+            raise ValueError(f"filename '{self.filename}' must match pattern [a-z0-9-]+.md")
 
         # Document type validation
         if not self.validate_document_type(self.document_type):
@@ -108,10 +106,7 @@ class RuleDocument:
 
     @classmethod
     def from_markdown_file(
-        cls,
-        filename: str,
-        content: str,
-        metadata: dict[str, Any],
+        cls, filename: str, content: str, metadata: dict[str, Any]
     ) -> "RuleDocument":
         """Create RuleDocument from markdown file data.
 

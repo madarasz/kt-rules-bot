@@ -13,10 +13,7 @@ class RAGReportGenerator:
     """Generates markdown reports for RAG test results."""
 
     def generate_report(
-        self,
-        results: list[RAGTestResult],
-        summary: RAGTestSummary,
-        output_path: Path,
+        self, results: list[RAGTestResult], summary: RAGTestSummary, output_path: Path
     ) -> None:
         """Generate comprehensive markdown report.
 
@@ -45,8 +42,12 @@ class RAGReportGenerator:
             content.append("")
             content.append("| Metric | Value | Description |")
             content.append("|--------|-------|-------------|")
-            content.append(f"| **Context Precision** | {summary.mean_ragas_context_precision:.3f} | Proportion of retrieved contexts containing ground truth |")
-            content.append(f"| **Context Recall** | {summary.mean_ragas_context_recall:.3f} | Proportion of ground truth found in retrieved contexts |")
+            content.append(
+                f"| **Context Precision** | {summary.mean_ragas_context_precision:.3f} | Proportion of retrieved contexts containing ground truth |"
+            )
+            content.append(
+                f"| **Context Recall** | {summary.mean_ragas_context_recall:.3f} | Proportion of ground truth found in retrieved contexts |"
+            )
             content.append("")
 
         # Hopping metrics (if multi-hop enabled and data available)
@@ -55,15 +56,25 @@ class RAGReportGenerator:
             content.append("")
             content.append("| Metric | Value | Description |")
             content.append("|--------|-------|-------------|")
-            content.append(f"| **Avg Hops Used** | {summary.avg_hops_used:.2f} | Average number of hops performed per test |")
-            content.append(f"| **Avg Ground Truth Found in Hops** | {summary.avg_ground_truth_found_improvement:.2f} | Average number of ground truth chunks found via hops |")
-            content.append(f"| **Can Answer Recall** | {summary.hop_can_answer_recall:.3f} | Proportion of times LLM hopped when ground truth was missing |")
-            content.append(f"| **Can Answer Precision** | {summary.hop_can_answer_precision:.3f} | Proportion of hops that were made when ground truth was actually missing |")
+            content.append(
+                f"| **Avg Hops Used** | {summary.avg_hops_used:.2f} | Average number of hops performed per test |"
+            )
+            content.append(
+                f"| **Avg Ground Truth Found in Hops** | {summary.avg_ground_truth_found_improvement:.2f} | Average number of ground truth chunks found via hops |"
+            )
+            content.append(
+                f"| **Can Answer Recall** | {summary.hop_can_answer_recall:.3f} | Proportion of times LLM hopped when ground truth was missing |"
+            )
+            content.append(
+                f"| **Can Answer Precision** | {summary.hop_can_answer_precision:.3f} | Proportion of hops that were made when ground truth was actually missing |"
+            )
 
             # Per-hop breakdown
             if summary.ground_truth_chunks_per_hop:
                 for hop_num, count in enumerate(summary.ground_truth_chunks_per_hop, start=1):
-                    content.append(f"| **Ground Truth in Hop {hop_num}** | {count} | Total ground truth chunks found in hop {hop_num} across all tests |")
+                    content.append(
+                        f"| **Ground Truth in Hop {hop_num}** | {count} | Total ground truth chunks found in hop {hop_num} across all tests |"
+                    )
 
             content.append("")
 
@@ -108,11 +119,18 @@ class RAGReportGenerator:
         content.append("")
 
         # Multi-run statistics
-        if summary.mean_ragas_context_precision is not None and summary.std_dev_ragas_context_precision > 0:
+        if (
+            summary.mean_ragas_context_precision is not None
+            and summary.std_dev_ragas_context_precision > 0
+        ):
             content.append("### Multi-Run Statistics")
             content.append("")
-            content.append(f"- **Context Precision**: {summary.mean_ragas_context_precision:.3f} ± {summary.std_dev_ragas_context_precision:.3f}")
-            content.append(f"- **Context Recall**: {summary.mean_ragas_context_recall:.3f} ± {summary.std_dev_ragas_context_recall:.3f}")
+            content.append(
+                f"- **Context Precision**: {summary.mean_ragas_context_precision:.3f} ± {summary.std_dev_ragas_context_precision:.3f}"
+            )
+            content.append(
+                f"- **Context Recall**: {summary.mean_ragas_context_recall:.3f} ± {summary.std_dev_ragas_context_recall:.3f}"
+            )
             content.append("")
 
         # Configuration
@@ -127,8 +145,12 @@ class RAGReportGenerator:
         content.append(f"| BM25 k1 | {summary.bm25_k1} |")
         content.append(f"| BM25 b | {summary.bm25_b} |")
         content.append(f"| Hybrid Search | {'Enabled' if summary.hybrid_enabled else 'Disabled'} |")
-        content.append(f"| Query Normalization | {'Enabled' if summary.query_normalization_enabled else 'Disabled'} |")
-        content.append(f"| Query Expansion | {'Enabled' if summary.query_expansion_enabled else 'Disabled'} |")
+        content.append(
+            f"| Query Normalization | {'Enabled' if summary.query_normalization_enabled else 'Disabled'} |"
+        )
+        content.append(
+            f"| Query Expansion | {'Enabled' if summary.query_expansion_enabled else 'Disabled'} |"
+        )
 
         # Add multi-hop configuration if enabled
         if summary.rag_max_hops > 0:
@@ -165,8 +187,16 @@ class RAGReportGenerator:
                 total_cost = sum(r.embedding_cost_usd for r in test_results)
 
                 # Ragas averages (if available)
-                ragas_cp_values = [r.ragas_context_precision for r in test_results if r.ragas_context_precision is not None]
-                ragas_cr_values = [r.ragas_context_recall for r in test_results if r.ragas_context_recall is not None]
+                ragas_cp_values = [
+                    r.ragas_context_precision
+                    for r in test_results
+                    if r.ragas_context_precision is not None
+                ]
+                ragas_cr_values = [
+                    r.ragas_context_recall
+                    for r in test_results
+                    if r.ragas_context_recall is not None
+                ]
 
                 content.append(f"**Runs**: {len(test_results)}")
                 content.append("")
@@ -184,7 +214,9 @@ class RAGReportGenerator:
                 content.append("**Metrics**:")
 
                 if first_result.ragas_context_precision is not None:
-                    content.append(f"- Context Precision: {first_result.ragas_context_precision:.3f}")
+                    content.append(
+                        f"- Context Precision: {first_result.ragas_context_precision:.3f}"
+                    )
                     content.append(f"- Context Recall: {first_result.ragas_context_recall:.3f}")
 
             content.append("")
@@ -205,9 +237,10 @@ class RAGReportGenerator:
                         zip(
                             first_result.retrieved_chunks,
                             first_result.retrieved_relevance_scores,
-                            first_result.retrieved_chunk_metadata, strict=False
+                            first_result.retrieved_chunk_metadata,
+                            strict=False,
                         ),
-                        start=1
+                        start=1,
                     ):
                         # Use substring matching (consistent with evaluator)
                         if chunk_lower in retr_header.strip().lower().replace("*", ""):
@@ -222,9 +255,10 @@ class RAGReportGenerator:
                             zip(
                                 first_result.retrieved_chunk_texts,
                                 first_result.retrieved_relevance_scores,
-                                first_result.retrieved_chunk_metadata, strict=False
+                                first_result.retrieved_chunk_metadata,
+                                strict=False,
                             ),
-                            start=1
+                            start=1,
                         ):
                             if chunk_lower in retr_text.strip().lower().replace("*", ""):
                                 rank = i
@@ -239,23 +273,23 @@ class RAGReportGenerator:
 
                     # Vector score - show N/A if not present
                     if metadata:
-                        vector_score = metadata.get('vector_similarity')
+                        vector_score = metadata.get("vector_similarity")
                         if vector_score is not None:
                             score_parts.append(f"vector: {vector_score:.4f}")
                         else:
                             score_parts.append("vector: N/A")
 
                         # BM25 score
-                        bm25_score = metadata.get('bm25_score')
+                        bm25_score = metadata.get("bm25_score")
                         if bm25_score is not None:
                             score_parts.append(f"bm25: {bm25_score:.2f}")
 
                         # RRF score
-                        rrf_score = metadata.get('rrf_score')
+                        rrf_score = metadata.get("rrf_score")
                         if rrf_score is not None:
                             score_parts.append(f"rrf: {rrf_score:.4f}")
 
-                    score_display = ', '.join(score_parts) if score_parts else "N/A"
+                    score_display = ", ".join(score_parts) if score_parts else "N/A"
                     content.append(f"- {chunk} (rank #{rank}, {score_display})")
             else:
                 content.append("- (none)")
@@ -272,10 +306,12 @@ class RAGReportGenerator:
                 content.append("**Hop Evaluations**:")
                 content.append("")
                 for hop_eval in first_result.hop_evaluations:
-                    hop_num = hop_eval.get('hop_number', '?')
-                    can_answer = "✅ Can answer" if hop_eval.get('can_answer') else "❌ Cannot answer"
-                    reasoning = hop_eval.get('reasoning', 'N/A')
-                    missing_query = hop_eval.get('missing_query')
+                    hop_num = hop_eval.get("hop_number", "?")
+                    can_answer = (
+                        "✅ Can answer" if hop_eval.get("can_answer") else "❌ Cannot answer"
+                    )
+                    reasoning = hop_eval.get("reasoning", "N/A")
+                    missing_query = hop_eval.get("missing_query")
 
                     content.append(f"**Hop {hop_num}**: {can_answer}")
                     content.append(f"- **Reasoning**: {reasoning}")
@@ -296,7 +332,11 @@ class RAGReportGenerator:
                 content.append("|------|-------|-------|--------|------|-----|")
 
             # Get hop numbers if available
-            chunk_hop_numbers = first_result.chunk_hop_numbers if first_result.chunk_hop_numbers else [0] * len(first_result.retrieved_chunks)
+            chunk_hop_numbers = (
+                first_result.chunk_hop_numbers
+                if first_result.chunk_hop_numbers
+                else [0] * len(first_result.retrieved_chunks)
+            )
 
             for i, (chunk_header, chunk_text, relevance, metadata, hop_num) in enumerate(
                 zip(
@@ -304,9 +344,10 @@ class RAGReportGenerator:
                     first_result.retrieved_chunk_texts,
                     first_result.retrieved_relevance_scores,
                     first_result.retrieved_chunk_metadata,
-                    chunk_hop_numbers, strict=False
+                    chunk_hop_numbers,
+                    strict=False,
                 ),
-                start=1
+                start=1,
             ):
                 # Mark if it's a required chunk (use substring matching - consistent with evaluator)
                 marker = ""
@@ -315,21 +356,24 @@ class RAGReportGenerator:
                 for found_chunk in first_result.found_chunks:
                     # Check if found_chunk is contained IN chunk_header OR chunk_text (consistent with evaluator.py)
                     found_chunk_lower = found_chunk.strip().lower().replace("*", "")
-                    if found_chunk_lower in chunk_header_lower or found_chunk_lower in chunk_text_lower:
+                    if (
+                        found_chunk_lower in chunk_header_lower
+                        or found_chunk_lower in chunk_text_lower
+                    ):
                         marker = " ✅"
                         break
 
                 # Get scores from metadata
                 # Show "N/A" if vector_similarity is missing (BM25-only chunk)
-                vector_score = metadata.get('vector_similarity')
+                vector_score = metadata.get("vector_similarity")
                 vector_display = f"{vector_score:.4f}" if vector_score is not None else "N/A"
 
                 # Show BM25 score if available
-                bm25_score = metadata.get('bm25_score')
+                bm25_score = metadata.get("bm25_score")
                 bm25_display = f"{bm25_score:.2f}" if bm25_score is not None else "N/A"
 
                 # RRF score should always be present
-                rrf_score = metadata.get('rrf_score', 0.0)
+                rrf_score = metadata.get("rrf_score", 0.0)
 
                 # Format as table row - include hop number if multi-hop
                 if first_result.hops_used > 0:
@@ -349,11 +393,7 @@ class RAGReportGenerator:
         with open(output_path, "w") as f:
             f.write("\n".join(content))
 
-    def save_retrieved_chunks(
-        self,
-        result: RAGTestResult,
-        output_dir: Path,
-    ) -> None:
+    def save_retrieved_chunks(self, result: RAGTestResult, output_dir: Path) -> None:
         """Save full text of retrieved chunks for manual review.
 
         Args:
@@ -371,7 +411,9 @@ class RAGReportGenerator:
         content.append("=" * 80)
         content.append("")
 
-        for i, (header, text) in enumerate(zip(result.retrieved_chunks, result.retrieved_chunk_texts, strict=False), start=1):
+        for i, (header, text) in enumerate(
+            zip(result.retrieved_chunks, result.retrieved_chunk_texts, strict=False), start=1
+        ):
             # Use substring matching to mark required chunks (same logic as evaluator)
             marker = ""
             header_lower = header.strip().lower().replace("*", "")

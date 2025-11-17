@@ -28,9 +28,13 @@ def sample_chunks():
             text="Content about overwatch",
             header="Overwatch Rules",
             header_level=2,
-            metadata={"source": "core-rules.md", "doc_type": "core-rules", "publication_date": "2024-01-01"},
+            metadata={
+                "source": "core-rules.md",
+                "doc_type": "core-rules",
+                "publication_date": "2024-01-01",
+            },
             relevance_score=0.9,
-            position_in_doc=1
+            position_in_doc=1,
         ),
         DocumentChunk(
             chunk_id=uuid4(),
@@ -38,10 +42,14 @@ def sample_chunks():
             text="Content about charges",
             header="Charge Rules",
             header_level=2,
-            metadata={"source": "core-rules.md", "doc_type": "core-rules", "publication_date": "2024-01-01"},
+            metadata={
+                "source": "core-rules.md",
+                "doc_type": "core-rules",
+                "publication_date": "2024-01-01",
+            },
             relevance_score=0.85,
-            position_in_doc=2
-        )
+            position_in_doc=2,
+        ),
     ]
 
 
@@ -59,10 +67,7 @@ class TestHopEvaluation:
     def test_init_basic(self):
         """Test basic initialization."""
         hop_eval = HopEvaluation(
-            can_answer=True,
-            reasoning="Sufficient context",
-            missing_query=None,
-            cost_usd=0.001
+            can_answer=True, reasoning="Sufficient context", missing_query=None, cost_usd=0.001
         )
         assert hop_eval.can_answer is True
         assert hop_eval.reasoning == "Sufficient context"
@@ -75,7 +80,7 @@ class TestHopEvaluation:
             can_answer=False,
             reasoning="Need more context",
             missing_query="What is overwatch?",
-            cost_usd=0.002
+            cost_usd=0.002,
         )
         assert hop_eval.can_answer is False
         assert hop_eval.missing_query == "What is overwatch?"
@@ -87,7 +92,7 @@ class TestHopEvaluation:
             reasoning="Complete",
             cost_usd=0.001,
             retrieval_time_s=0.5,
-            evaluation_time_s=0.3
+            evaluation_time_s=0.3,
         )
         result = hop_eval.to_dict()
         assert result["can_answer"] is True
@@ -100,9 +105,9 @@ class TestHopEvaluation:
 class TestMultiHopRetrieverInit:
     """Tests for MultiHopRetriever initialization."""
 
-    @patch('src.services.rag.multi_hop_retriever.LLMProviderFactory.create')
-    @patch('builtins.open', create=True)
-    @patch('src.services.rag.multi_hop_retriever.yaml.safe_load')
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
     def test_init_basic(self, mock_yaml_load, mock_open, mock_create):
         """Test basic initialization."""
         mock_create.return_value = Mock()
@@ -116,9 +121,9 @@ class TestMultiHopRetrieverInit:
         assert retriever.max_hops == 2  # Default from constants
         assert retriever.evaluation_llm is not None
 
-    @patch('src.services.rag.multi_hop_retriever.LLMProviderFactory.create')
-    @patch('builtins.open', create=True)
-    @patch('src.services.rag.multi_hop_retriever.yaml.safe_load')
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
     def test_init_custom_params(self, mock_yaml_load, mock_open, mock_create):
         """Test initialization with custom parameters."""
         mock_create.return_value = Mock()
@@ -127,10 +132,7 @@ class TestMultiHopRetrieverInit:
 
         base_retriever = Mock()
         retriever = MultiHopRetriever(
-            base_retriever,
-            max_hops=5,
-            chunks_per_hop=10,
-            evaluation_timeout=45
+            base_retriever, max_hops=5, chunks_per_hop=10, evaluation_timeout=45
         )
 
         assert retriever.max_hops == 5
@@ -141,9 +143,9 @@ class TestMultiHopRetrieverInit:
 class TestFormatChunksForPrompt:
     """Tests for _format_chunks_for_prompt method."""
 
-    @patch('src.services.rag.multi_hop_retriever.LLMProviderFactory.create')
-    @patch('builtins.open', create=True)
-    @patch('src.services.rag.multi_hop_retriever.yaml.safe_load')
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
     def test_format_empty_chunks(self, mock_yaml_load, mock_open, mock_create):
         """Test formatting empty chunks list."""
         mock_create.return_value = Mock()
@@ -154,9 +156,9 @@ class TestFormatChunksForPrompt:
         result = retriever._format_chunks_for_prompt([])
         assert result == "(No context retrieved yet)"
 
-    @patch('src.services.rag.multi_hop_retriever.LLMProviderFactory.create')
-    @patch('builtins.open', create=True)
-    @patch('src.services.rag.multi_hop_retriever.yaml.safe_load')
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
     def test_format_single_chunk(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
         """Test formatting single chunk."""
         mock_create.return_value = Mock()
@@ -169,9 +171,9 @@ class TestFormatChunksForPrompt:
         assert "1. **Overwatch Rules**" in result
         assert "Content about overwatch" in result
 
-    @patch('src.services.rag.multi_hop_retriever.LLMProviderFactory.create')
-    @patch('builtins.open', create=True)
-    @patch('src.services.rag.multi_hop_retriever.yaml.safe_load')
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
     def test_format_multiple_chunks(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
         """Test formatting multiple chunks."""
         mock_create.return_value = Mock()
@@ -184,9 +186,9 @@ class TestFormatChunksForPrompt:
         assert "1. **Overwatch Rules**" in result
         assert "2. **Charge Rules**" in result
 
-    @patch('src.services.rag.multi_hop_retriever.LLMProviderFactory.create')
-    @patch('builtins.open', create=True)
-    @patch('src.services.rag.multi_hop_retriever.yaml.safe_load')
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
     def test_format_truncates_long_chunks(self, mock_yaml_load, mock_open, mock_create):
         """Test that very long chunks are truncated."""
         mock_create.return_value = Mock()
@@ -199,9 +201,13 @@ class TestFormatChunksForPrompt:
             text="A" * 10000,  # Very long text
             header="Long Section",
             header_level=2,
-            metadata={"source": "test.md", "doc_type": "core-rules", "publication_date": "2024-01-01"},
+            metadata={
+                "source": "test.md",
+                "doc_type": "core-rules",
+                "publication_date": "2024-01-01",
+            },
             relevance_score=0.9,
-            position_in_doc=1
+            position_in_doc=1,
         )
 
         retriever = MultiHopRetriever(Mock())
@@ -214,23 +220,24 @@ class TestEvaluateContext:
     """Tests for _evaluate_context method."""
 
     @pytest.mark.asyncio
-    @patch('src.services.rag.multi_hop_retriever.LLMProviderFactory.create')
-    @patch('builtins.open', create=True)
-    @patch('src.services.rag.multi_hop_retriever.yaml.safe_load')
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
     async def test_evaluate_can_answer(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
         """Test evaluation when context is sufficient."""
         mock_llm = Mock()
         mock_response = Mock()
-        mock_response.answer_text = json.dumps({
-            "can_answer": True,
-            "reasoning": "Sufficient context"
-        })
+        mock_response.answer_text = json.dumps(
+            {"can_answer": True, "reasoning": "Sufficient context"}
+        )
         mock_response.token_count = 100
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
         mock_yaml_load.return_value = {"Team1": {}}
-        mock_open.return_value.__enter__.return_value.read.return_value = "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        mock_open.return_value.__enter__.return_value.read.return_value = (
+            "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        )
 
         retriever = MultiHopRetriever(Mock())
         result = await retriever._evaluate_context("test query", sample_chunks)
@@ -240,24 +247,30 @@ class TestEvaluateContext:
         assert result.missing_query is None
 
     @pytest.mark.asyncio
-    @patch('src.services.rag.multi_hop_retriever.LLMProviderFactory.create')
-    @patch('builtins.open', create=True)
-    @patch('src.services.rag.multi_hop_retriever.yaml.safe_load')
-    async def test_evaluate_needs_more_context(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
+    async def test_evaluate_needs_more_context(
+        self, mock_yaml_load, mock_open, mock_create, sample_chunks
+    ):
         """Test evaluation when more context is needed."""
         mock_llm = Mock()
         mock_response = Mock()
-        mock_response.answer_text = json.dumps({
-            "can_answer": False,
-            "reasoning": "Missing information",
-            "missing_query": "What are charge restrictions?"
-        })
+        mock_response.answer_text = json.dumps(
+            {
+                "can_answer": False,
+                "reasoning": "Missing information",
+                "missing_query": "What are charge restrictions?",
+            }
+        )
         mock_response.token_count = 100
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
         mock_yaml_load.return_value = {}
-        mock_open.return_value.__enter__.return_value.read.return_value = "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        mock_open.return_value.__enter__.return_value.read.return_value = (
+            "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        )
 
         retriever = MultiHopRetriever(Mock())
         result = await retriever._evaluate_context("test query", sample_chunks)
@@ -266,10 +279,12 @@ class TestEvaluateContext:
         assert result.missing_query == "What are charge restrictions?"
 
     @pytest.mark.asyncio
-    @patch('src.services.rag.multi_hop_retriever.LLMProviderFactory.create')
-    @patch('builtins.open', create=True)
-    @patch('src.services.rag.multi_hop_retriever.yaml.safe_load')
-    async def test_evaluate_invalid_json(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
+    async def test_evaluate_invalid_json(
+        self, mock_yaml_load, mock_open, mock_create, sample_chunks
+    ):
         """Test evaluation with invalid JSON response."""
         mock_llm = Mock()
         mock_response = Mock()
@@ -279,7 +294,9 @@ class TestEvaluateContext:
         mock_create.return_value = mock_llm
 
         mock_yaml_load.return_value = {}
-        mock_open.return_value.__enter__.return_value.read.return_value = "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        mock_open.return_value.__enter__.return_value.read.return_value = (
+            "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        )
 
         retriever = MultiHopRetriever(Mock())
 
@@ -287,10 +304,12 @@ class TestEvaluateContext:
             await retriever._evaluate_context("test query", sample_chunks)
 
     @pytest.mark.asyncio
-    @patch('src.services.rag.multi_hop_retriever.LLMProviderFactory.create')
-    @patch('builtins.open', create=True)
-    @patch('src.services.rag.multi_hop_retriever.yaml.safe_load')
-    async def test_evaluate_missing_required_fields(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
+    async def test_evaluate_missing_required_fields(
+        self, mock_yaml_load, mock_open, mock_create, sample_chunks
+    ):
         """Test evaluation with missing required fields."""
         mock_llm = Mock()
         mock_response = Mock()
@@ -300,7 +319,9 @@ class TestEvaluateContext:
         mock_create.return_value = mock_llm
 
         mock_yaml_load.return_value = {}
-        mock_open.return_value.__enter__.return_value.read.return_value = "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        mock_open.return_value.__enter__.return_value.read.return_value = (
+            "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        )
 
         retriever = MultiHopRetriever(Mock())
 
@@ -308,30 +329,31 @@ class TestEvaluateContext:
             await retriever._evaluate_context("test query", sample_chunks)
 
     @pytest.mark.asyncio
-    @patch('src.services.rag.multi_hop_retriever.LLMProviderFactory.create')
-    @patch('builtins.open', create=True)
-    @patch('src.services.rag.multi_hop_retriever.yaml.safe_load')
-    @patch('asyncio.sleep', new_callable=AsyncMock)
-    async def test_evaluate_rate_limit_retry(self, mock_sleep, mock_yaml_load, mock_open, mock_create, sample_chunks):
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
+    @patch("asyncio.sleep", new_callable=AsyncMock)
+    async def test_evaluate_rate_limit_retry(
+        self, mock_sleep, mock_yaml_load, mock_open, mock_create, sample_chunks
+    ):
         """Test evaluation retries on rate limit error."""
         from src.services.llm.base import RateLimitError
 
         mock_llm = Mock()
         # First call raises rate limit, second succeeds
         mock_response = Mock()
-        mock_response.answer_text = json.dumps({
-            "can_answer": True,
-            "reasoning": "Success after retry"
-        })
+        mock_response.answer_text = json.dumps(
+            {"can_answer": True, "reasoning": "Success after retry"}
+        )
         mock_response.token_count = 100
 
-        mock_llm.generate = AsyncMock(
-            side_effect=[RateLimitError("Rate limited"), mock_response]
-        )
+        mock_llm.generate = AsyncMock(side_effect=[RateLimitError("Rate limited"), mock_response])
         mock_create.return_value = mock_llm
 
         mock_yaml_load.return_value = {}
-        mock_open.return_value.__enter__.return_value.read.return_value = "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        mock_open.return_value.__enter__.return_value.read.return_value = (
+            "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        )
 
         retriever = MultiHopRetriever(Mock())
         result = await retriever._evaluate_context("test query", sample_chunks)
@@ -344,24 +366,25 @@ class TestRetrieveMultiHop:
     """Tests for retrieve_multi_hop method."""
 
     @pytest.mark.asyncio
-    @patch('src.services.rag.multi_hop_retriever.LLMProviderFactory.create')
-    @patch('builtins.open', create=True)
-    @patch('src.services.rag.multi_hop_retriever.yaml.safe_load')
-    async def test_single_hop_sufficient(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
+    async def test_single_hop_sufficient(
+        self, mock_yaml_load, mock_open, mock_create, sample_chunks
+    ):
         """Test multi-hop when initial retrieval is sufficient."""
         # Setup mocks
         mock_llm = Mock()
         mock_response = Mock()
-        mock_response.answer_text = json.dumps({
-            "can_answer": True,
-            "reasoning": "Sufficient"
-        })
+        mock_response.answer_text = json.dumps({"can_answer": True, "reasoning": "Sufficient"})
         mock_response.token_count = 100
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
         mock_yaml_load.return_value = {}
-        mock_open.return_value.__enter__.return_value.read.return_value = "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        mock_open.return_value.__enter__.return_value.read.return_value = (
+            "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        )
 
         # Setup base retriever
         base_retriever = Mock()
@@ -379,35 +402,38 @@ class TestRetrieveMultiHop:
         assert hop_evals[0].can_answer is True
 
     @pytest.mark.asyncio
-    @patch('src.services.rag.multi_hop_retriever.LLMProviderFactory.create')
-    @patch('builtins.open', create=True)
-    @patch('src.services.rag.multi_hop_retriever.yaml.safe_load')
-    async def test_multi_hop_with_additional_retrieval(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
+    async def test_multi_hop_with_additional_retrieval(
+        self, mock_yaml_load, mock_open, mock_create, sample_chunks
+    ):
         """Test multi-hop with additional retrieval needed."""
         # Setup LLM mock - first needs more, then sufficient
         mock_llm = Mock()
         responses = [
             Mock(
-                answer_text=json.dumps({
-                    "can_answer": False,
-                    "reasoning": "Need more",
-                    "missing_query": "Additional query"
-                }),
-                token_count=100
+                answer_text=json.dumps(
+                    {
+                        "can_answer": False,
+                        "reasoning": "Need more",
+                        "missing_query": "Additional query",
+                    }
+                ),
+                token_count=100,
             ),
             Mock(
-                answer_text=json.dumps({
-                    "can_answer": True,
-                    "reasoning": "Now sufficient"
-                }),
-                token_count=100
-            )
+                answer_text=json.dumps({"can_answer": True, "reasoning": "Now sufficient"}),
+                token_count=100,
+            ),
         ]
         mock_llm.generate = AsyncMock(side_effect=responses)
         mock_create.return_value = mock_llm
 
         mock_yaml_load.return_value = {}
-        mock_open.return_value.__enter__.return_value.read.return_value = "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        mock_open.return_value.__enter__.return_value.read.return_value = (
+            "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        )
 
         # Setup base retriever
         base_retriever = Mock()
@@ -430,26 +456,26 @@ class TestRetrieveMultiHop:
         assert len(context.document_chunks) == 2
 
     @pytest.mark.asyncio
-    @patch('src.services.rag.multi_hop_retriever.LLMProviderFactory.create')
-    @patch('builtins.open', create=True)
-    @patch('src.services.rag.multi_hop_retriever.yaml.safe_load')
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
     async def test_max_hops_reached(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
         """Test behavior when max hops is reached."""
         # Setup LLM mock - always says need more
         mock_llm = Mock()
         mock_response = Mock(
-            answer_text=json.dumps({
-                "can_answer": False,
-                "reasoning": "Need more",
-                "missing_query": "More info"
-            }),
-            token_count=100
+            answer_text=json.dumps(
+                {"can_answer": False, "reasoning": "Need more", "missing_query": "More info"}
+            ),
+            token_count=100,
         )
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
         mock_yaml_load.return_value = {}
-        mock_open.return_value.__enter__.return_value.read.return_value = "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        mock_open.return_value.__enter__.return_value.read.return_value = (
+            "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        )
 
         # Setup base retriever
         base_retriever = Mock()
@@ -467,35 +493,31 @@ class TestRetrieveMultiHop:
         assert hop_evals[-1].can_answer is False
 
     @pytest.mark.asyncio
-    @patch('src.services.rag.multi_hop_retriever.LLMProviderFactory.create')
-    @patch('builtins.open', create=True)
-    @patch('src.services.rag.multi_hop_retriever.yaml.safe_load')
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
     async def test_chunk_deduplication(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
         """Test that duplicate chunks are not added."""
         # Setup LLM mock
         mock_llm = Mock()
         responses = [
             Mock(
-                answer_text=json.dumps({
-                    "can_answer": False,
-                    "reasoning": "Need more",
-                    "missing_query": "Additional"
-                }),
-                token_count=100
+                answer_text=json.dumps(
+                    {"can_answer": False, "reasoning": "Need more", "missing_query": "Additional"}
+                ),
+                token_count=100,
             ),
             Mock(
-                answer_text=json.dumps({
-                    "can_answer": True,
-                    "reasoning": "Done"
-                }),
-                token_count=100
-            )
+                answer_text=json.dumps({"can_answer": True, "reasoning": "Done"}), token_count=100
+            ),
         ]
         mock_llm.generate = AsyncMock(side_effect=responses)
         mock_create.return_value = mock_llm
 
         mock_yaml_load.return_value = {}
-        mock_open.return_value.__enter__.return_value.read.return_value = "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        mock_open.return_value.__enter__.return_value.read.return_value = (
+            "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        )
 
         # Setup base retriever - return same chunks both times
         base_retriever = Mock()

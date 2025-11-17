@@ -53,11 +53,13 @@ class RAGTestCase:
         # Handle both single test case (dict) and multiple test cases (list)
         if isinstance(data, dict):
             # Single test case format
-            return [cls(
-                test_id=data["test_id"],
-                query=data["query"],
-                ground_truth_contexts=data["ground_truth_contexts"],
-            )]
+            return [
+                cls(
+                    test_id=data["test_id"],
+                    query=data["query"],
+                    ground_truth_contexts=data["ground_truth_contexts"],
+                )
+            ]
         elif isinstance(data, list):
             # Multiple test cases format
             return [
@@ -91,7 +93,9 @@ class RAGTestResult:
     map_score: float  # Mean Average Precision
     recall_at_5: float  # Recall@5
     recall_at_10: float  # Recall@10
-    recall_at_all: float  # Recall@All (percentage of ground_truth_contexts found, regardless of position)
+    recall_at_all: (
+        float  # Recall@All (percentage of ground_truth_contexts found, regardless of position)
+    )
     precision_at_3: float  # Precision@3
     precision_at_5: float  # Precision@5
     mrr: float  # Mean Reciprocal Rank
@@ -113,8 +117,12 @@ class RAGTestResult:
 
     # Multi-hop retrieval data (if enabled)
     hops_used: int = 0  # Number of hops performed
-    hop_evaluations: list[dict] = None  # List of hop evaluation dicts (can_answer, reasoning, missing_query)
-    chunk_hop_numbers: list[int] = None  # Hop number for each retrieved chunk (parallel to retrieved_chunks)
+    hop_evaluations: list[dict] = (
+        None  # List of hop evaluation dicts (can_answer, reasoning, missing_query)
+    )
+    chunk_hop_numbers: list[int] = (
+        None  # Hop number for each retrieved chunk (parallel to retrieved_chunks)
+    )
 
 
 @dataclass
@@ -169,7 +177,15 @@ class RAGTestSummary:
     # Multi-hop statistics
     avg_hops_used: float = 0.0  # Average hops performed per test
     hop_evaluation_cost_usd: float = 0.0  # Total cost for hop evaluation LLM calls
-    avg_ground_truth_found_improvement: float = 0.0  # Average number of ground truth chunks found via hops
-    ground_truth_chunks_per_hop: list[int] = None  # List of ground truth chunks found in each hop [hop1, hop2, ...]
-    hop_can_answer_recall: float = 0.0  # Recall: times ground truth missing & hop made / total times ground truth missing
-    hop_can_answer_precision: float = 0.0  # Precision: times ground truth missing & hop made / total hops made
+    avg_ground_truth_found_improvement: float = (
+        0.0  # Average number of ground truth chunks found via hops
+    )
+    ground_truth_chunks_per_hop: list[int] = (
+        None  # List of ground truth chunks found in each hop [hop1, hop2, ...]
+    )
+    hop_can_answer_recall: float = (
+        0.0  # Recall: times ground truth missing & hop made / total times ground truth missing
+    )
+    hop_can_answer_precision: float = (
+        0.0  # Precision: times ground truth missing & hop made / total hops made
+    )

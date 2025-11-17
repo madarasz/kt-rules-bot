@@ -17,10 +17,10 @@ def temp_synonym_dict():
         "incapacitated": ["died", "killed", "destroyed"],
         "control range": ["melee range", "base contact"],
         "Shoot action": ["shoot", "fire", "shooting"],
-        "operative": ["model", "unit", "miniature"]
+        "operative": ["model", "unit", "miniature"],
     }
 
-    with NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+    with NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump(synonyms, f)
         temp_path = f.name
 
@@ -104,7 +104,7 @@ class TestQueryExpansion:
         queries = [
             "Can I HEAL my operative?",
             "Can I Heal my operative?",
-            "Can I heal my operative?"
+            "Can I heal my operative?",
         ]
 
         for query in queries:

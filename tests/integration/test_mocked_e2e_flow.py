@@ -63,23 +63,26 @@ def mock_rag_retriever():
 def mock_llm_provider():
     """Mock LLM provider with high-confidence response."""
     import json
+
     provider = AsyncMock()
 
     async def mock_generate(_request: GenerationRequest) -> LLMResponse:
         # Simulate LLM response with structured JSON output
-        structured_json = json.dumps({
-            "smalltalk": False,
-            "short_answer": "Yes.",
-            "persona_short_answer": "Obviously.",
-            "quotes": [
-                {
-                    "quote_title": "Movement Phase Rules",
-                    "quote_text": "During the Movement Phase, operatives can perform Move, Dash, or Climb/Traverse actions."
-                }
-            ],
-            "explanation": "During the Movement Phase, your operatives can perform several actions including Move (up to Movement characteristic), Dash (free action to move further), and Climb/Traverse (navigate terrain). You can also perform equipment actions during this phase.",
-            "persona_afterword": "Elementary tactical options, really."
-        })
+        structured_json = json.dumps(
+            {
+                "smalltalk": False,
+                "short_answer": "Yes.",
+                "persona_short_answer": "Obviously.",
+                "quotes": [
+                    {
+                        "quote_title": "Movement Phase Rules",
+                        "quote_text": "During the Movement Phase, operatives can perform Move, Dash, or Climb/Traverse actions.",
+                    }
+                ],
+                "explanation": "During the Movement Phase, your operatives can perform several actions including Move (up to Movement characteristic), Dash (free action to move further), and Climb/Traverse (navigate terrain). You can also perform equipment actions during this phase.",
+                "persona_afterword": "Elementary tactical options, really.",
+            }
+        )
 
         return LLMResponse(
             response_id=uuid4(),
@@ -192,7 +195,9 @@ async def test_basic_query_flow_end_to_end(mock_rag_retriever, mock_llm_provider
     # Check that explanation field exists and contains relevant info
     explanation_field = next((f for f in embed.fields if f.name == "Explanation"), None)
     assert explanation_field is not None, "Explanation field missing"
-    assert "movement" in explanation_field.value.lower() or "Move" in explanation_field.value, "Movement info missing from explanation"
+    assert "movement" in explanation_field.value.lower() or "Move" in explanation_field.value, (
+        "Movement info missing from explanation"
+    )
 
     print(f"✅ Basic query test passed (response time: {response_time:.2f}s)")
 
@@ -243,7 +248,9 @@ async def test_basic_query_with_context_tracking(mock_rag_retriever, mock_llm_pr
     context = orchestrator.context_manager.get_context("987654321:123456789")
     # The test has 1 query + 1 response, but context manager adds acknowledgement too
     # Actually it should have 2 messages: user query + bot response (acknowledgement is separate)
-    assert len(context.message_history) >= 2, f"Expected at least 2 messages, got {len(context.message_history)}"
+    assert len(context.message_history) >= 2, (
+        f"Expected at least 2 messages, got {len(context.message_history)}"
+    )
     # Find user and bot messages
     user_messages = [m for m in context.message_history if m.role == "user"]
     bot_messages = [m for m in context.message_history if m.role == "bot"]
@@ -254,9 +261,7 @@ async def test_basic_query_with_context_tracking(mock_rag_retriever, mock_llm_pr
 @pytest.mark.asyncio
 @pytest.mark.integration
 @pytest.mark.fast
-async def test_basic_query_feedback_buttons_added(
-    mock_rag_retriever, mock_llm_provider
-):
+async def test_basic_query_feedback_buttons_added(mock_rag_retriever, mock_llm_provider):
     """Test that feedback buttons (👍👎) are added to response."""
     mock_factory = Mock()
     mock_factory.create = Mock(return_value=mock_llm_provider)
@@ -286,6 +291,7 @@ async def test_basic_query_feedback_buttons_added(
 
     # Mock send to return different messages for different calls
     send_call_count = 0
+
     async def mock_send(*_args, **_kwargs):
         nonlocal send_call_count
         send_call_count += 1
@@ -314,4 +320,5 @@ async def test_basic_query_feedback_buttons_added(
 
     # Check feedback reactions were added to the response message (not acknowledgement)
     from unittest.mock import call
+
     assert sent_message.add_reaction.call_args_list == [call("👍"), call("👎")]

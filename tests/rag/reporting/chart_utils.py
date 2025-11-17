@@ -11,15 +11,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Use non-interactive backend for server environments
-matplotlib.use('Agg')
+matplotlib.use("Agg")
 
 
 # Chart styling constants
-CHART_STYLE = 'seaborn-v0_8-darkgrid'
+CHART_STYLE = "seaborn-v0_8-darkgrid"
 FIGURE_SIZE = (12, 7)
 FIGURE_SIZE_HEATMAP = (10, 8)
 DPI = 300
-COLORS = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D', '#6A994E', '#BC4B51']
+COLORS = ["#2E86AB", "#A23B72", "#F18F01", "#C73E1D", "#6A994E", "#BC4B51"]
 FONT_SIZE_TITLE = 14
 FONT_SIZE_LABEL = 12
 FONT_SIZE_TICK = 10
@@ -31,18 +31,20 @@ def setup_plot_style():
         plt.style.use(CHART_STYLE)
     except OSError:
         # Fall back to default if style not available
-        plt.style.use('default')
+        plt.style.use("default")
 
-    plt.rcParams.update({
-        'figure.figsize': FIGURE_SIZE,
-        'figure.dpi': DPI,
-        'font.size': FONT_SIZE_TICK,
-        'axes.labelsize': FONT_SIZE_LABEL,
-        'axes.titlesize': FONT_SIZE_TITLE,
-        'xtick.labelsize': FONT_SIZE_TICK,
-        'ytick.labelsize': FONT_SIZE_TICK,
-        'legend.fontsize': FONT_SIZE_TICK,
-    })
+    plt.rcParams.update(
+        {
+            "figure.figsize": FIGURE_SIZE,
+            "figure.dpi": DPI,
+            "font.size": FONT_SIZE_TICK,
+            "axes.labelsize": FONT_SIZE_LABEL,
+            "axes.titlesize": FONT_SIZE_TITLE,
+            "xtick.labelsize": FONT_SIZE_TICK,
+            "ytick.labelsize": FONT_SIZE_TICK,
+            "legend.fontsize": FONT_SIZE_TICK,
+        }
+    )
 
 
 def save_and_close(fig, output_path: Path):
@@ -53,7 +55,7 @@ def save_and_close(fig, output_path: Path):
         output_path: Path to save PNG
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, bbox_inches='tight', dpi=DPI)
+    fig.savefig(output_path, bbox_inches="tight", dpi=DPI)
     plt.close(fig)
 
 
@@ -90,7 +92,7 @@ def create_line_chart(
             x_values,
             y_values,
             yerr=y_errors,
-            marker='o',
+            marker="o",
             markersize=8,
             linewidth=2,
             capsize=5,
@@ -98,14 +100,7 @@ def create_line_chart(
             color=COLORS[0],
         )
     else:
-        ax.plot(
-            x_values,
-            y_values,
-            marker='o',
-            markersize=8,
-            linewidth=2,
-            color=COLORS[0],
-        )
+        ax.plot(x_values, y_values, marker="o", markersize=8, linewidth=2, color=COLORS[0])
 
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
@@ -145,15 +140,7 @@ def create_multi_line_chart(
 
     for i, (name, y_values) in enumerate(y_values_dict.items()):
         color = COLORS[i % len(COLORS)]
-        ax.plot(
-            x_values,
-            y_values,
-            marker='o',
-            markersize=6,
-            linewidth=2,
-            color=color,
-            label=name,
-        )
+        ax.plot(x_values, y_values, marker="o", markersize=6, linewidth=2, color=color, label=name)
 
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
@@ -194,13 +181,7 @@ def create_grouped_bar_chart(
     for i, (metric_name, values) in enumerate(values_dict.items()):
         offset = (i - num_metrics / 2 + 0.5) * bar_width
         color = COLORS[i % len(COLORS)]
-        ax.bar(
-            x + offset,
-            values,
-            bar_width,
-            label=metric_name,
-            color=color,
-        )
+        ax.bar(x + offset, values, bar_width, label=metric_name, color=color)
 
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
@@ -208,7 +189,7 @@ def create_grouped_bar_chart(
     ax.set_xticks(x)
     ax.set_xticklabels(categories)
     ax.legend()
-    ax.grid(True, alpha=0.3, axis='y')
+    ax.grid(True, alpha=0.3, axis="y")
 
     save_and_close(fig, output_path)
 
@@ -244,7 +225,7 @@ def create_heatmap(
     fig, ax = plt.subplots(figsize=FIGURE_SIZE_HEATMAP)
 
     # Create heatmap
-    im = ax.imshow(data, cmap='RdYlGn', aspect='auto', vmin=vmin, vmax=vmax)
+    im = ax.imshow(data, cmap="RdYlGn", aspect="auto", vmin=vmin, vmax=vmax)
 
     # Set ticks and labels
     ax.set_xticks(np.arange(len(x_labels)))
@@ -262,10 +243,7 @@ def create_heatmap(
     # Add text annotations
     for i in range(len(y_labels)):
         for j in range(len(x_labels)):
-            ax.text(
-                j, i, f"{data[i, j]:.3f}",
-                ha="center", va="center", color="black", fontsize=9
-            )
+            ax.text(j, i, f"{data[i, j]:.3f}", ha="center", va="center", color="black", fontsize=9)
 
     ax.set_xlabel(x_param_name)
     ax.set_ylabel(y_param_name)

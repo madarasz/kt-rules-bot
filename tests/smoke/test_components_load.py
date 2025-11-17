@@ -65,10 +65,7 @@ def test_discord_formatter_basic():
     )
 
     validation_result = ValidationResult(
-        is_valid=True,
-        llm_confidence=0.9,
-        rag_score=0.8,
-        reason="Valid"
+        is_valid=True, llm_confidence=0.9, rag_score=0.8, reason="Valid"
     )
 
     # Should format without errors
@@ -87,10 +84,7 @@ def test_models_can_be_created():
 
     # UserQuery
     query = UserQuery.from_discord_message(
-        discord_user_id="123456",
-        channel_id="789",
-        message_text="test",
-        sanitized_text="test"
+        discord_user_id="123456", channel_id="789", message_text="test", sanitized_text="test"
     )
     assert query.query_id is not None
 
@@ -135,7 +129,7 @@ def test_validator_basic_validation():
         latency_ms=100,
         citations_included=True,
         provider="test",
-        model_version="test-1"
+        model_version="test-1",
     )
 
     rag_context = RAGContext(

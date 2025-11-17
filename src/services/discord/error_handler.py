@@ -9,11 +9,7 @@ from src.services.llm.base import RateLimitError
 logger = get_logger(__name__)
 
 
-async def handle_error(
-    error: Exception,
-    message: discord.Message,
-    correlation_id: str,
-) -> None:
+async def handle_error(error: Exception, message: discord.Message, correlation_id: str) -> None:
     """Handle errors with appropriate user feedback.
 
     Args:
@@ -24,8 +20,7 @@ async def handle_error(
     # Map error types to user-friendly messages
     if isinstance(error, RateLimitError):
         await message.channel.send(
-            "⏰ The AI service is currently rate limited. "
-            "Please try again in a few minutes."
+            "⏰ The AI service is currently rate limited. Please try again in a few minutes."
         )
         logger.warning(
             "LLM rate limit hit",
@@ -38,8 +33,7 @@ async def handle_error(
             "Try breaking it into smaller questions."
         )
         logger.warning(
-            "LLM timeout",
-            extra={"correlation_id": correlation_id, "error_type": "timeout"},
+            "LLM timeout", extra={"correlation_id": correlation_id, "error_type": "timeout"}
         )
 
     elif isinstance(error, Forbidden):
@@ -64,9 +58,7 @@ async def handle_error(
 
     else:
         # Generic error
-        await message.channel.send(
-            "❌ An unexpected error occurred. The team has been notified."
-        )
+        await message.channel.send("❌ An unexpected error occurred. The team has been notified.")
         logger.error(
             f"Unexpected error: {error}",
             extra={"correlation_id": correlation_id, "error_type": type(error).__name__},

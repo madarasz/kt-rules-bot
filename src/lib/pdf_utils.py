@@ -29,16 +29,18 @@ def decompress_pdf(pdf_path: str) -> str:
         This function creates an uncompressed version that Claude can handle.
     """
     try:
-        output_path = pdf_path.replace('.pdf', '_decompressed.pdf')
+        output_path = pdf_path.replace(".pdf", "_decompressed.pdf")
         original_size = os.path.getsize(pdf_path)
 
-        logger.info(f"Decompressing PDF for Claude compatibility ({original_size / 1024 / 1024:.1f} MB)")
+        logger.info(
+            f"Decompressing PDF for Claude compatibility ({original_size / 1024 / 1024:.1f} MB)"
+        )
 
         with pikepdf.Pdf.open(pdf_path) as pdf:
             pdf.save(
                 output_path,
                 compress_streams=False,
-                stream_decode_level=pikepdf.StreamDecodeLevel.all
+                stream_decode_level=pikepdf.StreamDecodeLevel.all,
             )
 
         decompressed_size = os.path.getsize(output_path)
@@ -79,7 +81,7 @@ def decompress_pdf_with_cleanup(pdf_bytes: bytes) -> Iterator[tuple[str, str]]:
 
     try:
         # Create a temporary file for the original PDF
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.pdf', delete=False) as temp_pdf:
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as temp_pdf:
             temp_pdf.write(pdf_bytes)
             temp_pdf_path = temp_pdf.name
 
@@ -92,5 +94,9 @@ def decompress_pdf_with_cleanup(pdf_bytes: bytes) -> Iterator[tuple[str, str]]:
         # Clean up temp files
         if temp_pdf_path and os.path.exists(temp_pdf_path):
             os.unlink(temp_pdf_path)
-        if decompressed_pdf_path and decompressed_pdf_path != temp_pdf_path and os.path.exists(decompressed_pdf_path):
+        if (
+            decompressed_pdf_path
+            and decompressed_pdf_path != temp_pdf_path
+            and os.path.exists(decompressed_pdf_path)
+        ):
             os.unlink(decompressed_pdf_path)

@@ -30,11 +30,7 @@ class ResponseValidator:
     AND RAG retrieval score to meet minimum thresholds.
     """
 
-    def __init__(
-        self,
-        llm_confidence_threshold: float = 0.7,
-        rag_score_threshold: float = 0.6,
-    ):
+    def __init__(self, llm_confidence_threshold: float = 0.7, rag_score_threshold: float = 0.6):
         """Initialize response validator.
 
         Args:
@@ -49,11 +45,7 @@ class ResponseValidator:
             f"LLM={llm_confidence_threshold}, RAG={rag_score_threshold}"
         )
 
-    def validate(
-        self,
-        llm_response: LLMResponse,
-        rag_context: RAGContext,
-    ) -> ValidationResult:
+    def validate(self, llm_response: LLMResponse, rag_context: RAGContext) -> ValidationResult:
         """Validate LLM response against combined thresholds.
 
         Args:
@@ -86,9 +78,7 @@ class ResponseValidator:
         else:
             failures = []
             if not llm_valid:
-                failures.append(
-                    f"LLM confidence {llm_confidence:.2f} < {self.llm_threshold}"
-                )
+                failures.append(f"LLM confidence {llm_confidence:.2f} < {self.llm_threshold}")
             if not rag_valid:
                 failures.append(f"RAG score {rag_score:.2f} < {self.rag_threshold}")
 
@@ -96,16 +86,11 @@ class ResponseValidator:
             logger.warning(reason)
 
         return ValidationResult(
-            is_valid=is_valid,
-            llm_confidence=llm_confidence,
-            rag_score=rag_score,
-            reason=reason,
+            is_valid=is_valid, llm_confidence=llm_confidence, rag_score=rag_score, reason=reason
         )
 
     def should_send_response(
-        self,
-        llm_response: LLMResponse,
-        rag_context: RAGContext,
+        self, llm_response: LLMResponse, rag_context: RAGContext
     ) -> tuple[bool, str]:
         """Check if response should be sent to user.
 
@@ -138,8 +123,7 @@ class ResponseValidator:
 
 
 def create_validator(
-    llm_confidence_threshold: float = None,
-    rag_score_threshold: float = None,
+    llm_confidence_threshold: float = None, rag_score_threshold: float = None
 ) -> ResponseValidator:
     """Create response validator with optional custom thresholds.
 

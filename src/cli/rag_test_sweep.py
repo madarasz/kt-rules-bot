@@ -128,9 +128,7 @@ def rag_test_sweep(
             print("")
 
             sweep_results = sweep_runner.grid_search(
-                param_grid=param_grid,
-                test_id=test_id,
-                runs=runs,
+                param_grid=param_grid, test_id=test_id, runs=runs
             )
 
             # Generate report
@@ -139,9 +137,7 @@ def rag_test_sweep(
 
             print("\nGenerating comparison report and charts...")
             comparison_gen.generate_grid_search_report(
-                sweep_results=sweep_results,
-                param_grid=param_grid,
-                output_dir=output_dir,
+                sweep_results=sweep_results, param_grid=param_grid, output_dir=output_dir
             )
 
         else:
@@ -161,10 +157,7 @@ def rag_test_sweep(
             print("")
 
             sweep_results = sweep_runner.sweep_parameter(
-                param_name=param,
-                param_values=param_values,
-                test_id=test_id,
-                runs=runs,
+                param_name=param, param_values=param_values, test_id=test_id, runs=runs
             )
 
             # Generate report
@@ -173,9 +166,7 @@ def rag_test_sweep(
 
             print("\nGenerating comparison report and charts...")
             comparison_gen.generate_parameter_sweep_report(
-                sweep_results=sweep_results,
-                param_name=param,
-                output_dir=output_dir,
+                sweep_results=sweep_results, param_name=param, output_dir=output_dir
             )
 
         # Print summary
@@ -198,13 +189,17 @@ def rag_test_sweep(
 
         print(f"Report saved to: {output_dir / 'comparison_report.md'}")
         print(f"Charts saved to: {output_dir / 'charts/'}")
-        print(f"CSV data saved to: {output_dir / ('comparison_metrics.csv' if not grid else 'grid_results.csv')}")
+        print(
+            f"CSV data saved to: {output_dir / ('comparison_metrics.csv' if not grid else 'grid_results.csv')}"
+        )
         print("")
 
         logger.info(
             "sweep_completed",
             output_dir=str(output_dir),
-            best_context_precision=best_result.summary.mean_ragas_context_precision if best_result.summary.mean_ragas_context_precision else 0.0,
+            best_context_precision=best_result.summary.mean_ragas_context_precision
+            if best_result.summary.mean_ragas_context_precision
+            else 0.0,
         )
 
     except FileNotFoundError as e:
@@ -234,16 +229,16 @@ def _parse_parameter_values(param_name: str, values_str: str) -> list:
     Raises:
         ValueError: If values cannot be parsed
     """
-    values_list = [v.strip() for v in values_str.split(',')]
+    values_list = [v.strip() for v in values_str.split(",")]
 
     # Determine type based on parameter name
-    if param_name in ['max_chunks', 'rrf_k', 'chunk_header_level']:
+    if param_name in ["max_chunks", "rrf_k", "chunk_header_level"]:
         # Integer parameters
         return [int(v) for v in values_list]
-    elif param_name in ['min_relevance', 'bm25_k1', 'bm25_b', 'bm25_weight']:
+    elif param_name in ["min_relevance", "bm25_k1", "bm25_b", "bm25_weight"]:
         # Float parameters
         return [float(v) for v in values_list]
-    elif param_name in ['embedding_model']:
+    elif param_name in ["embedding_model"]:
         # String parameters
         return values_list
     else:
@@ -281,27 +276,27 @@ def _parse_grid_params(
     param_grid = {}
 
     if max_chunks:
-        param_grid['max_chunks'] = [int(v.strip()) for v in max_chunks.split(',')]
+        param_grid["max_chunks"] = [int(v.strip()) for v in max_chunks.split(",")]
 
     if min_relevance:
-        param_grid['min_relevance'] = [float(v.strip()) for v in min_relevance.split(',')]
+        param_grid["min_relevance"] = [float(v.strip()) for v in min_relevance.split(",")]
 
     if rrf_k:
-        param_grid['rrf_k'] = [int(v.strip()) for v in rrf_k.split(',')]
+        param_grid["rrf_k"] = [int(v.strip()) for v in rrf_k.split(",")]
 
     if bm25_k1:
-        param_grid['bm25_k1'] = [float(v.strip()) for v in bm25_k1.split(',')]
+        param_grid["bm25_k1"] = [float(v.strip()) for v in bm25_k1.split(",")]
 
     if bm25_b:
-        param_grid['bm25_b'] = [float(v.strip()) for v in bm25_b.split(',')]
+        param_grid["bm25_b"] = [float(v.strip()) for v in bm25_b.split(",")]
 
     if bm25_weight:
-        param_grid['bm25_weight'] = [float(v.strip()) for v in bm25_weight.split(',')]
+        param_grid["bm25_weight"] = [float(v.strip()) for v in bm25_weight.split(",")]
 
     if embedding_model:
-        param_grid['embedding_model'] = [v.strip() for v in embedding_model.split(',')]
+        param_grid["embedding_model"] = [v.strip() for v in embedding_model.split(",")]
 
     if chunk_header_level:
-        param_grid['chunk_header_level'] = [int(v.strip()) for v in chunk_header_level.split(',')]
+        param_grid["chunk_header_level"] = [int(v.strip()) for v in chunk_header_level.split(",")]
 
     return param_grid

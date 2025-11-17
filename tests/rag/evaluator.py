@@ -20,7 +20,7 @@ class RAGEvaluator:
         retrieved_chunks: list[DocumentChunk],
         retrieval_time_seconds: float,
         embedding_cost_usd: float,
-        run_number: int = 1
+        run_number: int = 1,
     ) -> RAGTestResult:
         """Evaluate a single RAG test case.
 
@@ -72,9 +72,15 @@ class RAGEvaluator:
 
         # Calculate metrics
         map_score = self._calculate_map(ranks_of_required, len(test_case.ground_truth_contexts))
-        recall_at_5 = self._calculate_recall_at_k(ranks_of_required, len(test_case.ground_truth_contexts), k=5)
-        recall_at_all = self._calculate_recall_at_all(len(found), len(test_case.ground_truth_contexts))
-        recall_at_10 = self._calculate_recall_at_k(ranks_of_required, len(test_case.ground_truth_contexts), k=10)
+        recall_at_5 = self._calculate_recall_at_k(
+            ranks_of_required, len(test_case.ground_truth_contexts), k=5
+        )
+        recall_at_all = self._calculate_recall_at_all(
+            len(found), len(test_case.ground_truth_contexts)
+        )
+        recall_at_10 = self._calculate_recall_at_k(
+            ranks_of_required, len(test_case.ground_truth_contexts), k=10
+        )
         precision_at_3 = self._calculate_precision_at_k(ranks_of_required, k=3)
         precision_at_5 = self._calculate_precision_at_k(ranks_of_required, k=5)
         mrr = self._calculate_mrr(ranks_of_required)

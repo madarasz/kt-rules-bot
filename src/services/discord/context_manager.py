@@ -50,14 +50,9 @@ class ConversationContextManager:
         """
         if context_key not in self._contexts:
             self._contexts[context_key] = ConversationContext(
-                context_key=context_key,
-                message_history=[],
-                last_activity=datetime.now(UTC),
+                context_key=context_key, message_history=[], last_activity=datetime.now(UTC)
             )
-            logger.debug(
-                "Created new conversation context",
-                extra={"context_key": context_key},
-            )
+            logger.debug("Created new conversation context", extra={"context_key": context_key})
 
         return self._contexts[context_key]
 
@@ -70,13 +65,7 @@ class ConversationContextManager:
             text: Message text
         """
         context = self.get_context(context_key)
-        context.message_history.append(
-            Message(
-                role=role,
-                text=text,
-                timestamp=datetime.now(UTC),
-            )
-        )
+        context.message_history.append(Message(role=role, text=text, timestamp=datetime.now(UTC)))
 
         # Keep only last N messages (message history only, NOT RAG chunks)
         if len(context.message_history) > self.max_history:
@@ -112,11 +101,7 @@ class ConversationContextManager:
             Number of contexts cleaned up
         """
         now = datetime.now(UTC)
-        expired = [
-            key
-            for key, ctx in self._contexts.items()
-            if now - ctx.last_activity > self.ttl
-        ]
+        expired = [key for key, ctx in self._contexts.items() if now - ctx.last_activity > self.ttl]
 
         for key in expired:
             del self._contexts[key]
@@ -137,7 +122,4 @@ class ConversationContextManager:
         """
         total_messages = sum(len(ctx.message_history) for ctx in self._contexts.values())
 
-        return {
-            "active_contexts": len(self._contexts),
-            "total_messages": total_messages,
-        }
+        return {"active_contexts": len(self._contexts), "total_messages": total_messages}

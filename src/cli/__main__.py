@@ -36,18 +36,10 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     # Add version
-    parser.add_argument(
-        "--version",
-        action="version",
-        version="Kill Team Bot v1.0.0",
-    )
+    parser.add_argument("--version", action="version", version="Kill Team Bot v1.0.0")
 
     # Create subcommands
-    subparsers = parser.add_subparsers(
-        dest="command",
-        help="Available commands",
-        required=True,
-    )
+    subparsers = parser.add_subparsers(dest="command", help="Available commands", required=True)
 
     # Command: run
     run_parser = subparsers.add_parser(
@@ -68,14 +60,9 @@ def create_parser() -> argparse.ArgumentParser:
         help="Ingest rules into vector database",
         description="Ingest markdown rules from source directory into vector database",
     )
+    ingest_parser.add_argument("source_dir", help="Directory containing markdown rule files")
     ingest_parser.add_argument(
-        "source_dir",
-        help="Directory containing markdown rule files",
-    )
-    ingest_parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Force re-ingestion of all documents",
+        "--force", action="store_true", help="Force re-ingestion of all documents"
     )
 
     # Command: query
@@ -84,26 +71,15 @@ def create_parser() -> argparse.ArgumentParser:
         help="Test RAG + LLM pipeline locally",
         description="Test query processing locally without Discord",
     )
+    query_parser.add_argument("query", help="Query text to test")
     query_parser.add_argument(
-        "query",
-        help="Query text to test",
+        "--model", "-m", choices=ALL_LLM_PROVIDERS, help="LLM model to use (default: from config)"
     )
     query_parser.add_argument(
-        "--model",
-        "-m",
-        choices=ALL_LLM_PROVIDERS,
-        help="LLM model to use (default: from config)",
+        "--max-chunks", type=int, default=5, help="Maximum RAG chunks to retrieve (default: 5)"
     )
     query_parser.add_argument(
-        "--max-chunks",
-        type=int,
-        default=5,
-        help="Maximum RAG chunks to retrieve (default: 5)",
-    )
-    query_parser.add_argument(
-        "--rag-only",
-        action="store_true",
-        help="Stop after RAG retrieval, do not call LLM",
+        "--rag-only", action="store_true", help="Stop after RAG retrieval, do not call LLM"
     )
     query_parser.add_argument(
         "--max-hops",
@@ -119,9 +95,7 @@ def create_parser() -> argparse.ArgumentParser:
         description="Check health of Discord bot, vector DB, and LLM provider",
     )
     health_parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Show detailed health information",
+        "-v", "--verbose", action="store_true", help="Show detailed health information"
     )
     health_parser.add_argument(
         "--wait-for-discord",
@@ -135,15 +109,8 @@ def create_parser() -> argparse.ArgumentParser:
         help="Delete user data (GDPR compliance)",
         description="Delete all data for a user (GDPR right to erasure)",
     )
-    gdpr_parser.add_argument(
-        "user_id",
-        help="Discord user ID or hashed user ID",
-    )
-    gdpr_parser.add_argument(
-        "--confirm",
-        action="store_true",
-        help="Skip confirmation prompt",
-    )
+    gdpr_parser.add_argument("user_id", help="Discord user ID or hashed user ID")
+    gdpr_parser.add_argument("--confirm", action="store_true", help="Skip confirmation prompt")
 
     # Command: quality-test
     quality_parser = subparsers.add_parser(
@@ -151,11 +118,7 @@ def create_parser() -> argparse.ArgumentParser:
         help="Run response quality tests",
         description="Run quality tests for RAG + LLM pipeline",
     )
-    quality_parser.add_argument(
-        "--test",
-        "-t",
-        help="Specific test ID to run (default: all tests)",
-    )
+    quality_parser.add_argument("--test", "-t", help="Specific test ID to run (default: all tests)")
     quality_parser.add_argument(
         "--model",
         "-m",
@@ -163,27 +126,16 @@ def create_parser() -> argparse.ArgumentParser:
         help="Specific model to test (default: from config)",
     )
     quality_parser.add_argument(
-        "--all-models",
-        action="store_true",
-        help="Test all available models",
+        "--all-models", action="store_true", help="Test all available models"
     )
     quality_parser.add_argument(
         "--judge-model",
         default=QUALITY_TEST_JUDGE_MODEL,
         help=f"Model to use for LLM-based evaluation (default: {QUALITY_TEST_JUDGE_MODEL})",
     )
+    quality_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
     quality_parser.add_argument(
-        "--yes",
-        "-y",
-        action="store_true",
-        help="Skip confirmation prompt",
-    )
-    quality_parser.add_argument(
-        "--runs",
-        "-n",
-        type=int,
-        default=1,
-        help="Number of times to run each test (default: 1)",
+        "--runs", "-n", type=int, default=1, help="Number of times to run each test (default: 1)"
     )
     quality_parser.add_argument(
         "--max-hops",
@@ -203,17 +155,9 @@ def create_parser() -> argparse.ArgumentParser:
         help="Test RAG chunk retrieval quality",
         description="Test RAG retrieval quality using IR metrics (MAP, Recall@k, Precision@k)",
     )
+    rag_parser.add_argument("--test", "-t", help="Specific test ID to run (default: all tests)")
     rag_parser.add_argument(
-        "--test",
-        "-t",
-        help="Specific test ID to run (default: all tests)",
-    )
-    rag_parser.add_argument(
-        "--runs",
-        "-n",
-        type=int,
-        default=1,
-        help="Number of times to run each test (default: 1)",
+        "--runs", "-n", type=int, default=1, help="Number of times to run each test (default: 1)"
     )
     rag_parser.add_argument(
         "--max-chunks",
@@ -240,9 +184,7 @@ def create_parser() -> argparse.ArgumentParser:
         help="Parameter name to sweep (max_chunks, min_relevance, rrf_k, bm25_k1, bm25_b, bm25_weight, embedding_model, chunk_header_level)",
     )
     rag_sweep_parser.add_argument(
-        "--values",
-        "-v",
-        help="Comma-separated values to test (e.g., 40,60,80)",
+        "--values", "-v", help="Comma-separated values to test (e.g., 40,60,80)"
     )
     rag_sweep_parser.add_argument(
         "--grid",
@@ -251,9 +193,7 @@ def create_parser() -> argparse.ArgumentParser:
         help="Enable grid search mode (test all parameter combinations)",
     )
     rag_sweep_parser.add_argument(
-        "--test",
-        "-t",
-        help="Specific test ID to run (default: all tests)",
+        "--test", "-t", help="Specific test ID to run (default: all tests)"
     )
     rag_sweep_parser.add_argument(
         "--runs",
@@ -263,24 +203,20 @@ def create_parser() -> argparse.ArgumentParser:
         help="Number of times to run each configuration (default: 1)",
     )
     rag_sweep_parser.add_argument(
-        "--max-chunks",
-        help="Comma-separated max_chunks values for grid search (e.g., 10,15,20)",
+        "--max-chunks", help="Comma-separated max_chunks values for grid search (e.g., 10,15,20)"
     )
     rag_sweep_parser.add_argument(
         "--min-relevance",
         help="Comma-separated min_relevance values for grid search (e.g., 0.4,0.45,0.5)",
     )
     rag_sweep_parser.add_argument(
-        "--rrf-k",
-        help="Comma-separated rrf_k values for grid search (e.g., 50,60,70)",
+        "--rrf-k", help="Comma-separated rrf_k values for grid search (e.g., 50,60,70)"
     )
     rag_sweep_parser.add_argument(
-        "--bm25-k1",
-        help="Comma-separated bm25_k1 values for grid search (e.g., 1.2,1.5,1.8)",
+        "--bm25-k1", help="Comma-separated bm25_k1 values for grid search (e.g., 1.2,1.5,1.8)"
     )
     rag_sweep_parser.add_argument(
-        "--bm25-b",
-        help="Comma-separated bm25_b values for grid search (e.g., 0.5,0.75,1.0)",
+        "--bm25-b", help="Comma-separated bm25_b values for grid search (e.g., 0.5,0.75,1.0)"
     )
     rag_sweep_parser.add_argument(
         "--bm25-weight",
@@ -301,10 +237,7 @@ def create_parser() -> argparse.ArgumentParser:
         help="Download and extract team rule PDF",
         description="Download team rule PDF from URL and extract to markdown using LLM",
     )
-    download_team_parser.add_argument(
-        "url",
-        help="PDF URL (must be HTTPS)",
-    )
+    download_team_parser.add_argument("url", help="PDF URL (must be HTTPS)")
     download_team_parser.add_argument(
         "--model",
         default="gemini-2.5-pro",
@@ -312,8 +245,7 @@ def create_parser() -> argparse.ArgumentParser:
         help="LLM model to use for extraction (default: gemini-2.5-pro)",
     )
     download_team_parser.add_argument(
-        "--team-name",
-        help="Team name override (default: extract from markdown)",
+        "--team-name", help="Team name override (default: extract from markdown)"
     )
     download_team_parser.add_argument(
         "--update-date",
@@ -327,14 +259,10 @@ def create_parser() -> argparse.ArgumentParser:
         description="Automatically download and extract all team rules from Warhammer Community API",
     )
     download_all_teams_parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Check what needs updating without downloading",
+        "--dry-run", action="store_true", help="Check what needs updating without downloading"
     )
     download_all_teams_parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Re-download all teams regardless of date",
+        "--force", action="store_true", help="Re-download all teams regardless of date"
     )
 
     return parser
@@ -363,16 +291,10 @@ def main() -> None:
             )
 
         elif args.command == "health":
-            health_check(
-                verbose=args.verbose,
-                wait_for_discord=args.wait_for_discord,
-            )
+            health_check(verbose=args.verbose, wait_for_discord=args.wait_for_discord)
 
         elif args.command == "gdpr-delete":
-            delete_user_data(
-                user_id=args.user_id,
-                confirm=args.confirm,
-            )
+            delete_user_data(user_id=args.user_id, confirm=args.confirm)
 
         elif args.command == "quality-test":
             quality_test(
@@ -420,10 +342,7 @@ def main() -> None:
             )
 
         elif args.command == "download-all-teams":
-            download_all_teams(
-                dry_run=args.dry_run,
-                force=args.force,
-            )
+            download_all_teams(dry_run=args.dry_run, force=args.force)
 
         else:
             parser.print_help()

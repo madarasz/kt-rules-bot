@@ -68,9 +68,7 @@ class PDFUpdate:
         # Date-based pattern: FAQ-2024-10, v2024-09, etc.
         date_pattern = r"^[A-Za-z]+-?\d{4}-\d{2}$"
 
-        return bool(re.match(semver_pattern, version)) or bool(
-            re.match(date_pattern, version)
-        )
+        return bool(re.match(semver_pattern, version)) or bool(re.match(date_pattern, version))
 
     def validate(self) -> None:
         """Validate PDFUpdate fields.
@@ -90,9 +88,7 @@ class PDFUpdate:
 
         # Error message required if failed
         if self.extraction_status == "failed" and not self.error_message:
-            raise ValueError(
-                "error_message required when extraction_status is 'failed'"
-            )
+            raise ValueError("error_message required when extraction_status is 'failed'")
 
         # File size validation
         if self.file_size_bytes <= 0:

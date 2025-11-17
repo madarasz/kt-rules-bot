@@ -108,9 +108,7 @@ class GDPRCleanupService:
         )
 
     def get_audit_logs(
-        self,
-        entity_type: str | None = None,
-        user_id: str | None = None,
+        self, entity_type: str | None = None, user_id: str | None = None
     ) -> list[DeletionAuditLog]:
         """Get deletion audit logs.
 
@@ -131,11 +129,7 @@ class GDPRCleanupService:
 
         return logs
 
-    def cleanup_expired_entities(
-        self,
-        entities: list[GDPREntity],
-        entity_type: str,
-    ) -> int:
+    def cleanup_expired_entities(self, entities: list[GDPREntity], entity_type: str) -> int:
         """Clean up expired entities.
 
         Args:
@@ -170,11 +164,7 @@ class GDPRCleanupService:
 
         return deleted_count
 
-    def delete_user_data(
-        self,
-        user_id: str,
-        entity_types: list[str],
-    ) -> int:
+    def delete_user_data(self, user_id: str, entity_types: list[str]) -> int:
         """Delete all data for a specific user (right to erasure).
 
         Args:
