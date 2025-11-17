@@ -19,6 +19,11 @@ from src.lib.constants import (
     LLM_GENERATION_TIMEOUT,
     LLM_SYSTEM_PROMPT_FILE_PATH,
 )
+from src.lib.personality import (
+    get_afterword_example,
+    get_personality_description,
+    get_short_answer_example,
+)
 
 # Cached system prompt (loaded once from file)
 _SYSTEM_PROMPT_CACHE: str | None = None
@@ -54,14 +59,6 @@ def load_system_prompt() -> str:
 
     # Read the base template
     template = prompt_file.read_text(encoding="utf-8")
-
-    # Import personality module to get personality-specific content
-    # Import here to avoid circular dependency at module level
-    from src.lib.personality import (
-        get_afterword_example,
-        get_personality_description,
-        get_short_answer_example,
-    )
 
     # Replace personality placeholders
     template = template.replace(

@@ -7,10 +7,7 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 import time
 from uuid import uuid4
 
-try:
-    import httpx
-except ImportError:
-    httpx = None
+import httpx
 
 from src.lib.logging import get_logger
 from src.services.llm.base import (

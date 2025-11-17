@@ -29,6 +29,7 @@ from src.lib.tokens import estimate_cost
 from src.models.rag_context import DocumentChunk, RAGContext
 from src.services.llm.base import GenerationConfig, GenerationRequest, RateLimitError
 from src.services.llm.factory import LLMProviderFactory
+from src.services.rag.retriever import RetrieveRequest
 from src.services.rag.team_filter import TeamFilter
 
 logger = get_logger(__name__)
@@ -152,9 +153,6 @@ class MultiHopRetriever:
             - List of HopEvaluation objects (one per hop attempted)
             - Dict mapping chunk_id to hop number (0=initial, 1+=hop)
         """
-        # Import here to avoid circular dependency
-        from src.services.rag.retriever import RetrieveRequest
-
         accumulated_chunks: list[DocumentChunk] = []
         hop_evaluations: list[HopEvaluation] = []
         chunk_hop_map: dict[UUID, int] = {}

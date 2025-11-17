@@ -3,6 +3,8 @@
 Implements retrieve() method from specs/001-we-are-building/contracts/rag-pipeline.md
 """
 
+import asyncio
+import threading
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID, uuid4
@@ -24,6 +26,7 @@ from src.models.rag_context import DocumentChunk, RAGContext
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.hybrid_retriever import HybridRetriever
 from src.services.rag.keyword_extractor import KeywordExtractor
+from src.services.rag.multi_hop_retriever import MultiHopRetriever
 from src.services.rag.query_expander import QueryExpander
 from src.services.rag.vector_db import VectorDBService
 
@@ -108,7 +111,6 @@ class RAGRetriever:
         # Initialize multi-hop retriever if enabled
         self.multi_hop_retriever = None
         if enable_multi_hop:
-            from src.services.rag.multi_hop_retriever import MultiHopRetriever
             self.multi_hop_retriever = MultiHopRetriever(base_retriever=self)
             logger.info("multi_hop_enabled", max_hops=RAG_MAX_HOPS)
 
@@ -149,9 +151,6 @@ class RAGRetriever:
         if request.use_multi_hop and self.multi_hop_retriever:
             # Multi-hop retrieval is async, so we need to run it in a way that works
             # both from sync contexts (CLI) and async contexts (Discord bot)
-            import asyncio
-            import threading
-
             # Always use thread-based approach to avoid event loop conflicts
             # This works whether called from sync or async context
             result_container = []
