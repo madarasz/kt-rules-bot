@@ -1,4 +1,5 @@
 """CLI command for running quality tests."""
+# ruff: noqa: E402
 
 import asyncio
 import sys
@@ -7,6 +8,8 @@ import warnings
 from datetime import UTC, datetime
 from pathlib import Path
 
+import src.lib.constants as constants
+from src.lib.config import get_config
 from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_PROVIDERS
 from src.lib.logging import get_logger
 from tests.quality.reporting.aggregator import aggregate_results
@@ -19,31 +22,29 @@ logger = get_logger(__name__)
 # Suppress ResourceWarnings from async HTTP clients cleanup
 # This occurs when Ragas (and other async libraries) try to clean up connections
 # after the event loop has closed. It's harmless and doesn't affect results.
-warnings.filterwarnings('ignore', category=ResourceWarning, message='.*unclosed.*')
+warnings.filterwarnings("ignore", category=ResourceWarning, message=".*unclosed.*")
 
 # Filter asyncio "Event loop is closed" errors that occur during cleanup
 # These happen when Ragas' async HTTP clients try to close after the event loop is shut down
 # The errors occur AFTER we get our results, so they don't affect functionality
 import logging
 
-logging.getLogger('asyncio').setLevel(logging.CRITICAL)
+logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
 
-def _suppress_event_loop_closed_errors():
+def _suppress_event_loop_closed_errors() -> None:
     """Suppress 'Event loop is closed' errors during shutdown.
 
     These errors occur when async HTTP clients (from Ragas) try to cleanup
     after the event loop has been closed by asyncio.run(). They're harmless
     and don't affect test results - they only appear during final cleanup.
     """
-    import sys
-
     # Store original excepthook
     original_excepthook = sys.excepthook
 
     def custom_excepthook(exc_type, exc_value, exc_traceback):
         # Suppress RuntimeError: Event loop is closed
-        if exc_type == RuntimeError and 'Event loop is closed' in str(exc_value):
+        if exc_type is RuntimeError and "Event loop is closed" in str(exc_value):
             return  # Silently ignore
         # Call original excepthook for all other exceptions
         original_excepthook(exc_type, exc_value, exc_traceback)
@@ -79,7 +80,6 @@ def quality_test(
 
     # Override RAG_MAX_HOPS if specified
     if max_hops is not None:
-        import src.lib.constants as constants
         original_max_hops = constants.RAG_MAX_HOPS
         constants.RAG_MAX_HOPS = max_hops
         logger.info(f"Overriding RAG_MAX_HOPS to {max_hops} for quality tests")
@@ -92,7 +92,6 @@ def quality_test(
     elif model:
         models_to_run = [model]
     else:
-        from src.lib.config import get_config
         models_to_run = [get_config().default_llm_provider]
 
     runner = QualityTestRunner(judge_model=judge_model)
@@ -170,7 +169,6 @@ def quality_test(
     finally:
         # Restore original RAG_MAX_HOPS if overridden
         if original_max_hops is not None:
-            import src.lib.constants as constants
             constants.RAG_MAX_HOPS = original_max_hops
             logger.info(f"Restored RAG_MAX_HOPS to {original_max_hops}")
 

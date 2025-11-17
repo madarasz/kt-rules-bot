@@ -27,7 +27,7 @@ def _split_field_value(text: str, max_length: int = 1024) -> list[str]:
     current_chunk = ""
 
     # Split on sentence boundaries (. ! ?)
-    sentences = re.split(r'([.!?]+\s+)', text)
+    sentences = re.split(r"([.!?]+\s+)", text)
 
     for i in range(0, len(sentences), 2):
         sentence = sentences[i]
@@ -49,9 +49,7 @@ def _split_field_value(text: str, max_length: int = 1024) -> list[str]:
 
 
 def format_response(
-    bot_response: BotResponse,
-    validation_result: ValidationResult,
-    smalltalk: bool = False,
+    bot_response: BotResponse, _validation_result: ValidationResult, smalltalk: bool = False
 ) -> list[discord.Embed]:
     """Format bot response as Discord embeds with citations.
 
@@ -59,7 +57,7 @@ def format_response(
 
     Args:
         bot_response: LLM response (markdown or JSON)
-        validation_result: Validation result for confidence display
+        _validation_result: Validation result (currently unused)
         smalltalk: If True, use purple color and skip disclaimer
 
     Returns:
@@ -76,10 +74,7 @@ def format_response(
         return _format_markdown(bot_response, smalltalk)
 
 
-def _format_structured(
-    bot_response: BotResponse,
-    smalltalk: bool = False,
-) -> list[discord.Embed]:
+def _format_structured(bot_response: BotResponse, smalltalk: bool = False) -> list[discord.Embed]:
     """Format structured JSON response as Discord embeds.
 
     Args:
@@ -99,47 +94,30 @@ def _format_structured(
     description = f"**{data.short_answer}** *{data.persona_short_answer}*"
 
     embed = discord.Embed(
-        title=None,
-        description=description,
-        color=color,
-        timestamp=datetime.now(UTC),
+        title=None, description=description, color=color, timestamp=datetime.now(UTC)
     )
 
     # Add quotes as embed fields (max 25 fields per embed)
     for _i, quote in enumerate(data.quotes[:25]):
         embed.add_field(
-            name=f"**{quote.quote_title}**",
-            value=f"> {quote.quote_text}",
-            inline=False
+            name=f"**{quote.quote_title}**", value=f"> {quote.quote_text}", inline=False
         )
 
     # Add explanation field (split if needed)
-    if (len(data.explanation) > 0):
+    if len(data.explanation) > 0:
         explanation_chunks = _split_field_value(data.explanation)
 
         for chunk_idx, chunk in enumerate(explanation_chunks):
             field_name = "Explanation" if chunk_idx == 0 else ""
-            embed.add_field(
-                name=field_name,
-                value=chunk,
-                inline=False
-            )
+            embed.add_field(name=field_name, value=chunk, inline=False)
 
     # Add persona afterword
-    embed.add_field(
-        name="",
-        value=f"*{data.persona_afterword}*",
-        inline=False
-    )
+    embed.add_field(name="", value=f"*{data.persona_afterword}*", inline=False)
 
     # Add disclaimer if not smalltalk
     if not smalltalk:
         disclaimer_text = get_random_disclaimer()
-        embed.add_field(
-            name="Disclaimer",
-            value=f"*{disclaimer_text}*",
-            inline=True,
-        )
+        embed.add_field(name="Disclaimer", value=f"*{disclaimer_text}*", inline=True)
 
     # Footer with metadatam, remove date suffix from model name
     footer_content = (
@@ -154,16 +132,16 @@ def _format_structured(
 
     return [embed]
 
+
 def _format_llm_model_name(model_name: str) -> str:
-    return re.sub(r'-\d{8}$', '', model_name)
+    return re.sub(r"-\d{8}$", "", model_name)
+
 
 def _format_latency_ms(latency_ms: int) -> str:
     return f"{latency_ms / 1000:.2f}s"
 
-def _format_markdown(
-    bot_response: BotResponse,
-    smalltalk: bool = False,
-) -> list[discord.Embed]:
+
+def _format_markdown(bot_response: BotResponse, smalltalk: bool = False) -> list[discord.Embed]:
     """Format markdown response as Discord embeds (existing implementation).
 
     This is the current implementation - kept for backwards compatibility.
@@ -188,11 +166,7 @@ def _format_markdown(
 
     if not smalltalk:
         disclaimer_text = get_random_disclaimer()
-        embed.add_field(
-            name="Disclaimer",
-            value=f"*{disclaimer_text}*",
-            inline=True,
-        )
+        embed.add_field(name="Disclaimer", value=f"*{disclaimer_text}*", inline=True)
 
     footer_content = f"ID: {str(bot_response.response_id)[:8]} | Model: {bot_response.llm_model} | Latency: {bot_response.latency_ms}ms"
     if not smalltalk:

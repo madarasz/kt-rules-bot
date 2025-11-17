@@ -3,7 +3,8 @@
 Implements retrieve() method from specs/001-we-are-building/contracts/rag-pipeline.md
 """
 
-from dataclasses import dataclass
+import asyncio
+import threading
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -13,33 +14,21 @@ from src.lib.constants import (
     BM25_WEIGHT,
     RAG_ENABLE_QUERY_EXPANSION,
     RAG_ENABLE_QUERY_NORMALIZATION,
-    RAG_MAX_CHUNKS,
     RAG_MAX_HOPS,
-    RAG_MIN_RELEVANCE,
     RAG_SYNONYM_DICT_PATH,
     RRF_K,
 )
 from src.lib.logging import get_logger
 from src.models.rag_context import DocumentChunk, RAGContext
+from src.models.rag_request import RetrieveRequest
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.hybrid_retriever import HybridRetriever
 from src.services.rag.keyword_extractor import KeywordExtractor
+from src.services.rag.multi_hop_retriever import MultiHopRetriever
 from src.services.rag.query_expander import QueryExpander
 from src.services.rag.vector_db import VectorDBService
 
 logger = get_logger(__name__)
-
-
-@dataclass
-class RetrieveRequest:
-    """RAG retrieval request parameters."""
-
-    query: str  # User question (sanitized)
-    context_key: str  # "{channel_id}:{user_id}" for conversation tracking
-    max_chunks: int = RAG_MAX_CHUNKS  # Maximum document chunks to retrieve
-    min_relevance: float = RAG_MIN_RELEVANCE  # Minimum cosine similarity threshold
-    use_hybrid: bool = True  # Enable hybrid search (BM25 + vector)
-    use_multi_hop: bool = (RAG_MAX_HOPS > 0)  # Enable multi-hop retrieval (if max_hops > 0)
 
 
 class InvalidQueryError(Exception):
@@ -97,10 +86,7 @@ class RAGRetriever:
         self.hybrid_retriever: HybridRetriever | None = None
         if enable_hybrid:
             self.hybrid_retriever = HybridRetriever(
-                k=rrf_k,
-                bm25_k1=bm25_k1,
-                bm25_b=bm25_b,
-                bm25_weight=bm25_weight,
+                k=rrf_k, bm25_k1=bm25_k1, bm25_b=bm25_b, bm25_weight=bm25_weight
             )
             # Index all chunks from vector DB
             self._build_hybrid_index()
@@ -108,7 +94,6 @@ class RAGRetriever:
         # Initialize multi-hop retriever if enabled
         self.multi_hop_retriever = None
         if enable_multi_hop:
-            from src.services.rag.multi_hop_retriever import MultiHopRetriever
             self.multi_hop_retriever = MultiHopRetriever(base_retriever=self)
             logger.info("multi_hop_enabled", max_hops=RAG_MAX_HOPS)
 
@@ -121,7 +106,7 @@ class RAGRetriever:
             bm25_b=bm25_b,
             bm25_weight=bm25_weight,
             keywords_loaded=self.keyword_extractor.get_keyword_count(),
-            synonyms_loaded=self.query_expander.get_stats()["total_synonyms"]
+            synonyms_loaded=self.query_expander.get_stats()["total_synonyms"],
         )
 
     def retrieve(
@@ -149,15 +134,12 @@ class RAGRetriever:
         if request.use_multi_hop and self.multi_hop_retriever:
             # Multi-hop retrieval is async, so we need to run it in a way that works
             # both from sync contexts (CLI) and async contexts (Discord bot)
-            import asyncio
-            import threading
-
             # Always use thread-based approach to avoid event loop conflicts
             # This works whether called from sync or async context
             result_container = []
             exception_container = []
 
-            def run_in_thread():
+            def run_in_thread() -> None:
                 try:
                     # Create a new event loop in this thread
                     new_loop = asyncio.new_event_loop()
@@ -224,8 +206,7 @@ class RAGRetriever:
 
             # Query vector database
             results = self.vector_db.query(
-                query_embeddings=[query_embedding],
-                n_results=request.max_chunks,
+                query_embeddings=[query_embedding], n_results=request.max_chunks
             )
 
             # Convert results to DocumentChunk objects
@@ -235,9 +216,7 @@ class RAGRetriever:
             # Use EXPANDED query for BM25 to catch user-friendly synonyms
             if request.use_hybrid and self.hybrid_retriever and chunks:
                 chunks = self.hybrid_retriever.retrieve_hybrid(
-                    query=expanded_query,
-                    vector_chunks=chunks,
-                    top_k=request.max_chunks
+                    query=expanded_query, vector_chunks=chunks, top_k=request.max_chunks
                 )
                 logger.debug("hybrid_search_applied", final_chunks=len(chunks))
 
@@ -274,11 +253,7 @@ class RAGRetriever:
             return context, [], {}
 
         except Exception as e:
-            logger.error(
-                "retrieval_failed",
-                query_id=str(query_id),
-                error=str(e),
-            )
+            logger.error("retrieval_failed", query_id=str(query_id), error=str(e))
             raise VectorDBUnavailableError(f"Vector DB query failed: {e}") from e
 
     def _validate_query(self, query: str) -> None:
@@ -296,9 +271,7 @@ class RAGRetriever:
         if len(query) > 2000:
             raise InvalidQueryError("Query exceeds 2000 character limit")
 
-    def _results_to_chunks(
-        self, results: dict, min_relevance: float
-    ) -> list[DocumentChunk]:
+    def _results_to_chunks(self, results: dict, min_relevance: float) -> list[DocumentChunk]:
         """Convert vector DB results to DocumentChunk objects.
 
         Args:
@@ -357,9 +330,7 @@ class RAGRetriever:
 
         try:
             # Get all chunks from vector DB
-            all_results = self.vector_db.collection.get(
-                include=["documents", "metadatas"]
-            )
+            all_results = self.vector_db.collection.get(include=["documents", "metadatas"])
 
             if not all_results["ids"]:
                 logger.warning("hybrid_index_empty", message="No documents in vector DB")
@@ -387,7 +358,7 @@ class RAGRetriever:
             logger.info(
                 "hybrid_index_built",
                 chunk_count=len(chunks),
-                stats=self.hybrid_retriever.get_stats()
+                stats=self.hybrid_retriever.get_stats(),
             )
 
         except Exception as e:

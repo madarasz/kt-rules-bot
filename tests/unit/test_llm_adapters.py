@@ -48,9 +48,7 @@ class TestClaudeAdapter:
             side_effect=Exception("rate_limit exceeded")
         )
 
-        request = GenerationRequest(
-            prompt="Test", context=["Context"], config=GenerationConfig()
-        )
+        request = GenerationRequest(prompt="Test", context=["Context"], config=GenerationConfig())
 
         # Should raise RateLimitError
         with pytest.raises(RateLimitError):
@@ -62,9 +60,7 @@ class TestClaudeAdapter:
             side_effect=Exception("authentication failed 401")
         )
 
-        request = GenerationRequest(
-            prompt="Test", context=["Context"], config=GenerationConfig()
-        )
+        request = GenerationRequest(prompt="Test", context=["Context"], config=GenerationConfig())
 
         with pytest.raises(AuthenticationError):
             await claude_adapter.generate(request)
@@ -163,11 +159,7 @@ class TestGrokAdapter:
 
         mock_httpx.AsyncClient.return_value = mock_context_manager
 
-        request = GenerationRequest(
-            prompt="Test query",
-            context=[],
-            config=GenerationConfig(),
-        )
+        request = GenerationRequest(prompt="Test query", context=[], config=GenerationConfig())
 
         with pytest.raises(RateLimitError, match="Grok rate limit"):
             await grok_adapter.generate(request)
@@ -189,11 +181,7 @@ class TestGrokAdapter:
 
         mock_httpx.AsyncClient.return_value = mock_context_manager
 
-        request = GenerationRequest(
-            prompt="Test query",
-            context=[],
-            config=GenerationConfig(),
-        )
+        request = GenerationRequest(prompt="Test query", context=[], config=GenerationConfig())
 
         with pytest.raises(AuthenticationError, match="Grok auth error"):
             await grok_adapter.generate(request)
@@ -256,10 +244,7 @@ class TestResponseValidator:
     @pytest.fixture
     def validator(self):
         """Create validator with default thresholds."""
-        return ResponseValidator(
-            llm_confidence_threshold=0.7,
-            rag_score_threshold=0.6,
-        )
+        return ResponseValidator(llm_confidence_threshold=0.7, rag_score_threshold=0.6)
 
     @pytest.fixture
     def llm_response_high(self):
@@ -337,9 +322,7 @@ class TestResponseValidator:
             meets_threshold=False,
         )
 
-    def test_validate_both_pass(
-        self, validator, llm_response_high, rag_context_high
-    ):
+    def test_validate_both_pass(self, validator, llm_response_high, rag_context_high):
         """Test validation when both thresholds pass."""
         result = validator.validate(llm_response_high, rag_context_high)
 
@@ -355,13 +338,9 @@ class TestResponseValidator:
         assert result.is_valid is False
         assert "LLM confidence" in result.reason
 
-    def test_should_send_response(
-        self, validator, llm_response_high, rag_context_high
-    ):
+    def test_should_send_response(self, validator, llm_response_high, rag_context_high):
         """Test should_send_response convenience method."""
-        should_send, reason = validator.should_send_response(
-            llm_response_high, rag_context_high
-        )
+        should_send, reason = validator.should_send_response(llm_response_high, rag_context_high)
 
         assert should_send is True
         assert "passed validation" in reason
@@ -380,11 +359,7 @@ class TestRateLimiter:
     @pytest.fixture
     def rate_limiter(self):
         """Create rate limiter with test config."""
-        config = RateLimitConfig(
-            max_requests=10,
-            window_seconds=60,
-            burst_size=15,
-        )
+        config = RateLimitConfig(max_requests=10, window_seconds=60, burst_size=15)
         return RateLimiter(config)
 
     def test_check_rate_limit_allowed(self, rate_limiter):
@@ -407,7 +382,6 @@ class TestRateLimiter:
         assert is_allowed is False
         assert retry_after > 0
 
-
     def test_reset(self, rate_limiter):
         """Test reset functionality."""
         # Consume all tokens
@@ -420,4 +394,3 @@ class TestRateLimiter:
         # Should be allowed again
         is_allowed, _ = rate_limiter.check_rate_limit("claude", "user1")
         assert is_allowed is True
-

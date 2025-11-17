@@ -47,9 +47,7 @@ class DocumentChunk:
         # Document type validation
         valid_types = {"core-rules", "faq", "team-rules", "ops", "killzone"}
         if self.metadata.get("doc_type") not in valid_types:
-            raise ValueError(
-                f"metadata.doc_type must be one of: {', '.join(valid_types)}"
-            )
+            raise ValueError(f"metadata.doc_type must be one of: {', '.join(valid_types)}")
 
 
 @dataclass
@@ -82,21 +80,15 @@ class RAGContext:
                     self.document_chunks[i].relevance_score
                     < self.document_chunks[i + 1].relevance_score
                 ):
-                    raise ValueError(
-                        "document_chunks must be ordered by relevance_score DESC"
-                    )
+                    raise ValueError("document_chunks must be ordered by relevance_score DESC")
 
         # Relevance scores match chunks
         if len(self.relevance_scores) != len(self.document_chunks):
-            raise ValueError(
-                "relevance_scores length must match document_chunks length"
-            )
+            raise ValueError("relevance_scores length must match document_chunks length")
 
         for i, chunk in enumerate(self.document_chunks):
             if chunk.relevance_score != self.relevance_scores[i]:
-                raise ValueError(
-                    "relevance_scores must match document_chunks order"
-                )
+                raise ValueError("relevance_scores must match document_chunks order")
 
         # Total chunks matches length
         if self.total_chunks != len(self.document_chunks):
@@ -112,10 +104,7 @@ class RAGContext:
 
     @classmethod
     def from_retrieval(
-        cls,
-        query_id: UUID,
-        chunks: list[DocumentChunk],
-        min_relevance: float = RAG_MIN_RELEVANCE,
+        cls, query_id: UUID, chunks: list[DocumentChunk], min_relevance: float = RAG_MIN_RELEVANCE
     ) -> "RAGContext":
         """Create RAGContext from retrieval results.
 

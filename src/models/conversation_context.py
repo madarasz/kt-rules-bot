@@ -71,11 +71,7 @@ class ConversationContext:
             role: Message role ("user" or "bot")
             text: Message text
         """
-        message = Message(
-            role=role,
-            text=text,
-            timestamp=datetime.now(UTC),
-        )
+        message = Message(role=role, text=text, timestamp=datetime.now(UTC))
 
         self.message_history.append(message)
 
@@ -114,10 +110,7 @@ class ConversationContext:
 
     @classmethod
     def create(
-        cls,
-        channel_id: str,
-        user_id: str,
-        ttl_seconds: int = 1800,
+        cls, channel_id: str, user_id: str, ttl_seconds: int = 1800
     ) -> "ConversationContext":
         """Create new conversation context.
 

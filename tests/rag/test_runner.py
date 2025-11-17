@@ -20,8 +20,9 @@ from src.lib.constants import (
 )
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_embedding_cost
+from src.models.rag_request import RetrieveRequest
 from src.services.rag.embeddings import EmbeddingService
-from src.services.rag.retriever import RAGRetriever, RetrieveRequest
+from src.services.rag.retriever import RAGRetriever
 from tests.rag.evaluator import RAGEvaluator
 from tests.rag.ragas_evaluator import RagasRAGEvaluator, add_ragas_metrics_to_result
 from tests.rag.test_case_models import RAGTestCase, RAGTestResult, RAGTestSummary
@@ -85,7 +86,7 @@ class RAGTestRunner:
             bm25_k1=bm25_k1,
             bm25_b=bm25_b,
             bm25_weight=bm25_weight,
-            embedding_model=embedding_model
+            embedding_model=embedding_model,
         )
 
     def load_test_cases(self, test_id: str | None = None) -> list[RAGTestCase]:
@@ -178,12 +179,13 @@ class RAGTestRunner:
             for hop_eval in hop_evaluations:
                 if hop_eval.missing_query:
                     hop_embedding_cost += estimate_embedding_cost(
-                        hop_eval.missing_query,
-                        EMBEDDING_MODEL
+                        hop_eval.missing_query, EMBEDDING_MODEL
                     )
 
         # 3. Hop evaluation LLM costs
-        hop_evaluation_cost = sum(hop_eval.cost_usd for hop_eval in hop_evaluations) if hop_evaluations else 0.0
+        hop_evaluation_cost = (
+            sum(hop_eval.cost_usd for hop_eval in hop_evaluations) if hop_evaluations else 0.0
+        )
 
         # Total embedding cost (for backwards compatibility)
         total_embedding_cost = initial_embedding_cost + hop_embedding_cost
@@ -206,11 +208,11 @@ class RAGTestRunner:
             # Convert HopEvaluation objects to dicts (include cost_usd for summary calculation)
             result.hop_evaluations = [
                 {
-                    'hop_number': i + 1,
-                    'can_answer': eval.can_answer,
-                    'reasoning': eval.reasoning,
-                    'missing_query': eval.missing_query,
-                    'cost_usd': eval.cost_usd,
+                    "hop_number": i + 1,
+                    "can_answer": eval.can_answer,
+                    "reasoning": eval.reasoning,
+                    "missing_query": eval.missing_query,
+                    "cost_usd": eval.cost_usd,
                 }
                 for i, eval in enumerate(hop_evaluations)
             ]
@@ -221,14 +223,12 @@ class RAGTestRunner:
         # Map chunk IDs to hop numbers
         if chunk_hop_map:
             result.chunk_hop_numbers = [
-                chunk_hop_map.get(chunk.chunk_id, 0)
-                for chunk in rag_context.document_chunks
+                chunk_hop_map.get(chunk.chunk_id, 0) for chunk in rag_context.document_chunks
             ]
 
         # Evaluate with Ragas metrics
         ragas_metrics = self.ragas_evaluator.evaluate(
-            test_case=test_case,
-            retrieved_chunks=rag_context.document_chunks
+            test_case=test_case, retrieved_chunks=rag_context.document_chunks
         )
         # Add Ragas metrics to result
         result = add_ragas_metrics_to_result(result, ragas_metrics)
@@ -336,100 +336,140 @@ class RAGTestRunner:
 
         # Calculate per-test-case means and standard deviations
         test_case_means = {
-            'map': [],
-            'recall_5': [],
-            'recall_all': [],
-            'recall_10': [],
-            'prec_3': [],
-            'prec_5': [],
-            'mrr': [],
-            'ragas_context_precision': [],
-            'ragas_context_recall': [],
+            "map": [],
+            "recall_5": [],
+            "recall_all": [],
+            "recall_10": [],
+            "prec_3": [],
+            "prec_5": [],
+            "mrr": [],
+            "ragas_context_precision": [],
+            "ragas_context_recall": [],
         }
         test_case_stds = {
-            'map': [],
-            'recall_5': [],
-            'recall_all': [],
-            'prec_3': [],
-            'ragas_context_precision': [],
-            'ragas_context_recall': [],
+            "map": [],
+            "recall_5": [],
+            "recall_all": [],
+            "prec_3": [],
+            "ragas_context_precision": [],
+            "ragas_context_recall": [],
         }
 
         for _test_id, test_results in results_by_test.items():
             # Calculate mean for this test case across all runs
-            test_case_means['map'].append(sum(r.map_score for r in test_results) / len(test_results))
-            test_case_means['recall_5'].append(sum(r.recall_at_5 for r in test_results) / len(test_results))
-            test_case_means['recall_all'].append(sum(r.recall_at_all for r in test_results) / len(test_results))
-            test_case_means['recall_10'].append(sum(r.recall_at_10 for r in test_results) / len(test_results))
-            test_case_means['prec_3'].append(sum(r.precision_at_3 for r in test_results) / len(test_results))
-            test_case_means['prec_5'].append(sum(r.precision_at_5 for r in test_results) / len(test_results))
-            test_case_means['mrr'].append(sum(r.mrr for r in test_results) / len(test_results))
+            test_case_means["map"].append(
+                sum(r.map_score for r in test_results) / len(test_results)
+            )
+            test_case_means["recall_5"].append(
+                sum(r.recall_at_5 for r in test_results) / len(test_results)
+            )
+            test_case_means["recall_all"].append(
+                sum(r.recall_at_all for r in test_results) / len(test_results)
+            )
+            test_case_means["recall_10"].append(
+                sum(r.recall_at_10 for r in test_results) / len(test_results)
+            )
+            test_case_means["prec_3"].append(
+                sum(r.precision_at_3 for r in test_results) / len(test_results)
+            )
+            test_case_means["prec_5"].append(
+                sum(r.precision_at_5 for r in test_results) / len(test_results)
+            )
+            test_case_means["mrr"].append(sum(r.mrr for r in test_results) / len(test_results))
 
             # Calculate Ragas means (only if available)
-            ragas_context_precision_values = [r.ragas_context_precision for r in test_results if r.ragas_context_precision is not None]
-            ragas_context_recall_values = [r.ragas_context_recall for r in test_results if r.ragas_context_recall is not None]
+            ragas_context_precision_values = [
+                r.ragas_context_precision
+                for r in test_results
+                if r.ragas_context_precision is not None
+            ]
+            ragas_context_recall_values = [
+                r.ragas_context_recall for r in test_results if r.ragas_context_recall is not None
+            ]
 
             if ragas_context_precision_values:
-                test_case_means['ragas_context_precision'].append(sum(ragas_context_precision_values) / len(ragas_context_precision_values))
+                test_case_means["ragas_context_precision"].append(
+                    sum(ragas_context_precision_values) / len(ragas_context_precision_values)
+                )
             if ragas_context_recall_values:
-                test_case_means['ragas_context_recall'].append(sum(ragas_context_recall_values) / len(ragas_context_recall_values))
+                test_case_means["ragas_context_recall"].append(
+                    sum(ragas_context_recall_values) / len(ragas_context_recall_values)
+                )
 
             # Calculate standard deviation for this test case (only if multiple runs)
             if len(test_results) > 1:
-                test_case_stds['map'].append(statistics.stdev([r.map_score for r in test_results]))
-                test_case_stds['recall_5'].append(statistics.stdev([r.recall_at_5 for r in test_results]))
-                test_case_stds['recall_all'].append(statistics.stdev([r.recall_at_all for r in test_results]))
-                test_case_stds['prec_3'].append(statistics.stdev([r.precision_at_3 for r in test_results]))
+                test_case_stds["map"].append(statistics.stdev([r.map_score for r in test_results]))
+                test_case_stds["recall_5"].append(
+                    statistics.stdev([r.recall_at_5 for r in test_results])
+                )
+                test_case_stds["recall_all"].append(
+                    statistics.stdev([r.recall_at_all for r in test_results])
+                )
+                test_case_stds["prec_3"].append(
+                    statistics.stdev([r.precision_at_3 for r in test_results])
+                )
 
                 # Ragas standard deviations
                 if len(ragas_context_precision_values) > 1:
-                    test_case_stds['ragas_context_precision'].append(statistics.stdev(ragas_context_precision_values))
+                    test_case_stds["ragas_context_precision"].append(
+                        statistics.stdev(ragas_context_precision_values)
+                    )
                 else:
-                    test_case_stds['ragas_context_precision'].append(0.0)
+                    test_case_stds["ragas_context_precision"].append(0.0)
 
                 if len(ragas_context_recall_values) > 1:
-                    test_case_stds['ragas_context_recall'].append(statistics.stdev(ragas_context_recall_values))
+                    test_case_stds["ragas_context_recall"].append(
+                        statistics.stdev(ragas_context_recall_values)
+                    )
                 else:
-                    test_case_stds['ragas_context_recall'].append(0.0)
+                    test_case_stds["ragas_context_recall"].append(0.0)
             else:
-                test_case_stds['map'].append(0.0)
-                test_case_stds['recall_5'].append(0.0)
-                test_case_stds['recall_all'].append(0.0)
-                test_case_stds['prec_3'].append(0.0)
-                test_case_stds['ragas_context_precision'].append(0.0)
-                test_case_stds['ragas_context_recall'].append(0.0)
+                test_case_stds["map"].append(0.0)
+                test_case_stds["recall_5"].append(0.0)
+                test_case_stds["recall_all"].append(0.0)
+                test_case_stds["prec_3"].append(0.0)
+                test_case_stds["ragas_context_precision"].append(0.0)
+                test_case_stds["ragas_context_recall"].append(0.0)
 
         # Overall means (average of per-test-case means)
-        mean_map = sum(test_case_means['map']) / len(test_case_means['map'])
-        mean_recall_5 = sum(test_case_means['recall_5']) / len(test_case_means['recall_5'])
-        mean_recall_all = sum(test_case_means['recall_all']) / len(test_case_means['recall_all'])
-        mean_recall_10 = sum(test_case_means['recall_10']) / len(test_case_means['recall_10'])
-        mean_prec_3 = sum(test_case_means['prec_3']) / len(test_case_means['prec_3'])
-        mean_prec_5 = sum(test_case_means['prec_5']) / len(test_case_means['prec_5'])
-        mean_mrr = sum(test_case_means['mrr']) / len(test_case_means['mrr'])
+        mean_map = sum(test_case_means["map"]) / len(test_case_means["map"])
+        mean_recall_5 = sum(test_case_means["recall_5"]) / len(test_case_means["recall_5"])
+        mean_recall_all = sum(test_case_means["recall_all"]) / len(test_case_means["recall_all"])
+        mean_recall_10 = sum(test_case_means["recall_10"]) / len(test_case_means["recall_10"])
+        mean_prec_3 = sum(test_case_means["prec_3"]) / len(test_case_means["prec_3"])
+        mean_prec_5 = sum(test_case_means["prec_5"]) / len(test_case_means["prec_5"])
+        mean_mrr = sum(test_case_means["mrr"]) / len(test_case_means["mrr"])
 
         # Ragas overall means (if available)
         mean_ragas_context_precision = None
         mean_ragas_context_recall = None
-        if test_case_means['ragas_context_precision']:
-            mean_ragas_context_precision = sum(test_case_means['ragas_context_precision']) / len(test_case_means['ragas_context_precision'])
-        if test_case_means['ragas_context_recall']:
-            mean_ragas_context_recall = sum(test_case_means['ragas_context_recall']) / len(test_case_means['ragas_context_recall'])
+        if test_case_means["ragas_context_precision"]:
+            mean_ragas_context_precision = sum(test_case_means["ragas_context_precision"]) / len(
+                test_case_means["ragas_context_precision"]
+            )
+        if test_case_means["ragas_context_recall"]:
+            mean_ragas_context_recall = sum(test_case_means["ragas_context_recall"]) / len(
+                test_case_means["ragas_context_recall"]
+            )
 
         # Overall standard deviations (average of per-test-case standard deviations)
         # This represents the typical variance across runs for a single test case
-        std_map = sum(test_case_stds['map']) / len(test_case_stds['map'])
-        std_recall_5 = sum(test_case_stds['recall_5']) / len(test_case_stds['recall_5'])
-        std_recall_all = sum(test_case_stds['recall_all']) / len(test_case_stds['recall_all'])
-        std_prec_3 = sum(test_case_stds['prec_3']) / len(test_case_stds['prec_3'])
+        std_map = sum(test_case_stds["map"]) / len(test_case_stds["map"])
+        std_recall_5 = sum(test_case_stds["recall_5"]) / len(test_case_stds["recall_5"])
+        std_recall_all = sum(test_case_stds["recall_all"]) / len(test_case_stds["recall_all"])
+        std_prec_3 = sum(test_case_stds["prec_3"]) / len(test_case_stds["prec_3"])
 
         # Ragas overall standard deviations
         std_ragas_context_precision = 0.0
         std_ragas_context_recall = 0.0
-        if test_case_stds['ragas_context_precision']:
-            std_ragas_context_precision = sum(test_case_stds['ragas_context_precision']) / len(test_case_stds['ragas_context_precision'])
-        if test_case_stds['ragas_context_recall']:
-            std_ragas_context_recall = sum(test_case_stds['ragas_context_recall']) / len(test_case_stds['ragas_context_recall'])
+        if test_case_stds["ragas_context_precision"]:
+            std_ragas_context_precision = sum(test_case_stds["ragas_context_precision"]) / len(
+                test_case_stds["ragas_context_precision"]
+            )
+        if test_case_stds["ragas_context_recall"]:
+            std_ragas_context_recall = sum(test_case_stds["ragas_context_recall"]) / len(
+                test_case_stds["ragas_context_recall"]
+            )
 
         # Calculate performance metrics
         avg_retrieval_time = sum(r.retrieval_time_seconds for r in results) / len(results)
@@ -439,7 +479,7 @@ class RAGTestRunner:
         for result in results:
             if result.hop_evaluations:
                 for hop_eval in result.hop_evaluations:
-                    hop_evaluation_cost += hop_eval.get('cost_usd', 0.0)
+                    hop_evaluation_cost += hop_eval.get("cost_usd", 0.0)
 
         # Note: r.embedding_cost_usd now contains TOTAL cost (embeddings + hop evaluations)
         # from line 200 where we stored total_cost in embedding_cost_usd for backwards compatibility
@@ -453,7 +493,10 @@ class RAGTestRunner:
         # Calculate hop-specific ground truth statistics
         # Track how many ground truth chunks were found in each hop across all tests
         from collections import defaultdict
-        hop_ground_truth_counts = defaultdict(int)  # hop_number -> count of ground truth chunks found
+
+        hop_ground_truth_counts = defaultdict(
+            int
+        )  # hop_number -> count of ground truth chunks found
         total_ground_truth_improvement = 0  # Total ground truth chunks found via hops (hop > 0)
 
         for result in results:
@@ -470,7 +513,9 @@ class RAGTestRunner:
                             break  # Don't double-count if multiple ground truths match
 
         # Calculate average improvement per test
-        avg_ground_truth_improvement = total_ground_truth_improvement / len(results) if results else 0.0
+        avg_ground_truth_improvement = (
+            total_ground_truth_improvement / len(results) if results else 0.0
+        )
 
         # Create list of ground truth chunks found per hop [hop1, hop2, hop3, ...]
         # Find max hop number to determine list size
@@ -514,7 +559,7 @@ class RAGTestRunner:
                             break
 
                     # Determine if hop was made
-                    hop_was_made = (not hop_eval.get('can_answer'))
+                    hop_was_made = not hop_eval.get("can_answer")
 
                     # Calculate TP/FP/FN
                     if not all_ground_truths_present:

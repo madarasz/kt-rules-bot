@@ -29,7 +29,7 @@ class TestFormatStatisticsSummary:
             llm_prompt_tokens=1000,
             llm_completion_tokens=500,
             llm_model="gpt-4.1",
-            query="test query"
+            query="test query",
         )
 
         assert "LLM generation: $0.005000" in result

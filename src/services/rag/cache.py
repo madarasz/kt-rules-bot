@@ -50,11 +50,7 @@ class RAGCache:
         self.max_entries = max_entries
         self._cache: dict[str, CacheEntry] = {}
 
-        logger.info(
-            "rag_cache_initialized",
-            ttl_seconds=ttl_seconds,
-            max_entries=max_entries,
-        )
+        logger.info("rag_cache_initialized", ttl_seconds=ttl_seconds, max_entries=max_entries)
 
     def get(self, query: str, context_key: str) -> RAGContext | None:
         """Get cached RAG result.
@@ -111,11 +107,7 @@ class RAGCache:
 
         self._cache[cache_key] = entry
 
-        logger.debug(
-            "cache_set",
-            query_hash=cache_key[:16],
-            context_key=context_key,
-        )
+        logger.debug("cache_set", query_hash=cache_key[:16], context_key=context_key)
 
     def invalidate(self, document_id: UUID | None = None) -> int:
         """Invalidate cache entries.
@@ -152,9 +144,7 @@ class RAGCache:
 
         if to_remove:
             logger.info(
-                "cache_invalidated_by_document",
-                document_id=doc_id_str,
-                count=len(to_remove),
+                "cache_invalidated_by_document", document_id=doc_id_str, count=len(to_remove)
             )
 
         return len(to_remove)
@@ -165,11 +155,7 @@ class RAGCache:
         Returns:
             Number of entries removed
         """
-        to_remove = [
-            cache_key
-            for cache_key, entry in self._cache.items()
-            if entry.is_expired()
-        ]
+        to_remove = [cache_key for cache_key, entry in self._cache.items() if entry.is_expired()]
 
         for cache_key in to_remove:
             del self._cache[cache_key]
@@ -179,7 +165,7 @@ class RAGCache:
 
         return len(to_remove)
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, object]:
         """Get cache statistics.
 
         Returns:
@@ -215,10 +201,7 @@ class RAGCache:
             return
 
         # Find oldest entry
-        oldest_key = min(
-            self._cache.keys(),
-            key=lambda k: self._cache[k].timestamp,
-        )
+        oldest_key = min(self._cache.keys(), key=lambda k: self._cache[k].timestamp)
 
         del self._cache[oldest_key]
         logger.debug("cache_evicted", query_hash=oldest_key[:16])

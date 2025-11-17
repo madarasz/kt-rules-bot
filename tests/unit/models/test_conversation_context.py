@@ -38,9 +38,7 @@ class TestConversationContext:
     def test_create(self):
         """Test creating new conversation context with factory method."""
         context = ConversationContext.create(
-            channel_id="channel123",
-            user_id="user456",
-            ttl_seconds=3600,
+            channel_id="channel123", user_id="user456", ttl_seconds=3600
         )
 
         assert context.context_key == "channel123:user456"

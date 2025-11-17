@@ -76,8 +76,7 @@ class RateLimiter:
             # Consume one token
             self._buckets[key] = (tokens - 1.0, current_time)
             logger.debug(
-                f"Rate limit passed for {provider}:{user_id[:8]}... "
-                f"({tokens:.1f} tokens remaining)"
+                f"Rate limit passed for {provider}:{user_id[:8]}... ({tokens:.1f} tokens remaining)"
             )
             return True, 0.0
 
@@ -86,8 +85,7 @@ class RateLimiter:
         retry_after = tokens_needed / refill_rate
 
         logger.warning(
-            f"Rate limit exceeded for {provider}:{user_id[:8]}... "
-            f"Retry after {retry_after:.1f}s"
+            f"Rate limit exceeded for {provider}:{user_id[:8]}... Retry after {retry_after:.1f}s"
         )
 
         # Update bucket with current state
@@ -151,10 +149,7 @@ class RateLimiter:
         # Calculate current tokens with refill
         time_elapsed = current_time - last_update
         refill_rate = self.config.max_requests / self.config.window_seconds
-        current_tokens = min(
-            self.config.burst_size,
-            tokens + (time_elapsed * refill_rate),
-        )
+        current_tokens = min(self.config.burst_size, tokens + (time_elapsed * refill_rate))
 
         # Calculate retry_after if at 0 tokens
         retry_after = 0.0

@@ -6,6 +6,7 @@ Password-protected access.
 Usage:
     streamlit run src/cli/admin_dashboard.py --server.port 8501
 """
+# ruff: noqa: E402
 
 import sys
 from pathlib import Path
@@ -14,6 +15,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+import json
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -27,7 +29,15 @@ from src.lib.database import AnalyticsDatabase
 from src.models.structured_response import StructuredLLMResponse
 
 # Constants
-ADMIN_STATUS_OPTIONS = ["pending", "approved", "reviewed", "issues", "flagged", "RAG issue", "LLM issue"]
+ADMIN_STATUS_OPTIONS = [
+    "pending",
+    "approved",
+    "reviewed",
+    "issues",
+    "flagged",
+    "RAG issue",
+    "LLM issue",
+]
 
 
 # Page configuration
@@ -42,7 +52,7 @@ st.set_page_config(
 def check_password() -> bool:
     """Returns True if user entered correct password."""
 
-    def password_entered():
+    def password_entered() -> None:
         """Check if entered password is correct."""
         config = load_config()
         if st.session_state["password"] == config.admin_dashboard_password:
@@ -54,24 +64,14 @@ def check_password() -> bool:
     # First run or not logged in
     if "password_correct" not in st.session_state:
         st.title("🔒 Admin Dashboard Login")
-        st.text_input(
-            "Password",
-            type="password",
-            on_change=password_entered,
-            key="password",
-        )
+        st.text_input("Password", type="password", on_change=password_entered, key="password")
         st.info("Enter the admin dashboard password from your .env configuration")
         return False
 
     # Password incorrect
     elif not st.session_state["password_correct"]:
         st.title("🔒 Admin Dashboard Login")
-        st.text_input(
-            "Password",
-            type="password",
-            on_change=password_entered,
-            key="password",
-        )
+        st.text_input("Password", type="password", on_change=password_entered, key="password")
         st.error("😕 Password incorrect")
         return False
 
@@ -80,7 +80,7 @@ def check_password() -> bool:
         return True
 
 
-def render_query_browser(db: AnalyticsDatabase):
+def render_query_browser(db: AnalyticsDatabase) -> None:
     """Render the query browser page."""
     st.title("📋 Query Browser")
 
@@ -89,16 +89,11 @@ def render_query_browser(db: AnalyticsDatabase):
 
     with col1:
         date_range = st.selectbox(
-            "Date Range",
-            ["Last 24 hours", "Last 7 days", "Last 30 days", "All time"],
-            index=3,
+            "Date Range", ["Last 24 hours", "Last 7 days", "Last 30 days", "All time"], index=3
         )
 
     with col2:
-        admin_status = st.selectbox(
-            "Admin Status",
-            ["All"] + ADMIN_STATUS_OPTIONS,
-        )
+        admin_status = st.selectbox("Admin Status", ["All"] + ADMIN_STATUS_OPTIONS)
 
     with col3:
         # Get unique LLM models from DB
@@ -149,13 +144,19 @@ def render_query_browser(db: AnalyticsDatabase):
     # Display queries in individual rows with delete buttons
     for _idx, query in enumerate(queries):
         with st.container():
-            col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns([2, 3, 1, 1, 1, 1, 0.7, 1, 0.5])
+            col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns(
+                [2, 3, 1, 1, 1, 1, 0.7, 1, 0.5]
+            )
 
             with col1:
                 st.write(f"**{pd.to_datetime(query['timestamp']).strftime('%Y-%m-%d %H:%M')}**")
 
             with col2:
-                preview = query["query_text"][:80] + "..." if len(query["query_text"]) > 80 else query["query_text"]
+                preview = (
+                    query["query_text"][:80] + "..."
+                    if len(query["query_text"]) > 80
+                    else query["query_text"]
+                )
                 st.write(preview)
 
             with col3:
@@ -196,7 +197,7 @@ def render_query_browser(db: AnalyticsDatabase):
             with col8:
                 # View button to navigate to detail
                 if st.button("👁️", key=f"view_{query['query_id']}", help="View details"):
-                    st.session_state["selected_query_id"] = query['query_id']
+                    st.session_state["selected_query_id"] = query["query_id"]
                     st.session_state["current_page"] = "🔍 Query Detail"
                     st.rerun()
 
@@ -243,10 +244,12 @@ def render_query_browser(db: AnalyticsDatabase):
         st.session_state["current_page"] = "🔍 Query Detail"
         st.rerun()
 
+
 def bool_to_icon(value: bool) -> str:
     if value is True:
         return "✅"
     return "❌"
+
 
 def render_query_detail(db: AnalyticsDatabase):
     """Render the query detail page."""
@@ -309,7 +312,9 @@ def render_query_detail(db: AnalyticsDatabase):
         # Feedback
         total_votes = query["upvotes"] + query["downvotes"]
         helpful_rate = query["upvotes"] / total_votes if total_votes > 0 else 0
-        st.write(f"**Feedback:** ⬆️ {query['upvotes']} / ⬇️ {query['downvotes']} ({helpful_rate:.0%} helpful)")
+        st.write(
+            f"**Feedback:** ⬆️ {query['upvotes']} / ⬇️ {query['downvotes']} ({helpful_rate:.0%} helpful)"
+        )
 
         # Multi-hop info
         multi_hop_enabled = query.get("multi_hop_enabled", 0)
@@ -352,7 +357,7 @@ def render_query_detail(db: AnalyticsDatabase):
             # Initialize session state for chunk relevance if needed (for icon display)
             chunk_rel_key = f"chunk_relevance_{chunk['id']}"
             if chunk_rel_key not in st.session_state:
-                st.session_state[chunk_rel_key] = chunk['relevant']
+                st.session_state[chunk_rel_key] = chunk["relevant"]
 
             # Determine status icon based on relevance
             current_rel = st.session_state[chunk_rel_key]
@@ -364,7 +369,7 @@ def render_query_detail(db: AnalyticsDatabase):
                 status_icon = "⍰"
 
             # Add hop number to the expander title
-            hop_number = chunk.get('hop_number', 0)
+            hop_number = chunk.get("hop_number", 0)
             hop_label = f" [Hop {hop_number}]" if hop_number is not None else ""
 
             with st.expander(
@@ -385,9 +390,15 @@ def render_query_detail(db: AnalyticsDatabase):
                     )
 
                 with col2:
-                    st.write(f"**Vector Sim:** {chunk['vector_similarity']:.3f}" if chunk['vector_similarity'] else "N/A")
-                    st.write(f"**BM25:** {chunk['bm25_score']:.1f}" if chunk['bm25_score'] else "N/A")
-                    st.write(f"**RRF:** {chunk['rrf_score']:.3f}" if chunk['rrf_score'] else "N/A")
+                    st.write(
+                        f"**Vector Sim:** {chunk['vector_similarity']:.3f}"
+                        if chunk["vector_similarity"]
+                        else "N/A"
+                    )
+                    st.write(
+                        f"**BM25:** {chunk['bm25_score']:.1f}" if chunk["bm25_score"] else "N/A"
+                    )
+                    st.write(f"**RRF:** {chunk['rrf_score']:.3f}" if chunk["rrf_score"] else "N/A")
                     st.write(f"**Final:** {chunk['final_score']:.3f}")
 
                     # Show current relevance status first (already initialized above)
@@ -408,20 +419,35 @@ def render_query_detail(db: AnalyticsDatabase):
                     button_clicked_key = f"chunk_button_clicked_{chunk['id']}"
 
                     with col_a:
-                        if st.button("✓", key=f"rel_yes_{chunk['id']}", help="Mark as relevant", type="primary" if current_rel == 1 else "secondary"):
-                            db.update_chunk_relevance(chunk['id'], True)
+                        if st.button(
+                            "✓",
+                            key=f"rel_yes_{chunk['id']}",
+                            help="Mark as relevant",
+                            type="primary" if current_rel == 1 else "secondary",
+                        ):
+                            db.update_chunk_relevance(chunk["id"], True)
                             st.session_state[chunk_rel_key] = 1
                             st.session_state[button_clicked_key] = True
                             st.rerun()
                     with col_b:
-                        if st.button("✗", key=f"rel_no_{chunk['id']}", help="Mark as not relevant", type="primary" if current_rel == 0 else "secondary"):
-                            db.update_chunk_relevance(chunk['id'], False)
+                        if st.button(
+                            "✗",
+                            key=f"rel_no_{chunk['id']}",
+                            help="Mark as not relevant",
+                            type="primary" if current_rel == 0 else "secondary",
+                        ):
+                            db.update_chunk_relevance(chunk["id"], False)
                             st.session_state[chunk_rel_key] = 0
                             st.session_state[button_clicked_key] = True
                             st.rerun()
                     with col_c:
-                        if st.button("?", key=f"rel_none_{chunk['id']}", help="Clear relevance", type="primary" if current_rel is None else "secondary"):
-                            db.update_chunk_relevance(chunk['id'], None)
+                        if st.button(
+                            "?",
+                            key=f"rel_none_{chunk['id']}",
+                            help="Clear relevance",
+                            type="primary" if current_rel is None else "secondary",
+                        ):
+                            db.update_chunk_relevance(chunk["id"], None)
                             st.session_state[chunk_rel_key] = None
                             st.session_state[button_clicked_key] = True
                             st.rerun()
@@ -443,9 +469,7 @@ def render_query_detail(db: AnalyticsDatabase):
         new_status = st.selectbox(
             "Admin Status",
             ADMIN_STATUS_OPTIONS,
-            index=ADMIN_STATUS_OPTIONS.index(
-                st.session_state[f"admin_status_{query_id}"]
-            ),
+            index=ADMIN_STATUS_OPTIONS.index(st.session_state[f"admin_status_{query_id}"]),
             key=f"status_select_{query_id}",
         )
         # Update session state when selectbox changes
@@ -462,18 +486,13 @@ def render_query_detail(db: AnalyticsDatabase):
         st.session_state[f"admin_notes_{query_id}"] = new_notes
 
     # Show save button if there are changes
-    has_changes = (
-        new_status != query["admin_status"]
-        or new_notes != (query["admin_notes"] or "")
-    )
+    has_changes = new_status != query["admin_status"] or new_notes != (query["admin_notes"] or "")
 
     col_save, col_reset = st.columns([1, 4])
     with col_save:
         if st.button("💾 Save Changes", type="primary", disabled=not has_changes):
             db.update_query_admin_fields(
-                query_id=query_id,
-                admin_status=new_status,
-                admin_notes=new_notes,
+                query_id=query_id, admin_status=new_status, admin_notes=new_notes
             )
             # Update the session state to reflect saved values
             st.session_state[f"admin_status_{query_id}"] = new_status
@@ -516,16 +535,8 @@ def render_analytics(db: AnalyticsDatabase):
 
     # Admin status distribution
     st.subheader("📈 Admin Status Distribution")
-    status_data = pd.DataFrame(
-        list(stats["status_counts"].items()),
-        columns=["Status", "Count"]
-    )
-    fig = px.pie(
-        status_data,
-        names="Status",
-        values="Count",
-        title="Queries by Admin Status",
-    )
+    status_data = pd.DataFrame(list(stats["status_counts"].items()), columns=["Status", "Count"])
+    fig = px.pie(status_data, names="Status", values="Count", title="Queries by Admin Status")
     st.plotly_chart(fig, use_container_width=True)
 
     # Feedback over time
@@ -536,39 +547,36 @@ def render_analytics(db: AnalyticsDatabase):
         df["timestamp"] = pd.to_datetime(df["timestamp"])
         df["date"] = df["timestamp"].dt.date
 
-        daily_feedback = df.groupby("date").agg({
-            "upvotes": "sum",
-            "downvotes": "sum",
-        }).reset_index()
+        daily_feedback = (
+            df.groupby("date").agg({"upvotes": "sum", "downvotes": "sum"}).reset_index()
+        )
 
         fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=daily_feedback["date"],
-            y=daily_feedback["upvotes"],
-            mode="lines+markers",
-            name="Upvotes",
-            line={"color": "green"},
-        ))
-        fig.add_trace(go.Scatter(
-            x=daily_feedback["date"],
-            y=daily_feedback["downvotes"],
-            mode="lines+markers",
-            name="Downvotes",
-            line={"color": "red"},
-        ))
-        fig.update_layout(
-            title="Daily Feedback Trends",
-            xaxis_title="Date",
-            yaxis_title="Count",
+        fig.add_trace(
+            go.Scatter(
+                x=daily_feedback["date"],
+                y=daily_feedback["upvotes"],
+                mode="lines+markers",
+                name="Upvotes",
+                line={"color": "green"},
+            )
         )
+        fig.add_trace(
+            go.Scatter(
+                x=daily_feedback["date"],
+                y=daily_feedback["downvotes"],
+                mode="lines+markers",
+                name="Downvotes",
+                line={"color": "red"},
+            )
+        )
+        fig.update_layout(title="Daily Feedback Trends", xaxis_title="Date", yaxis_title="Count")
         st.plotly_chart(fig, use_container_width=True)
 
     # Cost over time
     st.subheader("💰 Daily Cost Breakdown")
     if queries:
-        daily_costs = df.groupby("date").agg({
-            "cost": "sum",
-        }).reset_index()
+        daily_costs = df.groupby("date").agg({"cost": "sum"}).reset_index()
 
         fig = px.bar(
             daily_costs,
@@ -578,11 +586,7 @@ def render_analytics(db: AnalyticsDatabase):
             labels={"cost": "Total Cost (USD)", "date": "Date"},
         )
         fig.update_traces(marker_color="#4CAF50")
-        fig.update_layout(
-            xaxis_title="Date",
-            yaxis_title="Cost (USD)",
-            yaxis_tickformat="$.5f",
-        )
+        fig.update_layout(xaxis_title="Date", yaxis_title="Cost (USD)", yaxis_tickformat="$.5f")
         st.plotly_chart(fig, use_container_width=True)
 
         # Show total cost
@@ -597,14 +601,22 @@ def render_analytics(db: AnalyticsDatabase):
     # LLM model performance
     st.subheader("🤖 LLM Model Performance")
     if queries:
-        model_stats = df.groupby("llm_model").agg({
-            "query_id": "count",
-            "confidence_score": "mean",
-            "upvotes": "sum",
-            "downvotes": "sum",
-        }).reset_index()
+        model_stats = (
+            df.groupby("llm_model")
+            .agg(
+                {
+                    "query_id": "count",
+                    "confidence_score": "mean",
+                    "upvotes": "sum",
+                    "downvotes": "sum",
+                }
+            )
+            .reset_index()
+        )
         model_stats.columns = ["Model", "Queries", "Avg Confidence", "Upvotes", "Downvotes"]
-        model_stats["Helpful Rate"] = model_stats["Upvotes"] / (model_stats["Upvotes"] + model_stats["Downvotes"])
+        model_stats["Helpful Rate"] = model_stats["Upvotes"] / (
+            model_stats["Upvotes"] + model_stats["Downvotes"]
+        )
         model_stats["Helpful Rate"] = model_stats["Helpful Rate"].fillna(0)
 
         st.dataframe(model_stats, use_container_width=True, hide_index=True)
@@ -612,15 +624,17 @@ def render_analytics(db: AnalyticsDatabase):
     # Top downvoted queries
     st.subheader("🚨 Top 10 Most Downvoted Queries")
     if queries:
-        top_downvoted = df.nlargest(10, "downvotes")[[
-            "timestamp",
-            "query_text",
-            "upvotes",
-            "downvotes",
-            "confidence_score",
-            "admin_status",
-            "query_id",
-        ]]
+        top_downvoted = df.nlargest(10, "downvotes")[
+            [
+                "timestamp",
+                "query_text",
+                "upvotes",
+                "downvotes",
+                "confidence_score",
+                "admin_status",
+                "query_id",
+            ]
+        ]
         st.dataframe(top_downvoted, use_container_width=True, hide_index=True)
 
     # Chunk relevance stats
@@ -655,7 +669,9 @@ def render_rag_tests(db: AnalyticsDatabase):
     queries_with_chunks = db.get_queries_with_relevant_chunks(limit=500)
 
     if not queries_with_chunks:
-        st.info("No queries with relevant chunks found. Mark chunks as relevant in Query Detail to generate test cases.")
+        st.info(
+            "No queries with relevant chunks found. Mark chunks as relevant in Query Detail to generate test cases."
+        )
         return
 
     st.success(f"Found {len(queries_with_chunks)} queries with relevant chunks")
@@ -676,8 +692,7 @@ def render_rag_tests(db: AnalyticsDatabase):
 
             # Get chunk headers (required_chunks)
             chunk_headers = [
-                chunk["chunk_header"] or "No header"
-                for chunk in query_data["relevant_chunks"]
+                chunk["chunk_header"] or "No header" for chunk in query_data["relevant_chunks"]
             ]
 
             # Format YAML entry
@@ -717,18 +732,23 @@ def render_rag_tests(db: AnalyticsDatabase):
     for query_data in queries_with_chunks:
         test_id = generate_test_id(query_data["query_text"])
         chunk_count = len(query_data["relevant_chunks"])
-        chunk_headers = ", ".join([
-            chunk["chunk_header"] or "No header"
-            for chunk in query_data["relevant_chunks"]
-        ])
+        chunk_headers = ", ".join(
+            [chunk["chunk_header"] or "No header" for chunk in query_data["relevant_chunks"]]
+        )
 
-        test_cases_data.append({
-            "Test ID": test_id,
-            "Query": query_data["query_text"][:100] + "..." if len(query_data["query_text"]) > 100 else query_data["query_text"],
-            "Timestamp": query_data["timestamp"],
-            "Relevant Chunks": chunk_count,
-            "Chunk Headers": chunk_headers[:100] + "..." if len(chunk_headers) > 100 else chunk_headers,
-        })
+        test_cases_data.append(
+            {
+                "Test ID": test_id,
+                "Query": query_data["query_text"][:100] + "..."
+                if len(query_data["query_text"]) > 100
+                else query_data["query_text"],
+                "Timestamp": query_data["timestamp"],
+                "Relevant Chunks": chunk_count,
+                "Chunk Headers": chunk_headers[:100] + "..."
+                if len(chunk_headers) > 100
+                else chunk_headers,
+            }
+        )
 
     df = pd.DataFrame(test_cases_data)
     st.dataframe(df, use_container_width=True, hide_index=True)
@@ -780,7 +800,6 @@ def render_settings(db: AnalyticsDatabase):
 
     with col2:
         if st.button("📋 Export to JSON"):
-            import json
             queries = db.get_all_queries(limit=10000)
             json_data = json.dumps(queries, indent=2, default=str)
             st.download_button(
@@ -826,7 +845,9 @@ def main():
     for page_option in pages:
         # Highlight current page
         button_type = "primary" if st.session_state["current_page"] == page_option else "secondary"
-        if st.sidebar.button(page_option, key=f"nav_{page_option}", type=button_type, use_container_width=True):
+        if st.sidebar.button(
+            page_option, key=f"nav_{page_option}", type=button_type, use_container_width=True
+        ):
             st.session_state["current_page"] = page_option
             st.rerun()
 

@@ -81,7 +81,7 @@ class KeywordExtractor:
 
         # Remove common patterns that are not keywords
         # Pattern 1: "Keyword x" or "Keyword N+" (e.g., "Accurate x", "Lethal 5+")
-        match = re.match(r'^([A-Z][a-z]+)(?:\s+[x\d+]+)?$', header)
+        match = re.match(r"^([A-Z][a-z]+)(?:\s+[x\d+]+)?$", header)
         if match:
             word = match.group(1)
             if len(word) >= 4:
@@ -133,7 +133,7 @@ class KeywordExtractor:
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Save as JSON (sorted for readability)
-        with open(self.cache_path, 'w') as f:
+        with open(self.cache_path, "w") as f:
             json.dump(sorted(self.keywords), f, indent=2)
 
         logger.info("keywords_saved", path=str(self.cache_path), count=len(self.keywords))
@@ -190,7 +190,7 @@ class KeywordExtractor:
 
         for word in words:
             # Extract the actual word (strip punctuation)
-            clean_word = word.strip('.,!?;:()[]{}"\'-')
+            clean_word = word.strip(".,!?;:()[]{}\"'-")
             word_lower = clean_word.lower()
 
             # Check if word matches a keyword
@@ -206,10 +206,6 @@ class KeywordExtractor:
 
         # Log if normalization changed the query
         if normalized_query != query:
-            logger.debug(
-                "query_normalized",
-                original=query,
-                normalized=normalized_query
-            )
+            logger.debug("query_normalized", original=query, normalized=normalized_query)
 
         return normalized_query

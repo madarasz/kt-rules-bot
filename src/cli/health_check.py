@@ -3,7 +3,7 @@
 import asyncio
 import sys
 
-from src.lib.config import Config
+from src.lib.config import Config, get_config
 from src.lib.logging import get_logger
 from src.services.discord.health import HealthStatus, check_health
 from src.services.llm.factory import LLMProviderFactory
@@ -58,12 +58,18 @@ class HealthChecker:
 
         # Component status
         print("Component Status:")
-        print(f"  Discord:    {'✓' if status.discord_connected else '✗'} "
-              f"{'Connected' if status.discord_connected else 'Disconnected'}")
-        print(f"  Vector DB:  {'✓' if status.vector_db_available else '✗'} "
-              f"{'Available' if status.vector_db_available else 'Unavailable'}")
-        print(f"  LLM:        {'✓' if status.llm_provider_available else '✗'} "
-              f"{'Available' if status.llm_provider_available else 'Unavailable'}")
+        print(
+            f"  Discord:    {'✓' if status.discord_connected else '✗'} "
+            f"{'Connected' if status.discord_connected else 'Disconnected'}"
+        )
+        print(
+            f"  Vector DB:  {'✓' if status.vector_db_available else '✗'} "
+            f"{'Available' if status.vector_db_available else 'Unavailable'}"
+        )
+        print(
+            f"  LLM:        {'✓' if status.llm_provider_available else '✗'} "
+            f"{'Available' if status.llm_provider_available else 'Unavailable'}"
+        )
 
         if verbose:
             # Additional metrics
@@ -93,7 +99,7 @@ class HealthChecker:
             class MockBot:
                 """Mock bot for health checks when bot is not running."""
 
-                def __init__(self):
+                def __init__(self) -> None:
                     self.user = None
 
                 def is_ready(self):
@@ -111,7 +117,9 @@ class HealthChecker:
             # Run health check
             status = await check_health(
                 bot=bot,
-                vector_db=rag_retriever.vector_db if hasattr(rag_retriever, 'vector_db') else rag_retriever,
+                vector_db=rag_retriever.vector_db
+                if hasattr(rag_retriever, "vector_db")
+                else rag_retriever,
                 llm_provider=llm_provider,
             )
 
@@ -140,7 +148,6 @@ def health_check(verbose: bool = False, wait_for_discord: bool = False) -> None:
         wait_for_discord: Wait for Discord connection
     """
     # Load configuration
-    from src.lib.config import get_config
     config = get_config()
 
     # Create and run health checker
@@ -165,14 +172,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Check Kill Team Rules Bot system health")
     parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Show detailed health information"
+        "-v", "--verbose", action="store_true", help="Show detailed health information"
     )
     parser.add_argument(
         "--wait-for-discord",
         action="store_true",
-        help="Wait for Discord connection (for checking running bot)"
+        help="Wait for Discord connection (for checking running bot)",
     )
     args = parser.parse_args()
 

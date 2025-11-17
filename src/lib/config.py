@@ -29,12 +29,16 @@ class Config:
     deepseek_api_key: str | None = None
 
     # LLM Selection
-    default_llm_provider: LLM_PROVIDERS_LITERAL = os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER)
+    default_llm_provider: LLM_PROVIDERS_LITERAL = os.getenv(
+        "DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER
+    )  # type: ignore[assignment, arg-type]
 
     # RAG Configuration
     vector_db_path: str = "./data/chroma_db"
     embedding_model: str = EMBEDDING_MODEL
-    rag_hop_evaluation_model: LLM_PROVIDERS_LITERAL | None = None  # Model for multi-hop RAG evaluation (defaults to constant)
+    rag_hop_evaluation_model: LLM_PROVIDERS_LITERAL | None = (
+        None  # Model for multi-hop RAG evaluation (defaults to constant)
+    )
 
     # Logging
     log_level: str = "INFO"
@@ -73,9 +77,7 @@ class Config:
         # Validate log level
         valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         if self.log_level.upper() not in valid_levels:
-            raise ValueError(
-                f"log_level must be one of: {', '.join(valid_levels)}"
-            )
+            raise ValueError(f"log_level must be one of: {', '.join(valid_levels)}")
 
         # Validate retention days
         if self.retention_days < 1 or self.retention_days > 30:
@@ -107,9 +109,7 @@ class Config:
 
         # Validate analytics DB settings
         if self.enable_analytics_db and not self.admin_dashboard_password:
-            raise ValueError(
-                "ADMIN_DASHBOARD_PASSWORD is required when ENABLE_ANALYTICS_DB=true"
-            )
+            raise ValueError("ADMIN_DASHBOARD_PASSWORD is required when ENABLE_ANALYTICS_DB=true")
 
         if self.analytics_retention_days < 1:
             raise ValueError("analytics_retention_days must be at least 1")
@@ -161,9 +161,7 @@ class Config:
             retention_days=int(os.getenv("RETENTION_DAYS", "7")),
             # Performance
             max_concurrent_users=int(os.getenv("MAX_CONCURRENT_USERS", "5")),
-            response_timeout_seconds=int(
-                os.getenv("RESPONSE_TIMEOUT_SECONDS", "30")
-            ),
+            response_timeout_seconds=int(os.getenv("RESPONSE_TIMEOUT_SECONDS", "30")),
             # Analytics Database
             enable_analytics_db=os.getenv("ENABLE_ANALYTICS_DB", "false").lower() == "true",
             analytics_db_path=os.getenv("ANALYTICS_DB_PATH", "./data/analytics.db"),

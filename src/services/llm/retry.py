@@ -24,10 +24,7 @@ logger = get_logger(__name__)
 
 
 async def retry_on_content_filter(
-    async_func: Callable,
-    *args,
-    timeout_seconds: int = LLM_GENERATION_TIMEOUT,
-    **kwargs
+    async_func: Callable, *args, timeout_seconds: int = LLM_GENERATION_TIMEOUT, **kwargs
 ) -> Any:
     """Retry async LLM calls on ContentFilterError.
 
@@ -107,12 +104,12 @@ async def retry_on_content_filter(
     # Wrap retry loop with overall timeout
     try:
         return await asyncio.wait_for(_retry_loop(), timeout=timeout_seconds)
-    except TimeoutError:
-        logger.error(
-            f"LLM request timed out after {timeout_seconds}s (including retries)"
-        )
+    except TimeoutError as e:
+        logger.error(f"LLM request timed out after {timeout_seconds}s (including retries)")
         # Convert asyncio.TimeoutError to LLMTimeoutError for better error handling
-        raise LLMTimeoutError(f"LLM request timed out after {timeout_seconds}s (including retries)")
+        raise LLMTimeoutError(
+            f"LLM request timed out after {timeout_seconds}s (including retries)"
+        ) from e
 
 
 async def retry_with_rate_limit_backoff(
@@ -121,7 +118,7 @@ async def retry_with_rate_limit_backoff(
     max_retries: int = QUALITY_TEST_MAX_RETRIES_ON_RATE_LIMIT,
     initial_delay: float = QUALITY_TEST_RATE_LIMIT_INITIAL_DELAY,
     timeout_seconds: int = LLM_GENERATION_TIMEOUT,
-    **kwargs
+    **kwargs,
 ) -> Any:
     """Retry async LLM calls with exponential backoff on rate limit errors.
 
@@ -169,7 +166,9 @@ async def retry_with_rate_limit_backoff(
         for attempt in range(total_attempts):
             try:
                 if attempt > 0:
-                    error_type = "RateLimitError" if rate_limit_attempts > 0 else "ContentFilterError"
+                    error_type = (
+                        "RateLimitError" if rate_limit_attempts > 0 else "ContentFilterError"
+                    )
                     logger.info(
                         f"Retrying LLM request after {error_type} "
                         f"(attempt {attempt + 1}/{total_attempts})..."
@@ -186,9 +185,7 @@ async def retry_with_rate_limit_backoff(
                 last_error = e
                 rate_limit_attempts += 1
 
-                logger.warning(
-                    f"LLM RateLimitError on attempt {attempt + 1}: {e}"
-                )
+                logger.warning(f"LLM RateLimitError on attempt {attempt + 1}: {e}")
 
                 # If we've exhausted rate limit retries, re-raise
                 if rate_limit_attempts > max_retries:
@@ -208,9 +205,7 @@ async def retry_with_rate_limit_backoff(
                 last_error = e
                 content_filter_attempts += 1
 
-                logger.warning(
-                    f"LLM ContentFilterError on attempt {attempt + 1}: {e}"
-                )
+                logger.warning(f"LLM ContentFilterError on attempt {attempt + 1}: {e}")
 
                 # If we've exhausted content filter retries, re-raise
                 if content_filter_attempts > LLM_MAX_RETRIES:
@@ -226,8 +221,7 @@ async def retry_with_rate_limit_backoff(
             except Exception as e:
                 # Non-retryable error - fail immediately
                 logger.debug(
-                    f"LLM request failed with non-retryable error: "
-                    f"{type(e).__name__}: {e}"
+                    f"LLM request failed with non-retryable error: {type(e).__name__}: {e}"
                 )
                 raise
 
@@ -239,9 +233,9 @@ async def retry_with_rate_limit_backoff(
     # Wrap retry loop with overall timeout
     try:
         return await asyncio.wait_for(_retry_loop(), timeout=timeout_seconds)
-    except TimeoutError:
-        logger.error(
-            f"LLM request timed out after {timeout_seconds}s (including retries)"
-        )
+    except TimeoutError as e:
+        logger.error(f"LLM request timed out after {timeout_seconds}s (including retries)")
         # Convert asyncio.TimeoutError to LLMTimeoutError for better error handling
-        raise LLMTimeoutError(f"LLM request timed out after {timeout_seconds}s (including retries)")
+        raise LLMTimeoutError(
+            f"LLM request timed out after {timeout_seconds}s (including retries)"
+        ) from e

@@ -56,10 +56,7 @@ class HybridRetriever:
         self.bm25_retriever.index_chunks(chunks)
 
     def fuse_results(
-        self,
-        vector_chunks: list[DocumentChunk],
-        bm25_results: list[BM25Result],
-        top_k: int = 15
+        self, vector_chunks: list[DocumentChunk], bm25_results: list[BM25Result], top_k: int = 15
     ) -> list[DocumentChunk]:
         """Fuse vector and BM25 results using Reciprocal Rank Fusion.
 
@@ -94,11 +91,9 @@ class HybridRetriever:
                 chunk_map[chunk_id] = result.chunk
 
         # Sort by RRF score DESC
-        sorted_ids = sorted(
-            rrf_scores.keys(),
-            key=lambda cid: rrf_scores[cid],
-            reverse=True
-        )[:top_k]
+        sorted_ids = sorted(rrf_scores.keys(), key=lambda cid: rrf_scores[cid], reverse=True)[
+            :top_k
+        ]
 
         # Normalize RRF scores to 0-1 range and assign as relevance scores
         if sorted_ids:
@@ -127,19 +122,15 @@ class HybridRetriever:
                 updated_metadata = chunk.metadata.copy()
                 # Only store vector_similarity if it's not the 1.0 placeholder
                 if original_vector_score < 1.0:
-                    updated_metadata['vector_similarity'] = original_vector_score
+                    updated_metadata["vector_similarity"] = original_vector_score
                 if bm25_score is not None:
-                    updated_metadata['bm25_score'] = bm25_score
-                updated_metadata['rrf_score'] = raw_rrf_score
-                updated_metadata['rrf_normalized'] = normalized_score
+                    updated_metadata["bm25_score"] = bm25_score
+                updated_metadata["rrf_score"] = raw_rrf_score
+                updated_metadata["rrf_normalized"] = normalized_score
 
                 # Always update relevance_score to show the RRF fusion score
                 # This ensures the displayed score matches the ranking order
-                chunk = replace(
-                    chunk,
-                    relevance_score=normalized_score,
-                    metadata=updated_metadata
-                )
+                chunk = replace(chunk, relevance_score=normalized_score, metadata=updated_metadata)
 
                 fused_chunks.append(chunk)
         else:
@@ -150,16 +141,13 @@ class HybridRetriever:
             vector_count=len(vector_chunks),
             bm25_count=len(bm25_results),
             fused_count=len(fused_chunks),
-            top_score=rrf_scores[sorted_ids[0]] if sorted_ids else 0.0
+            top_score=rrf_scores[sorted_ids[0]] if sorted_ids else 0.0,
         )
 
         return fused_chunks
 
     def retrieve_hybrid(
-        self,
-        query: str,
-        vector_chunks: list[DocumentChunk],
-        top_k: int = 15
+        self, query: str, vector_chunks: list[DocumentChunk], top_k: int = 15
     ) -> list[DocumentChunk]:
         """Perform hybrid retrieval combining vector and BM25 search.
 
@@ -176,9 +164,7 @@ class HybridRetriever:
 
         # Fuse results using RRF
         fused_chunks = self.fuse_results(
-            vector_chunks=vector_chunks,
-            bm25_results=bm25_results,
-            top_k=top_k
+            vector_chunks=vector_chunks, bm25_results=bm25_results, top_k=top_k
         )
 
         logger.info(
@@ -186,12 +172,12 @@ class HybridRetriever:
             query_length=len(query),
             vector_results=len(vector_chunks),
             bm25_results=len(bm25_results),
-            fused_results=len(fused_chunks)
+            fused_results=len(fused_chunks),
         )
 
         return fused_chunks
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, object]:
         """Get hybrid retriever statistics.
 
         Returns:
@@ -201,5 +187,5 @@ class HybridRetriever:
             "rrf_k": self.k,
             "bm25_weight": self.bm25_weight,
             "vector_weight": self.vector_weight,
-            "bm25_stats": self.bm25_retriever.get_stats()
+            "bm25_stats": self.bm25_retriever.get_stats(),
         }

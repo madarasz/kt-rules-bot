@@ -20,6 +20,7 @@ from src.lib.constants import (
 )
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost, estimate_embedding_cost
+from src.models.rag_request import RetrieveRequest
 from src.models.structured_response import StructuredLLMResponse
 from src.services.llm.base import (
     AuthenticationError,
@@ -28,18 +29,14 @@ from src.services.llm.base import (
     GenerationRequest,
     RateLimitError,
 )
-from src.services.llm.base import (
-    TimeoutError as LLMTimeoutError,
-)
+from src.services.llm.base import TimeoutError as LLMTimeoutError
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.retry import retry_with_rate_limit_backoff
 from src.services.rag.embeddings import EmbeddingService
-from src.services.rag.retriever import RAGRetriever, RetrieveRequest
+from src.services.rag.retriever import RAGRetriever
 from src.services.rag.vector_db import VectorDBService
 from tests.quality.ragas_evaluator import RagasEvaluator
-from tests.quality.reporting.report_models import (
-    IndividualTestResult,
-)
+from tests.quality.reporting.report_models import IndividualTestResult
 from tests.quality.test_case_models import TestCase
 
 logger = get_logger(__name__)
@@ -61,8 +58,7 @@ class QualityTestRunner:
         self.vector_db = VectorDBService(collection_name="kill_team_rules")
         self.embedding_service = EmbeddingService()
         self.rag_retriever = RAGRetriever(
-            vector_db_service=self.vector_db,
-            embedding_service=self.embedding_service,
+            vector_db_service=self.vector_db, embedding_service=self.embedding_service
         )
         # Semaphore to limit concurrent LLM requests (prevents rate limit errors)
         self.llm_semaphore = asyncio.Semaphore(QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS)
@@ -122,18 +118,19 @@ class QualityTestRunner:
             no_eval: If True, skip Ragas evaluation (only generate outputs)
         """
         eval_mode = " (no-eval)" if no_eval else ""
-        logger.info(f"Running test '{test_case.test_id}' with model '{model}' (Run #{run_num}){eval_mode}")
+        logger.info(
+            f"Running test '{test_case.test_id}' with model '{model}' (Run #{run_num}){eval_mode}"
+        )
 
         multi_hop_cost = 0.0
         embedding_cost = 0.0
 
         if rag_context is None:
             from uuid import uuid4
+
             rag_context, hop_evaluations_result, _ = self.rag_retriever.retrieve(
                 RetrieveRequest(
-                    query=test_case.query,
-                    context_key="quality_test",
-                    max_chunks=RAG_MAX_CHUNKS,
+                    query=test_case.query, context_key="quality_test", max_chunks=RAG_MAX_CHUNKS
                 ),
                 query_id=uuid4(),
             )
@@ -148,13 +145,11 @@ class QualityTestRunner:
             logger.debug(
                 "multi_hop_costs_calculated",
                 num_hops=len(hop_evaluations),
-                total_cost=multi_hop_cost
+                total_cost=multi_hop_cost,
             )
 
         llm_provider = LLMProviderFactory.create(model)
-        gen_config = GenerationConfig(
-            timeout_seconds=LLM_GENERATION_TIMEOUT
-        )
+        gen_config = GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT)
         output_filename = report_dir / f"output_{test_case.test_id}_{model}_{run_num}.md"
 
         error_str = None
@@ -203,9 +198,7 @@ class QualityTestRunner:
                     # Convert to markdown for display/saving
                     llm_response_markdown = structured_data.to_markdown()
                 except (ValueError, json.JSONDecodeError) as e:
-                    logger.warning(
-                        f"Failed to parse structured JSON for {test_case.test_id}: {e}"
-                    )
+                    logger.warning(f"Failed to parse structured JSON for {test_case.test_id}: {e}")
                     json_formatted = False
 
         except LLMTimeoutError as e:
@@ -241,6 +234,7 @@ class QualityTestRunner:
         if no_eval:
             # Skip Ragas evaluation - create empty metrics
             from tests.quality.ragas_evaluator import RagasMetrics
+
             ragas_metrics = RagasMetrics()
             score = 0.0
             passed = False
@@ -276,7 +270,7 @@ class QualityTestRunner:
             multi_hop_cost=multi_hop_cost,
             ragas_cost=ragas_metrics.total_cost_usd,
             embedding_cost=embedding_cost,
-            total_cost=total_cost
+            total_cost=total_cost,
         )
 
         return IndividualTestResult(
@@ -334,7 +328,9 @@ class QualityTestRunner:
         """
         test_cases = self.load_test_cases(test_id)
         if not test_cases:
-            raise ValueError(f"No test cases found for test_id: {test_id}" if test_id else "No test cases found.")
+            raise ValueError(
+                f"No test cases found for test_id: {test_id}" if test_id else "No test cases found."
+            )
 
         models_to_run = models or [self.config.default_llm_provider]
 
@@ -347,18 +343,23 @@ class QualityTestRunner:
             for test_case in test_cases:
                 # RAG is done once per test case per run to ensure context is fresh
                 from uuid import uuid4
+
                 rag_context, hop_evaluations, _ = self.rag_retriever.retrieve(
                     RetrieveRequest(
-                        query=test_case.query,
-                        context_key="quality_test",
-                        max_chunks=RAG_MAX_CHUNKS,
+                        query=test_case.query, context_key="quality_test", max_chunks=RAG_MAX_CHUNKS
                     ),
                     query_id=uuid4(),
                 )
                 for model in models_to_run:
                     tasks.append(
                         self.run_test(
-                            test_case, model, run_num, report_dir, rag_context, hop_evaluations, no_eval
+                            test_case,
+                            model,
+                            run_num,
+                            report_dir,
+                            rag_context,
+                            hop_evaluations,
+                            no_eval,
                         )
                     )
 
@@ -367,11 +368,7 @@ class QualityTestRunner:
 
     def _save_output(self, filename: Path, query: str, response: str):
         """Saves the query and response to a file."""
-        content = (
-            f"# Query\n\n{query}\n\n"
-            f"---\n\n"
-            f"# Response\n\n{response}\n\n"
-        )
+        content = f"# Query\n\n{query}\n\n---\n\n# Response\n\n{response}\n\n"
         os.makedirs(filename.parent, exist_ok=True)
         with open(filename, "w") as f:
             f.write(content)

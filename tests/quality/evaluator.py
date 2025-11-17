@@ -2,6 +2,7 @@
 
 Evaluates both "contains" and "llm" type requirements.
 """
+# ruff: noqa: E402
 
 import re
 from dataclasses import dataclass
@@ -12,11 +13,14 @@ from tests.quality.test_case_models import TestRequirement
 @dataclass
 class RequirementResult:
     """Result of evaluating a single requirement."""
+
     requirement: TestRequirement
     passed: bool
     points_earned: int
     details: str = ""
     judge_malfunction: bool = False
+
+
 from src.lib.constants import (
     LLM_JUDGE_TIMEOUT,
     QUALITY_TEST_JUDGE_MAX_TOKENS,
@@ -81,9 +85,7 @@ class RequirementEvaluator:
 
         return results
 
-    def _evaluate_contains(
-        self, requirement: TestRequirement, response: str
-    ) -> RequirementResult:
+    def _evaluate_contains(self, requirement: TestRequirement, response: str) -> RequirementResult:
         """Evaluate a 'contains' requirement.
 
         Args:
@@ -111,9 +113,7 @@ class RequirementEvaluator:
             details=f"Text {'found' if passed else 'not found'} in response",
         )
 
-    async def _evaluate_llm(
-        self, requirement: TestRequirement, response: str
-    ) -> RequirementResult:
+    async def _evaluate_llm(self, requirement: TestRequirement, response: str) -> RequirementResult:
         """Evaluate an 'llm' requirement using LLM judge.
 
         Args:
@@ -153,7 +153,7 @@ Is the claim accurate? Answer YES or NO, then briefly explain."""
                         timeout_seconds=LLM_JUDGE_TIMEOUT,
                     ),
                 ),
-                timeout_seconds=LLM_JUDGE_TIMEOUT
+                timeout_seconds=LLM_JUDGE_TIMEOUT,
             )
 
             answer = llm_response.answer_text.strip().upper()
@@ -171,7 +171,9 @@ Is the claim accurate? Answer YES or NO, then briefly explain."""
 
             # Handle content filter errors gracefully - treat as judge malfunction
             if isinstance(e, ContentFilterError):
-                logger.warning(f"LLM judge content filtered (trying to evaluate: {requirement.description[:50]}...)")
+                logger.warning(
+                    f"LLM judge content filtered (trying to evaluate: {requirement.description[:50]}...)"
+                )
                 return RequirementResult(
                     requirement=requirement,
                     passed=False,
@@ -203,7 +205,7 @@ Is the claim accurate? Answer YES or NO, then briefly explain."""
         text = text.lower()
 
         # Collapse multiple whitespace characters into single space
-        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r"\s+", " ", text)
 
         # Strip leading/trailing whitespace
         text = text.strip()

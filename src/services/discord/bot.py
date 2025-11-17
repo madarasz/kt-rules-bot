@@ -1,7 +1,7 @@
 """Main bot orchestrator - coordinates all services (Orchestrator Pattern)."""
 
 import json
-from datetime import UTC, date
+from datetime import UTC, date, datetime
 
 import discord
 
@@ -14,8 +14,10 @@ from src.lib.constants import (
 from src.lib.database import AnalyticsDatabase
 from src.lib.discord_utils import get_random_acknowledgement
 from src.lib.logging import get_logger
+from src.lib.server_config import get_multi_server_config
 from src.lib.tokens import estimate_cost, estimate_embedding_cost
 from src.models.bot_response import BotResponse, Citation
+from src.models.rag_request import RetrieveRequest
 from src.models.structured_response import StructuredLLMResponse
 from src.models.user_query import UserQuery
 from src.services.discord import formatter
@@ -25,7 +27,7 @@ from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.rate_limiter import RateLimiter
 from src.services.llm.retry import retry_on_content_filter
 from src.services.llm.validator import ResponseValidator
-from src.services.rag.retriever import RAGRetriever, RetrieveRequest
+from src.services.rag.retriever import RAGRetriever
 
 logger = get_logger(__name__)
 
@@ -41,7 +43,7 @@ class KillTeamBotOrchestrator:
         rate_limiter: RateLimiter = None,
         context_manager: ConversationContextManager = None,
         analytics_db: AnalyticsDatabase = None,
-        feedback_logger = None,
+        feedback_logger=None,
     ):
         """Initialize orchestrator with all service dependencies.
 
@@ -74,11 +76,7 @@ class KillTeamBotOrchestrator:
         self.analytics_db = analytics_db or AnalyticsDatabase.from_config()
         self.feedback_logger = feedback_logger
 
-    async def process_query(
-        self,
-        message: discord.Message,
-        user_query: UserQuery,
-    ) -> None:
+    async def process_query(self, message: discord.Message, user_query: UserQuery) -> None:
         """Process user query through full orchestration flow.
 
         Flow: rate limit → acknowledgement → RAG → LLM → validate → format → send → feedback buttons
@@ -108,9 +106,10 @@ class KillTeamBotOrchestrator:
             # Check if LLM provider creation failed due to missing API key
             if llm is None:
                 # Get the server config to determine which key is missing
-                from src.lib.server_config import get_multi_server_config
                 multi_server_config = get_multi_server_config()
-                server_config = multi_server_config.get_server_config(guild_id) if guild_id else None
+                server_config = (
+                    multi_server_config.get_server_config(guild_id) if guild_id else None
+                )
 
                 if server_config:
                     # Determine which API key is needed based on the provider
@@ -135,14 +134,13 @@ class KillTeamBotOrchestrator:
 
                 logger.warning(
                     "LLM provider creation failed",
-                    extra={"correlation_id": correlation_id, "guild_id": guild_id}
+                    extra={"correlation_id": correlation_id, "guild_id": guild_id},
                 )
                 return
 
             # Step 1: Rate limiting check
             is_allowed, retry_after = self.rate_limiter.check_rate_limit(
-                provider=llm.model,
-                user_id=user_query.user_id,
+                provider=llm.model, user_id=user_query.user_id
             )
 
             if not is_allowed:
@@ -186,11 +184,9 @@ class KillTeamBotOrchestrator:
                 GenerationRequest(
                     prompt=user_query.sanitized_text,
                     context=[chunk.text for chunk in rag_context.document_chunks],
-                    config=GenerationConfig(
-                        timeout_seconds=LLM_GENERATION_TIMEOUT
-                    ),
+                    config=GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT),
                 ),
-                timeout_seconds=LLM_GENERATION_TIMEOUT
+                timeout_seconds=LLM_GENERATION_TIMEOUT,
             )
 
             logger.debug(
@@ -212,20 +208,20 @@ class KillTeamBotOrchestrator:
                         "correlation_id": correlation_id,
                         "quotes_count": len(structured_data.quotes),
                         "smalltalk": structured_data.smalltalk,
-                    }
+                    },
                 )
             except (ValueError, json.JSONDecodeError) as e:
                 logger.error(
                     f"LLM returned invalid JSON (provider: {llm_response.model_version}): {e}",
                     extra={
                         "correlation_id": correlation_id,
-                        "response_preview": llm_response.answer_text[:200]
-                    }
+                        "response_preview": llm_response.answer_text[:200],
+                    },
                 )
                 raise ValueError(
                     f"LLM provider {llm_response.model_version} returned invalid JSON. "
                     "All providers must return structured JSON output."
-                )
+                ) from e
 
             # Step 5: Validation (FR-013: combined LLM + RAG validation)
             validation_result = self.validator.validate(llm_response, rag_context)
@@ -233,7 +229,7 @@ class KillTeamBotOrchestrator:
             if not validation_result.is_valid:
                 # Send fallback message
                 formatter.format_fallback_message(validation_result.reason)
-                #await message.channel.send(fallback_msg)
+                # await message.channel.send(fallback_msg)
 
                 logger.warning(
                     f"Validation failed: {validation_result.reason}",
@@ -243,7 +239,7 @@ class KillTeamBotOrchestrator:
                         "rag_score": rag_context.avg_relevance,
                     },
                 )
-                #return
+                # return
 
             # Step 6: Convert LLMResponse + RAGContext to BotResponse
             citations = [
@@ -252,7 +248,9 @@ class KillTeamBotOrchestrator:
                     section=chunk.header or "General",
                     quote=chunk.text,
                     document_type=chunk.metadata.get("document_type", "core-rules"),
-                    last_update_date=date.fromisoformat(chunk.metadata.get("last_update_date", "2024-01-15")),
+                    last_update_date=date.fromisoformat(
+                        chunk.metadata.get("last_update_date", "2024-01-15")
+                    ),
                 )
                 for chunk in rag_context.document_chunks
             ]
@@ -265,16 +263,18 @@ class KillTeamBotOrchestrator:
                 citations = []
                 logger.debug(
                     "Detected smalltalk from structured data",
-                    extra={"correlation_id": correlation_id}
+                    extra={"correlation_id": correlation_id},
                 )
             elif llm_response.answer_text.startswith("[SMALLTALK]"):
                 # Fallback: detect [SMALLTALK] tag in markdown responses
-                llm_response.answer_text = llm_response.answer_text.replace("[SMALLTALK]", "").strip()
+                llm_response.answer_text = llm_response.answer_text.replace(
+                    "[SMALLTALK]", ""
+                ).strip()
                 citations = []
                 smalltalk = True
                 logger.debug(
                     "Detected smalltalk from [SMALLTALK] tag",
-                    extra={"correlation_id": correlation_id}
+                    extra={"correlation_id": correlation_id},
                 )
 
             bot_response = BotResponse.create(
@@ -298,8 +298,7 @@ class KillTeamBotOrchestrator:
             # Step 9: Register response for feedback tracking
             if self.feedback_logger:
                 self.feedback_logger.register_response(
-                    str(user_query.query_id),
-                    str(bot_response.response_id)
+                    str(user_query.query_id), str(bot_response.response_id)
                 )
 
             # Step 9b: Add feedback reaction buttons (👍👎)
@@ -309,8 +308,7 @@ class KillTeamBotOrchestrator:
             # Cost breakdown:
             # 1. Initial retrieval embedding
             initial_embedding_cost = estimate_embedding_cost(
-                user_query.sanitized_text,
-                EMBEDDING_MODEL
+                user_query.sanitized_text, EMBEDDING_MODEL
             )
 
             # 2. Hop query embeddings (if multi-hop was used)
@@ -319,8 +317,7 @@ class KillTeamBotOrchestrator:
                 for hop_eval in hop_evaluations:
                     if hop_eval.missing_query:
                         hop_embedding_cost += estimate_embedding_cost(
-                            hop_eval.missing_query,
-                            EMBEDDING_MODEL
+                            hop_eval.missing_query, EMBEDDING_MODEL
                         )
 
             # 3. Hop evaluation LLM costs (already tracked)
@@ -330,15 +327,12 @@ class KillTeamBotOrchestrator:
             main_llm_cost = estimate_cost(
                 llm_response.prompt_tokens,
                 llm_response.completion_tokens,
-                llm_response.model_version
+                llm_response.model_version,
             )
 
             # Total cost
             total_cost = (
-                initial_embedding_cost +
-                hop_embedding_cost +
-                hop_evaluation_cost +
-                main_llm_cost
+                initial_embedding_cost + hop_embedding_cost + hop_evaluation_cost + main_llm_cost
             )
 
             logger.info(
@@ -350,39 +344,46 @@ class KillTeamBotOrchestrator:
                     "hop_evaluation_cost": f"${hop_evaluation_cost:.6f}",
                     "main_llm_cost": f"${main_llm_cost:.6f}",
                     "total_cost": f"${total_cost:.6f}",
-                }
+                },
             )
 
             # Step 11: Store in analytics DB (if enabled)
             if self.analytics_db.enabled:
                 try:
-                    from datetime import datetime
-
                     logger.info(
                         "Storing query in analytics DB",
-                        extra={"correlation_id": correlation_id, "chunks_count": len(rag_context.document_chunks)}
+                        extra={
+                            "correlation_id": correlation_id,
+                            "chunks_count": len(rag_context.document_chunks),
+                        },
                     )
 
                     # Insert query + response
-                    self.analytics_db.insert_query({
-                        "query_id": str(user_query.query_id),
-                        "discord_server_id": str(message.guild.id) if message.guild else "DM",
-                        "discord_server_name": message.guild.name if message.guild else "Direct Message",
-                        "channel_id": str(message.channel.id),
-                        "channel_name": message.channel.name if hasattr(message.channel, 'name') else "DM",
-                        "username": str(message.author.name),
-                        "query_text": user_query.sanitized_text,
-                        "response_text": llm_response.answer_text,
-                        "llm_model": llm_response.model_version,
-                        "confidence_score": llm_response.confidence_score,
-                        "rag_score": rag_context.avg_relevance,
-                        "validation_passed": validation_result.is_valid,
-                        "latency_ms": llm_response.latency_ms,
-                        "timestamp": datetime.now(UTC).isoformat(),
-                        "multi_hop_enabled": 1 if RAG_MAX_HOPS > 0 else 0,
-                        "hops_used": len(hop_evaluations),
-                        "cost": total_cost,
-                    })
+                    self.analytics_db.insert_query(
+                        {
+                            "query_id": str(user_query.query_id),
+                            "discord_server_id": str(message.guild.id) if message.guild else "DM",
+                            "discord_server_name": message.guild.name
+                            if message.guild
+                            else "Direct Message",
+                            "channel_id": str(message.channel.id),
+                            "channel_name": message.channel.name
+                            if hasattr(message.channel, "name")
+                            else "DM",
+                            "username": str(message.author.name),
+                            "query_text": user_query.sanitized_text,
+                            "response_text": llm_response.answer_text,
+                            "llm_model": llm_response.model_version,
+                            "confidence_score": llm_response.confidence_score,
+                            "rag_score": rag_context.avg_relevance,
+                            "validation_passed": validation_result.is_valid,
+                            "latency_ms": llm_response.latency_ms,
+                            "timestamp": datetime.now(UTC).isoformat(),
+                            "multi_hop_enabled": 1 if RAG_MAX_HOPS > 0 else 0,
+                            "hops_used": len(hop_evaluations),
+                            "cost": total_cost,
+                        }
+                    )
 
                     # Insert hop evaluations if multi-hop was used
                     if hop_evaluations:
@@ -394,7 +395,7 @@ class KillTeamBotOrchestrator:
                         )
                         logger.debug(
                             f"Inserted {len(hop_evaluations)} hop evaluations",
-                            extra={"correlation_id": correlation_id}
+                            extra={"correlation_id": correlation_id},
                         )
 
                     # Insert retrieved chunks with hop numbers
@@ -418,17 +419,16 @@ class KillTeamBotOrchestrator:
                     if chunks_data:
                         logger.info(
                             f"Inserting {len(chunks_data)} chunks into analytics DB",
-                            extra={"correlation_id": correlation_id}
+                            extra={"correlation_id": correlation_id},
                         )
                         self.analytics_db.insert_chunks(str(user_query.query_id), chunks_data)
                         logger.info(
-                            "Chunks inserted successfully",
-                            extra={"correlation_id": correlation_id}
+                            "Chunks inserted successfully", extra={"correlation_id": correlation_id}
                         )
                     else:
                         logger.warning(
                             "No chunks to insert (rag_context.document_chunks is empty)",
-                            extra={"correlation_id": correlation_id}
+                            extra={"correlation_id": correlation_id},
                         )
 
                 except Exception as e:
@@ -436,19 +436,15 @@ class KillTeamBotOrchestrator:
                     logger.error(
                         f"Failed to write to analytics DB: {e}",
                         extra={"correlation_id": correlation_id},
-                        exc_info=True
+                        exc_info=True,
                     )
 
             # Step 11: Update conversation context (message history only)
             self.context_manager.add_message(
-                user_query.conversation_context_id,
-                role="user",
-                text=user_query.sanitized_text,
+                user_query.conversation_context_id, role="user", text=user_query.sanitized_text
             )
             self.context_manager.add_message(
-                user_query.conversation_context_id,
-                role="bot",
-                text=llm_response.answer_text,
+                user_query.conversation_context_id, role="bot", text=llm_response.answer_text
             )
 
             logger.info(
@@ -468,11 +464,20 @@ class KillTeamBotOrchestrator:
             error_str = str(e).lower()
 
             # Check for credit balance issues
-            if "credit balance" in error_str or "insufficient funds" in error_str or "insufficient quota" in error_str or "quota" in error_str:
+            if (
+                "credit balance" in error_str
+                or "insufficient funds" in error_str
+                or "insufficient quota" in error_str
+                or "quota" in error_str
+            ):
                 error_message = "💰 API credit balance is insufficient"
 
             # Check for invalid API key errors
-            elif "invalid api key" in error_str or "authentication" in error_str or "unauthorized" in error_str:
+            elif (
+                "invalid api key" in error_str
+                or "authentication" in error_str
+                or "unauthorized" in error_str
+            ):
                 error_message = "🔑 API key is invalid or expired"
 
             # Check for rate limit errors (from the API itself, not our rate limiter)
@@ -480,7 +485,9 @@ class KillTeamBotOrchestrator:
                 error_message = "⏳ API rate limit exceeded. Please try again in a moment."
 
             # Check for content filter/safety errors
-            elif "content" in error_str and ("filter" in error_str or "policy" in error_str or "safety" in error_str):
+            elif "content" in error_str and (
+                "filter" in error_str or "policy" in error_str or "safety" in error_str
+            ):
                 error_message = "⚠️ Your query was blocked by content safety filters. Please rephrase your question."
 
             # Generic error fallback

@@ -106,11 +106,7 @@ class RAGIngestor:
         warnings: list[str] = []
         all_chunks = []  # Collect all chunks for keyword extraction
 
-        logger.info(
-            "ingestion_started",
-            job_id=str(job_id),
-            document_count=len(documents),
-        )
+        logger.info("ingestion_started", job_id=str(job_id), document_count=len(documents))
 
         for document in documents:
             try:
@@ -119,9 +115,7 @@ class RAGIngestor:
 
                 # Check if document already exists (upsert logic)
                 # Delete existing embeddings for this document
-                deleted_count = self.vector_db.delete_by_document_id(
-                    document.document_id
-                )
+                deleted_count = self.vector_db.delete_by_document_id(document.document_id)
                 if deleted_count > 0:
                     logger.info(
                         "document_updated",
@@ -143,9 +137,7 @@ class RAGIngestor:
 
                 # Generate embeddings for chunks
                 chunk_texts = [chunk.text for chunk in chunks]
-                embeddings = self._generate_embeddings_with_retry(
-                    chunk_texts, document.filename
-                )
+                embeddings = self._generate_embeddings_with_retry(chunk_texts, document.filename)
 
                 # Prepare data for vector DB
                 ids = [str(chunk.chunk_id) for chunk in chunks]
@@ -167,10 +159,7 @@ class RAGIngestor:
                 # Store in vector DB (atomic operation per document)
                 try:
                     self.vector_db.upsert_embeddings(
-                        ids=ids,
-                        embeddings=embeddings,
-                        documents=chunk_texts,
-                        metadatas=metadatas,
+                        ids=ids, embeddings=embeddings, documents=chunk_texts, metadatas=metadatas
                     )
 
                     embedding_count += len(embeddings)
@@ -202,9 +191,7 @@ class RAGIngestor:
                 documents_failed += 1
                 errors.append(document.filename)
                 logger.warning(
-                    "document_validation_failed",
-                    filename=document.filename,
-                    error=str(e),
+                    "document_validation_failed", filename=document.filename, error=str(e)
                 )
 
             except EmbeddingFailureError as e:
@@ -212,9 +199,7 @@ class RAGIngestor:
                 documents_failed += 1
                 errors.append(document.filename)
                 logger.warning(
-                    "embedding_generation_failed",
-                    filename=document.filename,
-                    error=str(e),
+                    "embedding_generation_failed", filename=document.filename, error=str(e)
                 )
 
         duration = time.time() - start_time
@@ -229,7 +214,7 @@ class RAGIngestor:
                 "keywords_updated",
                 job_id=str(job_id),
                 new_keywords=added_count,
-                total_keywords=self.keyword_extractor.get_keyword_count()
+                total_keywords=self.keyword_extractor.get_keyword_count(),
             )
 
         result = IngestionResult(
@@ -253,9 +238,7 @@ class RAGIngestor:
 
         return result
 
-    def _validate_document(
-        self, document: RuleDocument, warnings: list[str]
-    ) -> None:
+    def _validate_document(self, document: RuleDocument, warnings: list[str]) -> None:
         """Validate document has required metadata.
 
         Args:
@@ -267,14 +250,10 @@ class RAGIngestor:
         """
         # Check required metadata fields
         required_fields = ["source", "last_update_date", "document_type"]
-        missing_fields = [
-            field for field in required_fields if field not in document.metadata
-        ]
+        missing_fields = [field for field in required_fields if field not in document.metadata]
 
         if missing_fields:
-            raise InvalidDocumentError(
-                f"Missing required metadata: {', '.join(missing_fields)}"
-            )
+            raise InvalidDocumentError(f"Missing required metadata: {', '.join(missing_fields)}")
 
         # Warn about ambiguous structure
         if "##" not in document.content and "###" not in document.content:
