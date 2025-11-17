@@ -1,6 +1,7 @@
-"""Integration test - Basic query flow (Test scenario from quickstart.md Test 1).
+"""Integration test - Mocked end-to-end query flow.
 
 Tests: Discord @ mention → RAG retrieval → LLM generation → Response with citations
+All components are mocked - this tests the orchestration logic only.
 """
 
 import asyncio
@@ -99,6 +100,8 @@ def mock_llm_provider():
 
 
 @pytest.mark.asyncio
+@pytest.mark.integration
+@pytest.mark.fast
 async def test_basic_query_flow_end_to_end(mock_rag_retriever, mock_llm_provider):
     """Test basic query: 'What actions can I take during the movement phase?'
 
@@ -197,6 +200,8 @@ async def test_basic_query_flow_end_to_end(mock_rag_retriever, mock_llm_provider
 
 
 @pytest.mark.asyncio
+@pytest.mark.integration
+@pytest.mark.fast
 async def test_basic_query_with_context_tracking(mock_rag_retriever, mock_llm_provider):
     """Test that conversation context is tracked correctly."""
     mock_factory = Mock()
@@ -249,6 +254,8 @@ async def test_basic_query_with_context_tracking(mock_rag_retriever, mock_llm_pr
 
 
 @pytest.mark.asyncio
+@pytest.mark.integration
+@pytest.mark.fast
 async def test_basic_query_feedback_buttons_added(
     mock_rag_retriever, mock_llm_provider
 ):
@@ -308,8 +315,5 @@ async def test_basic_query_feedback_buttons_added(
     await orchestrator.process_query(message, user_query)
 
     # Check feedback reactions were added to the response message (not acknowledgement)
-    assert sent_message.add_reaction.call_count == 2, f"Expected 2 reactions (👍👎), got {sent_message.add_reaction.call_count}"
-
-    reactions = [call[0][0] for call in sent_message.add_reaction.call_args_list]
-    assert "👍" in reactions, "Missing thumbs up reaction"
-    assert "👎" in reactions, "Missing thumbs down reaction"
+    from unittest.mock import call
+    assert sent_message.add_reaction.call_args_list == [call("👍"), call("👎")]
