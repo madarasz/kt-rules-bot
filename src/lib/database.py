@@ -474,6 +474,51 @@ class AnalyticsDatabase:
         except Exception as e:
             logger.error(f"Failed to increment vote: {e}", exc_info=True)
 
+    def decrement_vote(self, query_id: str, vote_type: Literal["upvote", "downvote"]) -> None:
+        """Decrement upvote or downvote count for a query.
+
+        Args:
+            query_id: Query UUID
+            vote_type: "upvote" or "downvote"
+        """
+        if not self.enabled:
+            return
+
+        try:
+            now = datetime.now(UTC).isoformat()
+
+            # Use explicit SQL to avoid bandit B608 warning about string interpolation
+            with self._get_connection() as conn:
+                if vote_type == "upvote":
+                    conn.execute(
+                        """
+                        UPDATE queries
+                        SET upvotes = MAX(0, upvotes - 1),
+                            updated_at = ?
+                        WHERE query_id = ?
+                    """,
+                        (now, query_id),
+                    )
+                else:
+                    conn.execute(
+                        """
+                        UPDATE queries
+                        SET downvotes = MAX(0, downvotes - 1),
+                            updated_at = ?
+                        WHERE query_id = ?
+                    """,
+                        (now, query_id),
+                    )
+                conn.commit()
+
+            logger.debug(
+                "Vote decremented in analytics DB",
+                extra={"query_id": query_id, "vote_type": vote_type},
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to decrement vote: {e}", exc_info=True)
+
     def cleanup_old_records(self) -> int:
         """Delete records older than retention_days.
 

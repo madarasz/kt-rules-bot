@@ -165,6 +165,73 @@ class FeedbackLogger:
             extra={"query_id": query_id, "response_id": response_id},
         )
 
+    async def record_button_feedback(
+        self,
+        query_id: str,
+        response_id: str,
+        user_id: str,
+        feedback_type: str,
+        previous_feedback_type: str | None = None,
+    ) -> None:
+        """Record feedback from Discord UI button interaction.
+
+        Args:
+            query_id: Query UUID (from UserQuery)
+            response_id: Response UUID (from BotResponse)
+            user_id: Discord user ID (raw, will be hashed)
+            feedback_type: 'helpful' or 'not_helpful'
+            previous_feedback_type: Previous feedback type if user is changing vote
+        """
+        feedback_id = uuid4()
+        hashed_user_id = UserQuery.hash_user_id(user_id)
+
+        # Update database vote count (if enabled)
+        if self.analytics_db.enabled:
+            try:
+                # If user is changing their vote, decrement the old vote first
+                if previous_feedback_type and previous_feedback_type != feedback_type:
+                    old_vote_type = "upvote" if previous_feedback_type == "helpful" else "downvote"
+                    self.analytics_db.decrement_vote(query_id, old_vote_type)
+                    logger.debug(
+                        "Previous vote decremented in analytics DB",
+                        extra={"query_id": query_id, "vote_type": old_vote_type},
+                    )
+
+                # Increment the new vote (or same vote if clicking again)
+                if previous_feedback_type != feedback_type:
+                    vote_type = "upvote" if feedback_type == "helpful" else "downvote"
+                    self.analytics_db.increment_vote(query_id, vote_type)
+                    logger.debug(
+                        "Button vote incremented in analytics DB",
+                        extra={"query_id": query_id, "vote_type": vote_type},
+                    )
+            except Exception as e:
+                logger.error(f"Failed to update vote in DB: {e}", exc_info=True)
+
+        # Log to structured logs
+        logger.info(
+            "Button feedback received",
+            extra={
+                "event_type": "button_feedback",
+                "feedback_id": str(feedback_id),
+                "response_id": response_id,
+                "query_id": query_id,
+                "user_id": hashed_user_id[:16],  # Partial hash for privacy
+                "feedback_type": feedback_type,
+                "previous_feedback_type": previous_feedback_type,
+                "vote_changed": previous_feedback_type != feedback_type,
+                "timestamp": datetime.now(UTC).isoformat(),
+            },
+        )
+
+        # Optional: Store in feedback_cache
+        cache_key = f"{response_id}:{hashed_user_id}"
+        self.feedback_cache[cache_key] = {
+            "feedback_id": feedback_id,
+            "feedback_type": feedback_type,
+            "timestamp": datetime.now(UTC),
+        }
+
     def get_feedback_stats(self) -> dict[str, object]:
         """Get feedback statistics from cache.
 

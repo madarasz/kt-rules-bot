@@ -127,6 +127,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Validate import conventions
         run: python scripts/check_imports.py
@@ -173,12 +174,46 @@ jobs:
       - name: Generate quality report
         run: python scripts/quality_check.py
 
-      - name: Comment PR with quality metrics
+      - name: Generate quality metrics JSON
+        id: quality-metrics
         if: github.event_name == 'pull_request'
+        run: |
+          python scripts/quality_check.py --format json > quality_report.json
+          echo "report_generated=true" >> $GITHUB_OUTPUT
+
+      - name: Comment PR with quality metrics
+        if: github.event_name == 'pull_request' && steps.quality-metrics.outputs.report_generated == 'true'
         uses: actions/github-script@v7
         with:
           script: |
-            github.rest.issues.createComment({
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('quality_report.json', 'utf8'));
+
+            // Build markdown table
+            let body = '## 📊 Code Quality Report\n\n';
+            body += `**Overall Score:** ${report.summary.overall_score}/100\n\n`;
+            body += `| Metric | Status | Score | Details |\n`;
+            body += `|--------|--------|-------|----------|\n`;
+
+            const statusIcons = {
+              'pass': '✅',
+              'warn': '⚠️',
+              'fail': '❌'
+            };
+
+            for (const metric of report.metrics) {
+              const icon = statusIcons[metric.status] || '⚪';
+              const scoreText = metric.score >= 0 ? `${metric.score.toFixed(1)}/100` : 'N/A';
+              body += `| ${metric.name} | ${icon} ${metric.status} | ${scoreText} | ${metric.details} |\n`;
+            }
+
+            body += `\n**Summary:** ${report.summary.passed}/${report.summary.total} passed, `;
+            body += `${report.summary.warned} warnings, ${report.summary.failed} failed\n`;
+
+            // Post comment
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
-            })
+              repo: context.repo.repo,
+              body: body
+            });
