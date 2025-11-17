@@ -31,7 +31,7 @@ def get_random_acknowledgement() -> str:
             logger.warning("Acknowledgements file is empty")
             return "Processing your query..."
 
-        return random.choice(lines)
+        return random.choice(lines)  # nosec B311 (not used for security/crypto)
 
     except Exception as e:
         logger.error(f"Error reading acknowledgements file: {e}")
@@ -60,7 +60,7 @@ def get_random_disclaimer() -> str:
             logger.warning("Disclaimers file is empty")
             return "This interpretation is auto-generated. Consult official rules for certainty."
 
-        return random.choice(lines)
+        return random.choice(lines)  # nosec B311 (not used for security/crypto)
 
     except Exception as e:
         logger.error(f"Error reading disclaimers file: {e}")

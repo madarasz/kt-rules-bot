@@ -95,6 +95,12 @@ def download_pdf(url: str) -> tuple[bytes, int]:
 
     logger.info(f"Downloading PDF from {url}")
 
+    # Validate URL scheme (security: prevent file:// access)
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    if parsed.scheme not in ('http', 'https'):
+        raise ValueError(f"Invalid URL scheme: {parsed.scheme}. Only http/https allowed.")
+
     # Create request with user agent
     headers = {
         'User-Agent': 'Kill-Team-Rules-Bot/1.0 (PDF Extraction Tool)'
@@ -102,7 +108,7 @@ def download_pdf(url: str) -> tuple[bytes, int]:
     request = Request(url, headers=headers)
 
     try:
-        with urlopen(request, timeout=30) as response:
+        with urlopen(request, timeout=30) as response:  # nosec B310 (scheme validated above)
             if response.status != 200:
                 raise HTTPError(url, response.status, f"HTTP {response.status}", response.headers, None)
 
