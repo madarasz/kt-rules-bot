@@ -24,6 +24,7 @@ from src.services.discord import formatter
 from src.services.discord.context_manager import ConversationContextManager
 from src.services.llm.base import GenerationConfig, GenerationRequest
 from src.services.llm.factory import LLMProviderFactory
+from src.services.llm.quote_validator import QuoteValidator
 from src.services.llm.rate_limiter import RateLimiter
 from src.services.llm.retry import retry_on_content_filter
 from src.services.llm.validator import ResponseValidator
@@ -75,6 +76,7 @@ class KillTeamBotOrchestrator:
         self.context_manager = context_manager or ConversationContextManager()
         self.analytics_db = analytics_db or AnalyticsDatabase.from_config()
         self.feedback_logger = feedback_logger
+        self.quote_validator = QuoteValidator(similarity_threshold=0.85)
 
     async def process_query(self, message: discord.Message, user_query: UserQuery) -> None:
         """Process user query through full orchestration flow.
@@ -179,12 +181,15 @@ class KillTeamBotOrchestrator:
             )
 
             # Step 4: LLM generation with retry logic for ContentFilterError
+            # Pass chunk IDs for quote attribution
+            chunk_ids = [str(chunk.chunk_id) for chunk in rag_context.document_chunks]
             llm_response = await retry_on_content_filter(
                 llm.generate,
                 GenerationRequest(
                     prompt=user_query.sanitized_text,
                     context=[chunk.text for chunk in rag_context.document_chunks],
                     config=GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT),
+                    chunk_ids=chunk_ids,
                 ),
                 timeout_seconds=LLM_GENERATION_TIMEOUT,
             )
@@ -222,6 +227,45 @@ class KillTeamBotOrchestrator:
                     f"LLM provider {llm_response.model_version} returned invalid JSON. "
                     "All providers must return structured JSON output."
                 ) from e
+
+            # Step 4.5: Validate quotes against RAG context (grounding enforcement)
+            quote_validation_result = None
+            if structured_data and not structured_data.smalltalk and structured_data.quotes:
+                quote_validation_result = self.quote_validator.validate(
+                    quotes=[
+                        {
+                            "quote_title": q.quote_title,
+                            "quote_text": q.quote_text,
+                            "chunk_id": getattr(q, "chunk_id", ""),
+                        }
+                        for q in structured_data.quotes
+                    ],
+                    context_chunks=[chunk.text for chunk in rag_context.document_chunks],
+                    chunk_ids=chunk_ids,
+                )
+
+                logger.info(
+                    "Quote validation complete",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "validation_score": quote_validation_result.validation_score,
+                        "valid_quotes": quote_validation_result.valid_quotes,
+                        "invalid_quotes": len(quote_validation_result.invalid_quotes),
+                    },
+                )
+
+                # Log invalid quotes for debugging
+                if not quote_validation_result.is_valid:
+                    for invalid_quote in quote_validation_result.invalid_quotes:
+                        logger.warning(
+                            "Invalid quote detected",
+                            extra={
+                                "correlation_id": correlation_id,
+                                "quote_title": invalid_quote.get("quote_title", ""),
+                                "quote_preview": invalid_quote.get("quote_text", "")[:100],
+                                "reason": invalid_quote.get("reason", ""),
+                            },
+                        )
 
             # Step 5: Validation (FR-013: combined LLM + RAG validation)
             validation_result = self.validator.validate(llm_response, rag_context)
@@ -382,8 +426,38 @@ class KillTeamBotOrchestrator:
                             "multi_hop_enabled": 1 if RAG_MAX_HOPS > 0 else 0,
                             "hops_used": len(hop_evaluations),
                             "cost": total_cost,
+                            "quote_validation_score": (
+                                quote_validation_result.validation_score
+                                if quote_validation_result
+                                else None
+                            ),
+                            "quote_total_count": (
+                                quote_validation_result.total_quotes
+                                if quote_validation_result
+                                else 0
+                            ),
+                            "quote_valid_count": (
+                                quote_validation_result.valid_quotes
+                                if quote_validation_result
+                                else 0
+                            ),
+                            "quote_invalid_count": (
+                                len(quote_validation_result.invalid_quotes)
+                                if quote_validation_result
+                                else 0
+                            ),
                         }
                     )
+
+                    # Insert invalid quotes if any
+                    if quote_validation_result and quote_validation_result.invalid_quotes:
+                        self.analytics_db.insert_invalid_quotes(
+                            str(user_query.query_id), quote_validation_result.invalid_quotes
+                        )
+                        logger.info(
+                            f"Inserted {len(quote_validation_result.invalid_quotes)} invalid quotes",
+                            extra={"correlation_id": correlation_id},
+                        )
 
                     # Insert hop evaluations if multi-hop was used
                     if hop_evaluations:
