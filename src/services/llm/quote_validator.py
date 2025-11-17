@@ -4,6 +4,7 @@ Validates that quoted rules actually appear in RAG context to prevent hallucinat
 Based on docs/future-development/GROUNDING.md Strategy 4.
 """
 
+import re
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
@@ -142,9 +143,9 @@ class QuoteValidator:
         Returns:
             True if quote found in chunk
         """
-        # Normalize: lowercase, strip extra whitespace
-        quote_norm = " ".join(quote.lower().split())
-        chunk_norm = " ".join(chunk.lower().split())
+        # Normalize: strip markdown, lowercase, strip extra whitespace
+        quote_norm = self._normalize_text(quote)
+        chunk_norm = self._normalize_text(chunk)
 
         # Exact match (fast path)
         if quote_norm in chunk_norm:
@@ -169,3 +170,28 @@ class QuoteValidator:
                 return True
 
         return False
+
+    @staticmethod
+    def _normalize_text(text: str) -> str:
+        """Normalize text by stripping markdown and whitespace.
+
+        Args:
+            text: Text to normalize
+
+        Returns:
+            Normalized text (lowercase, no markdown, normalized whitespace)
+        """
+        # Strip markdown formatting (bold, italic, etc.)
+        # Remove **bold** and __bold__
+        text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+        text = re.sub(r"__([^_]+)__", r"\1", text)
+
+        # Remove *italic* and _italic_
+        text = re.sub(r"\*([^*]+)\*", r"\1", text)
+        text = re.sub(r"_([^_]+)_", r"\1", text)
+
+        # Remove inline code `code`
+        text = re.sub(r"`([^`]+)`", r"\1", text)
+
+        # Lowercase and normalize whitespace
+        return " ".join(text.lower().split())

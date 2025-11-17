@@ -32,6 +32,9 @@ python -m src.cli run --mode production
 
 # Admin dashboard (optional, if analytics DB enabled)
 streamlit run src/cli/admin_dashboard.py --server.port 8501
+
+# Migrate database schema (if you get "no such column" errors)
+python3 scripts/migrate_db.py
 ```
 
 ## Project Status

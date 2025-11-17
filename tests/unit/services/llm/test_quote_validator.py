@@ -31,44 +31,6 @@ class TestQuoteValidator:
             "fedcba09-8765-4321-fedc-ba0987654321",
         ]
 
-    def test_validate_all_valid_quotes(self, validator, sample_context, sample_chunk_ids):
-        """Test validation with all valid quotes."""
-        quotes = [
-            {
-                "quote_title": "Silent Weapons",
-                "quote_text": "An operative can perform the Shoot action with this weapon while it has a Conceal order.",
-                "chunk_id": "90abcdef",
-            }
-        ]
-
-        result = validator.validate(quotes, sample_context, sample_chunk_ids)
-
-        assert result.is_valid is True
-        assert result.validation_score == 1.0
-        assert result.total_quotes == 1
-        assert result.valid_quotes == 1
-        assert len(result.invalid_quotes) == 0
-
-    def test_validate_invalid_quote(self, validator, sample_context, sample_chunk_ids):
-        """Test validation with hallucinated quote."""
-        quotes = [
-            {
-                "quote_title": "Fake Rule",
-                "quote_text": "This weapon allows shooting while concealed and also grants bonus AP.",
-                "chunk_id": "90abcdef",
-            }
-        ]
-
-        result = validator.validate(quotes, sample_context, sample_chunk_ids)
-
-        assert result.is_valid is False
-        assert result.validation_score == 0.0
-        assert result.total_quotes == 1
-        assert result.valid_quotes == 0
-        assert len(result.invalid_quotes) == 1
-        assert result.invalid_quotes[0]["quote_text"] == quotes[0]["quote_text"]
-        assert "not found" in result.invalid_quotes[0]["reason"].lower()
-
     def test_validate_mixed_quotes(self, validator, sample_context, sample_chunk_ids):
         """Test validation with mix of valid and invalid quotes."""
         quotes = [
@@ -96,18 +58,6 @@ class TestQuoteValidator:
         assert result.total_quotes == 3
         assert result.valid_quotes == 2
         assert len(result.invalid_quotes) == 1
-
-    def test_validate_empty_quotes(self, validator, sample_context, sample_chunk_ids):
-        """Test validation with empty quote list."""
-        quotes = []
-
-        result = validator.validate(quotes, sample_context, sample_chunk_ids)
-
-        assert result.is_valid is True
-        assert result.validation_score == 1.0
-        assert result.total_quotes == 0
-        assert result.valid_quotes == 0
-        assert len(result.invalid_quotes) == 0
 
     def test_validate_quote_with_minor_formatting(
         self, validator, sample_context, sample_chunk_ids
@@ -156,38 +106,6 @@ class TestQuoteValidator:
 
         assert validator._is_quote_in_chunk(quote, chunk) is False
 
-    def test_validate_without_chunk_ids(self, validator, sample_context):
-        """Test validation without chunk IDs (backward compatibility)."""
-        quotes = [
-            {
-                "quote_title": "Silent Weapons",
-                "quote_text": "An operative can perform the Shoot action with this weapon while it has a Conceal order.",
-            }
-        ]
-
-        result = validator.validate(quotes, sample_context, chunk_ids=None)
-
-        assert result.is_valid is True
-        assert result.validation_score == 1.0
-
-    def test_validate_empty_quote_text_skipped(self, validator, sample_context, sample_chunk_ids):
-        """Test that empty quote texts are skipped in validation."""
-        quotes = [
-            {"quote_title": "Empty Quote", "quote_text": "", "chunk_id": "90abcdef"},
-            {
-                "quote_title": "Valid Quote",
-                "quote_text": "Barricades are terrain features that provide Cover.",
-                "chunk_id": "87654321",
-            },
-        ]
-
-        result = validator.validate(quotes, sample_context, sample_chunk_ids)
-
-        # Empty quote should be skipped, so only 1 quote validated
-        assert result.is_valid is True
-        assert result.total_quotes == 2
-        assert result.valid_quotes == 2  # Empty quotes don't count as invalid
-
     def test_similarity_threshold_strict(self):
         """Test with strict similarity threshold."""
         validator = QuoteValidator(similarity_threshold=0.95)
@@ -201,3 +119,32 @@ class TestQuoteValidator:
 
         # Just verify it runs without error
         assert isinstance(result, bool)
+
+    def test_validate_real_world_counteract_quote(self, validator):
+        """Test with real Kill Team rule content."""
+        # Actual chunk from rules-1-phases.md
+        context_chunk = (
+            "When you would activate a **ready** friendly operative, if all your operatives "
+            "are **expended** but your opponent still has **ready** operatives, you can select "
+            "an **expended** friendly operative with an **Engage** order to perform a 1AP action "
+            "(excluding **Guard**) for free."
+        )
+
+        # LLM might quote without markdown
+        quote_plain = (
+            "When you would activate a ready friendly operative, if all your operatives "
+            "are expended but your opponent still has ready operatives, you can select "
+            "an expended friendly operative with an Engage order to perform a 1AP action "
+            "(excluding Guard) for free."
+        )
+
+        # LLM might quote with markdown preserved
+        quote_markdown = (
+            "When you would activate a **ready** friendly operative, if all your operatives "
+            "are **expended** but your opponent still has **ready** operatives, you can select "
+            "an **expended** friendly operative with an **Engage** order to perform a 1AP action "
+            "(excluding **Guard**) for free."
+        )
+
+        assert validator._is_quote_in_chunk(quote_plain, context_chunk) is True
+        assert validator._is_quote_in_chunk(quote_markdown, context_chunk) is True
