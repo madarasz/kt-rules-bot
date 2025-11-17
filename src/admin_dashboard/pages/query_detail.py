@@ -48,16 +48,15 @@ def render(db: AnalyticsDatabase) -> None:
     chunks = db.get_chunks_for_query(query_id)
 
     # Render sections
-    _render_query_and_response(query)
-    _render_metadata(query)
+    _render_query_response_and_metadata(query)
     _render_invalid_quotes(query_id, query, db)
     _render_hop_evaluations(query_id, query, db)
     _render_chunks(chunks, db)
     _render_admin_controls(query_id, query, db)
 
 
-def _render_query_and_response(query: dict) -> None:
-    """Render query text and response.
+def _render_query_response_and_metadata(query: dict) -> None:
+    """Render query text, response, and metadata in a two-column layout.
 
     Args:
         query: Query data dictionary
@@ -74,6 +73,9 @@ def _render_query_and_response(query: dict) -> None:
             _render_structured_response(structured_response)
         except ValueError:
             st.text_area("Response", value=query["response_text"], height=200, disabled=True)
+
+    with col2:
+        _render_metadata(query)
 
 
 def _render_structured_response(response: StructuredLLMResponse) -> None:
@@ -94,38 +96,35 @@ def _render_structured_response(response: StructuredLLMResponse) -> None:
 
 
 def _render_metadata(query: dict) -> None:
-    """Render query metadata in sidebar.
+    """Render query metadata.
 
     Args:
         query: Query data dictionary
     """
-    col1, col2 = st.columns([2, 1])
+    st.subheader("📊 Metadata")
+    st.write(f"**Query ID:** `{query['query_id'][:8]}...`")
+    st.write(f"**Timestamp:** {query['timestamp']}")
+    st.write(f"**Channel:** {query['channel_name']} ({query['discord_server_name']})")
+    st.write(f"**User:** @{query['username']}")
+    st.write(f"**Model:** {query['llm_model']}")
+    st.write(f"**Confidence:** {query['confidence_score']:.2f}")
+    st.write(f"**RAG Score:** {query['rag_score']:.2f}")
+    st.write(f"**Latency:** {query['latency_ms']}ms")
+    st.write(f"**Validation:** {'✅ Passed' if query['validation_passed'] else '❌ Failed'}")
 
-    with col2:
-        st.subheader("📊 Metadata")
-        st.write(f"**Query ID:** `{query['query_id'][:8]}...`")
-        st.write(f"**Timestamp:** {query['timestamp']}")
-        st.write(f"**Channel:** {query['channel_name']} ({query['discord_server_name']})")
-        st.write(f"**User:** @{query['username']}")
-        st.write(f"**Model:** {query['llm_model']}")
-        st.write(f"**Confidence:** {query['confidence_score']:.2f}")
-        st.write(f"**RAG Score:** {query['rag_score']:.2f}")
-        st.write(f"**Latency:** {query['latency_ms']}ms")
-        st.write(f"**Validation:** {'✅ Passed' if query['validation_passed'] else '❌ Failed'}")
+    # Feedback
+    _rate, helpful_str = format_helpful_rate(query["upvotes"], query["downvotes"])
+    st.write(f"**Feedback:** {helpful_str}")
 
-        # Feedback
-        _rate, helpful_str = format_helpful_rate(query["upvotes"], query["downvotes"])
-        st.write(f"**Feedback:** {helpful_str}")
+    # Multi-hop info
+    _render_multi_hop_info(query)
 
-        # Multi-hop info
-        _render_multi_hop_info(query)
+    # Cost
+    cost = query.get("cost", 0.0)
+    st.write(f"**Cost:** ${cost:.5f}")
 
-        # Cost
-        cost = query.get("cost", 0.0)
-        st.write(f"**Cost:** ${cost:.5f}")
-
-        # Quote validation
-        _render_quote_validation_metadata(query)
+    # Quote validation
+    _render_quote_validation_metadata(query)
 
 
 def _render_multi_hop_info(query: dict) -> None:
