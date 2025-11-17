@@ -20,8 +20,9 @@ from src.lib.constants import (
 )
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_embedding_cost
+from src.models.rag_request import RetrieveRequest
 from src.services.rag.embeddings import EmbeddingService
-from src.services.rag.retriever import RAGRetriever, RetrieveRequest
+from src.services.rag.retriever import RAGRetriever
 from tests.rag.evaluator import RAGEvaluator
 from tests.rag.ragas_evaluator import RagasRAGEvaluator, add_ragas_metrics_to_result
 from tests.rag.test_case_models import RAGTestCase, RAGTestResult, RAGTestSummary

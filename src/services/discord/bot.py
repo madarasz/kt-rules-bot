@@ -17,6 +17,7 @@ from src.lib.logging import get_logger
 from src.lib.server_config import get_multi_server_config
 from src.lib.tokens import estimate_cost, estimate_embedding_cost
 from src.models.bot_response import BotResponse, Citation
+from src.models.rag_request import RetrieveRequest
 from src.models.structured_response import StructuredLLMResponse
 from src.models.user_query import UserQuery
 from src.services.discord import formatter
@@ -26,7 +27,7 @@ from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.rate_limiter import RateLimiter
 from src.services.llm.retry import retry_on_content_filter
 from src.services.llm.validator import ResponseValidator
-from src.services.rag.retriever import RAGRetriever, RetrieveRequest
+from src.services.rag.retriever import RAGRetriever
 
 logger = get_logger(__name__)
 

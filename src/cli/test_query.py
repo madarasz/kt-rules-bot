@@ -23,12 +23,13 @@ from src.lib.constants import (
 from src.lib.logging import get_logger
 from src.lib.statistics import format_statistics_summary
 from src.lib.tokens import estimate_cost, estimate_embedding_cost
+from src.models.rag_request import RetrieveRequest
 from src.services.llm.base import GenerationConfig, GenerationRequest
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.retry import retry_on_content_filter
 from src.services.llm.validator import ResponseValidator
 from src.services.rag.embeddings import EmbeddingService
-from src.services.rag.retriever import RAGRetriever, RetrieveRequest
+from src.services.rag.retriever import RAGRetriever
 from src.services.rag.vector_db import VectorDBService
 
 logger = get_logger(__name__)

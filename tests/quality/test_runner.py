@@ -20,6 +20,7 @@ from src.lib.constants import (
 )
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost, estimate_embedding_cost
+from src.models.rag_request import RetrieveRequest
 from src.models.structured_response import StructuredLLMResponse
 from src.services.llm.base import (
     AuthenticationError,
@@ -34,7 +35,7 @@ from src.services.llm.base import (
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.retry import retry_with_rate_limit_backoff
 from src.services.rag.embeddings import EmbeddingService
-from src.services.rag.retriever import RAGRetriever, RetrieveRequest
+from src.services.rag.retriever import RAGRetriever
 from src.services.rag.vector_db import VectorDBService
 from tests.quality.ragas_evaluator import RagasEvaluator
 from tests.quality.reporting.report_models import (

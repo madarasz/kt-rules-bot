@@ -13,6 +13,7 @@ from datetime import date, datetime
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from urllib.parse import urlparse
 
 from src.lib.config import get_config
 from src.lib.constants import PDF_EXTRACTION_PROVIDERS
@@ -98,7 +99,6 @@ def download_pdf(url: str) -> tuple[bytes, int]:
     logger.info(f"Downloading PDF from {url}")
 
     # Validate URL scheme (security: prevent file:// access)
-    from urllib.parse import urlparse
     parsed = urlparse(url)
     if parsed.scheme not in ('http', 'https'):
         raise ValueError(f"Invalid URL scheme: {parsed.scheme}. Only http/https allowed.")

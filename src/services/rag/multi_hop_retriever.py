@@ -27,9 +27,9 @@ from src.lib.constants import (
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost
 from src.models.rag_context import DocumentChunk, RAGContext
+from src.models.rag_request import RetrieveRequest
 from src.services.llm.base import GenerationConfig, GenerationRequest, RateLimitError
 from src.services.llm.factory import LLMProviderFactory
-from src.services.rag.retriever import RetrieveRequest
 from src.services.rag.team_filter import TeamFilter
 
 logger = get_logger(__name__)
