@@ -7,6 +7,7 @@ import discord
 
 from src.lib.discord_utils import get_random_disclaimer
 from src.models.bot_response import BotResponse
+from src.services.discord.feedback_buttons import FeedbackView
 from src.services.llm.validator import ValidationResult
 
 
@@ -243,8 +244,6 @@ def create_feedback_view(feedback_logger, query_id: str, response_id: str) -> di
     Returns:
         Discord View with Helpful/Not Helpful buttons
     """
-    from src.services.discord.feedback_buttons import FeedbackView
-
     return FeedbackView(
         feedback_logger=feedback_logger,
         query_id=query_id,

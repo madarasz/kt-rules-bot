@@ -262,7 +262,9 @@ async def test_basic_query_with_context_tracking(mock_rag_retriever, mock_llm_pr
 @pytest.mark.integration
 @pytest.mark.fast
 async def test_basic_query_feedback_buttons_added(mock_rag_retriever, mock_llm_provider):
-    """Test that feedback buttons (👍👎) are added to response."""
+    """Test that feedback buttons view is added to response."""
+    from src.services.discord.feedback_logger import FeedbackLogger
+
     mock_factory = Mock()
     mock_factory.create = Mock(return_value=mock_llm_provider)
 
@@ -271,6 +273,7 @@ async def test_basic_query_feedback_buttons_added(mock_rag_retriever, mock_llm_p
         llm_provider_factory=mock_factory,
         response_validator=ResponseValidator(),
         context_manager=ConversationContextManager(),
+        feedback_logger=FeedbackLogger(),  # Add feedback logger
     )
 
     # Create mock message with mock sent message
@@ -282,26 +285,7 @@ async def test_basic_query_feedback_buttons_added(mock_rag_retriever, mock_llm_p
     message.channel = Mock(spec=discord.TextChannel)
     message.channel.id = 987654321
 
-    # Create two separate mock messages - one for acknowledgement, one for response
-    ack_message = AsyncMock(spec=discord.Message)
-    ack_message.add_reaction = AsyncMock()
-
-    sent_message = AsyncMock(spec=discord.Message)
-    sent_message.add_reaction = AsyncMock()
-
-    # Mock send to return different messages for different calls
-    send_call_count = 0
-
-    async def mock_send(*_args, **_kwargs):
-        nonlocal send_call_count
-        send_call_count += 1
-        # First call is acknowledgement, second is actual response
-        if send_call_count == 1:
-            return ack_message
-        else:
-            return sent_message
-
-    message.channel.send = AsyncMock(side_effect=mock_send)
+    message.channel.send = AsyncMock()
 
     # Create user query
     user_query = UserQuery(
@@ -318,7 +302,17 @@ async def test_basic_query_feedback_buttons_added(mock_rag_retriever, mock_llm_p
     # Process query
     await orchestrator.process_query(message, user_query)
 
-    # Check feedback reactions were added to the response message (not acknowledgement)
-    from unittest.mock import call
+    # Check that send was called at least twice (acknowledgement + response)
+    assert message.channel.send.call_count >= 2, "Expected at least 2 send calls"
 
-    assert sent_message.add_reaction.call_args_list == [call("👍"), call("👎")]
+    # Get the last call (the actual response with buttons)
+    last_call = message.channel.send.call_args_list[-1]
+
+    # Check that view parameter was passed with feedback buttons
+    view = last_call.kwargs.get("view")
+    assert view is not None, "Feedback view not added to response"
+
+    # Verify it's a FeedbackView with buttons
+    from src.services.discord.feedback_buttons import FeedbackView
+
+    assert isinstance(view, FeedbackView), f"Expected FeedbackView, got {type(view)}"
