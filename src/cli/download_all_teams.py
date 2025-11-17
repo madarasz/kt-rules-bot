@@ -14,8 +14,8 @@ import time
 from datetime import date, datetime
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 from src.cli.download_team import download_team_internal
 from src.lib.logging import get_logger
