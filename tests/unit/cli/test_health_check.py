@@ -204,7 +204,7 @@ class TestHealthChecker:
 class TestHealthCheckCLI:
     """Tests for health_check CLI function."""
 
-    @patch('src.cli.health_check.get_config')
+    @patch('src.lib.config.get_config')
     @patch('src.cli.health_check.asyncio.run')
     def test_successful_health_check(self, mock_asyncio_run, mock_config):
         """Test successful health check execution."""
@@ -217,7 +217,7 @@ class TestHealthCheckCLI:
         # Should exit with code 0 (healthy)
         assert exc_info.value.code == 0
 
-    @patch('src.cli.health_check.get_config')
+    @patch('src.lib.config.get_config')
     @patch('src.cli.health_check.asyncio.run')
     def test_failed_health_check(self, mock_asyncio_run, mock_config):
         """Test failed health check execution."""
@@ -230,7 +230,7 @@ class TestHealthCheckCLI:
         # Should exit with code 1 (unhealthy)
         assert exc_info.value.code == 1
 
-    @patch('src.cli.health_check.get_config')
+    @patch('src.lib.config.get_config')
     @patch('src.cli.health_check.asyncio.run')
     def test_handles_keyboard_interrupt(self, mock_asyncio_run, mock_config):
         """Test handling of keyboard interrupt."""
@@ -242,7 +242,7 @@ class TestHealthCheckCLI:
 
         assert exc_info.value.code == 1
 
-    @patch('src.cli.health_check.get_config')
+    @patch('src.lib.config.get_config')
     @patch('src.cli.health_check.asyncio.run')
     def test_handles_unexpected_exception(self, mock_asyncio_run, mock_config):
         """Test handling of unexpected exceptions."""
@@ -254,7 +254,7 @@ class TestHealthCheckCLI:
 
         assert exc_info.value.code == 1
 
-    @patch('src.cli.health_check.get_config')
+    @patch('src.lib.config.get_config')
     @patch('src.cli.health_check.asyncio.run')
     def test_passes_verbose_flag(self, mock_asyncio_run, mock_config):
         """Test that verbose flag is passed to checker."""
@@ -271,7 +271,7 @@ class TestHealthCheckCLI:
             except SystemExit:
                 pass
 
-    @patch('src.cli.health_check.get_config')
+    @patch('src.lib.config.get_config')
     @patch('src.cli.health_check.asyncio.run')
     def test_passes_wait_for_discord_flag(self, mock_asyncio_run, mock_config):
         """Test that wait_for_discord flag is passed to checker."""

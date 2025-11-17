@@ -192,7 +192,7 @@ class TestBotRunner:
 class TestRunBotCLI:
     """Tests for run_bot CLI function."""
 
-    @patch('src.cli.run_bot.get_config')
+    @patch('src.lib.config.get_config')
     @patch('src.cli.run_bot.asyncio.run')
     def test_successful_bot_run(self, mock_asyncio_run, mock_config):
         """Test successful bot run."""
@@ -203,7 +203,7 @@ class TestRunBotCLI:
         # Should call asyncio.run
         assert mock_asyncio_run.called
 
-    @patch('src.cli.run_bot.get_config')
+    @patch('src.lib.config.get_config')
     @patch('src.cli.run_bot.asyncio.run')
     def test_handles_keyboard_interrupt(self, mock_asyncio_run, mock_config):
         """Test handling of keyboard interrupt."""
@@ -213,7 +213,7 @@ class TestRunBotCLI:
         # Should not raise
         run_bot(mode="production")
 
-    @patch('src.cli.run_bot.get_config')
+    @patch('src.lib.config.get_config')
     @patch('src.cli.run_bot.asyncio.run')
     def test_handles_unexpected_exception(self, mock_asyncio_run, mock_config):
         """Test handling of unexpected exceptions."""
@@ -223,7 +223,7 @@ class TestRunBotCLI:
         with pytest.raises(SystemExit):
             run_bot(mode="production")
 
-    @patch('src.cli.run_bot.get_config')
+    @patch('src.lib.config.get_config')
     @patch('src.cli.run_bot.asyncio.run')
     def test_accepts_dev_mode(self, mock_asyncio_run, mock_config):
         """Test that dev mode is accepted."""
@@ -234,7 +234,7 @@ class TestRunBotCLI:
         # Should not raise
         assert mock_asyncio_run.called
 
-    @patch('src.cli.run_bot.get_config')
+    @patch('src.lib.config.get_config')
     @patch('src.cli.run_bot.asyncio.run')
     def test_accepts_production_mode(self, mock_asyncio_run, mock_config):
         """Test that production mode is accepted."""
@@ -245,7 +245,7 @@ class TestRunBotCLI:
         # Should not raise
         assert mock_asyncio_run.called
 
-    @patch('src.cli.run_bot.get_config')
+    @patch('src.lib.config.get_config')
     @patch('src.cli.run_bot.BotRunner')
     @patch('src.cli.run_bot.asyncio.run')
     def test_creates_bot_runner(self, mock_asyncio_run, mock_runner_class, mock_config):

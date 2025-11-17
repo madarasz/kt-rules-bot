@@ -19,8 +19,14 @@ class TestTestQuery:
     @patch('src.cli.test_query.LLMProviderFactory')
     @patch('src.cli.test_query.ResponseValidator')
     @patch('src.cli.test_query.asyncio.run')
+    @patch('src.cli.testing.cost_calculator.estimate_embedding_cost')
+    @patch('src.cli.testing.cost_calculator.estimate_cost')
+    @patch('src.cli.test_query.sys.exit')
     def test_successful_query_execution(
         self,
+        mock_sys_exit,
+        mock_estimate_cost,
+        mock_estimate_embedding_cost,
         mock_asyncio_run,
         mock_validator_class,
         mock_llm_factory_class,
@@ -30,8 +36,16 @@ class TestTestQuery:
         mock_config
     ):
         """Test successful query execution."""
-        # Mock config
-        mock_config.return_value.default_llm_provider = "claude-4.5-sonnet"
+        # Mock config with all required fields
+        mock_config_obj = Mock()
+        mock_config_obj.default_llm_provider = "claude-4.5-sonnet"
+        mock_config_obj.discord_bot_token = "test_token"
+        mock_config_obj.anthropic_api_key = "test_api_key"
+        mock_config.return_value = mock_config_obj
+
+        # Mock cost calculation functions
+        mock_estimate_embedding_cost.return_value = 0.0001
+        mock_estimate_cost.return_value = 0.01
 
         # Mock services
         mock_vectordb_class.return_value = Mock()

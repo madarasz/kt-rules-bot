@@ -13,7 +13,7 @@ class TestQualityTest:
     """Tests for quality_test function."""
 
     @patch('src.cli.quality_test.QualityTestRunner')
-    @patch('src.cli.quality_test.get_config')
+    @patch('src.lib.config.get_config')
     @patch('src.cli.quality_test.asyncio.run')
     @patch('src.cli.quality_test.aggregate_results')
     @patch('src.cli.quality_test.ReportGenerator')
@@ -87,7 +87,7 @@ class TestQualityTest:
         assert exc_info.value.code == 0
 
     @patch('src.cli.quality_test.QualityTestRunner')
-    @patch('src.cli.quality_test.get_config')
+    @patch('src.lib.config.get_config')
     @patch('builtins.input', return_value='y')
     def test_skips_confirmation_with_flag(
         self,
@@ -176,7 +176,7 @@ class TestQualityTest:
         assert constants.RAG_MAX_HOPS == original_hops
 
     @patch('src.cli.quality_test.QualityTestRunner')
-    @patch('src.cli.quality_test.get_config')
+    @patch('src.lib.config.get_config')
     @patch('builtins.input', return_value='y')
     @patch('src.cli.quality_test.asyncio.run')
     def test_handles_test_execution_failure(
@@ -201,7 +201,7 @@ class TestQualityTest:
             quality_test(skip_confirm=True)
 
     @patch('src.cli.quality_test.QualityTestRunner')
-    @patch('src.cli.quality_test.get_config')
+    @patch('src.lib.config.get_config')
     @patch('builtins.input', return_value='y')
     @patch('src.cli.quality_test.asyncio.run')
     @patch('src.cli.quality_test.aggregate_results')
@@ -239,7 +239,7 @@ class TestQualityTest:
             assert mock_path.called
 
     @patch('src.cli.quality_test.QualityTestRunner')
-    @patch('src.cli.quality_test.get_config')
+    @patch('src.lib.config.get_config')
     @patch('builtins.input', return_value='y')
     @patch('src.cli.quality_test.asyncio.run')
     @patch('src.cli.quality_test.aggregate_results')
