@@ -198,9 +198,7 @@ def render_query_browser(db: AnalyticsDatabase) -> None:
                 # Quote validation
                 quote_score = query.get("quote_validation_score")
                 quote_icon = get_quote_validation_icon(
-                    quote_score,
-                    query.get("quote_valid_count"),
-                    query.get("quote_total_count")
+                    quote_score, query.get("quote_valid_count"), query.get("quote_total_count")
                 )
                 st.write(quote_icon)
 
@@ -262,7 +260,9 @@ def bool_to_icon(value: bool) -> str:
 
 
 def get_quote_validation_icon(
-    quote_validation_score: float | None, _quote_valid_count: int | None = None, _quote_total_count: int | None = None
+    quote_validation_score: float | None,
+    _quote_valid_count: int | None = None,
+    _quote_total_count: int | None = None,
 ) -> str:
     """Get icon for quote validation score.
 
@@ -735,7 +735,13 @@ def render_analytics(db: AnalyticsDatabase):
             hallucination_display = hallucination_queries[
                 ["timestamp", "query_text", "llm_model", "validation_display", "query_id"]
             ].copy()
-            hallucination_display.columns = ["Timestamp", "Query", "Model", "Validation Score", "query_id"]
+            hallucination_display.columns = [
+                "Timestamp",
+                "Query",
+                "Model",
+                "Validation Score",
+                "query_id",
+            ]
 
             # Sort by validation score (worst first)
             hallucination_display = hallucination_display.sort_values("Validation Score")
@@ -748,7 +754,9 @@ def render_analytics(db: AnalyticsDatabase):
                     st.write(pd.to_datetime(row["Timestamp"]).strftime("%Y-%m-%d %H:%M"))
 
                 with col2:
-                    query_preview = row["Query"][:80] + "..." if len(row["Query"]) > 80 else row["Query"]
+                    query_preview = (
+                        row["Query"][:80] + "..." if len(row["Query"]) > 80 else row["Query"]
+                    )
                     st.write(query_preview)
 
                 with col3:
