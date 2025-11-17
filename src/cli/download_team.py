@@ -6,19 +6,12 @@ Usage:
 
 import re
 import sys
-import tempfile
-from pathlib import Path
-from typing import Optional, Tuple
-from urllib.request import urlopen, Request
-from urllib.error import URLError, HTTPError
 from datetime import date, datetime
+from typing import Optional
 
-from src.lib.config import get_config
+from src.cli.download.extraction_pipeline import ExtractionPipeline
 from src.lib.logging import get_logger
 from src.lib.constants import PDF_EXTRACTION_PROVIDERS
-from src.lib.tokens import estimate_cost
-from src.services.llm.factory import LLMProviderFactory
-from src.services.llm.base import ExtractionConfig, ExtractionRequest
 
 logger = get_logger(__name__)
 
@@ -74,169 +67,8 @@ def extract_date_from_url(url: str) -> Optional[date]:
         return None
 
 
-def download_pdf(url: str) -> Tuple[bytes, int]:
-    """Download PDF from URL.
-
-    Args:
-        url: PDF URL
-
-    Returns:
-        Tuple of (PDF bytes, file size in bytes)
-
-    Raises:
-        HTTPError: HTTP error occurred
-        URLError: Network error occurred
-        ValueError: Invalid URL or not a PDF
-    """
-    if not url.startswith('https://'):
-        raise ValueError("URL must be HTTPS")
-
-    if not url.lower().endswith('.pdf'):
-        raise ValueError("URL must point to a PDF file")
-
-    logger.info(f"Downloading PDF from {url}")
-
-    # Create request with user agent
-    headers = {
-        'User-Agent': 'Kill-Team-Rules-Bot/1.0 (PDF Extraction Tool)'
-    }
-    request = Request(url, headers=headers)
-
-    try:
-        with urlopen(request, timeout=30) as response:
-            if response.status != 200:
-                raise HTTPError(url, response.status, f"HTTP {response.status}", response.headers, None)
-
-            pdf_bytes = response.read()
-
-            if len(pdf_bytes) == 0:
-                raise ValueError("Downloaded PDF is empty")
-
-            # Basic PDF validation (check magic bytes)
-            if not pdf_bytes.startswith(b'%PDF'):
-                raise ValueError("Downloaded file is not a valid PDF")
-
-            logger.info(f"Downloaded {len(pdf_bytes)} bytes")
-            return pdf_bytes, len(pdf_bytes)
-
-    except HTTPError as e:
-        logger.error(f"HTTP error downloading PDF: {e}")
-        raise
-    except URLError as e:
-        logger.error(f"Network error downloading PDF: {e}")
-        raise
-
-
-def extract_team_name(markdown: str) -> str:
-    """Extract team name from first H2 header in markdown.
-
-    Args:
-        markdown: Extracted markdown content
-
-    Returns:
-        Team name in lowercase (e.g., "angels_of_death")
-
-    Raises:
-        ValueError: If no H2 header found
-
-    Examples:
-        "## ANGELS OF DEATH - Operative Selection" -> "angels_of_death"
-        "## Pathfinders - Faction Rules" -> "pathfinders"
-    """
-    # Find first H2 header (## TEAM NAME - ...)
-    lines = markdown.split('\n')
-    for line in lines:
-        line = line.strip()
-        if line.startswith('## ') and not line.startswith('###'):
-            # Extract full header (remove '## ' prefix)
-            header = line[3:].strip()
-
-            # Extract team name (text before first ' - ')
-            if ' - ' in header:
-                team_name = header.split(' - ')[0].strip()
-            else:
-                # Fallback: use entire header
-                team_name = header
-
-            # Convert to lowercase and replace spaces with underscores
-            team_name_clean = team_name.lower().replace(' ', '_')
-            return team_name_clean
-
-    raise ValueError("Could not find team name in extracted markdown (no H2 header found)")
-
-
-def prepend_yaml_frontmatter(
-    markdown: str,
-    team_name: str,
-    last_update_date: date,
-) -> str:
-    """Prepend YAML frontmatter to extracted markdown.
-
-    Args:
-        markdown: Extracted markdown content
-        team_name: Team name (lowercase)
-        last_update_date: Last update date
-
-    Returns:
-        Markdown with YAML frontmatter prepended
-    """
-    frontmatter = f"""---
-source: "WC downloads"
-last_update_date: {last_update_date.strftime('%Y-%m-%d')}
-document_type: team-rules
-section: {team_name}
----
-
-"""
-    return frontmatter + markdown
-
-
-def validate_final_markdown(markdown: str, team_name: str) -> list[str]:
-    """Validate final markdown with frontmatter.
-
-    Args:
-        markdown: Complete markdown with frontmatter
-        team_name: Expected team name
-
-    Returns:
-        List of validation warnings (empty if all checks pass)
-    """
-    warnings = []
-
-    # Check for YAML frontmatter
-    if not markdown.startswith("---"):
-        warnings.append("Missing YAML frontmatter")
-
-    # Check for required YAML fields
-    required_fields = ["source:", "last_update_date:", "document_type:", "section:"]
-    for field in required_fields:
-        if field not in markdown[:500]:
-            warnings.append(f"Missing required field: {field.rstrip(':')}")
-
-    # Check for team name in content (H2 headers with team name)
-    team_name_display = team_name.replace('_', ' ').upper()
-    if f"## {team_name_display}" not in markdown.upper():
-        warnings.append(f"Team name heading not found in markdown")
-
-    # Check for key sections
-    if "## " not in markdown:
-        warnings.append("No H2 headers found (may indicate incomplete extraction)")
-
-    return warnings
-
-
-def calculate_cost(prompt_tokens: int, completion_tokens: int, model: str) -> float:
-    """Calculate estimated cost for LLM usage.
-
-    Args:
-        prompt_tokens: Input tokens (PDF + prompt)
-        completion_tokens: Output tokens (markdown)
-        model: Model identifier
-
-    Returns:
-        Estimated cost in USD
-    """
-    return estimate_cost(prompt_tokens, completion_tokens, model)
+# Keep these utility functions for backward compatibility
+# (used by download_all_teams.py which imports them directly)
 
 
 def download_team_internal(
@@ -268,225 +100,31 @@ def download_team_internal(
             "validation_warnings": list[str]
         }
     """
-    config = get_config()
+    # Use extraction pipeline
+    pipeline = ExtractionPipeline(model=model)
 
-    # Step 1: Download PDF
-    if verbose:
-        print(f"Downloading PDF from URL...")
-    try:
-        pdf_bytes, file_size = download_pdf(url)
-        size_mb = file_size / (1024 * 1024)
-        if verbose:
-            print(f"✓ Downloaded {size_mb:.1f} MB")
-    except Exception as e:
-        logger.error(f"Failed to download PDF: {e}", exc_info=True)
-        return {
-            "success": False,
-            "team_name": None,
-            "output_file": None,
-            "tokens": 0,
-            "latency_ms": 0,
-            "cost_usd": 0.0,
-            "error": f"Download failed: {e}",
-            "validation_warnings": [],
-        }
+    # Determine update date if needed (extract from URL)
+    if update_date is None and team_name is None:
+        # Only extract date from URL if not provided
+        update_date = extract_date_from_url(url)
 
-    # Step 2: Load extraction prompt
-    try:
-        prompt_file = Path(__file__).parent.parent.parent / "prompts" / "team-extraction-prompt.md"
-        if not prompt_file.exists():
-            raise FileNotFoundError(f"Extraction prompt not found: {prompt_file}")
-
-        extraction_prompt = prompt_file.read_text(encoding='utf-8')
-        logger.info(f"Loaded extraction prompt from {prompt_file}")
-    except Exception as e:
-        logger.error(f"Failed to load extraction prompt: {e}", exc_info=True)
-        return {
-            "success": False,
-            "team_name": None,
-            "output_file": None,
-            "tokens": 0,
-            "latency_ms": 0,
-            "cost_usd": 0.0,
-            "error": f"Failed to load extraction prompt: {e}",
-            "validation_warnings": [],
-        }
-
-    # Step 3: Extract using LLM provider
-    if verbose:
-        print(f"\nExtracting team rules using {model}...")
-    try:
-        # Create LLM provider using factory
-        llm_provider = LLMProviderFactory.create(provider_name=model)
-
-        if llm_provider is None:
-            error_msg = f"API key not configured for {model}. Please check your .env file."
-            logger.error(error_msg)
-            return {
-                "success": False,
-                "team_name": None,
-                "output_file": None,
-                "tokens": 0,
-                "latency_ms": 0,
-                "cost_usd": 0.0,
-                "error": error_msg,
-                "validation_warnings": [],
-            }
-
-        # Create temporary file for PDF
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.pdf', delete=False) as temp_pdf:
-            temp_pdf.write(pdf_bytes)
-            temp_pdf_path = temp_pdf.name
-
-        # Create extraction request
-        with open(temp_pdf_path, 'rb') as pdf_file:
-            extraction_config = ExtractionConfig()
-            request = ExtractionRequest(
-                pdf_file=pdf_file,
-                extraction_prompt=extraction_prompt,
-                config=extraction_config,
-            )
-
-            # Extract (synchronous wrapper for async method)
-            import asyncio
-            response = asyncio.run(llm_provider.extract_pdf(request))
-
-        # Clean up temp file
-        Path(temp_pdf_path).unlink(missing_ok=True)
-
-        if verbose:
-            print(f"✓ Extraction complete")
-
-        # Note: We skip validation warnings from the LLM adapter here because
-        # they check for YAML frontmatter, which we add in the next step
-
-    except Exception as e:
-        logger.error(f"Failed to extract PDF: {e}", exc_info=True)
-        return {
-            "success": False,
-            "team_name": None,
-            "output_file": None,
-            "tokens": 0,
-            "latency_ms": 0,
-            "cost_usd": 0.0,
-            "error": f"Extraction failed: {e}",
-            "validation_warnings": [],
-        }
-
-    # Step 4: Determine team name
-    if team_name is None:
-        # Extract team name from markdown
-        try:
-            team_name = extract_team_name(response.markdown_content)
-            if verbose:
-                print(f"\nTeam name: {team_name.upper()}")
-        except Exception as e:
-            logger.error(f"Failed to extract team name: {e}", exc_info=True)
-            return {
-                "success": False,
-                "team_name": None,
-                "output_file": None,
-                "tokens": response.token_count,
-                "latency_ms": response.latency_ms,
-                "cost_usd": calculate_cost(response.prompt_tokens, response.completion_tokens, model),
-                "error": f"Failed to extract team name: {e}",
-                "validation_warnings": [],
-            }
-    else:
-        # Use provided team name
-        if verbose:
-            print(f"\nTeam name: {team_name.upper()} (provided)")
-
-    # Step 5: Add YAML frontmatter
-    try:
-        # Determine update date
-        if update_date is None:
-            # Extract date from URL or use current date
-            last_update_date = extract_date_from_url(url) or date.today()
-        else:
-            # Use provided date
-            last_update_date = update_date
-
-        markdown_with_frontmatter = prepend_yaml_frontmatter(
-            markdown=response.markdown_content,
-            team_name=team_name,
-            last_update_date=last_update_date,
-        )
-    except Exception as e:
-        logger.error(f"Failed to add frontmatter: {e}", exc_info=True)
-        return {
-            "success": False,
-            "team_name": team_name,
-            "output_file": None,
-            "tokens": response.token_count,
-            "latency_ms": response.latency_ms,
-            "cost_usd": calculate_cost(response.prompt_tokens, response.completion_tokens, model),
-            "error": f"Failed to add frontmatter: {e}",
-            "validation_warnings": [],
-        }
-
-    # Step 5b: Validate final markdown
-    validation_warnings = validate_final_markdown(markdown_with_frontmatter, team_name)
-    if validation_warnings and verbose:
-        print(f"\n⚠️  Validation warnings:")
-        for warning in validation_warnings:
-            print(f"   - {warning}")
-        logger.warning(f"Validation warnings: {validation_warnings}")
-
-    # Step 6: Save to file
-    try:
-        output_dir = Path("extracted-rules") / "team"
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        output_file = output_dir / f"{team_name}.md"
-        output_file.write_text(markdown_with_frontmatter, encoding='utf-8')
-
-        if verbose:
-            print(f"Saved to: {output_file}")
-        logger.info(f"Saved extracted rules to {output_file}")
-    except Exception as e:
-        logger.error(f"Failed to save file: {e}", exc_info=True)
-        return {
-            "success": False,
-            "team_name": team_name,
-            "output_file": None,
-            "tokens": response.token_count,
-            "latency_ms": response.latency_ms,
-            "cost_usd": calculate_cost(response.prompt_tokens, response.completion_tokens, model),
-            "error": f"Failed to save file: {e}",
-            "validation_warnings": validation_warnings,
-        }
-
-    # Step 7: Calculate metrics
-    cost = calculate_cost(response.prompt_tokens, response.completion_tokens, model)
-
-    if verbose:
-        latency_s = response.latency_ms / 1000
-        print(f"\nMetrics:")
-        print(f"  Tokens: {response.token_count:,}")
-        print(f"  Time: {latency_s:.1f}s")
-        print(f"  Estimated cost: ${cost:.2f}")
-
-    logger.info(
-        f"Extraction metrics",
-        extra={
-            "team_name": team_name,
-            "tokens": response.token_count,
-            "latency_ms": response.latency_ms,
-            "cost_usd": cost,
-        },
+    result = pipeline.extract_from_url(
+        url=url,
+        team_name=team_name,
+        update_date=update_date,
+        verbose=verbose,
     )
 
-    # Return success result
+    # Convert ExtractionResult to dict for backward compatibility
     return {
-        "success": True,
-        "team_name": team_name,
-        "output_file": str(output_file),
-        "tokens": response.token_count,
-        "latency_ms": response.latency_ms,
-        "cost_usd": cost,
-        "error": None,
-        "validation_warnings": validation_warnings,
+        "success": result.success,
+        "team_name": result.team_name,
+        "output_file": result.output_file,
+        "tokens": result.tokens,
+        "latency_ms": result.latency_ms,
+        "cost_usd": result.cost_usd,
+        "error": result.error,
+        "validation_warnings": result.validation_warnings,
     }
 
 

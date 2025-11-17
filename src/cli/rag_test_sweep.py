@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 from typing import List, Dict, Any
 
+from src.cli.testing.parameter_parser import ParameterParser
 from tests.rag.sweep_runner import RAGSweepRunner, ParameterConfig
 from tests.rag.reporting.comparison_generator import ComparisonGenerator
 from src.lib.constants import RAG_MAX_CHUNKS, RAG_MIN_RELEVANCE
@@ -63,10 +64,10 @@ def rag_test_sweep(
         print("Error: Cannot use both --grid and --param modes")
         sys.exit(1)
 
-    # Parse parameter values
+    # Parse parameter values using ParameterParser
     try:
         if grid:
-            param_grid = _parse_grid_params(
+            param_grid = ParameterParser.parse_grid_params(
                 max_chunks=max_chunks,
                 min_relevance=min_relevance,
                 rrf_k=rrf_k,
@@ -86,7 +87,7 @@ def rag_test_sweep(
                 total_configs *= len(param_values)
 
         else:
-            param_values = _parse_parameter_values(param, values)
+            param_values = ParameterParser.parse_parameter_values(param, values)
 
     except ValueError as e:
         print(f"Error parsing parameter values: {e}")
@@ -224,87 +225,5 @@ def rag_test_sweep(
         sys.exit(1)
 
 
-def _parse_parameter_values(param_name: str, values_str: str) -> List:
-    """Parse comma-separated parameter values.
-
-    Args:
-        param_name: Name of parameter
-        values_str: Comma-separated values string
-
-    Returns:
-        List of parsed values (int, float, or str depending on parameter)
-
-    Raises:
-        ValueError: If values cannot be parsed
-    """
-    values_list = [v.strip() for v in values_str.split(',')]
-
-    # Determine type based on parameter name
-    if param_name in ['max_chunks', 'rrf_k', 'chunk_header_level']:
-        # Integer parameters
-        return [int(v) for v in values_list]
-    elif param_name in ['min_relevance', 'bm25_k1', 'bm25_b', 'bm25_weight']:
-        # Float parameters
-        return [float(v) for v in values_list]
-    elif param_name in ['embedding_model']:
-        # String parameters
-        return values_list
-    else:
-        raise ValueError(f"Unknown parameter: {param_name}")
-
-
-def _parse_grid_params(
-    max_chunks: str | None,
-    min_relevance: str | None,
-    rrf_k: str | None,
-    bm25_k1: str | None,
-    bm25_b: str | None,
-    bm25_weight: str | None,
-    embedding_model: str | None,
-    chunk_header_level: str | None,
-) -> Dict[str, List]:
-    """Parse grid search parameters.
-
-    Args:
-        max_chunks: Comma-separated max_chunks values
-        min_relevance: Comma-separated min_relevance values
-        rrf_k: Comma-separated rrf_k values
-        bm25_k1: Comma-separated bm25_k1 values
-        bm25_b: Comma-separated bm25_b values
-        bm25_weight: Comma-separated bm25_weight values
-        embedding_model: Comma-separated embedding_model values
-        chunk_header_level: Comma-separated chunk_header_level values
-
-    Returns:
-        Dictionary mapping parameter names to value lists
-
-    Raises:
-        ValueError: If values cannot be parsed
-    """
-    param_grid = {}
-
-    if max_chunks:
-        param_grid['max_chunks'] = [int(v.strip()) for v in max_chunks.split(',')]
-
-    if min_relevance:
-        param_grid['min_relevance'] = [float(v.strip()) for v in min_relevance.split(',')]
-
-    if rrf_k:
-        param_grid['rrf_k'] = [int(v.strip()) for v in rrf_k.split(',')]
-
-    if bm25_k1:
-        param_grid['bm25_k1'] = [float(v.strip()) for v in bm25_k1.split(',')]
-
-    if bm25_b:
-        param_grid['bm25_b'] = [float(v.strip()) for v in bm25_b.split(',')]
-
-    if bm25_weight:
-        param_grid['bm25_weight'] = [float(v.strip()) for v in bm25_weight.split(',')]
-
-    if embedding_model:
-        param_grid['embedding_model'] = [v.strip() for v in embedding_model.split(',')]
-
-    if chunk_header_level:
-        param_grid['chunk_header_level'] = [int(v.strip()) for v in chunk_header_level.split(',')]
-
-    return param_grid
+# Parameter parsing functions have been moved to src.cli.testing.parameter_parser
+# Kept here as imports for backward compatibility if needed elsewhere
