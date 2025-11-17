@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from uuid import uuid4
 import asyncio
 
+from src.cli.testing.cost_calculator import CostCalculator
+from src.cli.testing.statistics_formatter import StatisticsFormatter
 from src.lib.config import get_config
 from src.lib.constants import (
     LLM_GENERATION_TIMEOUT,
@@ -20,8 +22,6 @@ from src.lib.constants import (
     EMBEDDING_MODEL,
 )
 from src.lib.logging import get_logger
-from src.lib.tokens import estimate_cost, estimate_embedding_cost
-from src.lib.statistics import format_statistics_summary
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.validator import ResponseValidator
 from src.services.rag.retriever import RAGRetriever, RetrieveRequest
@@ -124,25 +124,12 @@ def test_query(
         ) if hop_evaluations else 0.0
         initial_retrieval_time = rag_time - hop_total_time
 
-        # Calculate costs following the same pattern as Discord bot
-        # 1. Initial retrieval embedding
-        initial_embedding_cost = estimate_embedding_cost(query, EMBEDDING_MODEL)
-
-        # 2. Hop query embeddings (if multi-hop was used)
-        hop_embedding_cost = 0.0
-        if hop_evaluations:
-            for hop_eval in hop_evaluations:
-                if hop_eval.missing_query:
-                    hop_embedding_cost += estimate_embedding_cost(
-                        hop_eval.missing_query,
-                        EMBEDDING_MODEL
-                    )
-
-        # 3. Hop evaluation LLM costs (already tracked in hop_eval.cost_usd)
-        hop_evaluation_cost = sum(hop_eval.cost_usd for hop_eval in hop_evaluations) if hop_evaluations else 0.0
-
-        # Total RAG cost (embedding + hop evaluations)
-        total_rag_cost = initial_embedding_cost + hop_embedding_cost + hop_evaluation_cost
+        # Calculate RAG costs using cost calculator
+        rag_costs = CostCalculator.calculate_rag_costs(
+            query=query,
+            hop_evaluations=hop_evaluations,
+            embedding_model=EMBEDDING_MODEL,
+        )
 
         print(f"Retrieved {rag_context.total_chunks} chunks in {rag_time:.2f}s")
         print(f"Average relevance: {rag_context.avg_relevance:.2f}")
@@ -199,15 +186,15 @@ def test_query(
 
     # If rag_only mode, stop here with cost breakdown
     if rag_only:
-        summary = format_statistics_summary(
+        summary = StatisticsFormatter.format_query_summary(
             total_time=rag_time,
             initial_retrieval_time=initial_retrieval_time,
             hop_evaluations=hop_evaluations,
             llm_time=None,  # No LLM in RAG-only mode
             query=query,
-            initial_embedding_cost=initial_embedding_cost,
-            hop_embedding_cost=hop_embedding_cost,
-            hop_evaluation_cost=hop_evaluation_cost,
+            initial_embedding_cost=rag_costs["initial_embedding_cost"],
+            hop_embedding_cost=rag_costs["hop_embedding_cost"],
+            hop_evaluation_cost=rag_costs["hop_evaluation_cost"],
         )
         print(f"\n{summary}")
         return
@@ -237,8 +224,8 @@ def test_query(
 
         llm_time = (datetime.now(timezone.utc) - llm_start).total_seconds()
 
-        # Calculate LLM cost using actual token counts
-        llm_cost = estimate_cost(
+        # Calculate LLM cost using cost calculator
+        llm_cost = CostCalculator.calculate_llm_cost(
             llm_response.prompt_tokens,
             llm_response.completion_tokens,
             llm_response.model_version
@@ -285,15 +272,15 @@ def test_query(
     # Summary
     total_time = (datetime.now(timezone.utc) - start_time).total_seconds()
 
-    summary = format_statistics_summary(
+    summary = StatisticsFormatter.format_query_summary(
         total_time=total_time,
         initial_retrieval_time=initial_retrieval_time,
         hop_evaluations=hop_evaluations,
         llm_time=llm_time,
         query=query,
-        initial_embedding_cost=initial_embedding_cost,
-        hop_embedding_cost=hop_embedding_cost,
-        hop_evaluation_cost=hop_evaluation_cost,
+        initial_embedding_cost=rag_costs["initial_embedding_cost"],
+        hop_embedding_cost=rag_costs["hop_embedding_cost"],
+        hop_evaluation_cost=rag_costs["hop_evaluation_cost"],
         llm_cost=llm_cost,
         llm_prompt_tokens=llm_response.prompt_tokens,
         llm_completion_tokens=llm_response.completion_tokens,
