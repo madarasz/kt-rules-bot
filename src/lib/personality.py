@@ -14,6 +14,7 @@ from pathlib import Path
 
 import yaml
 
+from src.lib.config import get_config
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -120,9 +121,6 @@ def get_personality() -> PersonalityConfig:
 
     if _PERSONALITY_CACHE is not None:
         return _PERSONALITY_CACHE
-
-    # Import here to avoid circular dependency
-    from src.lib.config import get_config
 
     config = get_config()
     _PERSONALITY_CACHE = load_personality(config.personality)

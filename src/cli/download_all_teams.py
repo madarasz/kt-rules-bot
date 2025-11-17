@@ -6,6 +6,7 @@ Usage:
     python -m src.cli download-all-teams --force
 """
 
+import argparse
 import json
 import re
 import sys
@@ -422,8 +423,6 @@ def download_all_teams(dry_run: bool = False, force: bool = False) -> None:
 
 def main() -> None:
     """Main entry point for download_all_teams CLI."""
-    import argparse
-
     parser = argparse.ArgumentParser(
         description="Download all Kill Team rule PDFs from Warhammer Community"
     )

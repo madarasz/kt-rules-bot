@@ -5,17 +5,11 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
 import asyncio
+import json
 import time
 from uuid import uuid4
 
-try:
-    from google import genai
-    from google import genai as genai_types
-except ImportError:
-    genai = None
-    genai_types = None
-
-import json
+from google import genai
 
 from src.lib.logging import get_logger
 from src.services.llm.base import (

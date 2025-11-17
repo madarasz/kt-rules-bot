@@ -1,7 +1,7 @@
 """Main bot orchestrator - coordinates all services (Orchestrator Pattern)."""
 
 import json
-from datetime import UTC, date
+from datetime import UTC, date, datetime
 
 import discord
 
@@ -14,6 +14,7 @@ from src.lib.constants import (
 from src.lib.database import AnalyticsDatabase
 from src.lib.discord_utils import get_random_acknowledgement
 from src.lib.logging import get_logger
+from src.lib.server_config import get_multi_server_config
 from src.lib.tokens import estimate_cost, estimate_embedding_cost
 from src.models.bot_response import BotResponse, Citation
 from src.models.structured_response import StructuredLLMResponse
@@ -108,7 +109,6 @@ class KillTeamBotOrchestrator:
             # Check if LLM provider creation failed due to missing API key
             if llm is None:
                 # Get the server config to determine which key is missing
-                from src.lib.server_config import get_multi_server_config
                 multi_server_config = get_multi_server_config()
                 server_config = multi_server_config.get_server_config(guild_id) if guild_id else None
 
@@ -356,8 +356,6 @@ class KillTeamBotOrchestrator:
             # Step 11: Store in analytics DB (if enabled)
             if self.analytics_db.enabled:
                 try:
-                    from datetime import datetime
-
                     logger.info(
                         "Storing query in analytics DB",
                         extra={"correlation_id": correlation_id, "chunks_count": len(rag_context.document_chunks)}
