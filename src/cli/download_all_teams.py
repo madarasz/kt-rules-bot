@@ -68,6 +68,12 @@ def fetch_team_list() -> list[dict]:
 
     logger.info(f"Fetching team list from {WH_API_URL}")
 
+    # Validate URL scheme (security: prevent file:// access)
+    from urllib.parse import urlparse
+    parsed = urlparse(WH_API_URL)
+    if parsed.scheme not in ('http', 'https'):
+        raise ValueError(f"Invalid URL scheme: {parsed.scheme}. Only http/https allowed.")
+
     request = Request(
         WH_API_URL,
         data=json.dumps(payload).encode('utf-8'),
@@ -76,7 +82,7 @@ def fetch_team_list() -> list[dict]:
     )
 
     try:
-        with urlopen(request, timeout=30) as response:
+        with urlopen(request, timeout=30) as response:  # nosec B310 (scheme validated above)
             if response.status != 200:
                 raise HTTPError(
                     WH_API_URL,
