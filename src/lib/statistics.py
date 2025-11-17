@@ -3,16 +3,16 @@
 Provides consistent time/cost breakdown formatting across test_query, rag_test, etc.
 """
 
-from typing import List, Optional
-from src.lib.constants import RAG_HOP_EVALUATION_MODEL, EMBEDDING_MODEL
+
+from src.lib.constants import EMBEDDING_MODEL, RAG_HOP_EVALUATION_MODEL
 from src.lib.tokens import estimate_embedding_cost
 
 
 def format_statistics_summary(
     total_time: float,
     initial_retrieval_time: float,
-    hop_evaluations: Optional[List] = None,
-    llm_time: Optional[float] = None,
+    hop_evaluations: list | None = None,
+    llm_time: float | None = None,
     query: str = "",
     initial_embedding_cost: float = 0.0,
     hop_embedding_cost: float = 0.0,

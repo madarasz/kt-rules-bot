@@ -4,32 +4,32 @@ Implements iterative retrieval where an LLM evaluates retrieved context
 and requests additional information if needed.
 """
 
-from typing import List, Dict, Any, Optional
-from uuid import UUID
-import json
 import asyncio
-import yaml
+import json
 import time
+from typing import Any
+from uuid import UUID
 
-from src.models.rag_context import RAGContext, DocumentChunk
-from src.services.llm.factory import LLMProviderFactory
-from src.services.llm.base import GenerationRequest, GenerationConfig
-from src.services.rag.team_filter import TeamFilter
+import yaml
+
 from src.lib.constants import (
-    RAG_MAX_HOPS,
+    LLM_MAX_RETRIES,
+    MAX_CHUNK_LENGTH_FOR_EVALUATION,
     RAG_HOP_CHUNK_LIMIT,
     RAG_HOP_EVALUATION_MODEL,
-    RAG_HOP_EVALUATION_TIMEOUT,
     RAG_HOP_EVALUATION_PROMPT_PATH,
+    RAG_HOP_EVALUATION_TIMEOUT,
     RAG_HOP_RATE_LIMIT_DELAY,
-    MAX_CHUNK_LENGTH_FOR_EVALUATION,
+    RAG_MAX_HOPS,
     RULES_STRUCTURE_PATH,
     TEAMS_STRUCTURE_PATH,
-    LLM_MAX_RETRIES,
 )
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost
-from src.services.llm.base import RateLimitError
+from src.models.rag_context import DocumentChunk, RAGContext
+from src.services.llm.base import GenerationConfig, GenerationRequest, RateLimitError
+from src.services.llm.factory import LLMProviderFactory
+from src.services.rag.team_filter import TeamFilter
 
 logger = get_logger(__name__)
 
@@ -41,7 +41,7 @@ class HopEvaluation:
         self,
         can_answer: bool,
         reasoning: str,
-        missing_query: Optional[str] = None,
+        missing_query: str | None = None,
         cost_usd: float = 0.0,
         retrieval_time_s: float = 0.0,
         evaluation_time_s: float = 0.0,
@@ -53,7 +53,7 @@ class HopEvaluation:
         self.retrieval_time_s = retrieval_time_s  # Time for retrieval
         self.evaluation_time_s = evaluation_time_s  # Time for LLM evaluation
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for database storage."""
         return {
             "can_answer": self.can_answer,
@@ -110,10 +110,10 @@ class MultiHopRetriever:
 
     def _load_prompt_template(self) -> str:
         """Load hop evaluation prompt from file and cache in memory."""
-        with open(RAG_HOP_EVALUATION_PROMPT_PATH, "r") as f:
+        with open(RAG_HOP_EVALUATION_PROMPT_PATH) as f:
             return f.read()
 
-    def _load_structure_dict(self, file_path: str) -> Dict[str, Any]:
+    def _load_structure_dict(self, file_path: str) -> dict[str, Any]:
         """Load YAML structure file as dictionary.
 
         Args:
@@ -123,7 +123,7 @@ class MultiHopRetriever:
             Structure as dictionary (empty dict if load fails)
         """
         try:
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 return yaml.safe_load(f) or {}
         except Exception as e:
             logger.error(
@@ -138,7 +138,7 @@ class MultiHopRetriever:
         query: str,
         context_key: str,
         query_id: UUID,
-    ) -> tuple[RAGContext, List[HopEvaluation], Dict[UUID, int]]:
+    ) -> tuple[RAGContext, list[HopEvaluation], dict[UUID, int]]:
         """Perform multi-hop retrieval with LLM-guided context evaluation.
 
         Args:
@@ -155,9 +155,9 @@ class MultiHopRetriever:
         # Import here to avoid circular dependency
         from src.services.rag.retriever import RetrieveRequest
 
-        accumulated_chunks: List[DocumentChunk] = []
-        hop_evaluations: List[HopEvaluation] = []
-        chunk_hop_map: Dict[UUID, int] = {}
+        accumulated_chunks: list[DocumentChunk] = []
+        hop_evaluations: list[HopEvaluation] = []
+        chunk_hop_map: dict[UUID, int] = {}
 
         # Hop 0: Initial retrieval with original query
         logger.info("multi_hop_started", query=query, max_hops=self.max_hops)
@@ -291,7 +291,7 @@ class MultiHopRetriever:
     async def _evaluate_context(
         self,
         user_query: str,
-        retrieved_chunks: List[DocumentChunk],
+        retrieved_chunks: list[DocumentChunk],
     ) -> HopEvaluation:
         """Evaluate if retrieved context is sufficient to answer query.
 
@@ -444,7 +444,7 @@ class MultiHopRetriever:
                 )
                 raise ValueError(f"Invalid JSON from evaluation LLM: {e}")
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.error("hop_evaluation_timeout", timeout=self.evaluation_timeout)
                 raise TimeoutError(
                     f"Hop evaluation exceeded {self.evaluation_timeout}s timeout"
@@ -455,7 +455,7 @@ class MultiHopRetriever:
             raise last_error
         raise RuntimeError("Unexpected error in hop evaluation retry loop")
 
-    def _format_chunks_for_prompt(self, chunks: List[DocumentChunk]) -> str:
+    def _format_chunks_for_prompt(self, chunks: list[DocumentChunk]) -> str:
         """Format chunks as numbered list for prompt.
 
         Args:
