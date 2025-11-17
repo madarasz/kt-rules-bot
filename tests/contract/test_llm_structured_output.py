@@ -89,7 +89,9 @@ async def test_provider_structured_output_compliance(provider):
 
         # Optional chunk_id field (for quote validation)
         if "chunk_id" in quote:
-            assert isinstance(quote["chunk_id"], str), f"{provider} quote[{i}] chunk_id must be string"
+            assert isinstance(quote["chunk_id"], str), (
+                f"{provider} quote[{i}] chunk_id must be string"
+            )
             # chunk_id should be last 8 chars of UUID (e.g., 'a1b2c3d4')
             if quote["chunk_id"]:  # If not empty
                 assert len(quote["chunk_id"]) <= 36, (
