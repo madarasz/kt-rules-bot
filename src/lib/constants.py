@@ -217,8 +217,15 @@ RAG_HOP_EVALUATION_MODEL = "gpt-4.1-mini"
 # Hop evaluation timeout in seconds
 RAG_HOP_EVALUATION_TIMEOUT = 20
 
+# Hop evaluation retry delay on rate limit (seconds)
+RAG_HOP_RATE_LIMIT_DELAY = 5.0
+
 # Hop evaluation prompt file path
 RAG_HOP_EVALUATION_PROMPT_PATH = "prompts/hop-evaluation-prompt.md"
+
+# Rules structure file paths (for hop evaluation context)
+RULES_STRUCTURE_PATH = "extracted-rules/rules-structure.yml"
+TEAMS_STRUCTURE_PATH = "extracted-rules/teams-structure.yml"
 
 # Max length of chunk text for hop evaluation formatting
 MAX_CHUNK_LENGTH_FOR_EVALUATION = 300

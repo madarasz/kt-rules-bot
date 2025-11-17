@@ -164,33 +164,54 @@ class RAGTestRunner:
             use_multi_hop=(RAG_MAX_HOPS > 0),  # Explicitly set based on current constant value
         )
 
-        # Calculate embedding cost
-        embedding_cost = estimate_embedding_cost(test_case.query, model=EMBEDDING_MODEL)
-
         # Retrieve chunks (returns tuple: context, hop_evaluations, chunk_hop_map)
         start_time = time.time()
         rag_context, hop_evaluations, chunk_hop_map = self.retriever.retrieve(request, query_id)
         retrieval_time = time.time() - start_time
+
+        # Calculate costs following Discord bot pattern
+        # 1. Initial embedding cost
+        initial_embedding_cost = estimate_embedding_cost(test_case.query, model=EMBEDDING_MODEL)
+
+        # 2. Hop embedding costs
+        hop_embedding_cost = 0.0
+        if hop_evaluations:
+            for hop_eval in hop_evaluations:
+                if hop_eval.missing_query:
+                    hop_embedding_cost += estimate_embedding_cost(
+                        hop_eval.missing_query,
+                        EMBEDDING_MODEL
+                    )
+
+        # 3. Hop evaluation LLM costs
+        hop_evaluation_cost = sum(hop_eval.cost_usd for hop_eval in hop_evaluations) if hop_evaluations else 0.0
+
+        # Total embedding cost (for backwards compatibility)
+        total_embedding_cost = initial_embedding_cost + hop_embedding_cost
+
+        # Total cost (RAG only - no main LLM generation)
+        total_cost = total_embedding_cost + hop_evaluation_cost
 
         # Evaluate with custom metrics
         result = self.evaluator.evaluate(
             test_case=test_case,
             retrieved_chunks=rag_context.document_chunks,
             retrieval_time_seconds=retrieval_time,
-            embedding_cost_usd=embedding_cost,
+            embedding_cost_usd=total_cost,  # Now includes hop costs
             run_number=run_number,
         )
 
         # Add multi-hop data to result
         result.hops_used = 0
         if hop_evaluations:
-            # Convert HopEvaluation objects to dicts
+            # Convert HopEvaluation objects to dicts (include cost_usd for summary calculation)
             result.hop_evaluations = [
                 {
                     'hop_number': i + 1,
                     'can_answer': eval.can_answer,
                     'reasoning': eval.reasoning,
-                    'missing_query': eval.missing_query
+                    'missing_query': eval.missing_query,
+                    'cost_usd': eval.cost_usd,
                 }
                 for i, eval in enumerate(hop_evaluations)
             ]
@@ -218,7 +239,7 @@ class RAGTestRunner:
             "test_id": test_case.test_id,
             "run": run_number,
             "duration": f"{retrieval_time:.2f}s",
-            "cost": f"${embedding_cost:.6f}",
+            "cost": f"${total_cost:.6f}",
         }
 
         # Add Ragas metrics to log
@@ -413,15 +434,22 @@ class RAGTestRunner:
 
         # Calculate performance metrics
         avg_retrieval_time = sum(r.retrieval_time_seconds for r in results) / len(results)
-        total_cost = sum(r.embedding_cost_usd for r in results)
+
+        # Calculate actual hop evaluation cost from stored hop evaluation data
+        hop_evaluation_cost = 0.0
+        for result in results:
+            if result.hop_evaluations:
+                for hop_eval in result.hop_evaluations:
+                    hop_evaluation_cost += hop_eval.get('cost_usd', 0.0)
+
+        # Note: r.embedding_cost_usd now contains TOTAL cost (embeddings + hop evaluations)
+        # from line 200 where we stored total_cost in embedding_cost_usd for backwards compatibility
+        # So to get just embeddings, we sum embedding_cost_usd and subtract hop_evaluation_cost
+        total_cost_all = sum(r.embedding_cost_usd for r in results)
+        total_embedding_cost_only = total_cost_all - hop_evaluation_cost
 
         # Calculate multi-hop statistics
         avg_hops_used = sum(r.hops_used for r in results) / len(results) if results else 0.0
-
-        # Estimate hop evaluation cost (simplified: $0.0001 per hop evaluation for gpt-4.1-mini)
-        # This is an approximation based on typical input/output tokens for hop evaluation
-        total_hop_evaluations = sum(r.hops_used for r in results)
-        hop_evaluation_cost = total_hop_evaluations * 0.0001  # Approximate cost per evaluation
 
         # Calculate hop-specific ground truth statistics
         # Track how many ground truth chunks were found in each hop across all tests
@@ -548,7 +576,7 @@ class RAGTestRunner:
             std_dev_ragas_context_recall=std_ragas_context_recall,
             total_time_seconds=total_time_seconds,
             avg_retrieval_time_seconds=avg_retrieval_time,
-            total_cost_usd=total_cost,
+            total_cost_usd=total_embedding_cost_only,  # Just embeddings (hop costs tracked separately)
             rag_max_chunks=max_chunks,
             rag_min_relevance=min_relevance,
             embedding_model=EMBEDDING_MODEL,
