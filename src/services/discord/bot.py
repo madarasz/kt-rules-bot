@@ -336,17 +336,19 @@ class KillTeamBotOrchestrator:
             # Step 7: Format response
             embeds = formatter.format_response(bot_response, validation_result, smalltalk=smalltalk)
 
-            # Step 8: Send to Discord
-            sent_message = await message.channel.send(embeds=embeds)
-
-            # Step 9: Register response for feedback tracking
+            # Step 8: Create feedback button view
+            feedback_view = None
             if self.feedback_logger:
-                self.feedback_logger.register_response(
-                    str(user_query.query_id), str(bot_response.response_id)
+                feedback_view = formatter.create_feedback_view(
+                    feedback_logger=self.feedback_logger,
+                    query_id=str(user_query.query_id),
+                    response_id=str(bot_response.response_id),
                 )
 
-            # Step 9b: Add feedback reaction buttons (👍👎)
-            await formatter.add_feedback_reactions(sent_message)
+            # Step 9: Send to Discord with feedback buttons
+            await message.channel.send(embeds=embeds, view=feedback_view)
+
+            # Note: No need to register_response() anymore - view handles tracking directly
 
             # Step 10: Calculate total cost
             # Cost breakdown:

@@ -165,6 +165,54 @@ class FeedbackLogger:
             extra={"query_id": query_id, "response_id": response_id},
         )
 
+    async def record_button_feedback(
+        self, query_id: str, response_id: str, user_id: str, feedback_type: str
+    ) -> None:
+        """Record feedback from Discord UI button interaction.
+
+        Args:
+            query_id: Query UUID (from UserQuery)
+            response_id: Response UUID (from BotResponse)
+            user_id: Discord user ID (raw, will be hashed)
+            feedback_type: 'helpful' or 'not_helpful'
+        """
+        feedback_id = uuid4()
+        hashed_user_id = UserQuery.hash_user_id(user_id)
+
+        # Update database vote count (if enabled)
+        if self.analytics_db.enabled:
+            try:
+                vote_type = "upvote" if feedback_type == "helpful" else "downvote"
+                self.analytics_db.increment_vote(query_id, vote_type)
+                logger.debug(
+                    "Button vote incremented in analytics DB",
+                    extra={"query_id": query_id, "vote_type": vote_type},
+                )
+            except Exception as e:
+                logger.error(f"Failed to increment vote in DB: {e}", exc_info=True)
+
+        # Log to structured logs
+        logger.info(
+            "Button feedback received",
+            extra={
+                "event_type": "button_feedback",
+                "feedback_id": str(feedback_id),
+                "response_id": response_id,
+                "query_id": query_id,
+                "user_id": hashed_user_id[:16],  # Partial hash for privacy
+                "feedback_type": feedback_type,
+                "timestamp": datetime.now(UTC).isoformat(),
+            },
+        )
+
+        # Optional: Store in feedback_cache for deduplication
+        cache_key = f"{response_id}:{hashed_user_id}"
+        self.feedback_cache[cache_key] = {
+            "feedback_id": feedback_id,
+            "feedback_type": feedback_type,
+            "timestamp": datetime.now(UTC),
+        }
+
     def get_feedback_stats(self) -> dict[str, object]:
         """Get feedback statistics from cache.
 
