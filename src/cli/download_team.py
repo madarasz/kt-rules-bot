@@ -39,7 +39,7 @@ def extract_date_from_url(url: str) -> date | None:
         eng_jan24_ -> 2024-01-31 (last day of January 2024)
     """
     # Pattern: eng_<month><year>_
-    pattern = r'eng_([a-z]{3})(\d{2})_'
+    pattern = r"eng_([a-z]{3})(\d{2})_"
     match = re.search(pattern, url.lower())
 
     if not match:
@@ -50,9 +50,18 @@ def extract_date_from_url(url: str) -> date | None:
 
     # Map month abbreviations
     month_map = {
-        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4,
-        'may': 5, 'jun': 6, 'jul': 7, 'aug': 8,
-        'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+        "jan": 1,
+        "feb": 2,
+        "mar": 3,
+        "apr": 4,
+        "may": 5,
+        "jun": 6,
+        "jul": 7,
+        "aug": 8,
+        "sep": 9,
+        "oct": 10,
+        "nov": 11,
+        "dec": 12,
     }
 
     month = month_map.get(month_abbr)
@@ -90,29 +99,29 @@ def download_pdf(url: str) -> tuple[bytes, int]:
         URLError: Network error occurred
         ValueError: Invalid URL or not a PDF
     """
-    if not url.startswith('https://'):
+    if not url.startswith("https://"):
         raise ValueError("URL must be HTTPS")
 
-    if not url.lower().endswith('.pdf'):
+    if not url.lower().endswith(".pdf"):
         raise ValueError("URL must point to a PDF file")
 
     logger.info(f"Downloading PDF from {url}")
 
     # Validate URL scheme (security: prevent file:// access)
     parsed = urlparse(url)
-    if parsed.scheme not in ('http', 'https'):
+    if parsed.scheme not in ("http", "https"):
         raise ValueError(f"Invalid URL scheme: {parsed.scheme}. Only http/https allowed.")
 
     # Create request with user agent
-    headers = {
-        'User-Agent': 'Kill-Team-Rules-Bot/1.0 (PDF Extraction Tool)'
-    }
+    headers = {"User-Agent": "Kill-Team-Rules-Bot/1.0 (PDF Extraction Tool)"}
     request = Request(url, headers=headers)
 
     try:
         with urlopen(request, timeout=30) as response:  # nosec B310 (scheme validated above)
             if response.status != 200:
-                raise HTTPError(url, response.status, f"HTTP {response.status}", response.headers, None)
+                raise HTTPError(
+                    url, response.status, f"HTTP {response.status}", response.headers, None
+                )
 
             pdf_bytes = response.read()
 
@@ -120,7 +129,7 @@ def download_pdf(url: str) -> tuple[bytes, int]:
                 raise ValueError("Downloaded PDF is empty")
 
             # Basic PDF validation (check magic bytes)
-            if not pdf_bytes.startswith(b'%PDF'):
+            if not pdf_bytes.startswith(b"%PDF"):
                 raise ValueError("Downloaded file is not a valid PDF")
 
             logger.info(f"Downloaded {len(pdf_bytes)} bytes")
@@ -151,28 +160,24 @@ def extract_team_name(markdown: str) -> str:
         "## Pathfinders - Faction Rules" -> "pathfinders"
     """
     # Find first H2 header (## TEAM NAME - ...)
-    lines = markdown.split('\n')
+    lines = markdown.split("\n")
     for line in lines:
         line = line.strip()
-        if line.startswith('## ') and not line.startswith('###'):
+        if line.startswith("## ") and not line.startswith("###"):
             # Extract full header (remove '## ' prefix)
             header = line[3:].strip()
 
             # Extract team name (text before first ' - ')
-            team_name = header.split(' - ')[0].strip() if ' - ' in header else header
+            team_name = header.split(" - ")[0].strip() if " - " in header else header
 
             # Convert to lowercase and replace spaces with underscores
-            team_name_clean = team_name.lower().replace(' ', '_')
+            team_name_clean = team_name.lower().replace(" ", "_")
             return team_name_clean
 
     raise ValueError("Could not find team name in extracted markdown (no H2 header found)")
 
 
-def prepend_yaml_frontmatter(
-    markdown: str,
-    team_name: str,
-    last_update_date: date,
-) -> str:
+def prepend_yaml_frontmatter(markdown: str, team_name: str, last_update_date: date) -> str:
     """Prepend YAML frontmatter to extracted markdown.
 
     Args:
@@ -185,7 +190,7 @@ def prepend_yaml_frontmatter(
     """
     frontmatter = f"""---
 source: "WC downloads"
-last_update_date: {last_update_date.strftime('%Y-%m-%d')}
+last_update_date: {last_update_date.strftime("%Y-%m-%d")}
 document_type: team-rules
 section: {team_name}
 ---
@@ -217,7 +222,7 @@ def validate_final_markdown(markdown: str, team_name: str) -> list[str]:
             warnings.append(f"Missing required field: {field.rstrip(':')}")
 
     # Check for team name in content (H2 headers with team name)
-    team_name_display = team_name.replace('_', ' ').upper()
+    team_name_display = team_name.replace("_", " ").upper()
     if f"## {team_name_display}" not in markdown.upper():
         warnings.append("Team name heading not found in markdown")
 
@@ -300,7 +305,7 @@ def download_team_internal(
         if not prompt_file.exists():
             raise FileNotFoundError(f"Extraction prompt not found: {prompt_file}")
 
-        extraction_prompt = prompt_file.read_text(encoding='utf-8')
+        extraction_prompt = prompt_file.read_text(encoding="utf-8")
         logger.info(f"Loaded extraction prompt from {prompt_file}")
     except Exception as e:
         logger.error(f"Failed to load extraction prompt: {e}", exc_info=True)
@@ -337,17 +342,15 @@ def download_team_internal(
             }
 
         # Create temporary file for PDF
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.pdf', delete=False) as temp_pdf:
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as temp_pdf:
             temp_pdf.write(pdf_bytes)
             temp_pdf_path = temp_pdf.name
 
         # Create extraction request
-        with open(temp_pdf_path, 'rb') as pdf_file:
+        with open(temp_pdf_path, "rb") as pdf_file:
             extraction_config = ExtractionConfig()
             request = ExtractionRequest(
-                pdf_file=pdf_file,
-                extraction_prompt=extraction_prompt,
-                config=extraction_config,
+                pdf_file=pdf_file, extraction_prompt=extraction_prompt, config=extraction_config
             )
 
             # Extract (synchronous wrapper for async method)
@@ -390,7 +393,9 @@ def download_team_internal(
                 "output_file": None,
                 "tokens": response.token_count,
                 "latency_ms": response.latency_ms,
-                "cost_usd": calculate_cost(response.prompt_tokens, response.completion_tokens, model),
+                "cost_usd": calculate_cost(
+                    response.prompt_tokens, response.completion_tokens, model
+                ),
                 "error": f"Failed to extract team name: {e}",
                 "validation_warnings": [],
             }
@@ -441,7 +446,7 @@ def download_team_internal(
         output_dir.mkdir(parents=True, exist_ok=True)
 
         output_file = output_dir / f"{team_name}.md"
-        output_file.write_text(markdown_with_frontmatter, encoding='utf-8')
+        output_file.write_text(markdown_with_frontmatter, encoding="utf-8")
 
         if verbose:
             print(f"Saved to: {output_file}")
@@ -510,17 +515,13 @@ def download_team(
     parsed_date = None
     if update_date:
         try:
-            parsed_date = datetime.strptime(update_date, '%Y-%m-%d').date()
+            parsed_date = datetime.strptime(update_date, "%Y-%m-%d").date()
         except ValueError:
             print(f"❌ Invalid date format: {update_date}. Expected YYYY-MM-DD")
             sys.exit(1)
 
     result = download_team_internal(
-        url,
-        model,
-        verbose=True,
-        team_name=team_name,
-        update_date=parsed_date,
+        url, model, verbose=True, team_name=team_name, update_date=parsed_date
     )
 
     if not result["success"]:
@@ -530,23 +531,15 @@ def download_team(
 
 def main() -> None:
     """Main entry point for download_team CLI."""
-    parser = argparse.ArgumentParser(
-        description="Download and extract Kill Team rule PDFs"
-    )
-    parser.add_argument(
-        "url",
-        help="PDF URL (must be HTTPS)",
-    )
+    parser = argparse.ArgumentParser(description="Download and extract Kill Team rule PDFs")
+    parser.add_argument("url", help="PDF URL (must be HTTPS)")
     parser.add_argument(
         "--model",
         default="gemini-2.5-pro",
         choices=PDF_EXTRACTION_PROVIDERS,
         help="LLM model to use for extraction (default: gemini-2.5-pro)",
     )
-    parser.add_argument(
-        "--team-name",
-        help="Team name override (default: extract from markdown)",
-    )
+    parser.add_argument("--team-name", help="Team name override (default: extract from markdown)")
     parser.add_argument(
         "--update-date",
         help="Update date override in YYYY-MM-DD format (default: extract from URL or use today)",
@@ -556,10 +549,7 @@ def main() -> None:
 
     try:
         download_team(
-            args.url,
-            model=args.model,
-            team_name=args.team_name,
-            update_date=args.update_date,
+            args.url, model=args.model, team_name=args.team_name, update_date=args.update_date
         )
     except Exception as e:
         logger.error(f"download-team failed: {e}", exc_info=True)

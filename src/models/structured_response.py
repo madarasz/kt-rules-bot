@@ -13,7 +13,7 @@ class StructuredQuote:
     """A single rule quotation."""
 
     quote_title: str  # "Core Rules: Actions"
-    quote_text: str   # Relevant excerpt
+    quote_text: str  # Relevant excerpt
 
     def to_markdown(self) -> str:
         """Convert to markdown blockquote format.
@@ -28,12 +28,12 @@ class StructuredQuote:
 class StructuredLLMResponse:
     """Structured LLM response with validated fields."""
 
-    smalltalk: bool             # True if casual conversation, False if rules question
-    short_answer: str           # Direct answer (e.g., "Yes.")
-    persona_short_answer: str   # Persona phrase
+    smalltalk: bool  # True if casual conversation, False if rules question
+    short_answer: str  # Direct answer (e.g., "Yes.")
+    persona_short_answer: str  # Persona phrase
     quotes: list[StructuredQuote]  # Rule quotations
-    explanation: str            # Rules-based explanation
-    persona_afterword: str      # Concluding persona sentence
+    explanation: str  # Rules-based explanation
+    persona_afterword: str  # Concluding persona sentence
 
     def to_markdown(self) -> str:
         """Convert to markdown format for backwards compatibility.
@@ -44,7 +44,7 @@ class StructuredLLMResponse:
         # Short answer section
         markdown_parts = [
             f"**{self.short_answer}** {self.persona_short_answer}",
-            ""  # Blank line
+            "",  # Blank line
         ]
 
         # Quotes section
@@ -53,12 +53,7 @@ class StructuredLLMResponse:
             markdown_parts.append("")  # Blank line between quotes
 
         # Explanation section
-        markdown_parts.extend([
-            "## Explanation",
-            self.explanation,
-            "",
-            self.persona_afterword
-        ])
+        markdown_parts.extend(["## Explanation", self.explanation, "", self.persona_afterword])
 
         return "\n".join(markdown_parts)
 
@@ -87,7 +82,7 @@ class StructuredLLMResponse:
             "persona_short_answer",
             "quotes",
             "explanation",
-            "persona_afterword"
+            "persona_afterword",
         ]
         missing_fields = [f for f in required_fields if f not in data]
         if missing_fields:
@@ -100,8 +95,7 @@ class StructuredLLMResponse:
                 raise ValueError(f"Invalid quote structure: {quote_data}")
             quotes.append(
                 StructuredQuote(
-                    quote_title=quote_data["quote_title"],
-                    quote_text=quote_data["quote_text"]
+                    quote_title=quote_data["quote_title"], quote_text=quote_data["quote_text"]
                 )
             )
 
@@ -111,7 +105,7 @@ class StructuredLLMResponse:
             persona_short_answer=data["persona_short_answer"],
             quotes=quotes,
             explanation=data["explanation"],
-            persona_afterword=data["persona_afterword"]
+            persona_afterword=data["persona_afterword"],
         )
 
     def validate(self) -> None:

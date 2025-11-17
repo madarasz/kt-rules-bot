@@ -22,14 +22,14 @@ logger = get_logger(__name__)
 # Suppress ResourceWarnings from async HTTP clients cleanup
 # This occurs when Ragas (and other async libraries) try to clean up connections
 # after the event loop has closed. It's harmless and doesn't affect results.
-warnings.filterwarnings('ignore', category=ResourceWarning, message='.*unclosed.*')
+warnings.filterwarnings("ignore", category=ResourceWarning, message=".*unclosed.*")
 
 # Filter asyncio "Event loop is closed" errors that occur during cleanup
 # These happen when Ragas' async HTTP clients try to close after the event loop is shut down
 # The errors occur AFTER we get our results, so they don't affect functionality
 import logging
 
-logging.getLogger('asyncio').setLevel(logging.CRITICAL)
+logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
 
 def _suppress_event_loop_closed_errors() -> None:
@@ -44,7 +44,7 @@ def _suppress_event_loop_closed_errors() -> None:
 
     def custom_excepthook(exc_type, exc_value, exc_traceback):
         # Suppress RuntimeError: Event loop is closed
-        if exc_type is RuntimeError and 'Event loop is closed' in str(exc_value):
+        if exc_type is RuntimeError and "Event loop is closed" in str(exc_value):
             return  # Silently ignore
         # Call original excepthook for all other exceptions
         original_excepthook(exc_type, exc_value, exc_traceback)

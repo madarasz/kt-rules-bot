@@ -79,17 +79,11 @@ class MetricsCollector:
             latency_ms: Latency in milliseconds
         """
         metric = LatencyMetric(
-            operation=operation,
-            latency_ms=latency_ms,
-            timestamp=datetime.now(UTC),
+            operation=operation, latency_ms=latency_ms, timestamp=datetime.now(UTC)
         )
         self.latency_metrics.append(metric)
 
-        logger.info(
-            "latency_recorded",
-            operation=operation,
-            latency_ms=latency_ms,
-        )
+        logger.info("latency_recorded", operation=operation, latency_ms=latency_ms)
 
     def record_token_usage(
         self,
@@ -128,11 +122,7 @@ class MetricsCollector:
         )
 
     def record_confidence(
-        self,
-        query_id: str,
-        llm_confidence: float,
-        rag_score: float,
-        validation_passed: bool,
+        self, query_id: str, llm_confidence: float, rag_score: float, validation_passed: bool
     ) -> None:
         """Record confidence metric.
 
@@ -159,9 +149,7 @@ class MetricsCollector:
             validation_passed=validation_passed,
         )
 
-    def get_latency_summary(
-        self, operation: str | None = None
-    ) -> MetricsSummary | None:
+    def get_latency_summary(self, operation: str | None = None) -> MetricsSummary | None:
         """Get latency summary statistics.
 
         Args:
@@ -224,9 +212,8 @@ class MetricsCollector:
 
         llm_scores = [m.llm_confidence for m in self.confidence_metrics]
         rag_scores = [m.rag_score for m in self.confidence_metrics]
-        validation_rate = (
-            sum(1 for m in self.confidence_metrics if m.validation_passed)
-            / len(self.confidence_metrics)
+        validation_rate = sum(1 for m in self.confidence_metrics if m.validation_passed) / len(
+            self.confidence_metrics
         )
 
         return {

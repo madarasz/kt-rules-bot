@@ -113,10 +113,7 @@ class AnalyticsDatabase:
             self._initialize_db()
             logger.info(
                 "Analytics database initialized",
-                extra={
-                    "db_path": db_path,
-                    "retention_days": retention_days,
-                }
+                extra={"db_path": db_path, "retention_days": retention_days},
             )
 
     def _initialize_db(self) -> None:
@@ -160,7 +157,8 @@ class AnalyticsDatabase:
             now = datetime.now(UTC).isoformat()
 
             with self._get_connection() as conn:
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT INTO queries (
                         query_id, discord_server_id, discord_server_name,
                         channel_id, channel_name, username,
@@ -170,36 +168,37 @@ class AnalyticsDatabase:
                         admin_status, admin_notes, multi_hop_enabled, hops_used,
                         cost, created_at, updated_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    query_data["query_id"],
-                    query_data["discord_server_id"],
-                    query_data.get("discord_server_name"),
-                    query_data["channel_id"],
-                    query_data.get("channel_name"),
-                    query_data["username"],
-                    query_data["query_text"],
-                    query_data["response_text"],
-                    query_data["llm_model"],
-                    query_data.get("confidence_score"),
-                    query_data.get("rag_score"),
-                    1 if query_data.get("validation_passed") else 0,
-                    query_data.get("latency_ms"),
-                    query_data["timestamp"],
-                    0,  # upvotes
-                    0,  # downvotes
-                    "pending",  # admin_status
-                    None,  # admin_notes
-                    query_data.get("multi_hop_enabled", 0),
-                    query_data.get("hops_used", 0),
-                    query_data.get("cost", 0.0),
-                    now,
-                    now,
-                ))
+                """,
+                    (
+                        query_data["query_id"],
+                        query_data["discord_server_id"],
+                        query_data.get("discord_server_name"),
+                        query_data["channel_id"],
+                        query_data.get("channel_name"),
+                        query_data["username"],
+                        query_data["query_text"],
+                        query_data["response_text"],
+                        query_data["llm_model"],
+                        query_data.get("confidence_score"),
+                        query_data.get("rag_score"),
+                        1 if query_data.get("validation_passed") else 0,
+                        query_data.get("latency_ms"),
+                        query_data["timestamp"],
+                        0,  # upvotes
+                        0,  # downvotes
+                        "pending",  # admin_status
+                        None,  # admin_notes
+                        query_data.get("multi_hop_enabled", 0),
+                        query_data.get("hops_used", 0),
+                        query_data.get("cost", 0.0),
+                        now,
+                        now,
+                    ),
+                )
                 conn.commit()
 
             logger.debug(
-                "Query inserted into analytics DB",
-                extra={"query_id": query_data["query_id"]}
+                "Query inserted into analytics DB", extra={"query_id": query_data["query_id"]}
             )
 
         except Exception as e:
@@ -218,42 +217,44 @@ class AnalyticsDatabase:
         try:
             with self._get_connection() as conn:
                 for chunk in chunks:
-                    conn.execute("""
+                    conn.execute(
+                        """
                         INSERT INTO retrieved_chunks (
                             query_id, rank, chunk_header, chunk_text,
                             document_name, document_type,
                             vector_similarity, bm25_score, rrf_score,
                             final_score, relevant, hop_number
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        query_id,
-                        chunk["rank"],
-                        chunk.get("chunk_header"),
-                        chunk["chunk_text"],
-                        chunk.get("document_name"),
-                        chunk.get("document_type"),
-                        chunk.get("vector_similarity"),
-                        chunk.get("bm25_score"),
-                        chunk.get("rrf_score"),
-                        chunk["final_score"],
-                        None,  # relevant (default NULL)
-                        chunk.get("hop_number", 0),  # hop_number (default 0 for backward compat)
-                    ))
+                    """,
+                        (
+                            query_id,
+                            chunk["rank"],
+                            chunk.get("chunk_header"),
+                            chunk["chunk_text"],
+                            chunk.get("document_name"),
+                            chunk.get("document_type"),
+                            chunk.get("vector_similarity"),
+                            chunk.get("bm25_score"),
+                            chunk.get("rrf_score"),
+                            chunk["final_score"],
+                            None,  # relevant (default NULL)
+                            chunk.get(
+                                "hop_number", 0
+                            ),  # hop_number (default 0 for backward compat)
+                        ),
+                    )
                 conn.commit()
 
             logger.debug(
                 "Chunks inserted into analytics DB",
-                extra={"query_id": query_id, "chunk_count": len(chunks)}
+                extra={"query_id": query_id, "chunk_count": len(chunks)},
             )
 
         except Exception as e:
             logger.error(f"Failed to insert chunks: {e}", exc_info=True)
 
     def insert_hop_evaluations(
-        self,
-        query_id: str,
-        evaluations: list[dict[str, Any]],
-        evaluation_model: str,
+        self, query_id: str, evaluations: list[dict[str, Any]], evaluation_model: str
     ) -> None:
         """Insert hop evaluation results for a query.
 
@@ -270,25 +271,28 @@ class AnalyticsDatabase:
 
             with self._get_connection() as conn:
                 for hop_num, evaluation in enumerate(evaluations, 1):
-                    conn.execute("""
+                    conn.execute(
+                        """
                         INSERT INTO hop_evaluations (
                             query_id, hop_number, can_answer, reasoning,
                             missing_query, evaluation_model, created_at
                         ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        query_id,
-                        hop_num,
-                        1 if evaluation["can_answer"] else 0,
-                        evaluation["reasoning"],
-                        evaluation.get("missing_query"),
-                        evaluation_model,
-                        now,
-                    ))
+                    """,
+                        (
+                            query_id,
+                            hop_num,
+                            1 if evaluation["can_answer"] else 0,
+                            evaluation["reasoning"],
+                            evaluation.get("missing_query"),
+                            evaluation_model,
+                            now,
+                        ),
+                    )
                 conn.commit()
 
             logger.debug(
                 "Hop evaluations inserted",
-                extra={"query_id": query_id, "hop_count": len(evaluations)}
+                extra={"query_id": query_id, "hop_count": len(evaluations)},
             )
 
         except Exception as e:
@@ -308,14 +312,17 @@ class AnalyticsDatabase:
 
         try:
             with self._get_connection() as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT
                         hop_number, can_answer, reasoning, missing_query,
                         evaluation_model, created_at
                     FROM hop_evaluations
                     WHERE query_id = ?
                     ORDER BY hop_number ASC
-                """, (query_id,))
+                """,
+                    (query_id,),
+                )
 
                 rows = cursor.fetchall()
                 return [dict(row) for row in rows]
@@ -324,11 +331,7 @@ class AnalyticsDatabase:
             logger.error(f"Failed to get hop evaluations: {e}", exc_info=True)
             return []
 
-    def increment_vote(
-        self,
-        query_id: str,
-        vote_type: Literal["upvote", "downvote"]
-    ) -> None:
+    def increment_vote(self, query_id: str, vote_type: Literal["upvote", "downvote"]) -> None:
         """Increment upvote or downvote count for a query.
 
         Args:
@@ -344,24 +347,30 @@ class AnalyticsDatabase:
             # Use explicit SQL to avoid bandit B608 warning about string interpolation
             with self._get_connection() as conn:
                 if vote_type == "upvote":
-                    conn.execute("""
+                    conn.execute(
+                        """
                         UPDATE queries
                         SET upvotes = upvotes + 1,
                             updated_at = ?
                         WHERE query_id = ?
-                    """, (now, query_id))
+                    """,
+                        (now, query_id),
+                    )
                 else:
-                    conn.execute("""
+                    conn.execute(
+                        """
                         UPDATE queries
                         SET downvotes = downvotes + 1,
                             updated_at = ?
                         WHERE query_id = ?
-                    """, (now, query_id))
+                    """,
+                        (now, query_id),
+                    )
                 conn.commit()
 
             logger.debug(
                 "Vote incremented in analytics DB",
-                extra={"query_id": query_id, "vote_type": vote_type}
+                extra={"query_id": query_id, "vote_type": vote_type},
             )
 
         except Exception as e:
@@ -377,25 +386,23 @@ class AnalyticsDatabase:
             return 0
 
         try:
-            cutoff_date = (
-                datetime.now(UTC) - timedelta(days=self.retention_days)
-            ).isoformat()
+            cutoff_date = (datetime.now(UTC) - timedelta(days=self.retention_days)).isoformat()
 
             with self._get_connection() as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     DELETE FROM queries
                     WHERE timestamp < ?
-                """, (cutoff_date,))
+                """,
+                    (cutoff_date,),
+                )
                 deleted_count = cursor.rowcount
                 conn.commit()
 
             if deleted_count > 0:
                 logger.info(
                     f"Cleaned up {deleted_count} old records",
-                    extra={
-                        "retention_days": self.retention_days,
-                        "deleted_count": deleted_count,
-                    }
+                    extra={"retention_days": self.retention_days, "deleted_count": deleted_count},
                 )
 
             return deleted_count
@@ -405,10 +412,7 @@ class AnalyticsDatabase:
             return 0
 
     def get_all_queries(
-        self,
-        filters: dict[str, Any] | None = None,
-        limit: int = 100,
-        offset: int = 0,
+        self, filters: dict[str, Any] | None = None, limit: int = 100, offset: int = 0
     ) -> list[dict[str, Any]]:
         """Get all queries with optional filters.
 
@@ -480,10 +484,7 @@ class AnalyticsDatabase:
 
         try:
             with self._get_connection() as conn:
-                cursor = conn.execute(
-                    "SELECT * FROM queries WHERE query_id = ?",
-                    (query_id,)
-                )
+                cursor = conn.execute("SELECT * FROM queries WHERE query_id = ?", (query_id,))
                 row = cursor.fetchone()
 
             return dict(row) if row else None
@@ -506,11 +507,14 @@ class AnalyticsDatabase:
 
         try:
             with self._get_connection() as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT * FROM retrieved_chunks
                     WHERE query_id = ?
                     ORDER BY rank ASC
-                """, (query_id,))
+                """,
+                    (query_id,),
+                )
                 rows = cursor.fetchall()
 
             return [dict(row) for row in rows]
@@ -520,10 +524,7 @@ class AnalyticsDatabase:
             return []
 
     def update_query_admin_fields(
-        self,
-        query_id: str,
-        admin_status: str | None = None,
-        admin_notes: str | None = None,
+        self, query_id: str, admin_status: str | None = None, admin_notes: str | None = None
     ) -> None:
         """Update admin status and/or notes for a query.
 
@@ -568,20 +569,13 @@ class AnalyticsDatabase:
 
             logger.info(
                 "Query admin fields updated",
-                extra={
-                    "query_id": query_id,
-                    "admin_status": admin_status,
-                }
+                extra={"query_id": query_id, "admin_status": admin_status},
             )
 
         except Exception as e:
             logger.error(f"Failed to update query admin fields: {e}", exc_info=True)
 
-    def update_chunk_relevance(
-        self,
-        chunk_id: int,
-        relevant: bool | None
-    ) -> None:
+    def update_chunk_relevance(self, chunk_id: int, relevant: bool | None) -> None:
         """Update relevance flag for a chunk.
 
         Args:
@@ -595,16 +589,18 @@ class AnalyticsDatabase:
             value = None if relevant is None else (1 if relevant else 0)
 
             with self._get_connection() as conn:
-                conn.execute("""
+                conn.execute(
+                    """
                     UPDATE retrieved_chunks
                     SET relevant = ?
                     WHERE id = ?
-                """, (value, chunk_id))
+                """,
+                    (value, chunk_id),
+                )
                 conn.commit()
 
             logger.debug(
-                "Chunk relevance updated",
-                extra={"chunk_id": chunk_id, "relevant": relevant}
+                "Chunk relevance updated", extra={"chunk_id": chunk_id, "relevant": relevant}
             )
 
         except Exception as e:
@@ -625,24 +621,21 @@ class AnalyticsDatabase:
         try:
             with self._get_connection() as conn:
                 # Delete query (chunks will be deleted automatically due to CASCADE)
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     DELETE FROM queries
                     WHERE query_id = ?
-                """, (query_id,))
+                """,
+                    (query_id,),
+                )
                 deleted_count = cursor.rowcount
                 conn.commit()
 
             if deleted_count > 0:
-                logger.info(
-                    "Query deleted from analytics DB",
-                    extra={"query_id": query_id}
-                )
+                logger.info("Query deleted from analytics DB", extra={"query_id": query_id})
                 return True
             else:
-                logger.warning(
-                    "Query not found for deletion",
-                    extra={"query_id": query_id}
-                )
+                logger.warning("Query not found for deletion", extra={"query_id": query_id})
                 return False
 
         except Exception as e:
@@ -679,9 +672,7 @@ class AnalyticsDatabase:
                 total_upvotes = row[0] or 0
                 total_downvotes = row[1] or 0
                 total_feedback = total_upvotes + total_downvotes
-                helpful_rate = (
-                    total_upvotes / total_feedback if total_feedback > 0 else 0
-                )
+                helpful_rate = total_upvotes / total_feedback if total_feedback > 0 else 0
 
                 # Admin status counts
                 cursor = conn.execute("""
@@ -717,10 +708,7 @@ class AnalyticsDatabase:
             logger.error(f"Failed to get stats: {e}", exc_info=True)
             return {}
 
-    def get_queries_with_relevant_chunks(
-        self,
-        limit: int = 100,
-    ) -> list[dict[str, Any]]:
+    def get_queries_with_relevant_chunks(self, limit: int = 100) -> list[dict[str, Any]]:
         """Get queries that have at least one chunk marked as relevant.
 
         Returns queries ordered by timestamp descending, with their relevant chunks.
@@ -749,14 +737,17 @@ class AnalyticsDatabase:
         try:
             with self._get_connection() as conn:
                 # Get queries that have at least one relevant chunk
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT DISTINCT q.query_id, q.query_text, q.timestamp
                     FROM queries q
                     INNER JOIN retrieved_chunks rc ON q.query_id = rc.query_id
                     WHERE rc.relevant = 1
                     ORDER BY q.timestamp DESC
                     LIMIT ?
-                """, (limit,))
+                """,
+                    (limit,),
+                )
 
                 query_rows = cursor.fetchall()
 
@@ -765,22 +756,27 @@ class AnalyticsDatabase:
                     query_id = query_row["query_id"]
 
                     # Get all relevant chunks for this query
-                    chunk_cursor = conn.execute("""
+                    chunk_cursor = conn.execute(
+                        """
                         SELECT chunk_header, rank, chunk_text,
                                vector_similarity, bm25_score, rrf_score, final_score
                         FROM retrieved_chunks
                         WHERE query_id = ? AND relevant = 1
                         ORDER BY rank ASC
-                    """, (query_id,))
+                    """,
+                        (query_id,),
+                    )
 
                     chunks = [dict(row) for row in chunk_cursor.fetchall()]
 
-                    results.append({
-                        "query_id": query_id,
-                        "query_text": query_row["query_text"],
-                        "timestamp": query_row["timestamp"],
-                        "relevant_chunks": chunks,
-                    })
+                    results.append(
+                        {
+                            "query_id": query_id,
+                            "query_text": query_row["query_text"],
+                            "timestamp": query_row["timestamp"],
+                            "relevant_chunks": chunks,
+                        }
+                    )
 
                 return results
 

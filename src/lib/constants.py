@@ -3,6 +3,7 @@
 This is the single source of truth for all tunable parameters.
 Modify values here to change behavior across the entire application.
 """
+
 from typing import Literal, get_args
 
 # ============================================================================
@@ -49,8 +50,8 @@ LLM_PROVIDERS_LITERAL = Literal[
 ALL_LLM_PROVIDERS = list(get_args(LLM_PROVIDERS_LITERAL))
 
 PDF_EXTRACTION_PROVIDERS = [
-    "gemini-2.5-pro",      # Recommended: Most reliable
-    "gemini-2.5-flash",    # Recommended: Fast and reliable
+    "gemini-2.5-pro",  # Recommended: Most reliable
+    "gemini-2.5-flash",  # Recommended: Fast and reliable
     "claude-4.5-sonnet",
     "claude-4.1-opus",
 ]

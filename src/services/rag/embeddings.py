@@ -4,7 +4,6 @@ Uses OpenAI text-embedding-3-small for document embedding.
 Based on specs/001-we-are-building/contracts/rag-pipeline.md
 """
 
-
 import openai
 from openai import OpenAI
 
@@ -60,27 +59,18 @@ class EmbeddingService:
             raise ValueError("Text cannot be empty")
 
         try:
-            response = self.client.embeddings.create(
-                model=self.model,
-                input=text,
-            )
+            response = self.client.embeddings.create(model=self.model, input=text)
 
             embedding = response.data[0].embedding
 
             logger.debug(
-                "embedding_generated",
-                text_length=len(text),
-                embedding_dimensions=len(embedding),
+                "embedding_generated", text_length=len(text), embedding_dimensions=len(embedding)
             )
 
             return embedding
 
         except openai.OpenAIError as e:
-            logger.error(
-                "embedding_generation_failed",
-                error=str(e),
-                model=self.model,
-            )
+            logger.error("embedding_generation_failed", error=str(e), model=self.model)
             raise
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
@@ -107,27 +97,17 @@ class EmbeddingService:
             raise ValueError("All texts are empty")
 
         try:
-            response = self.client.embeddings.create(
-                model=self.model,
-                input=valid_texts,
-            )
+            response = self.client.embeddings.create(model=self.model, input=valid_texts)
 
             embeddings = [item.embedding for item in response.data]
 
-            logger.info(
-                "batch_embeddings_generated",
-                count=len(embeddings),
-                model=self.model,
-            )
+            logger.info("batch_embeddings_generated", count=len(embeddings), model=self.model)
 
             return embeddings
 
         except openai.OpenAIError as e:
             logger.error(
-                "batch_embedding_failed",
-                error=str(e),
-                model=self.model,
-                text_count=len(texts),
+                "batch_embedding_failed", error=str(e), model=self.model, text_count=len(texts)
             )
             raise
 

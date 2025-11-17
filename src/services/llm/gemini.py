@@ -23,9 +23,7 @@ from src.services.llm.base import (
     PDFParseError,
     RateLimitError,
 )
-from src.services.llm.base import (
-    TimeoutError as LLMTimeoutError,
-)
+from src.services.llm.base import TimeoutError as LLMTimeoutError
 
 logger = get_logger(__name__)
 
@@ -36,15 +34,12 @@ STRUCTURED_OUTPUT_SCHEMA_GEMINI = {
     "properties": {
         "smalltalk": {
             "type": "boolean",
-            "description": "True if this is casual conversation (not rules-related), False if answering a rules question"
+            "description": "True if this is casual conversation (not rules-related), False if answering a rules question",
         },
-        "short_answer": {
-            "type": "string",
-            "description": "Direct, short answer (e.g., 'Yes.')"
-        },
+        "short_answer": {"type": "string", "description": "Direct, short answer (e.g., 'Yes.')"},
         "persona_short_answer": {
             "type": "string",
-            "description": "Short condescending phrase after the direct answer (e.g., 'The affirmative is undeniable.')"
+            "description": "Short condescending phrase after the direct answer (e.g., 'The affirmative is undeniable.')",
         },
         "quotes": {
             "type": "array",
@@ -54,24 +49,24 @@ STRUCTURED_OUTPUT_SCHEMA_GEMINI = {
                 "properties": {
                     "quote_title": {
                         "type": "string",
-                        "description": "Rule name (e.g., 'Core Rules: Actions')"
+                        "description": "Rule name (e.g., 'Core Rules: Actions')",
                     },
                     "quote_text": {
                         "type": "string",
-                        "description": "Relevant excerpt from the rule"
-                    }
+                        "description": "Relevant excerpt from the rule",
+                    },
                 },
-                "required": ["quote_title", "quote_text"]
-            }
+                "required": ["quote_title", "quote_text"],
+            },
         },
         "explanation": {
             "type": "string",
-            "description": "Brief rules-based explanation using official Kill Team terminology"
+            "description": "Brief rules-based explanation using official Kill Team terminology",
         },
         "persona_afterword": {
             "type": "string",
-            "description": "Dismissive concluding sentence (e.g., 'The logic is unimpeachable.')"
-        }
+            "description": "Dismissive concluding sentence (e.g., 'The logic is unimpeachable.')",
+        },
     },
     "required": [
         "smalltalk",
@@ -79,8 +74,8 @@ STRUCTURED_OUTPUT_SCHEMA_GEMINI = {
         "persona_short_answer",
         "quotes",
         "explanation",
-        "persona_afterword"
-    ]
+        "persona_afterword",
+    ],
 }
 
 HOP_EVALUATION_SCHEMA_GEMINI = {
@@ -88,18 +83,18 @@ HOP_EVALUATION_SCHEMA_GEMINI = {
     "properties": {
         "can_answer": {
             "type": "boolean",
-            "description": "True if the retrieved context is sufficient to answer the question, false otherwise"
+            "description": "True if the retrieved context is sufficient to answer the question, false otherwise",
         },
         "reasoning": {
             "type": "string",
-            "description": "Brief explanation (1-2 sentences) of what context you have or what's missing"
+            "description": "Brief explanation (1-2 sentences) of what context you have or what's missing",
         },
         "missing_query": {
             "type": ["string", "null"],
-            "description": "If can_answer=false, a focused retrieval query for missing rules. If can_answer=true, null"
-        }
+            "description": "If can_answer=false, a focused retrieval query for missing rules. If can_answer=true, null",
+        },
     },
-    "required": ["can_answer", "reasoning", "missing_query"]
+    "required": ["can_answer", "reasoning", "missing_query"],
 }
 
 
@@ -116,10 +111,7 @@ class GeminiAdapter(LLMProvider):
         super().__init__(api_key, model)
 
         if genai is None:
-            raise ImportError(
-                "google-genai package not installed. "
-                "Run: pip install google-genai"
-            )
+            raise ImportError("google-genai package not installed. Run: pip install google-genai")
 
         self.client = genai.Client(api_key=api_key)
         self.model = model
@@ -162,7 +154,7 @@ class GeminiAdapter(LLMProvider):
                 "max_output_tokens": request.config.max_tokens,
                 "temperature": request.config.temperature,
                 "response_mime_type": "application/json",
-                "response_schema": schema
+                "response_schema": schema,
             }
 
             # Call Gemini API with timeout using new API
@@ -182,7 +174,7 @@ class GeminiAdapter(LLMProvider):
 
             # Check finish_reason before accessing text
             # New API uses enum strings: STOP, MAX_TOKENS, SAFETY, RECITATION, etc.
-            if hasattr(response, 'candidates') and response.candidates:
+            if hasattr(response, "candidates") and response.candidates:
                 candidate = response.candidates[0]
                 finish_reason = candidate.finish_reason
 
@@ -190,26 +182,40 @@ class GeminiAdapter(LLMProvider):
                 logger.debug(f"Gemini finish_reason: {finish_reason}")
 
                 # Get finish_reason as string for comparison (handles both enum and string)
-                finish_reason_str = str(finish_reason).split('.')[-1] if hasattr(finish_reason, 'value') else str(finish_reason)
+                finish_reason_str = (
+                    str(finish_reason).split(".")[-1]
+                    if hasattr(finish_reason, "value")
+                    else str(finish_reason)
+                )
 
                 # Check if response was blocked
-                if finish_reason_str in ['SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'IMAGE_SAFETY', 'IMAGE_PROHIBITED_CONTENT']:
+                if finish_reason_str in [
+                    "SAFETY",
+                    "RECITATION",
+                    "BLOCKLIST",
+                    "PROHIBITED_CONTENT",
+                    "IMAGE_SAFETY",
+                    "IMAGE_PROHIBITED_CONTENT",
+                ]:
                     logger.warning(f"Gemini content blocked: finish_reason={finish_reason_str}")
                     raise ContentFilterError(
                         f"Gemini blocked content due to {finish_reason_str} filter. "
                         "This query may contain content flagged by safety filters. "
                         "Try rephrasing or use a different model (--provider claude-4.5-sonnet)."
                     )
-                elif finish_reason_str == 'MAX_TOKENS' and not candidate.content.parts:
+                elif finish_reason_str == "MAX_TOKENS" and not candidate.content.parts:
                     # MAX_TOKENS with no parts typically means truncation/blocking
                     logger.warning("Gemini content blocked: finish_reason=MAX_TOKENS (no parts)")
                     raise ContentFilterError(
                         "Gemini response was truncated or blocked (MAX_TOKENS with no content). "
                         "Try rephrasing or use a different model (--provider claude-4.5-sonnet)."
                     )
-                elif finish_reason_str == 'MAX_TOKENS':  # MAX_TOKENS with parts
+                elif finish_reason_str == "MAX_TOKENS":  # MAX_TOKENS with parts
                     logger.warning("Gemini response truncated: finish_reason=MAX_TOKENS")
-                elif finish_reason_str not in ['STOP', 'FINISH_REASON_UNSPECIFIED']:  # Not normal completion
+                elif finish_reason_str not in [
+                    "STOP",
+                    "FINISH_REASON_UNSPECIFIED",
+                ]:  # Not normal completion
                     logger.warning(f"Gemini unexpected finish_reason: {finish_reason}")
 
             # Extract JSON answer text (response.text is already JSON string with JSON mode)
@@ -244,7 +250,7 @@ class GeminiAdapter(LLMProvider):
             # Map safety ratings to confidence
             # In new API, safety_ratings are on the candidate, not the response
             safety_ratings = None
-            if hasattr(response, 'candidates') and response.candidates:
+            if hasattr(response, "candidates") and response.candidates:
                 candidate = response.candidates[0]
                 safety_ratings = getattr(candidate, "safety_ratings", None)
             confidence = self._safety_to_confidence(safety_ratings)
@@ -305,7 +311,12 @@ class GeminiAdapter(LLMProvider):
                 raise AuthenticationError(f"Gemini auth error: {e}") from e
 
             # Check for finish_reason errors (blocked content)
-            if "finish_reason" in error_msg or "safety" in error_msg or "blocked" in error_msg or "recitation" in error_msg:
+            if (
+                "finish_reason" in error_msg
+                or "safety" in error_msg
+                or "blocked" in error_msg
+                or "recitation" in error_msg
+            ):
                 logger.warning(f"Gemini content filtered: {e}")
                 raise ContentFilterError(f"Gemini content filter: {e}") from e
 
@@ -330,7 +341,7 @@ class GeminiAdapter(LLMProvider):
         try:
             # Get file path from the file handle
             # request.pdf_file is a BinaryIO, but upload_file expects a path
-            if hasattr(request.pdf_file, 'name'):
+            if hasattr(request.pdf_file, "name"):
                 pdf_path = request.pdf_file.name
             else:
                 raise PDFParseError("PDF file handle does not have a path attribute")
@@ -342,10 +353,7 @@ class GeminiAdapter(LLMProvider):
                 raise PDFParseError("PDF file is empty")
 
             # Upload PDF to Gemini using new API
-            uploaded_file = await asyncio.to_thread(
-                self.client.files.upload,
-                file=pdf_path
-            )
+            uploaded_file = await asyncio.to_thread(self.client.files.upload, file=pdf_path)
 
             # Configure generation
             generation_config = {
@@ -434,12 +442,7 @@ class GeminiAdapter(LLMProvider):
 
         # Gemini safety ratings: NEGLIGIBLE, LOW, MEDIUM, HIGH
         # Map to confidence: HIGH_SAFE → 0.9, MEDIUM → 0.7, LOW → 0.5
-        safety_map = {
-            "NEGLIGIBLE": 0.9,
-            "LOW": 0.8,
-            "MEDIUM": 0.7,
-            "HIGH": 0.5,
-        }
+        safety_map = {"NEGLIGIBLE": 0.9, "LOW": 0.8, "MEDIUM": 0.7, "HIGH": 0.5}
 
         # Average across all safety categories
         confidences = []

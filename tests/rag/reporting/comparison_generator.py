@@ -11,10 +11,7 @@ from pathlib import Path
 import numpy as np
 
 from src.lib.logging import get_logger
-from tests.rag.reporting.chart_utils import (
-    create_heatmap,
-    create_multi_line_chart,
-)
+from tests.rag.reporting.chart_utils import create_heatmap, create_multi_line_chart
 from tests.rag.sweep_runner import SweepResult
 
 logger = get_logger(__name__)
@@ -24,10 +21,7 @@ class ComparisonGenerator:
     """Generates comparison reports for parameter sweep results."""
 
     def generate_parameter_sweep_report(
-        self,
-        sweep_results: list[SweepResult],
-        param_name: str,
-        output_dir: Path,
+        self, sweep_results: list[SweepResult], param_name: str, output_dir: Path
     ) -> None:
         """Generate full comparison report for single parameter sweep.
 
@@ -78,16 +72,10 @@ class ComparisonGenerator:
             charts_dir=charts_dir,
         )
 
-        logger.info(
-            "parameter_sweep_report_generated",
-            output_dir=str(output_dir),
-        )
+        logger.info("parameter_sweep_report_generated", output_dir=str(output_dir))
 
     def generate_grid_search_report(
-        self,
-        sweep_results: list[SweepResult],
-        param_grid: dict[str, list],
-        output_dir: Path,
+        self, sweep_results: list[SweepResult], param_grid: dict[str, list], output_dir: Path
     ) -> None:
         """Generate full comparison report for grid search.
 
@@ -112,9 +100,7 @@ class ComparisonGenerator:
         # Generate heatmaps for 2D grid searches
         if len(param_grid) == 2:
             self._generate_heatmaps(
-                sweep_results=sweep_results,
-                param_grid=param_grid,
-                charts_dir=charts_dir,
+                sweep_results=sweep_results, param_grid=param_grid, charts_dir=charts_dir
             )
 
         # Generate markdown report
@@ -125,28 +111,22 @@ class ComparisonGenerator:
             charts_dir=charts_dir,
         )
 
-        logger.info(
-            "grid_search_report_generated",
-            output_dir=str(output_dir),
-        )
+        logger.info("grid_search_report_generated", output_dir=str(output_dir))
 
     def _generate_csv(
-        self,
-        sweep_results: list[SweepResult],
-        param_name: str,
-        output_path: Path,
+        self, sweep_results: list[SweepResult], param_name: str, output_path: Path
     ) -> None:
         """Generate CSV file with all metrics for each parameter value."""
-        with open(output_path, 'w', newline='') as csvfile:
+        with open(output_path, "w", newline="") as csvfile:
             fieldnames = [
                 param_name,
-                'mean_ragas_context_precision',
-                'mean_ragas_context_recall',
-                'std_dev_ragas_context_precision',
-                'std_dev_ragas_context_recall',
-                'total_time_seconds',
-                'avg_retrieval_time_seconds',
-                'total_cost_usd',
+                "mean_ragas_context_precision",
+                "mean_ragas_context_recall",
+                "std_dev_ragas_context_precision",
+                "std_dev_ragas_context_recall",
+                "total_time_seconds",
+                "avg_retrieval_time_seconds",
+                "total_cost_usd",
             ]
 
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -154,34 +134,33 @@ class ComparisonGenerator:
 
             for result in sweep_results:
                 param_value = getattr(result.config, param_name)
-                writer.writerow({
-                    param_name: param_value,
-                    'mean_ragas_context_precision': result.summary.mean_ragas_context_precision,
-                    'mean_ragas_context_recall': result.summary.mean_ragas_context_recall,
-                    'std_dev_ragas_context_precision': result.summary.std_dev_ragas_context_precision,
-                    'std_dev_ragas_context_recall': result.summary.std_dev_ragas_context_recall,
-                    'total_time_seconds': result.summary.total_time_seconds,
-                    'avg_retrieval_time_seconds': result.summary.avg_retrieval_time_seconds,
-                    'total_cost_usd': result.summary.total_cost_usd,
-                })
+                writer.writerow(
+                    {
+                        param_name: param_value,
+                        "mean_ragas_context_precision": result.summary.mean_ragas_context_precision,
+                        "mean_ragas_context_recall": result.summary.mean_ragas_context_recall,
+                        "std_dev_ragas_context_precision": result.summary.std_dev_ragas_context_precision,
+                        "std_dev_ragas_context_recall": result.summary.std_dev_ragas_context_recall,
+                        "total_time_seconds": result.summary.total_time_seconds,
+                        "avg_retrieval_time_seconds": result.summary.avg_retrieval_time_seconds,
+                        "total_cost_usd": result.summary.total_cost_usd,
+                    }
+                )
 
         logger.info("csv_generated", output_path=str(output_path))
 
     def _generate_grid_csv(
-        self,
-        sweep_results: list[SweepResult],
-        param_grid: dict[str, list],
-        output_path: Path,
+        self, sweep_results: list[SweepResult], param_grid: dict[str, list], output_path: Path
     ) -> None:
         """Generate CSV file for grid search results."""
         param_names = list(param_grid.keys())
 
-        with open(output_path, 'w', newline='') as csvfile:
+        with open(output_path, "w", newline="") as csvfile:
             fieldnames = param_names + [
-                'mean_ragas_context_precision',
-                'mean_ragas_context_recall',
-                'total_time_seconds',
-                'total_cost_usd',
+                "mean_ragas_context_precision",
+                "mean_ragas_context_recall",
+                "total_time_seconds",
+                "total_cost_usd",
             ]
 
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -192,12 +171,14 @@ class ComparisonGenerator:
                 for param_name in param_names:
                     row[param_name] = getattr(result.config, param_name)
 
-                row.update({
-                    'mean_ragas_context_precision': result.summary.mean_ragas_context_precision,
-                    'mean_ragas_context_recall': result.summary.mean_ragas_context_recall,
-                    'total_time_seconds': result.summary.total_time_seconds,
-                    'total_cost_usd': result.summary.total_cost_usd,
-                })
+                row.update(
+                    {
+                        "mean_ragas_context_precision": result.summary.mean_ragas_context_precision,
+                        "mean_ragas_context_recall": result.summary.mean_ragas_context_recall,
+                        "total_time_seconds": result.summary.total_time_seconds,
+                        "total_cost_usd": result.summary.total_cost_usd,
+                    }
+                )
 
                 writer.writerow(row)
 
@@ -220,13 +201,13 @@ class ComparisonGenerator:
             create_multi_line_chart(
                 x_values=param_values,
                 y_values_dict={
-                    'Context Precision': ragas_cp_values,
-                    'Context Recall': ragas_cr_values,
+                    "Context Precision": ragas_cp_values,
+                    "Context Recall": ragas_cr_values,
                 },
                 x_label=param_name,
-                y_label='Ragas Score',
-                title=f'Ragas Metrics vs {param_name}',
-                output_path=charts_dir / 'ragas_metrics_comparison.png',
+                y_label="Ragas Score",
+                title=f"Ragas Metrics vs {param_name}",
+                output_path=charts_dir / "ragas_metrics_comparison.png",
             )
 
         logger.info("metric_charts_generated", charts_dir=str(charts_dir))
@@ -244,10 +225,7 @@ class ComparisonGenerator:
         logger.info("multi_metric_chart_skipped_ragas_already_generated")
 
     def _generate_heatmaps(
-        self,
-        sweep_results: list[SweepResult],
-        param_grid: dict[str, list],
-        charts_dir: Path,
+        self, sweep_results: list[SweepResult], param_grid: dict[str, list], charts_dir: Path
     ) -> None:
         """Generate heatmaps for 2D grid search."""
         param_names = list(param_grid.keys())
@@ -258,8 +236,14 @@ class ComparisonGenerator:
         # Create data matrices for Ragas metrics only
         metrics = {}
         if sweep_results[0].summary.mean_ragas_context_precision is not None:
-            metrics['ragas_context_precision'] = ('Ragas Context Precision', 'ragas_context_precision_heatmap.png')
-            metrics['ragas_context_recall'] = ('Ragas Context Recall', 'ragas_context_recall_heatmap.png')
+            metrics["ragas_context_precision"] = (
+                "Ragas Context Precision",
+                "ragas_context_precision_heatmap.png",
+            )
+            metrics["ragas_context_recall"] = (
+                "Ragas Context Recall",
+                "ragas_context_recall_heatmap.png",
+            )
 
         for metric_key, (metric_label, filename) in metrics.items():
             data = np.zeros((len(param2_values), len(param1_values)))
@@ -271,7 +255,7 @@ class ComparisonGenerator:
                 i = param2_values.index(param2_val)
                 j = param1_values.index(param1_val)
 
-                metric_value = getattr(result.summary, f'mean_{metric_key}')
+                metric_value = getattr(result.summary, f"mean_{metric_key}")
                 data[i, j] = metric_value
 
             create_heatmap(
@@ -281,7 +265,7 @@ class ComparisonGenerator:
                 x_param_name=param1_name,
                 y_param_name=param2_name,
                 value_label=metric_label,
-                title=f'{metric_label} Grid Search: {param1_name} vs {param2_name}',
+                title=f"{metric_label} Grid Search: {param1_name} vs {param2_name}",
                 output_path=charts_dir / filename,
                 vmin=0.0,
                 vmax=1.0,
@@ -315,10 +299,14 @@ class ComparisonGenerator:
         total_cost = sum(r.summary.total_cost_usd for r in sweep_results)
         content.append("## Overall Statistics")
         content.append("")
-        content.append(f"- **Total sweep time**: {total_time:.2f}s ({total_time/60:.2f} minutes)")
+        content.append(f"- **Total sweep time**: {total_time:.2f}s ({total_time / 60:.2f} minutes)")
         content.append(f"- **Total sweep cost**: ${total_cost:.6f}")
-        content.append(f"- **Average time per configuration**: {total_time/len(sweep_results):.2f}s")
-        content.append(f"- **Average cost per configuration**: ${total_cost/len(sweep_results):.6f}")
+        content.append(
+            f"- **Average time per configuration**: {total_time / len(sweep_results):.2f}s"
+        )
+        content.append(
+            f"- **Average cost per configuration**: ${total_cost / len(sweep_results):.6f}"
+        )
         content.append("")
 
         # Summary table
@@ -329,8 +317,22 @@ class ComparisonGenerator:
         has_ragas = sweep_results[0].summary.mean_ragas_context_precision is not None
 
         if has_ragas:
-            content.append(f"| {param_name} | Context Precision | Context Recall | Avg Time (s) | Cost (USD) |")
-            content.append("|" + "-" * 12 + "|" + "-" * 19 + "|" + "-" * 16 + "|" + "-" * 14 + "|" + "-" * 12 + "|")
+            content.append(
+                f"| {param_name} | Context Precision | Context Recall | Avg Time (s) | Cost (USD) |"
+            )
+            content.append(
+                "|"
+                + "-" * 12
+                + "|"
+                + "-" * 19
+                + "|"
+                + "-" * 16
+                + "|"
+                + "-" * 14
+                + "|"
+                + "-" * 12
+                + "|"
+            )
 
             for param_val, result in zip(param_values, sweep_results, strict=False):
                 s = result.summary
@@ -352,7 +354,10 @@ class ComparisonGenerator:
 
         # Best configuration (based on Ragas Context Precision)
         if has_ragas:
-            best_idx = max(range(len(sweep_results)), key=lambda i: sweep_results[i].summary.mean_ragas_context_precision)
+            best_idx = max(
+                range(len(sweep_results)),
+                key=lambda i: sweep_results[i].summary.mean_ragas_context_precision,
+            )
         else:
             best_idx = 0  # Fallback if no metrics available
 
@@ -366,7 +371,9 @@ class ComparisonGenerator:
 
         if has_ragas:
             content.append("**Ragas Metrics:**")
-            content.append(f"- Context Precision: {best_result.summary.mean_ragas_context_precision:.3f}")
+            content.append(
+                f"- Context Precision: {best_result.summary.mean_ragas_context_precision:.3f}"
+            )
             content.append(f"- Context Recall: {best_result.summary.mean_ragas_context_recall:.3f}")
             content.append("")
 
@@ -382,18 +389,24 @@ class ComparisonGenerator:
         content.append("## Recommendations")
         content.append("")
         if has_ragas:
-            content.append(f"Based on Ragas Context Precision, the optimal value for **{param_name}** is **{best_param_val}**.")
+            content.append(
+                f"Based on Ragas Context Precision, the optimal value for **{param_name}** is **{best_param_val}**."
+            )
             content.append("")
             content.append("**Ragas Metrics:**")
-            content.append("- **Context Precision**: Proportion of retrieved contexts containing ground truth information")
-            content.append("- **Context Recall**: Proportion of ground truth information found in retrieved contexts")
+            content.append(
+                "- **Context Precision**: Proportion of retrieved contexts containing ground truth information"
+            )
+            content.append(
+                "- **Context Recall**: Proportion of ground truth information found in retrieved contexts"
+            )
         else:
             content.append(f"Optimal value for **{param_name}**: **{best_param_val}**")
         content.append("")
 
         # Write report
         report_path = output_dir / "comparison_report.md"
-        with open(report_path, 'w') as f:
+        with open(report_path, "w") as f:
             f.write("\n".join(content))
 
         logger.info("markdown_report_generated", report_path=str(report_path))
@@ -423,16 +436,25 @@ class ComparisonGenerator:
         total_cost = sum(r.summary.total_cost_usd for r in sweep_results)
         content.append("## Overall Statistics")
         content.append("")
-        content.append(f"- **Total grid search time**: {total_time:.2f}s ({total_time/60:.2f} minutes)")
+        content.append(
+            f"- **Total grid search time**: {total_time:.2f}s ({total_time / 60:.2f} minutes)"
+        )
         content.append(f"- **Total grid search cost**: ${total_cost:.6f}")
-        content.append(f"- **Average time per configuration**: {total_time/len(sweep_results):.2f}s")
-        content.append(f"- **Average cost per configuration**: ${total_cost/len(sweep_results):.6f}")
+        content.append(
+            f"- **Average time per configuration**: {total_time / len(sweep_results):.2f}s"
+        )
+        content.append(
+            f"- **Average cost per configuration**: ${total_cost / len(sweep_results):.6f}"
+        )
         content.append("")
 
         # Best configuration (based on Ragas Context Precision if available)
         has_ragas = sweep_results[0].summary.mean_ragas_context_precision is not None
         if has_ragas:
-            best_idx = max(range(len(sweep_results)), key=lambda i: sweep_results[i].summary.mean_ragas_context_precision)
+            best_idx = max(
+                range(len(sweep_results)),
+                key=lambda i: sweep_results[i].summary.mean_ragas_context_precision,
+            )
         else:
             best_idx = 0
 
@@ -447,7 +469,9 @@ class ComparisonGenerator:
 
         if has_ragas:
             content.append("**Ragas Metrics:**")
-            content.append(f"- Context Precision: {best_result.summary.mean_ragas_context_precision:.3f}")
+            content.append(
+                f"- Context Precision: {best_result.summary.mean_ragas_context_precision:.3f}"
+            )
             content.append(f"- Context Recall: {best_result.summary.mean_ragas_context_recall:.3f}")
             content.append("")
 
@@ -456,10 +480,14 @@ class ComparisonGenerator:
             content.append("## Heatmaps")
             content.append("")
             content.append("### Ragas Context Precision Heatmap")
-            content.append("![Ragas Context Precision Heatmap](charts/ragas_context_precision_heatmap.png)")
+            content.append(
+                "![Ragas Context Precision Heatmap](charts/ragas_context_precision_heatmap.png)"
+            )
             content.append("")
             content.append("### Ragas Context Recall Heatmap")
-            content.append("![Ragas Context Recall Heatmap](charts/ragas_context_recall_heatmap.png)")
+            content.append(
+                "![Ragas Context Recall Heatmap](charts/ragas_context_recall_heatmap.png)"
+            )
             content.append("")
 
         # Full results table
@@ -468,13 +496,19 @@ class ComparisonGenerator:
 
         # Build table header with Ragas columns if available
         if has_ragas:
-            header = "| " + " | ".join(param_names) + " | Context Prec | Context Rec | Time (s) | Cost (USD) |"
+            header = (
+                "| "
+                + " | ".join(param_names)
+                + " | Context Prec | Context Rec | Time (s) | Cost (USD) |"
+            )
             separator = "|" + "|".join(["-" * 12 for _ in range(len(param_names) + 4)]) + "|"
 
             content.append(header)
             content.append(separator)
 
-            for result in sorted(sweep_results, key=lambda r: r.summary.mean_ragas_context_precision, reverse=True):
+            for result in sorted(
+                sweep_results, key=lambda r: r.summary.mean_ragas_context_precision, reverse=True
+            ):
                 row = "| "
                 for param_name in param_names:
                     row += f"{getattr(result.config, param_name)} | "
@@ -501,7 +535,7 @@ class ComparisonGenerator:
 
         # Write report
         report_path = output_dir / "comparison_report.md"
-        with open(report_path, 'w') as f:
+        with open(report_path, "w") as f:
             f.write("\n".join(content))
 
         logger.info("grid_markdown_report_generated", report_path=str(report_path))

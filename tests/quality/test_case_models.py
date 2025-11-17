@@ -6,6 +6,7 @@ from dataclasses import dataclass
 @dataclass
 class TestCase:
     """Quality test case descriptor with ground truth for Ragas evaluation."""
+
     test_id: str
     query: str
     ground_truth_answers: list[str]

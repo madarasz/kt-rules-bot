@@ -31,10 +31,10 @@ def delete_user_data(user_id: str, confirm: bool = False) -> None:
         hashed_id = user_id
 
     print("\nGDPR Data Deletion Request")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"User ID (hashed): {hashed_id[:16]}...")
     print(f"Timestamp: {datetime.now(UTC).isoformat()}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # Confirmation
     if not confirm:
@@ -72,9 +72,9 @@ def delete_user_data(user_id: str, confirm: bool = False) -> None:
         # Feedback logs - would need custom query to filter logs
         print("⚠️  Feedback logs: Query logs for user_id and delete")
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("✓ GDPR deletion process complete")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         # Log completion
         audit_logger.info(
@@ -102,21 +102,9 @@ def delete_user_data(user_id: str, confirm: bool = False) -> None:
 
 def main() -> None:
     """Main entry point for gdpr_delete CLI."""
-    parser = argparse.ArgumentParser(
-        description="Delete user data for GDPR compliance"
-    )
-    parser.add_argument(
-        "--user-id",
-        "-u",
-        required=True,
-        help="Discord user ID or hashed user ID",
-    )
-    parser.add_argument(
-        "--confirm",
-        "-y",
-        action="store_true",
-        help="Skip confirmation prompt",
-    )
+    parser = argparse.ArgumentParser(description="Delete user data for GDPR compliance")
+    parser.add_argument("--user-id", "-u", required=True, help="Discord user ID or hashed user ID")
+    parser.add_argument("--confirm", "-y", action="store_true", help="Skip confirmation prompt")
 
     args = parser.parse_args()
 

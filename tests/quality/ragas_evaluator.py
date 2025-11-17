@@ -14,10 +14,7 @@ from dataclasses import dataclass
 
 from datasets import Dataset
 from ragas import evaluate
-from ragas.metrics import (
-    answer_correctness,
-    faithfulness,
-)
+from ragas.metrics import answer_correctness, faithfulness
 
 from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
 from src.lib.logging import get_logger
@@ -48,7 +45,7 @@ def _run_ragas_evaluate_sync(dataset, metrics):
 
     # Suppress ResourceWarnings related to unclosed resources
     # Ragas creates async HTTP clients that may not close cleanly in threads
-    warnings.filterwarnings('ignore', category=ResourceWarning)
+    warnings.filterwarnings("ignore", category=ResourceWarning)
 
     # Get or create a new event loop for this thread
     # This ensures proper cleanup of async resources
@@ -74,6 +71,7 @@ def _run_ragas_evaluate_sync(dataset, metrics):
 @dataclass
 class RagasMetrics:
     """Container for Ragas evaluation metrics with detailed feedback."""
+
     quote_precision: float | None = None
     quote_recall: float | None = None
     quote_faithfulness: float | None = None
@@ -138,15 +136,19 @@ class RagasEvaluator:
             logger.debug(f"Extracted {len(quotes_text)} quotes from structured response")
 
             # Normalize ground truth values for comparison
-            normalized_ground_truth_contexts = [self._normalize_text(gt) for gt in ground_truth_contexts]
-            normalized_ground_truth_answers = [self._normalize_text(gt) for gt in ground_truth_answers]
+            normalized_ground_truth_contexts = [
+                self._normalize_text(gt) for gt in ground_truth_contexts
+            ]
+            normalized_ground_truth_answers = [
+                self._normalize_text(gt) for gt in ground_truth_answers
+            ]
 
             # For Quote Precision and Quote Recall:
             # Use evaluate_retrieval from ragas_adapter (substring matching approach)
             # Compare quotes.text (what was cited) against ground_truth_contexts (what should be cited)
             retrieval_metrics = evaluate_retrieval(
                 retrieved_contexts=quotes_text,
-                ground_truth_contexts=normalized_ground_truth_contexts
+                ground_truth_contexts=normalized_ground_truth_contexts,
             )
 
             # For Quote Faithfulness:
@@ -167,8 +169,12 @@ class RagasEvaluator:
             data_quote_faithfulness = {
                 "question": [query],
                 "answer": [quotes_combined],  # What was cited (normalized)
-                "contexts": [context_chunks],  # What RAG retrieved (not normalized - keep original for RAG faithfulness check)
-                "ground_truth": [" ".join(normalized_ground_truth_contexts)],  # Not used for faithfulness
+                "contexts": [
+                    context_chunks
+                ],  # What RAG retrieved (not normalized - keep original for RAG faithfulness check)
+                "ground_truth": [
+                    " ".join(normalized_ground_truth_contexts)
+                ],  # Not used for faithfulness
             }
 
             # Dataset 2: For Explanation Faithfulness and Answer Correctness
@@ -178,7 +184,9 @@ class RagasEvaluator:
                 "question": [query],
                 "answer": [answer_text],  # short_answer + explanation (normalized)
                 "contexts": [quotes_text],  # Validate against quotes (normalized)
-                "ground_truth": [" ".join(normalized_ground_truth_answers)],  # Expected answer content (normalized)
+                "ground_truth": [
+                    " ".join(normalized_ground_truth_answers)
+                ],  # Expected answer content (normalized)
             }
 
             dataset_quote_faithfulness = Dataset.from_dict(data_quote_faithfulness)
@@ -196,7 +204,7 @@ class RagasEvaluator:
                 executor,
                 _run_ragas_evaluate_sync,
                 dataset_quote_faithfulness,
-                [faithfulness]  # This measures quote faithfulness
+                [faithfulness],  # This measures quote faithfulness
             )
 
             # Run Ragas evaluation - Part 2: Explanation metrics
@@ -204,7 +212,10 @@ class RagasEvaluator:
                 executor,
                 _run_ragas_evaluate_sync,
                 dataset_explanation,
-                [faithfulness, answer_correctness]  # Explanation faithfulness and answer correctness
+                [
+                    faithfulness,
+                    answer_correctness,
+                ],  # Explanation faithfulness and answer correctness
             )
 
             # Clean up executor
@@ -217,9 +228,15 @@ class RagasEvaluator:
             metrics = RagasMetrics(
                 quote_precision=retrieval_metrics.context_precision,
                 quote_recall=retrieval_metrics.context_recall,
-                quote_faithfulness=result_qf_df['faithfulness'].iloc[0] if 'faithfulness' in result_qf_df else None,
-                explanation_faithfulness=result_explanation_df['faithfulness'].iloc[0] if 'faithfulness' in result_explanation_df else None,
-                answer_correctness=result_explanation_df['answer_correctness'].iloc[0] if 'answer_correctness' in result_explanation_df else None,
+                quote_faithfulness=result_qf_df["faithfulness"].iloc[0]
+                if "faithfulness" in result_qf_df
+                else None,
+                explanation_faithfulness=result_explanation_df["faithfulness"].iloc[0]
+                if "faithfulness" in result_explanation_df
+                else None,
+                answer_correctness=result_explanation_df["answer_correctness"].iloc[0]
+                if "answer_correctness" in result_explanation_df
+                else None,
             )
 
             # Generate detailed feedback for each metric
@@ -227,13 +244,18 @@ class RagasEvaluator:
                 metrics.quote_precision, quotes_text, normalized_ground_truth_contexts
             )
             metrics.quote_recall_feedback = self._generate_quote_recall_feedback(
-                metrics.quote_recall, quotes_text, normalized_ground_truth_contexts, ground_truth_contexts
+                metrics.quote_recall,
+                quotes_text,
+                normalized_ground_truth_contexts,
+                ground_truth_contexts,
             )
             metrics.quote_faithfulness_feedback = self._generate_quote_faithfulness_feedback(
                 metrics.quote_faithfulness, quotes_combined, context_chunks
             )
-            metrics.explanation_faithfulness_feedback = self._generate_explanation_faithfulness_feedback(
-                metrics.explanation_faithfulness, answer_text, quotes_text
+            metrics.explanation_faithfulness_feedback = (
+                self._generate_explanation_faithfulness_feedback(
+                    metrics.explanation_faithfulness, answer_text, quotes_text
+                )
             )
             metrics.answer_correctness_feedback = self._generate_answer_correctness_feedback(
                 metrics.answer_correctness, answer_text, ground_truth_answers
@@ -245,19 +267,23 @@ class RagasEvaluator:
             # Estimate token usage: query + context + answer + ground truths for each metric
             estimated_input_tokens_per_metric = (
                 len(query.split()) * 1.3  # query
-                + sum(len(chunk.split()) * 1.3 for chunk in context_chunks) / 3  # context (averaged)
+                + sum(len(chunk.split()) * 1.3 for chunk in context_chunks)
+                / 3  # context (averaged)
                 + len(answer_text.split()) * 1.3  # answer
-                + sum(len(gt.split()) * 1.3 for gt in ground_truth_answers) / 3  # ground truths (averaged)
+                + sum(len(gt.split()) * 1.3 for gt in ground_truth_answers)
+                / 3  # ground truths (averaged)
             )
             estimated_output_tokens_per_metric = 50  # Judge model outputs are typically short
 
-            total_input_tokens = int(estimated_input_tokens_per_metric * 3)  # 3 metrics using LLM judge
+            total_input_tokens = int(
+                estimated_input_tokens_per_metric * 3
+            )  # 3 metrics using LLM judge
             total_output_tokens = int(estimated_output_tokens_per_metric * 3)
 
             metrics.total_cost_usd = estimate_cost(
                 prompt_tokens=total_input_tokens,
                 completion_tokens=total_output_tokens,
-                model=QUALITY_TEST_JUDGE_MODEL
+                model=QUALITY_TEST_JUDGE_MODEL,
             )
 
             logger.debug(
@@ -265,7 +291,7 @@ class RagasEvaluator:
                 input_tokens=total_input_tokens,
                 output_tokens=total_output_tokens,
                 cost_usd=metrics.total_cost_usd,
-                judge_model=QUALITY_TEST_JUDGE_MODEL
+                judge_model=QUALITY_TEST_JUDGE_MODEL,
             )
 
             return metrics
@@ -300,7 +326,7 @@ class RagasEvaluator:
 
         scores = []
         if metrics.quote_precision is not None:
-             scores.append(metrics.quote_precision)
+            scores.append(metrics.quote_precision)
         if metrics.quote_recall is not None:
             scores.append(metrics.quote_recall)
         if metrics.quote_faithfulness is not None:
@@ -317,7 +343,10 @@ class RagasEvaluator:
         return (sum(scores) / len(scores)) * 100
 
     def _generate_quote_precision_feedback(
-        self, _score: float | None, _retrieved_contexts: list[str], _ground_truth_contexts: list[str]
+        self,
+        _score: float | None,
+        _retrieved_contexts: list[str],
+        _ground_truth_contexts: list[str],
     ) -> str:
         """Generate minimal feedback for quote precision.
 
@@ -336,8 +365,11 @@ class RagasEvaluator:
         return None
 
     def _generate_quote_recall_feedback(
-        self, score: float | None, retrieved_contexts: list[str],
-        normalized_ground_truth_contexts: list[str], original_ground_truth_contexts: list[str]
+        self,
+        score: float | None,
+        retrieved_contexts: list[str],
+        normalized_ground_truth_contexts: list[str],
+        original_ground_truth_contexts: list[str],
     ) -> str:
         """Generate feedback for quote recall with missing ground truths.
 
@@ -358,9 +390,13 @@ class RagasEvaluator:
 
         # Find which ground truths are missing
         missing_ground_truths = []
-        for i, (norm_gt, orig_gt) in enumerate(zip(normalized_ground_truth_contexts, original_ground_truth_contexts, strict=False), 1):
+        for i, (norm_gt, orig_gt) in enumerate(
+            zip(normalized_ground_truth_contexts, original_ground_truth_contexts, strict=False), 1
+        ):
             # Check if this ground truth appears in any retrieved context
-            found = any(norm_gt in retrieved or retrieved in norm_gt for retrieved in retrieved_contexts)
+            found = any(
+                norm_gt in retrieved or retrieved in norm_gt for retrieved in retrieved_contexts
+            )
             if not found:
                 missing_ground_truths.append((i, orig_gt))
 
@@ -402,16 +438,24 @@ class RagasEvaluator:
         # Basic score interpretation
         if score >= 0.9:
             quality = "✅ Excellent"
-            feedback_lines.append(f"{quality} ({score_pct:.1f}%): Quotes are highly faithful to retrieved context.")
+            feedback_lines.append(
+                f"{quality} ({score_pct:.1f}%): Quotes are highly faithful to retrieved context."
+            )
         elif score >= 0.7:
             quality = "✓ Good"
-            feedback_lines.append(f"{quality} ({score_pct:.1f}%): Most quotes supported by context.")
+            feedback_lines.append(
+                f"{quality} ({score_pct:.1f}%): Most quotes supported by context."
+            )
         elif score >= 0.5:
             quality = "⚠️ Fair"
-            feedback_lines.append(f"{quality} ({score_pct:.1f}%): Some quotes not found in context.")
+            feedback_lines.append(
+                f"{quality} ({score_pct:.1f}%): Some quotes not found in context."
+            )
         else:
             quality = "❌ Poor"
-            feedback_lines.append(f"{quality} ({score_pct:.1f}%): Significant hallucination in citations.")
+            feedback_lines.append(
+                f"{quality} ({score_pct:.1f}%): Significant hallucination in citations."
+            )
 
         # For low scores, try to identify problematic quotes
         if score < 0.8:
@@ -422,7 +466,8 @@ class RagasEvaluator:
 
             # Split quotes into sentences
             import re
-            sentences = re.split(r'[.!?]+', quotes_combined)
+
+            sentences = re.split(r"[.!?]+", quotes_combined)
             unsupported = []
 
             # Simple heuristic: check if key phrases appear in context
@@ -432,7 +477,7 @@ class RagasEvaluator:
                     continue
 
                 # Extract key phrases (words longer than 4 chars)
-                words = [w.lower() for w in re.findall(r'\b\w{5,}\b', sentence)]
+                words = [w.lower() for w in re.findall(r"\b\w{5,}\b", sentence)]
 
                 if not words:
                     continue
@@ -481,16 +526,24 @@ class RagasEvaluator:
         # Basic score interpretation
         if score >= 0.9:
             quality = "✅ Excellent"
-            feedback_lines.append(f"{quality} ({score_pct:.1f}%): Explanation is highly faithful to quotes.")
+            feedback_lines.append(
+                f"{quality} ({score_pct:.1f}%): Explanation is highly faithful to quotes."
+            )
         elif score >= 0.7:
             quality = "✓ Good"
-            feedback_lines.append(f"{quality} ({score_pct:.1f}%): Most statements supported by quotes.")
+            feedback_lines.append(
+                f"{quality} ({score_pct:.1f}%): Most statements supported by quotes."
+            )
         elif score >= 0.5:
             quality = "⚠️ Fair"
-            feedback_lines.append(f"{quality} ({score_pct:.1f}%): Some unsupported statements detected.")
+            feedback_lines.append(
+                f"{quality} ({score_pct:.1f}%): Some unsupported statements detected."
+            )
         else:
             quality = "❌ Poor"
-            feedback_lines.append(f"{quality} ({score_pct:.1f}%): Significant hallucination detected.")
+            feedback_lines.append(
+                f"{quality} ({score_pct:.1f}%): Significant hallucination detected."
+            )
 
         # For low scores, try to identify problematic statements
         if score < 0.8:
@@ -501,7 +554,8 @@ class RagasEvaluator:
 
             # Split explanation into sentences
             import re
-            sentences = re.split(r'[.!?]+', explanation)
+
+            sentences = re.split(r"[.!?]+", explanation)
             unsupported = []
 
             # Simple heuristic: check if key phrases appear in quotes
@@ -511,7 +565,7 @@ class RagasEvaluator:
                     continue
 
                 # Extract key phrases (words longer than 4 chars)
-                words = [w.lower() for w in re.findall(r'\b\w{5,}\b', sentence)]
+                words = [w.lower() for w in re.findall(r"\b\w{5,}\b", sentence)]
 
                 if not words:
                     continue
@@ -560,16 +614,24 @@ class RagasEvaluator:
         # Basic score interpretation
         if score >= 0.9:
             quality = "✅ Excellent"
-            feedback_lines.append(f"{quality} ({score_pct:.1f}%): Answer closely matches ground truth.")
+            feedback_lines.append(
+                f"{quality} ({score_pct:.1f}%): Answer closely matches ground truth."
+            )
         elif score >= 0.7:
             quality = "✓ Good"
-            feedback_lines.append(f"{quality} ({score_pct:.1f}%): Answer mostly correct with minor gaps.")
+            feedback_lines.append(
+                f"{quality} ({score_pct:.1f}%): Answer mostly correct with minor gaps."
+            )
         elif score >= 0.5:
             quality = "⚠️ Fair"
-            feedback_lines.append(f"{quality} ({score_pct:.1f}%): Answer partially correct, missing key points.")
+            feedback_lines.append(
+                f"{quality} ({score_pct:.1f}%): Answer partially correct, missing key points."
+            )
         else:
             quality = "❌ Poor"
-            feedback_lines.append(f"{quality} ({score_pct:.1f}%): Answer significantly deviates from expected.")
+            feedback_lines.append(
+                f"{quality} ({score_pct:.1f}%): Answer significantly deviates from expected."
+            )
 
         # For low scores, check which ground truths are covered
         if score < 0.8 and ground_truth_answers:
@@ -584,8 +646,23 @@ class RagasEvaluator:
 
                 # Extract key terms from ground truth (words 4+ chars)
                 import re
-                key_terms = [w for w in re.findall(r'\b\w{4,}\b', gt_lower)
-                           if w not in {'this', 'that', 'with', 'from', 'have', 'will', 'while', 'when', 'where'}]
+
+                key_terms = [
+                    w
+                    for w in re.findall(r"\b\w{4,}\b", gt_lower)
+                    if w
+                    not in {
+                        "this",
+                        "that",
+                        "with",
+                        "from",
+                        "have",
+                        "will",
+                        "while",
+                        "when",
+                        "where",
+                    }
+                ]
 
                 if not key_terms:
                     continue
@@ -606,16 +683,18 @@ class RagasEvaluator:
             if covered_truths:
                 feedback_lines.append("\n✓ **Covered ground truths:**")
                 for idx, gt, cov in covered_truths[:3]:
-                    feedback_lines.append(f"  {idx}. {gt} ({cov*100:.0f}% terms found)")
+                    feedback_lines.append(f"  {idx}. {gt} ({cov * 100:.0f}% terms found)")
 
             # Show missing ground truths
             if missing_truths:
                 feedback_lines.append("\n❌ **Missing or weakly covered ground truths:**")
                 for idx, gt, cov in missing_truths:
-                    feedback_lines.append(f"  {idx}. {gt} ({cov*100:.0f}% terms found)")
+                    feedback_lines.append(f"  {idx}. {gt} ({cov * 100:.0f}% terms found)")
 
             if not missing_truths and not covered_truths:
                 feedback_lines.append("- Unable to perform detailed coverage analysis")
-                feedback_lines.append(f"- Review answer against {len(ground_truth_answers)} ground truth statement(s)")
+                feedback_lines.append(
+                    f"- Review answer against {len(ground_truth_answers)} ground truth statement(s)"
+                )
 
         return "\n".join(feedback_lines) if feedback_lines else None

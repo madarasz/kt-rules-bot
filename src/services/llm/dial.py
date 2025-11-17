@@ -21,9 +21,7 @@ from src.services.llm.base import (
     RateLimitError,
     TokenLimitError,
 )
-from src.services.llm.base import (
-    TimeoutError as LLMTimeoutError,
-)
+from src.services.llm.base import TimeoutError as LLMTimeoutError
 
 logger = get_logger(__name__)
 
@@ -44,10 +42,7 @@ class DialAdapter(LLMProvider):
             raise ImportError("httpx package not installed. Run: pip install httpx")
 
         self.base_url = f"https://ai-proxy.lab.epam.com/openai/deployments/{model}/chat/completions"
-        self.headers = {
-            "Api-Key": api_key,
-            "Content-Type": "application/json",
-        }
+        self.headers = {"Api-Key": api_key, "Content-Type": "application/json"}
 
         # Model capabilities
         self.supports_temperature = model != "dial-gpt-5-mini"
@@ -100,11 +95,7 @@ class DialAdapter(LLMProvider):
 
             # Call Dial API with timeout
             async with httpx.AsyncClient(timeout=request.config.timeout_seconds) as client:
-                response = await client.post(
-                    self.base_url,
-                    headers=self.headers,
-                    json=payload,
-                )
+                response = await client.post(self.base_url, headers=self.headers, json=payload)
 
             latency_ms = int((time.time() - start_time) * 1000)
 
@@ -138,13 +129,12 @@ class DialAdapter(LLMProvider):
                 elif finish_reason == "length":
                     raise TokenLimitError("Dial output was truncated due to max_tokens limit")
                 else:
-                    raise Exception(f"Dial returned empty content with finish_reason: {finish_reason}")
+                    raise Exception(
+                        f"Dial returned empty content with finish_reason: {finish_reason}"
+                    )
 
             # Check if citations are included
-            citations_included = (
-                request.config.include_citations
-                and "According to" in answer_text
-            )
+            citations_included = request.config.include_citations and "According to" in answer_text
 
             # Default confidence (Dial doesn't provide logprobs yet)
             confidence = 0.8
@@ -180,17 +170,27 @@ class DialAdapter(LLMProvider):
             )
 
         except Exception as e:
-            if isinstance(e, (RateLimitError, AuthenticationError, LLMTimeoutError, ContentFilterError, TokenLimitError)):
+            if isinstance(
+                e,
+                (
+                    RateLimitError,
+                    AuthenticationError,
+                    LLMTimeoutError,
+                    ContentFilterError,
+                    TokenLimitError,
+                ),
+            ):
                 raise
 
             error_msg = str(e).lower()
 
             # Check for timeout-related errors
-            if ("timeout" in error_msg or hasattr(e, '__class__') and
-                e.__class__.__name__ in ('TimeoutException', 'TimeoutError')):
-                logger.warning(
-                    f"Dial API timeout after {request.config.timeout_seconds}s"
-                )
+            if (
+                "timeout" in error_msg
+                or hasattr(e, "__class__")
+                and e.__class__.__name__ in ("TimeoutException", "TimeoutError")
+            ):
+                logger.warning(f"Dial API timeout after {request.config.timeout_seconds}s")
                 raise LLMTimeoutError(
                     f"Dial generation exceeded {request.config.timeout_seconds}s timeout"
                 ) from e

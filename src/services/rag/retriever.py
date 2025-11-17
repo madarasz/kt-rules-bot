@@ -86,10 +86,7 @@ class RAGRetriever:
         self.hybrid_retriever: HybridRetriever | None = None
         if enable_hybrid:
             self.hybrid_retriever = HybridRetriever(
-                k=rrf_k,
-                bm25_k1=bm25_k1,
-                bm25_b=bm25_b,
-                bm25_weight=bm25_weight,
+                k=rrf_k, bm25_k1=bm25_k1, bm25_b=bm25_b, bm25_weight=bm25_weight
             )
             # Index all chunks from vector DB
             self._build_hybrid_index()
@@ -109,7 +106,7 @@ class RAGRetriever:
             bm25_b=bm25_b,
             bm25_weight=bm25_weight,
             keywords_loaded=self.keyword_extractor.get_keyword_count(),
-            synonyms_loaded=self.query_expander.get_stats()["total_synonyms"]
+            synonyms_loaded=self.query_expander.get_stats()["total_synonyms"],
         )
 
     def retrieve(
@@ -209,8 +206,7 @@ class RAGRetriever:
 
             # Query vector database
             results = self.vector_db.query(
-                query_embeddings=[query_embedding],
-                n_results=request.max_chunks,
+                query_embeddings=[query_embedding], n_results=request.max_chunks
             )
 
             # Convert results to DocumentChunk objects
@@ -220,9 +216,7 @@ class RAGRetriever:
             # Use EXPANDED query for BM25 to catch user-friendly synonyms
             if request.use_hybrid and self.hybrid_retriever and chunks:
                 chunks = self.hybrid_retriever.retrieve_hybrid(
-                    query=expanded_query,
-                    vector_chunks=chunks,
-                    top_k=request.max_chunks
+                    query=expanded_query, vector_chunks=chunks, top_k=request.max_chunks
                 )
                 logger.debug("hybrid_search_applied", final_chunks=len(chunks))
 
@@ -259,11 +253,7 @@ class RAGRetriever:
             return context, [], {}
 
         except Exception as e:
-            logger.error(
-                "retrieval_failed",
-                query_id=str(query_id),
-                error=str(e),
-            )
+            logger.error("retrieval_failed", query_id=str(query_id), error=str(e))
             raise VectorDBUnavailableError(f"Vector DB query failed: {e}") from e
 
     def _validate_query(self, query: str) -> None:
@@ -281,9 +271,7 @@ class RAGRetriever:
         if len(query) > 2000:
             raise InvalidQueryError("Query exceeds 2000 character limit")
 
-    def _results_to_chunks(
-        self, results: dict, min_relevance: float
-    ) -> list[DocumentChunk]:
+    def _results_to_chunks(self, results: dict, min_relevance: float) -> list[DocumentChunk]:
         """Convert vector DB results to DocumentChunk objects.
 
         Args:
@@ -342,9 +330,7 @@ class RAGRetriever:
 
         try:
             # Get all chunks from vector DB
-            all_results = self.vector_db.collection.get(
-                include=["documents", "metadatas"]
-            )
+            all_results = self.vector_db.collection.get(include=["documents", "metadatas"])
 
             if not all_results["ids"]:
                 logger.warning("hybrid_index_empty", message="No documents in vector DB")
@@ -372,7 +358,7 @@ class RAGRetriever:
             logger.info(
                 "hybrid_index_built",
                 chunk_count=len(chunks),
-                stats=self.hybrid_retriever.get_stats()
+                stats=self.hybrid_retriever.get_stats(),
             )
 
         except Exception as e:

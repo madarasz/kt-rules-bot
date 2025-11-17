@@ -14,4 +14,4 @@ class RetrieveRequest:
     max_chunks: int = RAG_MAX_CHUNKS  # Maximum document chunks to retrieve
     min_relevance: float = RAG_MIN_RELEVANCE  # Minimum cosine similarity threshold
     use_hybrid: bool = True  # Enable hybrid search (BM25 + vector)
-    use_multi_hop: bool = (RAG_MAX_HOPS > 0)  # Enable multi-hop retrieval (if max_hops > 0)
+    use_multi_hop: bool = RAG_MAX_HOPS > 0  # Enable multi-hop retrieval (if max_hops > 0)

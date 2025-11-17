@@ -83,17 +83,13 @@ def load_personality(personality_name: str) -> PersonalityConfig:
     ]
     missing = [field for field in required_fields if field not in data]
     if missing:
-        raise ValueError(
-            f"Missing required fields in {yaml_file}: {', '.join(missing)}"
-        )
+        raise ValueError(f"Missing required fields in {yaml_file}: {', '.join(missing)}")
 
     # Validate that referenced files exist
     for field in ["description_file", "acknowledgements_file", "disclaimers_file"]:
         file_path = project_root / data[field]
         if not file_path.exists():
-            logger.warning(
-                f"Personality file not found: {file_path} (referenced in {yaml_file})"
-            )
+            logger.warning(f"Personality file not found: {file_path} (referenced in {yaml_file})")
 
     return PersonalityConfig(
         name=personality_name,

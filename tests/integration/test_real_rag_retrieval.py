@@ -78,9 +78,7 @@ def _ingest_test_document(temp_chroma_db: str, temp_rules_dir: str) -> RAGIngest
     assert is_valid, f"Document validation failed: {error}"
 
     doc = RuleDocument.from_markdown_file(
-        filename="test-rules.md",
-        content=content,
-        metadata=metadata
+        filename="test-rules.md", content=content, metadata=metadata
     )
 
     result = ingestor.ingest([doc])
@@ -102,9 +100,7 @@ def test_real_rag_retrieval_basic(temp_chroma_db, temp_rules_dir):
 
     # Retrieve with query about barricades
     request = RetrieveRequest(
-        query="Can I shoot through barricades?",
-        context_key="test:123",
-        max_chunks=5
+        query="Can I shoot through barricades?", context_key="test:123", max_chunks=5
     )
 
     context, _, _ = retriever.retrieve(request, query_id=uuid4())
@@ -135,7 +131,7 @@ def test_real_rag_retrieval_no_results(temp_chroma_db, temp_rules_dir):
     request = RetrieveRequest(
         query="What is the airspeed velocity of an unladen swallow?",
         context_key="test:456",
-        max_chunks=5
+        max_chunks=5,
     )
 
     context, _, _ = retriever.retrieve(request, query_id=uuid4())
@@ -160,15 +156,11 @@ def test_real_rag_keyword_normalization(temp_chroma_db, temp_rules_dir):
 
     # Query with different capitalization
     request1 = RetrieveRequest(
-        query="Can I shoot during the SHOOTING phase?",
-        context_key="test:789",
-        max_chunks=5
+        query="Can I shoot during the SHOOTING phase?", context_key="test:789", max_chunks=5
     )
 
     request2 = RetrieveRequest(
-        query="Can I shoot during the shooting phase?",
-        context_key="test:789",
-        max_chunks=5
+        query="Can I shoot during the shooting phase?", context_key="test:789", max_chunks=5
     )
 
     context1, _, _ = retriever.retrieve(request1, query_id=uuid4())

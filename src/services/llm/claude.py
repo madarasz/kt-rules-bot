@@ -26,9 +26,7 @@ from src.services.llm.base import (
     PDFParseError,
     RateLimitError,
 )
-from src.services.llm.base import (
-    TimeoutError as LLMTimeoutError,
-)
+from src.services.llm.base import TimeoutError as LLMTimeoutError
 
 logger = get_logger(__name__)
 
@@ -48,7 +46,7 @@ class ClaudeAdapter(LLMProvider):
         # Initialize client with PDF and Files API beta headers
         self.client = AsyncAnthropic(
             api_key=api_key,
-            default_headers={"anthropic-beta": "pdfs-2024-09-25,files-api-2025-04-14"}
+            default_headers={"anthropic-beta": "pdfs-2024-09-25,files-api-2025-04-14"},
         )
         logger.info(f"Initialized Claude adapter with model {model}")
 
@@ -79,7 +77,9 @@ class ClaudeAdapter(LLMProvider):
             if schema_type == "hop_evaluation":
                 schema = HOP_EVALUATION_SCHEMA
                 tool_name = "evaluate_context_sufficiency"
-                tool_description = "Evaluate if retrieved context is sufficient to answer the question"
+                tool_description = (
+                    "Evaluate if retrieved context is sufficient to answer the question"
+                )
                 logger.debug("Using hop evaluation schema")
             else:  # "default"
                 schema = STRUCTURED_OUTPUT_SCHEMA
@@ -95,15 +95,10 @@ class ClaudeAdapter(LLMProvider):
                     temperature=request.config.temperature,
                     system=request.config.system_prompt,
                     messages=[{"role": "user", "content": full_prompt}],
-                    tools=[{
-                        "name": tool_name,
-                        "description": tool_description,
-                        "input_schema": schema
-                    }],
-                    tool_choice={
-                        "type": "tool",
-                        "name": tool_name
-                    }
+                    tools=[
+                        {"name": tool_name, "description": tool_description, "input_schema": schema}
+                    ],
+                    tool_choice={"type": "tool", "name": tool_name},
                 ),
                 timeout=request.config.timeout_seconds,
             )
@@ -114,7 +109,7 @@ class ClaudeAdapter(LLMProvider):
             # Claude returns tool_use block in content
             tool_use_block = None
             for block in response.content:
-                if hasattr(block, 'type') and block.type == 'tool_use':
+                if hasattr(block, "type") and block.type == "tool_use":
                     tool_use_block = block
                     break
 
@@ -124,7 +119,9 @@ class ClaudeAdapter(LLMProvider):
             # tool_use_block.input is a dict with structured data
             tool_input = tool_use_block.input
             answer_text = json.dumps(tool_input)  # Convert to JSON string
-            logger.debug(f"Extracted structured JSON from Claude tool use: {len(answer_text)} chars")
+            logger.debug(
+                f"Extracted structured JSON from Claude tool use: {len(answer_text)} chars"
+            )
 
             # Validate it's not empty
             if not answer_text or not answer_text.strip():
@@ -166,9 +163,7 @@ class ClaudeAdapter(LLMProvider):
             )
 
         except TimeoutError as e:
-            logger.warning(
-                f"Claude API timeout after {request.config.timeout_seconds}s"
-            )
+            logger.warning(f"Claude API timeout after {request.config.timeout_seconds}s")
             raise LLMTimeoutError(
                 f"Claude generation exceeded {request.config.timeout_seconds}s timeout"
             ) from e
@@ -223,15 +218,14 @@ class ClaudeAdapter(LLMProvider):
                 # Note: Need to use synchronous client for file upload
                 sync_client = Anthropic(
                     api_key=self.client.api_key,
-                    default_headers=self.client._custom_headers  # Preserve beta headers
+                    default_headers=self.client._custom_headers,  # Preserve beta headers
                 )
 
                 uploaded_file = None
                 try:
-                    with open(decompressed_pdf_path, 'rb') as f:
+                    with open(decompressed_pdf_path, "rb") as f:
                         uploaded_file = await asyncio.to_thread(
-                            sync_client.beta.files.upload,
-                            file=f
+                            sync_client.beta.files.upload, file=f
                         )
 
                     logger.info(f"Uploaded PDF to Files API: {uploaded_file.id}")
@@ -248,10 +242,7 @@ class ClaudeAdapter(LLMProvider):
                                     "content": [
                                         {
                                             "type": "document",
-                                            "source": {
-                                                "type": "file",
-                                                "file_id": uploaded_file.id,
-                                            },
+                                            "source": {"type": "file", "file_id": uploaded_file.id},
                                         },
                                         {"type": "text", "text": request.extraction_prompt},
                                     ],

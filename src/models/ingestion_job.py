@@ -105,9 +105,7 @@ class IngestionJob:
         """Increment documents_updated counter."""
         self.documents_updated += 1
 
-    def set_extraction_metrics(
-        self, token_count: int, cost_usd: float, latency_ms: int
-    ) -> None:
+    def set_extraction_metrics(self, token_count: int, cost_usd: float, latency_ms: int) -> None:
         """Set LLM-based extraction metrics.
 
         Args:
@@ -142,8 +140,5 @@ class IngestionJob:
             IngestionJob instance
         """
         return cls(
-            job_id=uuid4(),
-            update_id=update_id,
-            status="running",
-            started_at=datetime.now(UTC),
+            job_id=uuid4(), update_id=update_id, status="running", started_at=datetime.now(UTC)
         )

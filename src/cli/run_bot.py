@@ -77,7 +77,9 @@ class BotRunner:
             # Initialize analytics database (optional, env-controlled)
             analytics_db = AnalyticsDatabase.from_config()
             if analytics_db.enabled:
-                logger.info(f"✓ Analytics database initialized (retention: {analytics_db.retention_days} days)")
+                logger.info(
+                    f"✓ Analytics database initialized (retention: {analytics_db.retention_days} days)"
+                )
             else:
                 logger.info("✓ Analytics database disabled")
 

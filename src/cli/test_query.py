@@ -65,9 +65,11 @@ def test_query(
         print(f"Model: {model or config.default_llm_provider}")
     else:
         print("Mode: RAG-only (no LLM generation)")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
-    print(f"Multi-hop: {'enabled' if current_max_hops > 0 else 'disabled'} (max_hops={current_max_hops})")
+    print(
+        f"Multi-hop: {'enabled' if current_max_hops > 0 else 'disabled'} (max_hops={current_max_hops})"
+    )
 
     # Initialize services (after constant override)
     try:
@@ -119,10 +121,11 @@ def test_query(
         rag_time = (datetime.now(UTC) - start_time).total_seconds()
 
         # Calculate initial retrieval time (total minus hop times)
-        hop_total_time = sum(
-            hop.retrieval_time_s + hop.evaluation_time_s
-            for hop in hop_evaluations
-        ) if hop_evaluations else 0.0
+        hop_total_time = (
+            sum(hop.retrieval_time_s + hop.evaluation_time_s for hop in hop_evaluations)
+            if hop_evaluations
+            else 0.0
+        )
         initial_retrieval_time = rag_time - hop_total_time
 
         # Calculate costs following the same pattern as Discord bot
@@ -135,12 +138,13 @@ def test_query(
             for hop_eval in hop_evaluations:
                 if hop_eval.missing_query:
                     hop_embedding_cost += estimate_embedding_cost(
-                        hop_eval.missing_query,
-                        EMBEDDING_MODEL
+                        hop_eval.missing_query, EMBEDDING_MODEL
                     )
 
         # 3. Hop evaluation LLM costs (already tracked in hop_eval.cost_usd)
-        hop_evaluation_cost = sum(hop_eval.cost_usd for hop_eval in hop_evaluations) if hop_evaluations else 0.0
+        hop_evaluation_cost = (
+            sum(hop_eval.cost_usd for hop_eval in hop_evaluations) if hop_evaluations else 0.0
+        )
 
         # Total RAG cost (embedding + hop evaluations)
         initial_embedding_cost + hop_embedding_cost + hop_evaluation_cost
@@ -154,20 +158,20 @@ def test_query(
 
         # Display hop information if multi-hop was used
         if hop_evaluations:
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print(f"MULTI-HOP INFORMATION ({len(hop_evaluations)} hops)")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             for i, hop_eval in enumerate(hop_evaluations, 1):
                 print(f"\n--- Hop {i} ---")
                 print(f"Can Answer: {'✅ Yes' if hop_eval.can_answer else '❌ No'}")
                 print(f"Reasoning: {hop_eval.reasoning}")
                 if hop_eval.missing_query:
-                    print(f"Missing Query: \"{hop_eval.missing_query}\"")
+                    print(f'Missing Query: "{hop_eval.missing_query}"')
 
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("CHUNKS BY HOP")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             chunks_by_hop = {}
             for chunk in rag_context.document_chunks:
@@ -214,7 +218,7 @@ def test_query(
         return
 
     # Step 2: LLM Generation
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Step 2: LLM Generation")
     print("-" * 60)
 
@@ -228,11 +232,9 @@ def test_query(
                 GenerationRequest(
                     prompt=query,
                     context=[chunk.text for chunk in rag_context.document_chunks],
-                    config=GenerationConfig(
-                        timeout_seconds=LLM_GENERATION_TIMEOUT
-                    ),
+                    config=GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT),
                 ),
-                timeout_seconds=LLM_GENERATION_TIMEOUT
+                timeout_seconds=LLM_GENERATION_TIMEOUT,
             )
         )
 
@@ -240,9 +242,7 @@ def test_query(
 
         # Calculate LLM cost using actual token counts
         llm_cost = estimate_cost(
-            llm_response.prompt_tokens,
-            llm_response.completion_tokens,
-            llm_response.model_version
+            llm_response.prompt_tokens, llm_response.completion_tokens, llm_response.model_version
         )
 
         print(f"Generated response in {llm_time:.2f}s")
@@ -266,7 +266,7 @@ def test_query(
         sys.exit(1)
 
     # Step 3: Validation
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Step 3: Validation")
     print("-" * 60)
 
@@ -305,15 +305,10 @@ def test_query(
 
 def main():
     """Main entry point for test_query CLI."""
-    parser = argparse.ArgumentParser(
-        description="Test RAG + LLM pipeline locally without Discord"
-    )
+    parser = argparse.ArgumentParser(description="Test RAG + LLM pipeline locally without Discord")
     parser.add_argument("query", help="Question to ask")
     parser.add_argument(
-        "--model",
-        "-m",
-        choices=ALL_LLM_PROVIDERS,
-        help="LLM model to use (default: from config)",
+        "--model", "-m", choices=ALL_LLM_PROVIDERS, help="LLM model to use (default: from config)"
     )
     parser.add_argument(
         "--max-chunks",
@@ -322,9 +317,7 @@ def main():
         help=f"Maximum chunks to retrieve (default: {RAG_MAX_CHUNKS})",
     )
     parser.add_argument(
-        "--rag-only",
-        action="store_true",
-        help="Stop after RAG retrieval, do not call LLM",
+        "--rag-only", action="store_true", help="Stop after RAG retrieval, do not call LLM"
     )
     parser.add_argument(
         "--max-hops",

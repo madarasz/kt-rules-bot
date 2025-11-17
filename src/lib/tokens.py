@@ -4,7 +4,6 @@ Uses tiktoken library for accurate token counting.
 Based on specs/001-we-are-building/tasks.md T029
 """
 
-
 import tiktoken
 
 from src.lib.constants import EMBEDDING_MODEL
@@ -46,9 +45,7 @@ def count_tokens_with_encoding(text: str, encoding_name: str = DEFAULT_ENCODING)
     return len(encoding.encode(text))
 
 
-def truncate_to_token_limit(
-    text: str, max_tokens: int, model: str = "gpt-3.5-turbo"
-) -> str:
+def truncate_to_token_limit(text: str, max_tokens: int, model: str = "gpt-3.5-turbo") -> str:
     """Truncate text to fit within token limit.
 
     Args:
@@ -75,11 +72,7 @@ def truncate_to_token_limit(
     return decoded
 
 
-def estimate_cost(
-    prompt_tokens: int,
-    completion_tokens: int,
-    model: str,
-) -> float:
+def estimate_cost(prompt_tokens: int, completion_tokens: int, model: str) -> float:
     """Estimate cost for LLM API call.
 
     Args:
@@ -103,7 +96,7 @@ def estimate_cost(
         "gemini-2.5-pro": {"prompt": 0.00125, "completion": 0.01},
         "gemini-2.5-flash": {"prompt": 0.0003, "completion": 0.0025},
         "deepseek-chat": {"prompt": 0.00028, "completion": 0.00042},
-        "deepseek-reasoner": {"prompt": 0.00028, "completion": 0.00042}
+        "deepseek-reasoner": {"prompt": 0.00028, "completion": 0.00042},
     }
 
     # Default pricing if model not found
@@ -179,10 +172,7 @@ def estimate_embedding_cost(text: str, model: str = EMBEDDING_MODEL) -> float:
 
 
 def split_text_by_tokens(
-    text: str,
-    max_tokens: int,
-    model: str = "gpt-3.5-turbo",
-    overlap: int = 0,
+    text: str, max_tokens: int, model: str = "gpt-3.5-turbo", overlap: int = 0
 ) -> list[str]:
     """Split text into chunks by token count.
 

@@ -142,7 +142,10 @@ class RAGSweepRunner:
             base_config = ParameterConfig()
 
         # Check if we're sweeping embedding_model or chunk_header_level
-        self.sweeping_embedding_or_chunking = param_name in ("embedding_model", "chunk_header_level")
+        self.sweeping_embedding_or_chunking = param_name in (
+            "embedding_model",
+            "chunk_header_level",
+        )
 
         logger.info(
             "starting_parameter_sweep",
@@ -168,11 +171,7 @@ class RAGSweepRunner:
             )
 
             # Run tests with this configuration
-            result = self._run_config(
-                config=config,
-                test_id=test_id,
-                runs=runs,
-            )
+            result = self._run_config(config=config, test_id=test_id, runs=runs)
 
             sweep_results.append(result)
 
@@ -184,18 +183,13 @@ class RAGSweepRunner:
             )
 
         logger.info(
-            "parameter_sweep_completed",
-            param_name=param_name,
-            configs_tested=len(sweep_results),
+            "parameter_sweep_completed", param_name=param_name, configs_tested=len(sweep_results)
         )
 
         return sweep_results
 
     def grid_search(
-        self,
-        param_grid: dict[str, list[Any]],
-        test_id: str | None = None,
-        runs: int = 1,
+        self, param_grid: dict[str, list[Any]], test_id: str | None = None, runs: int = 1
     ) -> list[SweepResult]:
         """Run tests for all combinations of parameters (grid search).
 
@@ -216,7 +210,9 @@ class RAGSweepRunner:
         total_configs = len(combinations)
 
         # Check if we're sweeping embedding_model or chunk_header_level
-        self.sweeping_embedding_or_chunking = ("embedding_model" in param_names or "chunk_header_level" in param_names)
+        self.sweeping_embedding_or_chunking = (
+            "embedding_model" in param_names or "chunk_header_level" in param_names
+        )
 
         logger.info(
             "starting_grid_search",
@@ -242,11 +238,7 @@ class RAGSweepRunner:
             )
 
             # Run tests with this configuration
-            result = self._run_config(
-                config=config,
-                test_id=test_id,
-                runs=runs,
-            )
+            result = self._run_config(config=config, test_id=test_id, runs=runs)
 
             sweep_results.append(result)
 
@@ -256,19 +248,11 @@ class RAGSweepRunner:
                 context_precision=result.summary.mean_ragas_context_precision,
             )
 
-        logger.info(
-            "grid_search_completed",
-            total_configs=total_configs,
-        )
+        logger.info("grid_search_completed", total_configs=total_configs)
 
         return sweep_results
 
-    def _run_config(
-        self,
-        config: ParameterConfig,
-        test_id: str | None,
-        runs: int,
-    ) -> SweepResult:
+    def _run_config(self, config: ParameterConfig, test_id: str | None, runs: int) -> SweepResult:
         """Run tests for a single configuration.
 
         Args:
@@ -313,8 +297,7 @@ class RAGSweepRunner:
             print(f"   New chunk header level: {config.chunk_header_level}")
 
             self._reset_and_reingest(
-                embedding_model=config.embedding_model,
-                chunk_header_level=config.chunk_header_level,
+                embedding_model=config.embedding_model, chunk_header_level=config.chunk_header_level
             )
 
             # Update tracking variables
@@ -347,18 +330,9 @@ class RAGSweepRunner:
             min_relevance=config.min_relevance,
         )
 
-        return SweepResult(
-            config=config,
-            results=results,
-            summary=summary,
-            total_time=total_time,
-        )
+        return SweepResult(config=config, results=results, summary=summary, total_time=total_time)
 
-    def _reset_and_reingest(
-        self,
-        embedding_model: str,
-        chunk_header_level: int,
-    ) -> None:
+    def _reset_and_reingest(self, embedding_model: str, chunk_header_level: int) -> None:
         """Reset vector DB and reingest rules with custom parameters.
 
         Args:
@@ -372,10 +346,7 @@ class RAGSweepRunner:
         count_before = vector_db.get_count()
         vector_db.reset()
 
-        logger.info(
-            "vector_db_reset_for_sweep",
-            embeddings_deleted=count_before,
-        )
+        logger.info("vector_db_reset_for_sweep", embeddings_deleted=count_before)
 
         print(f"   Deleted {count_before} embeddings")
 
@@ -395,9 +366,7 @@ class RAGSweepRunner:
                 content = md_file.read_text(encoding="utf-8")
 
                 # Validate and extract metadata
-                is_valid, error, metadata = validator.validate_content(
-                    content, md_file.name
-                )
+                is_valid, error, metadata = validator.validate_content(content, md_file.name)
 
                 if not is_valid:
                     logger.warning(f"Skipping {md_file.name}: {error}")
@@ -406,9 +375,7 @@ class RAGSweepRunner:
 
                 # Create RuleDocument using the class method
                 doc = RuleDocument.from_markdown_file(
-                    filename=md_file.name,
-                    content=content,
-                    metadata=metadata,
+                    filename=md_file.name, content=content, metadata=metadata
                 )
                 documents.append(doc)
             except Exception as e:
@@ -417,17 +384,12 @@ class RAGSweepRunner:
                 continue
 
         # Create custom services
-        chunker = MarkdownChunker(
-            chunk_level=chunk_header_level,
-            model=embedding_model,
-        )
+        chunker = MarkdownChunker(chunk_level=chunk_header_level, model=embedding_model)
         embedding_service = EmbeddingService(model=embedding_model)
 
         # Ingest
         ingestor = RAGIngestor(
-            chunker=chunker,
-            embedding_service=embedding_service,
-            vector_db_service=vector_db,
+            chunker=chunker, embedding_service=embedding_service, vector_db_service=vector_db
         )
 
         result = ingestor.ingest(documents)
@@ -443,11 +405,7 @@ class RAGSweepRunner:
             chunk_header_level=chunk_header_level,
         )
 
-    def save_sweep_results(
-        self,
-        sweep_results: list[SweepResult],
-        sweep_name: str,
-    ) -> Path:
+    def save_sweep_results(self, sweep_results: list[SweepResult], sweep_name: str) -> Path:
         """Save sweep results to timestamped directory.
 
         Args:
@@ -464,7 +422,7 @@ class RAGSweepRunner:
 
         # Save each configuration's results in subdirectory
         for i, sweep_result in enumerate(sweep_results):
-            config_dir = sweep_dir / f"config_{i+1}_{sweep_result.config.get_identifier()}"
+            config_dir = sweep_dir / f"config_{i + 1}_{sweep_result.config.get_identifier()}"
             config_dir.mkdir(parents=True, exist_ok=True)
 
             # Save configuration file
@@ -472,10 +430,6 @@ class RAGSweepRunner:
             with open(config_file, "w") as f:
                 f.write(sweep_result.config.get_description())
 
-        logger.info(
-            "sweep_results_saved",
-            sweep_dir=str(sweep_dir),
-            num_configs=len(sweep_results),
-        )
+        logger.info("sweep_results_saved", sweep_dir=str(sweep_dir), num_configs=len(sweep_results))
 
         return sweep_dir

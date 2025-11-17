@@ -13,13 +13,7 @@ from src.services.llm.base import STRUCTURED_OUTPUT_SCHEMA, GenerationConfig, Ge
 from src.services.llm.factory import LLMProviderFactory
 
 # All providers that must support structured output
-PROVIDERS_TO_TEST = [
-    "claude-4.5-sonnet",
-    "gpt-4.1",
-    "gemini-2.5-flash",
-    "grok-3",
-    "deepseek-chat"
-]
+PROVIDERS_TO_TEST = ["claude-4.5-sonnet", "gpt-4.1", "gemini-2.5-flash", "grok-3", "deepseek-chat"]
 
 TEST_PROMPT = "Can a model perform two Shoot actions in the same activation?"
 TEST_CONTEXT = [
@@ -47,11 +41,7 @@ async def test_provider_structured_output_compliance(provider):
     """
     llm = LLMProviderFactory.create(provider)
 
-    request = GenerationRequest(
-        prompt=TEST_PROMPT,
-        context=TEST_CONTEXT,
-        config=GenerationConfig()
-    )
+    request = GenerationRequest(prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig())
 
     response = await llm.generate(request)
 
@@ -59,7 +49,9 @@ async def test_provider_structured_output_compliance(provider):
     try:
         data = json.loads(response.answer_text)
     except json.JSONDecodeError as e:
-        pytest.fail(f"{provider} returned invalid JSON: {e}\nResponse: {response.answer_text[:200]}")
+        pytest.fail(
+            f"{provider} returned invalid JSON: {e}\nResponse: {response.answer_text[:200]}"
+        )
 
     assert isinstance(data, dict), f"{provider} must return JSON object (got {type(data)})"
     print(f"✓ {provider} returned valid JSON")
@@ -71,10 +63,14 @@ async def test_provider_structured_output_compliance(provider):
 
     assert isinstance(data["smalltalk"], bool), f"{provider} smalltalk must be boolean"
     assert isinstance(data["short_answer"], str), f"{provider} short_answer must be string"
-    assert isinstance(data["persona_short_answer"], str), f"{provider} persona_short_answer must be string"
+    assert isinstance(data["persona_short_answer"], str), (
+        f"{provider} persona_short_answer must be string"
+    )
     assert isinstance(data["quotes"], list), f"{provider} quotes must be array"
     assert isinstance(data["explanation"], str), f"{provider} explanation must be string"
-    assert isinstance(data["persona_afterword"], str), f"{provider} persona_afterword must be string"
+    assert isinstance(data["persona_afterword"], str), (
+        f"{provider} persona_afterword must be string"
+    )
 
     print(f"✓ {provider} has all required fields with correct types")
 
@@ -99,9 +95,13 @@ async def test_provider_structured_output_compliance(provider):
     except Exception as e:
         pytest.fail(f"{provider} failed to parse into StructuredLLMResponse: {e}")
 
-    assert not structured_response.smalltalk, f"{provider} should mark rules questions as not smalltalk"
+    assert not structured_response.smalltalk, (
+        f"{provider} should mark rules questions as not smalltalk"
+    )
     assert len(structured_response.short_answer) > 0, f"{provider} short_answer cannot be empty"
-    assert len(structured_response.quotes) > 0, f"{provider} must provide quotes for rules questions"
+    assert len(structured_response.quotes) > 0, (
+        f"{provider} must provide quotes for rules questions"
+    )
 
     print(f"✓ {provider} response successfully parsed to StructuredLLMResponse")
 
@@ -119,9 +119,7 @@ async def test_provider_smalltalk_flag(provider):
 
     # Test with smalltalk
     request = GenerationRequest(
-        prompt=SMALLTALK_PROMPT,
-        context=SMALLTALK_CONTEXT,
-        config=GenerationConfig()
+        prompt=SMALLTALK_PROMPT, context=SMALLTALK_CONTEXT, config=GenerationConfig()
     )
 
     response = await llm.generate(request)
@@ -145,11 +143,7 @@ async def test_provider_markdown_conversion(provider):
     """
     llm = LLMProviderFactory.create(provider)
 
-    request = GenerationRequest(
-        prompt=TEST_PROMPT,
-        context=TEST_CONTEXT,
-        config=GenerationConfig()
-    )
+    request = GenerationRequest(prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig())
 
     response = await llm.generate(request)
     structured_response = StructuredLLMResponse.from_json(response.answer_text)
@@ -159,7 +153,9 @@ async def test_provider_markdown_conversion(provider):
 
     # Verify markdown contains expected elements
     assert structured_response.short_answer in markdown, f"{provider} markdown missing short_answer"
-    assert structured_response.persona_short_answer in markdown, f"{provider} markdown missing persona"
+    assert structured_response.persona_short_answer in markdown, (
+        f"{provider} markdown missing persona"
+    )
     assert "## Explanation" in markdown, f"{provider} markdown missing explanation header"
     assert structured_response.explanation in markdown, f"{provider} markdown missing explanation"
 
@@ -177,17 +173,16 @@ class TestProviderSpecificEdgeCases:
         llm = LLMProviderFactory.create("gpt-4.1")
 
         request = GenerationRequest(
-            prompt=TEST_PROMPT,
-            context=TEST_CONTEXT,
-            config=GenerationConfig()
+            prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig()
         )
 
         response = await llm.generate(request)
         data = json.loads(response.answer_text)
 
         # Strict mode should guarantee exact schema compliance
-        assert set(data.keys()) == set(STRUCTURED_OUTPUT_SCHEMA["required"]), \
+        assert set(data.keys()) == set(STRUCTURED_OUTPUT_SCHEMA["required"]), (
             "GPT-4.1 strict mode should only include required fields"
+        )
 
         print("✓ GPT-4.1 strict mode validated")
 
@@ -200,9 +195,7 @@ class TestProviderSpecificEdgeCases:
             llm = LLMProviderFactory.create(model)
 
             request = GenerationRequest(
-                prompt=TEST_PROMPT,
-                context=TEST_CONTEXT,
-                config=GenerationConfig()
+                prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig()
             )
 
             response = await llm.generate(request)
@@ -225,10 +218,4 @@ def mock_llm_adapter():
 @pytest.fixture
 def mock_llm_providers():
     """Mock multiple LLM providers for consistency testing."""
-    return {
-        "claude": None,
-        "chatgpt": None,
-        "gemini": None,
-        "deepseek": None,
-        "grok": None
-    }
+    return {"claude": None, "chatgpt": None, "gemini": None, "deepseek": None, "grok": None}

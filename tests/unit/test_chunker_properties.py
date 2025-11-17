@@ -30,12 +30,19 @@ def test_chunker_never_loses_content(markdown_text):
 
     # Content length should be similar (allowing for YAML frontmatter removal and whitespace)
     # We allow up to 30% difference to account for frontmatter stripping
-    assert len(reconstructed) >= len(markdown_text) * 0.7, \
+    assert len(reconstructed) >= len(markdown_text) * 0.7, (
         f"Lost too much content: original {len(markdown_text)}, reconstructed {len(reconstructed)}"
+    )
 
 
 @pytest.mark.slow  # Requires tiktoken encoding download
-@given(st.text(alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd', 'Pd', 'Po')), min_size=10, max_size=1000))
+@given(
+    st.text(
+        alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Pd", "Po")),
+        min_size=10,
+        max_size=1000,
+    )
+)
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=30)
 def test_chunker_produces_valid_chunks(markdown_text):
     """Property: chunker always produces valid MarkdownChunk objects."""
@@ -48,9 +55,9 @@ def test_chunker_produces_valid_chunks(markdown_text):
 
     # All chunks should have required attributes
     for chunk in chunks:
-        assert hasattr(chunk, 'text')
-        assert hasattr(chunk, 'header')
-        assert hasattr(chunk, 'header_level')
+        assert hasattr(chunk, "text")
+        assert hasattr(chunk, "header")
+        assert hasattr(chunk, "header_level")
         assert isinstance(chunk.text, str)
         assert isinstance(chunk.header, str)
         assert isinstance(chunk.header_level, int)
@@ -65,10 +72,12 @@ def test_chunker_respects_header_level(header_level):
     chunker = MarkdownChunker(chunk_level=header_level)
 
     # Create content with multiple header levels
-    content = "\n\n".join([
-        f"{'#' * level} Header Level {level}\n\nContent for level {level}"
-        for level in range(1, header_level + 3)
-    ])
+    content = "\n\n".join(
+        [
+            f"{'#' * level} Header Level {level}\n\nContent for level {level}"
+            for level in range(1, header_level + 3)
+        ]
+    )
 
     chunks = chunker.chunk(content)
 
@@ -106,10 +115,7 @@ def test_chunker_multiple_sections(section_texts):
     chunker = MarkdownChunker(chunk_level=2)
 
     # Create content with multiple ## sections
-    content = "\n\n".join([
-        f"## Section {i}\n\n{text}"
-        for i, text in enumerate(section_texts)
-    ])
+    content = "\n\n".join([f"## Section {i}\n\n{text}" for i, text in enumerate(section_texts)])
 
     chunks = chunker.chunk(content)
 

@@ -24,7 +24,7 @@ def get_random_acknowledgement() -> str:
             logger.warning(f"Acknowledgements file not found at: {file_path}")
             return "Processing your query..."
 
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             lines = [line.strip() for line in f.readlines() if line.strip()]
 
         if not lines:
@@ -53,7 +53,7 @@ def get_random_disclaimer() -> str:
             logger.warning(f"Disclaimers file not found at: {file_path}")
             return "This interpretation is auto-generated. Consult official rules for certainty."
 
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             lines = [line.strip() for line in f.readlines() if line.strip()]
 
         if not lines:

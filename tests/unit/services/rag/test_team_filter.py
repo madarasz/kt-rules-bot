@@ -14,36 +14,36 @@ def sample_teams_structure():
             "Faction Rules": ["Ere We Go", "Dakka Dakka Dakka"],
             "Strategy Ploys": ["Shootier", "Breacha Ram"],
             "Firefight Ploys": ["Get Stuck In"],
-            "Faction Equipment": ["Stikkbombs"]
+            "Faction Equipment": ["Stikkbombs"],
         },
         "Pathfinders": {
             "Operatives": ["Pathfinder Warrior", "Pathfinder Gunner", "Drone"],
             "Faction Rules": ["For The Greater Good", "Markerlights"],
             "Strategy Ploys": ["Saviour Protocols"],
             "Firefight Ploys": ["Recon Sweep"],
-            "Faction Equipment": ["Photon Grenades"]
+            "Faction Equipment": ["Photon Grenades"],
         },
         "Death Korps": {
             "Operatives": ["Guardsman Fighter", "Guardsman Gunner", "Sergeant"],
             "Faction Rules": ["Cult Of Sacrifice"],
             "Strategy Ploys": ["Fix Bayonets"],
             "Firefight Ploys": ["No Backward Step"],
-            "Faction Equipment": ["Frag Grenades"]
+            "Faction Equipment": ["Frag Grenades"],
         },
         "Blooded": {
             "Operatives": ["Traitor Trooper", "Gunner", "Butcher"],
             "Faction Rules": ["Contempt"],
             "Strategy Ploys": ["Blood For The Blood God"],
             "Firefight Ploys": ["Merciless"],
-            "Faction Equipment": []
+            "Faction Equipment": [],
         },
         "Farstalker Kinband": {
             "Operatives": ["Kroot Warrior", "Kroot Carnivore", "Shaper"],
             "Faction Rules": ["Stalk"],
             "Strategy Ploys": ["Kindred Hunters"],
             "Firefight Ploys": ["Primal Ferocity"],
-            "Faction Equipment": ["Ritual Blade"]
-        }
+            "Faction Equipment": ["Ritual Blade"],
+        },
     }
 
 
@@ -238,8 +238,13 @@ class TestFilterStructure:
         """Test that filtered structure preserves team data."""
         team_filter = TeamFilter(sample_teams_structure)
         filtered = team_filter.filter_structure(["Kommandos"])
-        assert filtered["Kommandos"]["Operatives"] == sample_teams_structure["Kommandos"]["Operatives"]
-        assert filtered["Kommandos"]["Faction Rules"] == sample_teams_structure["Kommandos"]["Faction Rules"]
+        assert (
+            filtered["Kommandos"]["Operatives"] == sample_teams_structure["Kommandos"]["Operatives"]
+        )
+        assert (
+            filtered["Kommandos"]["Faction Rules"]
+            == sample_teams_structure["Kommandos"]["Faction Rules"]
+        )
 
 
 class TestFilterTeamsForQuery:
@@ -274,7 +279,7 @@ class TestEdgeCases:
                 "Faction Rules": [],
                 "Strategy Ploys": [],
                 "Firefight Ploys": [],
-                "Faction Equipment": []
+                "Faction Equipment": [],
             },
             "Team2": "invalid",  # Not a dict
             "Team3": {
@@ -282,8 +287,8 @@ class TestEdgeCases:
                 "Faction Rules": [],
                 "Strategy Ploys": [],
                 "Firefight Ploys": [],
-                "Faction Equipment": []
-            }
+                "Faction Equipment": [],
+            },
         }
         # Should not crash
         team_filter = TeamFilter(malformed)
@@ -294,7 +299,7 @@ class TestEdgeCases:
         """Test team data missing 'Operatives' key."""
         teams_data = {
             "Team1": {
-                "Faction Rules": ["Rule1"],
+                "Faction Rules": ["Rule1"]
                 # Missing Operatives
             }
         }
@@ -311,7 +316,7 @@ class TestEdgeCases:
                 "Faction Rules": [],
                 "Strategy Ploys": [],
                 "Firefight Ploys": [],
-                "Faction Equipment": []
+                "Faction Equipment": [],
             }
         }
         team_filter = TeamFilter(teams_data)
@@ -340,7 +345,7 @@ class TestEdgeCases:
                 "Faction Rules": ["Accurate 1", "Lethal 5+"],
                 "Strategy Ploys": [],
                 "Firefight Ploys": [],
-                "Faction Equipment": []
+                "Faction Equipment": [],
             }
         }
         team_filter = TeamFilter(teams_data)

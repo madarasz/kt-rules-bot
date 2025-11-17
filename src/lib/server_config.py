@@ -35,7 +35,9 @@ class ServerConfig:
     deepseek_api_key: str | None = None
 
     # RAG Configuration (optional override)
-    rag_hop_evaluation_model: LLM_PROVIDERS_LITERAL | None = None  # Model for multi-hop RAG evaluation
+    rag_hop_evaluation_model: LLM_PROVIDERS_LITERAL | None = (
+        None  # Model for multi-hop RAG evaluation
+    )
 
     def validate(self) -> None:
         """Validate server configuration.
@@ -78,11 +80,11 @@ class MultiServerConfig:
             with open(self.config_path) as f:
                 data = yaml.safe_load(f)
 
-            if not data or 'servers' not in data:
+            if not data or "servers" not in data:
                 logger.warning(f"No 'servers' section in {self.config_path}")
                 return
 
-            for guild_id, server_data in data['servers'].items():
+            for guild_id, server_data in data["servers"].items():
                 if not isinstance(server_data, dict):
                     logger.warning(f"Invalid config for guild {guild_id}, skipping")
                     continue
@@ -91,7 +93,7 @@ class MultiServerConfig:
                 guild_id_str = str(guild_id)
 
                 # Check for required llm_provider field
-                llm_provider = server_data.get('llm_provider')
+                llm_provider = server_data.get("llm_provider")
                 if not llm_provider:
                     logger.error(
                         f"Guild {guild_id_str} ({server_data.get('name', 'unnamed')}): "
@@ -103,14 +105,14 @@ class MultiServerConfig:
                     server_config = ServerConfig(
                         guild_id=guild_id_str,
                         llm_provider=llm_provider,
-                        name=server_data.get('name'),
-                        anthropic_api_key=server_data.get('anthropic_api_key'),
-                        openai_api_key=server_data.get('openai_api_key'),
-                        google_api_key=server_data.get('google_api_key'),
-                        x_api_key=server_data.get('x_api_key'),
-                        dial_api_key=server_data.get('dial_api_key'),
-                        deepseek_api_key=server_data.get('deepseek_api_key'),
-                        rag_hop_evaluation_model=server_data.get('rag_hop_evaluation_model'),
+                        name=server_data.get("name"),
+                        anthropic_api_key=server_data.get("anthropic_api_key"),
+                        openai_api_key=server_data.get("openai_api_key"),
+                        google_api_key=server_data.get("google_api_key"),
+                        x_api_key=server_data.get("x_api_key"),
+                        dial_api_key=server_data.get("dial_api_key"),
+                        deepseek_api_key=server_data.get("deepseek_api_key"),
+                        rag_hop_evaluation_model=server_data.get("rag_hop_evaluation_model"),
                     )
 
                     # Validate the config
