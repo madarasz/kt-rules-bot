@@ -202,14 +202,14 @@ def test_gdpr_delete_with_confirm_flag(mock_input, _mock_logger):
 @patch("src.cli.__main__.run_bot")
 def test_main_routes_run_command(mock_run_bot):
     """Test that main routes 'run' command correctly."""
-    with patch("sys.argv", ["cli", "run", "--mode", "dev"]):
+    with patch("sys.argv", ["cli", "run"]):
         from src.cli.__main__ import main
 
         with contextlib.suppress(SystemExit):
             main()
 
         # Verify run_bot was called
-        mock_run_bot.assert_called_once_with(mode="dev")
+        mock_run_bot.assert_called_once()
 
 
 @patch("src.cli.__main__.ingest_rules")

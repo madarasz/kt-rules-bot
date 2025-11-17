@@ -172,12 +172,8 @@ class BotRunner:
             sys.exit(1)
 
 
-def run_bot(_mode: str = "production") -> None:
-    """Start the Discord bot.
-
-    Args:
-        _mode: Runtime mode ('dev' or 'production') - currently unused
-    """
+def run_bot() -> None:
+    """Start the Discord bot."""
     # Load configuration
     from src.lib.config import get_config
     config = get_config()

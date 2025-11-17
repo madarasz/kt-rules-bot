@@ -348,7 +348,7 @@ def main() -> None:
     try:
         # Route to appropriate command handler
         if args.command == "run":
-            run_bot(_mode=args.mode)
+            run_bot()
 
         elif args.command == "ingest":
             ingest_rules(source_dir=args.source_dir, force=args.force)
