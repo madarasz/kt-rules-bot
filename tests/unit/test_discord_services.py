@@ -16,7 +16,7 @@ from src.models.rag_context import DocumentChunk, RAGContext
 from src.models.user_query import UserQuery
 from src.services.discord.context_manager import ConversationContextManager
 from src.services.discord.feedback_logger import FeedbackLogger
-from src.services.discord.formatter import add_feedback_reactions
+from src.services.discord.formatter import create_feedback_view
 from src.services.discord.handlers import handle_message
 
 # ==================== FIXTURES ====================
@@ -231,17 +231,234 @@ async def test_context_manager_cleanup_expired():
 
 
 @pytest.mark.asyncio
-async def test_add_feedback_reactions():
-    """Test adding feedback reaction buttons."""
-    message = AsyncMock(spec=discord.Message)
-    message.add_reaction = AsyncMock()
+async def test_create_feedback_view():
+    """Test creating feedback button view."""
+    from src.services.discord.feedback_buttons import FeedbackView
 
-    await add_feedback_reactions(message)
+    feedback_logger = Mock()
 
-    assert message.add_reaction.call_count == 2
-    calls = [call[0][0] for call in message.add_reaction.call_args_list]
-    assert "👍" in calls
-    assert "👎" in calls
+    view = create_feedback_view(
+        feedback_logger=feedback_logger, query_id="query-123", response_id="response-456"
+    )
+
+    assert isinstance(view, FeedbackView)
+    assert view.query_id == "query-123"
+    assert view.response_id == "response-456"
+    assert view.feedback_logger == feedback_logger
+
+
+# ==================== FEEDBACK BUTTON TESTS ====================
+
+
+@pytest.mark.asyncio
+async def test_feedback_view_helpful_button():
+    """Test 'Helpful' button click records feedback and adds reaction."""
+    from src.services.discord.feedback_buttons import FeedbackView
+
+    # Setup
+    feedback_logger = Mock()
+    feedback_logger.record_button_feedback = AsyncMock()
+
+    view = FeedbackView(
+        feedback_logger=feedback_logger,
+        query_id="query-123",
+        response_id="response-456",
+        timeout=60,
+    )
+
+    # Mock interaction
+    interaction = Mock(spec=discord.Interaction)
+    interaction.user = Mock()
+    interaction.user.id = 123456789
+    interaction.message = AsyncMock()
+    interaction.message.add_reaction = AsyncMock()
+    interaction.response = Mock()
+    interaction.response.defer = AsyncMock()
+
+    # Trigger button click (call the callback directly)
+    # Discord.py passes only (interaction) to the callback
+    await view.helpful_button.callback(interaction)
+
+    # Verify feedback logged
+    feedback_logger.record_button_feedback.assert_called_once_with(
+        query_id="query-123",
+        response_id="response-456",
+        user_id="123456789",
+        feedback_type="helpful",
+        previous_feedback_type=None,
+    )
+
+    # Verify reaction added
+    interaction.message.add_reaction.assert_called_once_with("👍")
+
+    # Verify interaction deferred (no message sent)
+    interaction.response.defer.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_feedback_view_not_helpful_button():
+    """Test 'Not Helpful' button click records feedback and adds reaction."""
+    from src.services.discord.feedback_buttons import FeedbackView
+
+    # Setup
+    feedback_logger = Mock()
+    feedback_logger.record_button_feedback = AsyncMock()
+
+    view = FeedbackView(
+        feedback_logger=feedback_logger,
+        query_id="query-123",
+        response_id="response-456",
+        timeout=60,
+    )
+
+    # Mock interaction
+    interaction = Mock(spec=discord.Interaction)
+    interaction.user = Mock()
+    interaction.user.id = 123456789
+    interaction.message = AsyncMock()
+    interaction.message.add_reaction = AsyncMock()
+    interaction.response = Mock()
+    interaction.response.defer = AsyncMock()
+
+    # Trigger button click (call the callback directly)
+    # Discord.py passes only (interaction) to the callback
+    await view.not_helpful_button.callback(interaction)
+
+    # Verify feedback logged
+    feedback_logger.record_button_feedback.assert_called_once_with(
+        query_id="query-123",
+        response_id="response-456",
+        user_id="123456789",
+        feedback_type="not_helpful",
+        previous_feedback_type=None,
+    )
+
+    # Verify reaction added
+    interaction.message.add_reaction.assert_called_once_with("👎")
+
+
+@pytest.mark.asyncio
+async def test_feedback_view_allows_vote_changes():
+    """Test that users can change their vote from helpful to not helpful."""
+    from src.services.discord.feedback_buttons import FeedbackView
+
+    # Setup
+    feedback_logger = Mock()
+    feedback_logger.record_button_feedback = AsyncMock()
+
+    view = FeedbackView(
+        feedback_logger=feedback_logger,
+        query_id="query-123",
+        response_id="response-456",
+        timeout=60,
+    )
+
+    # Mock interaction (same user)
+    interaction = Mock(spec=discord.Interaction)
+    interaction.user = Mock()
+    interaction.user.id = 123456789
+    interaction.message = AsyncMock()
+    interaction.message.add_reaction = AsyncMock()
+    interaction.message.remove_reaction = AsyncMock()
+    interaction.response = Mock()
+    interaction.response.defer = AsyncMock()
+
+    # First vote: helpful (call the callback directly)
+    # Discord.py passes only (interaction) to the callback
+    await view.helpful_button.callback(interaction)
+
+    # Second vote: not helpful (changing vote)
+    await view.not_helpful_button.callback(interaction)
+
+    # Verify both votes were logged
+    assert feedback_logger.record_button_feedback.call_count == 2
+
+    # Verify first call had no previous feedback
+    first_call = feedback_logger.record_button_feedback.call_args_list[0]
+    assert first_call[1]["feedback_type"] == "helpful"
+    assert first_call[1]["previous_feedback_type"] is None
+
+    # Verify second call tracked previous feedback
+    second_call = feedback_logger.record_button_feedback.call_args_list[1]
+    assert second_call[1]["feedback_type"] == "not_helpful"
+    assert second_call[1]["previous_feedback_type"] == "helpful"
+
+    # Verify old reaction was removed
+    interaction.message.remove_reaction.assert_called_once_with("👍", interaction.user)
+
+    # Verify both reactions were added
+    assert interaction.message.add_reaction.call_count == 2
+    interaction.message.add_reaction.assert_any_call("👍")
+    interaction.message.add_reaction.assert_any_call("👎")
+
+
+@pytest.mark.asyncio
+async def test_feedback_logger_record_button_feedback():
+    """Test FeedbackLogger.record_button_feedback() method."""
+    from src.lib.database import AnalyticsDatabase
+
+    # Setup
+    analytics_db = Mock(spec=AnalyticsDatabase)
+    analytics_db.enabled = True
+    analytics_db.increment_vote = Mock()
+
+    logger = FeedbackLogger(analytics_db=analytics_db)
+
+    # Record button feedback
+    await logger.record_button_feedback(
+        query_id="query-123",
+        response_id="response-456",
+        user_id="123456789",
+        feedback_type="helpful",
+    )
+
+    # Verify DB incremented
+    analytics_db.increment_vote.assert_called_once_with("query-123", "upvote")
+
+    # Verify cache updated
+    assert len(logger.feedback_cache) == 1
+    cache_key = list(logger.feedback_cache.keys())[0]
+    assert logger.feedback_cache[cache_key]["feedback_type"] == "helpful"
+
+
+@pytest.mark.asyncio
+async def test_feedback_logger_vote_change():
+    """Test FeedbackLogger handles vote changes correctly."""
+    from src.lib.database import AnalyticsDatabase
+
+    # Setup
+    analytics_db = Mock(spec=AnalyticsDatabase)
+    analytics_db.enabled = True
+    analytics_db.increment_vote = Mock()
+    analytics_db.decrement_vote = Mock()
+
+    logger = FeedbackLogger(analytics_db=analytics_db)
+
+    # First vote: helpful
+    await logger.record_button_feedback(
+        query_id="query-123",
+        response_id="response-456",
+        user_id="123456789",
+        feedback_type="helpful",
+        previous_feedback_type=None,
+    )
+
+    # Change vote: not helpful
+    await logger.record_button_feedback(
+        query_id="query-123",
+        response_id="response-456",
+        user_id="123456789",
+        feedback_type="not_helpful",
+        previous_feedback_type="helpful",
+    )
+
+    # Verify first vote incremented
+    assert analytics_db.increment_vote.call_count == 2
+    analytics_db.increment_vote.assert_any_call("query-123", "upvote")
+    analytics_db.increment_vote.assert_any_call("query-123", "downvote")
+
+    # Verify old vote decremented
+    analytics_db.decrement_vote.assert_called_once_with("query-123", "upvote")
 
 
 # ==================== FEEDBACK LOGGER TESTS ====================

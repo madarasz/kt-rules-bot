@@ -7,6 +7,7 @@ import discord
 
 from src.lib.discord_utils import get_random_disclaimer
 from src.models.bot_response import BotResponse
+from src.services.discord.feedback_buttons import FeedbackView
 from src.services.llm.validator import ValidationResult
 
 
@@ -232,11 +233,20 @@ def format_fallback_message(reason: str) -> str:
     )
 
 
-async def add_feedback_reactions(message: discord.Message) -> None:
-    """Add helpful/not helpful reaction buttons to bot response.
+def create_feedback_view(feedback_logger, query_id: str, response_id: str) -> discord.ui.View:
+    """Create Discord UI View with feedback buttons.
 
     Args:
-        message: Discord message to add reactions to
+        feedback_logger: FeedbackLogger instance
+        query_id: Query UUID
+        response_id: Response UUID
+
+    Returns:
+        Discord View with Helpful/Not Helpful buttons
     """
-    await message.add_reaction("👍")
-    await message.add_reaction("👎")
+    return FeedbackView(
+        feedback_logger=feedback_logger,
+        query_id=query_id,
+        response_id=response_id,
+        timeout=86400,  # 24 hours
+    )

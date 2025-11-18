@@ -6,10 +6,9 @@ Verify that all code quality tools are installed and configured correctly.
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 
-def check_command(cmd: List[str], name: str) -> Tuple[bool, str]:
+def check_command(cmd: list[str], name: str) -> tuple[bool, str]:
     """
     Check if a command is available and working.
 
@@ -37,7 +36,7 @@ def check_command(cmd: List[str], name: str) -> Tuple[bool, str]:
         return False, f"❌ {name} error: {e}"
 
 
-def check_file(filepath: Path, description: str) -> Tuple[bool, str]:
+def check_file(filepath: Path, description: str) -> tuple[bool, str]:
     """
     Check if a file exists.
 
@@ -64,7 +63,7 @@ def main() -> int:
     print("🔍 Verifying Code Quality Setup...\n")
 
     project_root = Path(__file__).parent.parent
-    checks: List[Tuple[bool, str]] = []
+    checks: list[tuple[bool, str]] = []
 
     # Check Python version
     print("Python Version:")
