@@ -15,8 +15,8 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.services.rag.vector_db import VectorDBService
 from src.lib.logging import get_logger
+from src.services.rag.vector_db import VectorDBService
 
 logger = get_logger(__name__)
 
@@ -35,7 +35,7 @@ def reset_database(force: bool = False) -> None:
         vector_db = VectorDBService()
         count_before = vector_db.get_count()
 
-        print(f"\n🗄️  Current vector database:")
+        print("\n🗄️  Current vector database:")
         print(f"   Collection: {vector_db.collection.name}")
         print(f"   Path: {config.vector_db_path}")
         print(f"   Embeddings: {count_before}")
@@ -57,7 +57,7 @@ def reset_database(force: bool = False) -> None:
         vector_db.reset()
 
         count_after = vector_db.get_count()
-        print(f"✅ Database reset complete!")
+        print("✅ Database reset complete!")
         print(f"   Embeddings deleted: {count_before}")
         print(f"   Current embeddings: {count_after}")
 

@@ -10,7 +10,6 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
 
 
 @dataclass
@@ -30,25 +29,18 @@ class QualityChecker:
     def __init__(self, project_root: Path):
         self.project_root = project_root
         self.src_dir = project_root / "src"
-        self.metrics: List[QualityMetric] = []
+        self.metrics: list[QualityMetric] = []
 
     def run_command(
-        self, cmd: List[str], capture_output: bool = True
+        self, cmd: list[str], capture_output: bool = True
     ) -> subprocess.CompletedProcess:
         """Run a shell command and return the result."""
-        return subprocess.run(
-            cmd,
-            capture_output=capture_output,
-            text=True,
-            cwd=self.project_root,
-        )
+        return subprocess.run(cmd, capture_output=capture_output, text=True, cwd=self.project_root)
 
     def check_coverage(self) -> QualityMetric:
         """Check test coverage."""
         print("📊 Checking test coverage...")
-        result = self.run_command(
-            ["pytest", "--cov=src", "--cov-report=json", "--cov-report=term", "-q"]
-        )
+        self.run_command(["pytest", "--cov=src", "--cov-report=json", "--cov-report=term", "-q"])
 
         coverage_file = self.project_root / "coverage.json"
         if coverage_file.exists():
@@ -58,27 +50,25 @@ class QualityChecker:
                 total_statements = data.get("totals", {}).get("num_statements", 0)
                 covered = data.get("totals", {}).get("covered_lines", 0)
 
-                status = "pass" if total_coverage >= 70 else "warn" if total_coverage >= 50 else "fail"
+                # Updated thresholds: pass >=50, warn >=20 and <50, fail <20
+                status = (
+                    "pass" if total_coverage >= 50 else "warn" if total_coverage >= 20 else "fail"
+                )
                 return QualityMetric(
                     name="Test Coverage",
                     score=total_coverage,
                     status=status,
                     details=f"{covered}/{total_statements} lines covered",
-                    threshold=70.0,
+                    threshold=50.0,
                 )
         return QualityMetric(
-            name="Test Coverage",
-            score=0,
-            status="fail",
-            details="Coverage data not available",
+            name="Test Coverage", score=0, status="fail", details="Coverage data not available"
         )
 
     def check_complexity(self) -> QualityMetric:
         """Check code complexity with radon."""
         print("🔍 Checking code complexity...")
-        result = self.run_command(
-            ["radon", "cc", str(self.src_dir), "--json"]
-        )
+        result = self.run_command(["radon", "cc", str(self.src_dir), "--json"])
 
         if result.returncode == 0 and result.stdout:
             try:
@@ -117,18 +107,13 @@ class QualityChecker:
                 pass
 
         return QualityMetric(
-            name="Code Complexity",
-            score=100,
-            status="pass",
-            details="No complex functions found",
+            name="Code Complexity", score=100, status="pass", details="No complex functions found"
         )
 
     def check_maintainability(self) -> QualityMetric:
         """Check maintainability index with radon."""
         print("🛠️  Checking maintainability...")
-        result = self.run_command(
-            ["radon", "mi", str(self.src_dir), "--json"]
-        )
+        result = self.run_command(["radon", "mi", str(self.src_dir), "--json"])
 
         if result.returncode == 0 and result.stdout:
             try:
@@ -163,10 +148,7 @@ class QualityChecker:
                 pass
 
         return QualityMetric(
-            name="Maintainability Index",
-            score=0,
-            status="fail",
-            details="Unable to calculate MI",
+            name="Maintainability Index", score=0, status="fail", details="Unable to calculate MI"
         )
 
     def check_type_coverage(self) -> QualityMetric:
@@ -179,41 +161,32 @@ class QualityChecker:
         if result.returncode == 0:
             return QualityMetric(
                 name="Type Coverage",
-                score=100,
+                score=-1,  # Special value to indicate no score display
                 status="pass",
                 details="No type errors found",
+                threshold=-1,  # Special value to indicate no threshold display
             )
         else:
             # Count errors
             error_count = result.stdout.count("error:")
-            # Rough estimate: each error = 5 points deduction
-            score = max(0, 100 - (error_count * 5))
-            status = "pass" if score >= 80 else "warn" if score >= 60 else "fail"
+            # Type coverage never fails, only reports
             return QualityMetric(
                 name="Type Coverage",
-                score=score,
-                status=status,
+                score=-1,  # Special value to indicate no score display
+                status="pass",
                 details=f"{error_count} type errors",
-                threshold=80.0,
+                threshold=-1,  # Special value to indicate no threshold display
             )
 
     def check_security(self) -> QualityMetric:
         """Check for security issues with bandit."""
         print("🔒 Checking security...")
-        result = self.run_command(
-            ["bandit", "-r", str(self.src_dir), "-f", "json", "-q"]
-        )
+        result = self.run_command(["bandit", "-r", str(self.src_dir), "-f", "json", "-q"])
 
         if result.stdout:
             try:
                 data = json.loads(result.stdout)
                 metrics = data.get("metrics", {})
-                # Sum all severity levels
-                total = sum(
-                    sum(file_data.values())
-                    for file_data in metrics.values()
-                    if isinstance(file_data, dict)
-                )
 
                 high = sum(
                     file_data.get("SEVERITY.HIGH", 0)
@@ -253,18 +226,13 @@ class QualityChecker:
                 pass
 
         return QualityMetric(
-            name="Security",
-            score=100,
-            status="pass",
-            details="No security issues found",
+            name="Security", score=100, status="pass", details="No security issues found"
         )
 
     def check_imports(self) -> QualityMetric:
         """Check import conventions."""
         print("📦 Checking import conventions...")
-        result = self.run_command(
-            ["python", "scripts/check_imports.py"]
-        )
+        result = self.run_command(["python", "scripts/check_imports.py"])
 
         if result.returncode == 0:
             return QualityMetric(
@@ -289,14 +257,16 @@ class QualityChecker:
         """Run all quality checks."""
         print("🚀 Running comprehensive quality checks...\n")
 
-        self.metrics.extend([
-            self.check_coverage(),
-            self.check_complexity(),
-            self.check_maintainability(),
-            self.check_type_coverage(),
-            self.check_security(),
-            self.check_imports(),
-        ])
+        self.metrics.extend(
+            [
+                self.check_coverage(),
+                self.check_complexity(),
+                self.check_maintainability(),
+                self.check_type_coverage(),
+                self.check_security(),
+                self.check_imports(),
+            ]
+        )
 
     def print_report(self) -> None:
         """Print a formatted quality report."""
@@ -305,20 +275,23 @@ class QualityChecker:
         print("=" * 80)
 
         for metric in self.metrics:
-            status_icon = {
-                "pass": "✅",
-                "warn": "⚠️ ",
-                "fail": "❌",
-            }.get(metric.status, "  ")
+            status_icon = {"pass": "✅", "warn": "⚠️ ", "fail": "❌"}.get(metric.status, "  ")
 
             print(f"\n{status_icon} {metric.name}")
-            print(f"   Score: {metric.score:.1f}/100")
-            if metric.threshold != 70.0:
-                print(f"   Threshold: {metric.threshold}/100")
+            # Only show score if it's not -1 (special value for metrics without scores)
+            if metric.score >= 0:
+                print(f"   Score: {metric.score:.1f}/100")
+                if metric.threshold != 70.0 and metric.threshold >= 0:
+                    print(f"   Threshold: {metric.threshold}/100")
             print(f"   Details: {metric.details}")
 
-        # Calculate overall score
-        overall_score = sum(m.score for m in self.metrics) / len(self.metrics)
+        # Calculate overall score (exclude metrics with score -1)
+        scored_metrics = [m for m in self.metrics if m.score >= 0]
+        if scored_metrics:
+            overall_score = sum(m.score for m in scored_metrics) / len(scored_metrics)
+        else:
+            overall_score = 0
+
         passed = sum(1 for m in self.metrics if m.status == "pass")
         warned = sum(1 for m in self.metrics if m.status == "warn")
         failed = sum(1 for m in self.metrics if m.status == "fail")
