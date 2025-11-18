@@ -173,6 +173,46 @@ class RAGRetriever:
 
             # Return result
             if result_container:
+                context, hop_evaluations, chunk_hop_map = result_container[0]
+
+                # Apply final reranking and limiting to multi-hop accumulated chunks
+                if context.document_chunks:
+                    logger.info(
+                        "multi_hop_applying_final_reranking_in_retriever",
+                        chunks_before=len(context.document_chunks),
+                    )
+
+                    # Import here to avoid circular dependency
+                    from src.lib.constants import MAXIMUM_FINAL_CHUNK_COUNT
+
+                    # Rerank and limit the accumulated chunks
+                    reranked_chunks = self.rerank_and_limit_final_chunks(
+                        query=request.query,
+                        chunks=context.document_chunks,
+                        max_chunks=MAXIMUM_FINAL_CHUNK_COUNT,
+                    )
+
+                    # Update chunk_hop_map to only include remaining chunks
+                    remaining_chunk_ids = {c.chunk_id for c in reranked_chunks}
+                    updated_chunk_hop_map = {
+                        chunk_id: hop_num
+                        for chunk_id, hop_num in chunk_hop_map.items()
+                        if chunk_id in remaining_chunk_ids
+                    }
+
+                    # Create new RAGContext with reranked chunks
+                    reranked_context = RAGContext.from_retrieval(
+                        query_id=query_id, chunks=reranked_chunks
+                    )
+
+                    logger.info(
+                        "multi_hop_final_reranking_in_retriever_complete",
+                        chunks_after=len(reranked_chunks),
+                    )
+
+                    return reranked_context, hop_evaluations, updated_chunk_hop_map
+
+                # No chunks to rerank
                 return result_container[0]
 
             raise RuntimeError("Multi-hop retrieval completed but produced no result")
