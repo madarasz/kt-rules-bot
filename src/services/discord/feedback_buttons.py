@@ -54,6 +54,18 @@ class FeedbackView(discord.ui.View):
         # Check if user already voted
         previous_feedback = self.voters.get(user_id)
 
+        # If user is changing their vote, remove the old reaction
+        if previous_feedback and previous_feedback != feedback_type:
+            old_emoji = "👍" if previous_feedback == "helpful" else "👎"
+            try:
+                await interaction.message.remove_reaction(old_emoji, interaction.user)
+                logger.debug(
+                    f"Removed previous reaction: {old_emoji}",
+                    extra={"query_id": self.query_id, "user_id": user_id[:16]},
+                )
+            except Exception as e:
+                logger.warning(f"Failed to remove old reaction {old_emoji}: {e}")
+
         # Update vote tracking
         self.voters[user_id] = feedback_type
 

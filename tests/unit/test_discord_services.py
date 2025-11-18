@@ -358,6 +358,7 @@ async def test_feedback_view_allows_vote_changes():
     interaction.user.id = 123456789
     interaction.message = AsyncMock()
     interaction.message.add_reaction = AsyncMock()
+    interaction.message.remove_reaction = AsyncMock()
     interaction.response = Mock()
     interaction.response.defer = AsyncMock()
 
@@ -380,6 +381,14 @@ async def test_feedback_view_allows_vote_changes():
     second_call = feedback_logger.record_button_feedback.call_args_list[1]
     assert second_call[1]["feedback_type"] == "not_helpful"
     assert second_call[1]["previous_feedback_type"] == "helpful"
+
+    # Verify old reaction was removed
+    interaction.message.remove_reaction.assert_called_once_with("👍", interaction.user)
+
+    # Verify both reactions were added
+    assert interaction.message.add_reaction.call_count == 2
+    interaction.message.add_reaction.assert_any_call("👍")
+    interaction.message.add_reaction.assert_any_call("👎")
 
 
 @pytest.mark.asyncio
