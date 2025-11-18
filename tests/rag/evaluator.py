@@ -35,8 +35,9 @@ class RAGEvaluator:
             RAGTestResult with calculated metrics
         """
         # Extract headers, texts, relevance scores, and metadata from retrieved chunks
-        retrieved_headers = [chunk.header for chunk in retrieved_chunks]
-        retrieved_texts = [chunk.text for chunk in retrieved_chunks]
+        # Ensure headers and texts are strings (not None)
+        retrieved_headers = [chunk.header or "" for chunk in retrieved_chunks]
+        retrieved_texts = [chunk.text or "" for chunk in retrieved_chunks]
         retrieved_scores = [chunk.relevance_score for chunk in retrieved_chunks]
         retrieved_metadata = [chunk.metadata for chunk in retrieved_chunks]
 
@@ -47,12 +48,14 @@ class RAGEvaluator:
         ranks_of_required = []
 
         for gt_context in test_case.ground_truth_contexts:
-            gt_lower = gt_context.strip().lower()
+            # Normalize ground truth: strip, lowercase, remove asterisks (match Ragas adapter)
+            gt_normalized = gt_context.strip().lower().replace("*", "")
             found_match = False
 
             # Check if ground truth is contained in any retrieved header
             for i, retr_header in enumerate(retrieved_headers, start=1):
-                if gt_lower in retr_header.strip().lower().replace("*", ""):
+                retr_header_normalized = retr_header.strip().lower().replace("*", "")
+                if gt_normalized in retr_header_normalized:
                     found.append(gt_context)
                     ranks_of_required.append(i)
                     found_match = True
@@ -61,7 +64,8 @@ class RAGEvaluator:
             # Check if ground truth is contained in any retrieved text (if not found in header)
             if not found_match:
                 for i, retr_text in enumerate(retrieved_texts, start=1):
-                    if gt_lower in retr_text.strip().lower().replace("*", ""):
+                    retr_text_normalized = retr_text.strip().lower().replace("*", "")
+                    if gt_normalized in retr_text_normalized:
                         found.append(gt_context)
                         ranks_of_required.append(i)
                         found_match = True
