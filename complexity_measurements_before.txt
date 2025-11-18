@@ -1,0 +1,26 @@
+Code Complexity Analysis - BEFORE Refactoring
+==============================================
+
+Files with F (worst) complexity scores:
+----------------------------------------
+1. src/services/discord/bot.py
+   - KillTeamBotOrchestrator.process_query (line 81) - F (58) ⚠️ CRITICAL
+   - KillTeamBotOrchestrator class (line 36) - E (34) ⚠️ CRITICAL
+
+Files with E complexity scores:
+--------------------------------
+1. src/cli/test_query.py
+   - test_query function (line 38) - E (34) ⚠️
+
+2. src/services/rag/team_filter.py
+   - TeamFilter.extract_relevant_teams (line 237) - E (33) ⚠️
+
+Overall Stats:
+--------------
+- 554 blocks analyzed
+- Average complexity: A (3.87)
+
+Priority for refactoring:
+1. src/services/discord/bot.py (F/E - most critical)
+2. src/cli/test_query.py (E)
+3. src/services/rag/team_filter.py (E)
