@@ -24,6 +24,7 @@ from src.models.rag_request import RetrieveRequest
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.retriever import RAGRetriever
 from tests.rag.evaluator import RAGEvaluator
+from src.lib.text_utils import ground_truth_matches_text
 from tests.rag.ragas_evaluator import RagasRAGEvaluator, add_ragas_metrics_to_result
 from tests.rag.test_case_models import RAGTestCase, RAGTestResult, RAGTestSummary
 
@@ -506,7 +507,7 @@ class RAGTestRunner:
                     hop_number = result.chunk_hop_numbers[i]
                     # Check if this chunk matches any ground truth context
                     for gt_context in result.ground_truth_contexts:
-                        if gt_context.lower() in chunk_text.lower():
+                        if ground_truth_matches_text(gt_context, chunk_text):
                             hop_ground_truth_counts[hop_number] += 1
                             if hop_number > 0:  # Only count hops, not initial retrieval
                                 total_ground_truth_improvement += 1
@@ -548,10 +549,9 @@ class RAGTestRunner:
                     # Check if all ground truths are present in accumulated chunks at this point
                     all_ground_truths_present = True
                     for gt_context in result.ground_truth_contexts:
-                        gt_lower = gt_context.strip().lower()
                         found_in_accumulated = False
                         for chunk_text in accumulated_chunk_texts:
-                            if gt_lower in chunk_text.strip().lower().replace("*", ""):
+                            if ground_truth_matches_text(gt_context, chunk_text):
                                 found_in_accumulated = True
                                 break
                         if not found_in_accumulated:
