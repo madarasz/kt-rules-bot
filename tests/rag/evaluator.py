@@ -7,6 +7,7 @@ Implements standard Information Retrieval metrics:
 - Mean Reciprocal Rank (MRR)
 """
 
+from src.lib.text_utils import ground_truth_matches_text
 from src.models.rag_context import DocumentChunk
 from tests.rag.test_case_models import RAGTestCase, RAGTestResult
 
@@ -35,8 +36,9 @@ class RAGEvaluator:
             RAGTestResult with calculated metrics
         """
         # Extract headers, texts, relevance scores, and metadata from retrieved chunks
-        retrieved_headers = [chunk.header for chunk in retrieved_chunks]
-        retrieved_texts = [chunk.text for chunk in retrieved_chunks]
+        # Ensure headers and texts are strings (not None)
+        retrieved_headers = [chunk.header or "" for chunk in retrieved_chunks]
+        retrieved_texts = [chunk.text or "" for chunk in retrieved_chunks]
         retrieved_scores = [chunk.relevance_score for chunk in retrieved_chunks]
         retrieved_metadata = [chunk.metadata for chunk in retrieved_chunks]
 
@@ -47,12 +49,11 @@ class RAGEvaluator:
         ranks_of_required = []
 
         for gt_context in test_case.ground_truth_contexts:
-            gt_lower = gt_context.strip().lower()
             found_match = False
 
             # Check if ground truth is contained in any retrieved header
             for i, retr_header in enumerate(retrieved_headers, start=1):
-                if gt_lower in retr_header.strip().lower().replace("*", ""):
+                if ground_truth_matches_text(gt_context, retr_header):
                     found.append(gt_context)
                     ranks_of_required.append(i)
                     found_match = True
@@ -61,7 +62,7 @@ class RAGEvaluator:
             # Check if ground truth is contained in any retrieved text (if not found in header)
             if not found_match:
                 for i, retr_text in enumerate(retrieved_texts, start=1):
-                    if gt_lower in retr_text.strip().lower().replace("*", ""):
+                    if ground_truth_matches_text(gt_context, retr_text):
                         found.append(gt_context)
                         ranks_of_required.append(i)
                         found_match = True
@@ -85,6 +86,9 @@ class RAGEvaluator:
         precision_at_5 = self._calculate_precision_at_k(ranks_of_required, k=5)
         mrr = self._calculate_mrr(ranks_of_required)
 
+        # Calculate max ground truth rank (highest rank where a ground truth was found)
+        max_ground_truth_rank = max(ranks_of_required) if ranks_of_required else 0
+
         return RAGTestResult(
             test_id=test_case.test_id,
             query=test_case.query,
@@ -106,6 +110,7 @@ class RAGEvaluator:
             retrieval_time_seconds=retrieval_time_seconds,
             embedding_cost_usd=embedding_cost_usd,
             run_number=run_number,
+            max_ground_truth_rank=max_ground_truth_rank,
         )
 
     def _calculate_map(self, ranks: list[int], total_relevant: int) -> float:

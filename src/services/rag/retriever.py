@@ -12,6 +12,7 @@ from src.lib.constants import (
     BM25_B,
     BM25_K1,
     BM25_WEIGHT,
+    MAXIMUM_FINAL_CHUNK_COUNT,
     RAG_ENABLE_QUERY_EXPANSION,
     RAG_ENABLE_QUERY_NORMALIZATION,
     RAG_MAX_HOPS,
@@ -130,131 +131,200 @@ class RAGRetriever:
             InvalidQueryError: If query is invalid
             VectorDBUnavailableError: If vector DB is unavailable
         """
-        # Multi-hop path
-        if request.use_multi_hop and self.multi_hop_retriever:
-            # Multi-hop retrieval is async, so we need to run it in a way that works
-            # both from sync contexts (CLI) and async contexts (Discord bot)
-            # Always use thread-based approach to avoid event loop conflicts
-            # This works whether called from sync or async context
-            result_container = []
-            exception_container = []
-
-            def run_in_thread() -> None:
-                try:
-                    # Create a new event loop in this thread
-                    new_loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(new_loop)
-                    try:
-                        result = new_loop.run_until_complete(
-                            self.multi_hop_retriever.retrieve_multi_hop(
-                                query=request.query,
-                                context_key=request.context_key,
-                                query_id=query_id,
-                            )
-                        )
-                        result_container.append(result)
-                    finally:
-                        new_loop.close()
-                except Exception as e:
-                    exception_container.append(e)
-
-            # Run in separate thread
-            thread = threading.Thread(target=run_in_thread, daemon=True)
-            thread.start()
-            thread.join(timeout=120)  # Wait up to 2 minutes
-
-            # Check for errors
-            if exception_container:
-                raise exception_container[0]
-
-            # Check if thread finished
-            if thread.is_alive():
-                raise TimeoutError("Multi-hop retrieval timed out after 120 seconds")
-
-            # Return result
-            if result_container:
-                return result_container[0]
-
-            raise RuntimeError("Multi-hop retrieval completed but produced no result")
-
         # Validate query
         self._validate_query(request.query)
 
+        # Perform initial retrieval
         try:
-            # Normalize query for better keyword matching (if enabled)
-            if RAG_ENABLE_QUERY_NORMALIZATION:
-                normalized_query = self.keyword_extractor.normalize_query(request.query)
-            else:
-                normalized_query = request.query
-
-            # Expand query with synonyms for BM25 (if enabled)
-            # This happens AFTER normalization, and is used only for BM25 keyword search
-            if RAG_ENABLE_QUERY_EXPANSION:
-                expanded_query = self.query_expander.expand_query(normalized_query)
-            else:
-                expanded_query = normalized_query
-
-            # Generate query embedding using normalized query (NOT expanded)
-            # Vector search handles semantic synonyms naturally
-            query_embedding = self.embedding_service.embed_text(normalized_query)
-
-            logger.debug(
-                "query_embedding_generated",
-                query_length=len(request.query),
-                context_key=request.context_key,
-            )
-
-            # Query vector database
-            results = self.vector_db.query(
-                query_embeddings=[query_embedding], n_results=request.max_chunks
-            )
-
-            # Convert results to DocumentChunk objects
-            chunks = self._results_to_chunks(results, request.min_relevance)
-
-            # Apply hybrid search if enabled
-            # Use EXPANDED query for BM25 to catch user-friendly synonyms
-            if request.use_hybrid and self.hybrid_retriever and chunks:
-                chunks = self.hybrid_retriever.retrieve_hybrid(
-                    query=expanded_query, vector_chunks=chunks, top_k=request.max_chunks
-                )
-                logger.debug("hybrid_search_applied", final_chunks=len(chunks))
-
-            # Calculate average relevance
-            if chunks:
-                relevance_scores = [chunk.relevance_score for chunk in chunks]
-                avg_relevance = sum(relevance_scores) / len(relevance_scores)
-                meets_threshold = avg_relevance >= request.min_relevance
-            else:
-                relevance_scores = []
-                avg_relevance = 0.0
-                meets_threshold = False
-
-            # Create RAGContext
-            context = RAGContext(
-                context_id=uuid4(),
-                query_id=query_id,
-                document_chunks=chunks if meets_threshold else [],
-                relevance_scores=relevance_scores if meets_threshold else [],
-                total_chunks=len(chunks) if meets_threshold else 0,
-                avg_relevance=avg_relevance,
-                meets_threshold=meets_threshold,
-            )
-
-            logger.info(
-                "retrieval_completed",
-                query_id=str(query_id),
-                chunks_found=len(chunks),
-                avg_relevance=avg_relevance,
-                meets_threshold=meets_threshold,
-            )
-
-            # Return tuple for single-hop: context, empty hop_evaluations, empty chunk_hop_map
-            return context, [], {}
-
+            initial_chunks = self._perform_initial_retrieval(request)
         except Exception as e:
             logger.error("retrieval_failed", query_id=str(query_id), error=str(e))
             raise VectorDBUnavailableError(f"Vector DB query failed: {e}") from e
+
+        # If multi-hop enabled, continue with additional retrieval hops
+        if request.use_multi_hop and self.multi_hop_retriever:
+            return self._perform_multi_hop_retrieval(request, query_id, initial_chunks)
+
+        # Single-hop: create context and return
+        context = self._create_rag_context(query_id, initial_chunks, request.min_relevance)
+
+        logger.info(
+            "retrieval_completed",
+            query_id=str(query_id),
+            chunks_found=len(initial_chunks),
+            avg_relevance=context.avg_relevance,
+            meets_threshold=context.meets_threshold,
+        )
+
+        # Return tuple for single-hop: context, empty hop_evaluations, empty chunk_hop_map
+        return context, [], {}
+
+    def _perform_initial_retrieval(self, request: RetrieveRequest) -> list[DocumentChunk]:
+        """Perform initial retrieval: normalize, embed, search, and apply hybrid if enabled.
+
+        Args:
+            request: Retrieval request parameters
+
+        Returns:
+            List of retrieved DocumentChunk objects
+        """
+        # Normalize and expand query
+        normalized_query, expanded_query = self._normalize_and_expand_query(request.query)
+
+        # Generate query embedding using normalized query (NOT expanded)
+        # Vector search handles semantic synonyms naturally
+        query_embedding = self.embedding_service.embed_text(normalized_query)
+
+        logger.debug(
+            "query_embedding_generated",
+            query_length=len(request.query),
+            context_key=request.context_key,
+        )
+
+        # Query vector database
+        results = self.vector_db.query(
+            query_embeddings=[query_embedding], n_results=request.max_chunks
+        )
+
+        # Convert results to DocumentChunk objects
+        chunks = self._results_to_chunks(results, request.min_relevance)
+
+        # Apply hybrid search if enabled
+        # Use EXPANDED query for BM25 to catch user-friendly synonyms
+        if request.use_hybrid and self.hybrid_retriever and chunks:
+            chunks = self.hybrid_retriever.retrieve_hybrid(
+                query=expanded_query, vector_chunks=chunks, top_k=request.max_chunks
+            )
+            logger.debug("hybrid_search_applied", final_chunks=len(chunks))
+
+        return chunks
+
+    def _normalize_and_expand_query(self, query: str) -> tuple[str, str]:
+        """Normalize and expand query for retrieval.
+
+        Args:
+            query: Original user query
+
+        Returns:
+            Tuple of (normalized_query, expanded_query)
+        """
+        # Normalize query for better keyword matching (if enabled)
+        if RAG_ENABLE_QUERY_NORMALIZATION:
+            normalized_query = self.keyword_extractor.normalize_query(query)
+        else:
+            normalized_query = query
+
+        # Expand query with synonyms for BM25 (if enabled)
+        # This happens AFTER normalization, and is used only for BM25 keyword search
+        if RAG_ENABLE_QUERY_EXPANSION:
+            expanded_query = self.query_expander.expand_query(normalized_query)
+        else:
+            expanded_query = normalized_query
+
+        return normalized_query, expanded_query
+
+    def _create_rag_context(
+        self, query_id: UUID, chunks: list[DocumentChunk], min_relevance: float
+    ) -> RAGContext:
+        """Create RAGContext from retrieved chunks with relevance calculations.
+
+        Args:
+            query_id: Query UUID
+            chunks: Retrieved document chunks
+            min_relevance: Minimum relevance threshold
+
+        Returns:
+            RAGContext with relevance metrics
+        """
+        # Calculate average relevance
+        if chunks:
+            relevance_scores = [chunk.relevance_score for chunk in chunks]
+            avg_relevance = sum(relevance_scores) / len(relevance_scores)
+            meets_threshold = avg_relevance >= min_relevance
+        else:
+            relevance_scores = []
+            avg_relevance = 0.0
+            meets_threshold = False
+
+        # Create RAGContext
+        return RAGContext(
+            context_id=uuid4(),
+            query_id=query_id,
+            document_chunks=chunks if meets_threshold else [],
+            relevance_scores=relevance_scores if meets_threshold else [],
+            total_chunks=len(chunks) if meets_threshold else 0,
+            avg_relevance=avg_relevance,
+            meets_threshold=meets_threshold,
+        )
+
+    def _perform_multi_hop_retrieval(
+        self, request: RetrieveRequest, query_id: UUID, initial_chunks: list[DocumentChunk]
+    ) -> tuple[RAGContext, list[Any], dict[UUID, int]]:
+        """Perform multi-hop retrieval starting from initial chunks.
+
+        Args:
+            request: Retrieval request parameters
+            query_id: Query UUID
+            initial_chunks: Initial retrieved chunks from Hop 0
+
+        Returns:
+            Tuple of (RAGContext, hop_evaluations, chunk_hop_map)
+        """
+        # Multi-hop retrieval is async, so we need to run it in a way that works
+        # both from sync contexts (CLI) and async contexts (Discord bot)
+        # Always use thread-based approach to avoid event loop conflicts
+        # This works whether called from sync or async context
+        result_container = []
+        exception_container = []
+
+        def run_in_thread() -> None:
+            try:
+                # Create a new event loop in this thread
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                try:
+                    result = new_loop.run_until_complete(
+                        self.multi_hop_retriever.retrieve_multi_hop(
+                            query=request.query,
+                            context_key=request.context_key,
+                            query_id=query_id,
+                            initial_chunks=initial_chunks,
+                        )
+                    )
+                    result_container.append(result)
+                finally:
+                    new_loop.close()
+            except Exception as e:
+                exception_container.append(e)
+
+        # Run in separate thread
+        thread = threading.Thread(target=run_in_thread, daemon=True)
+        thread.start()
+        thread.join(timeout=120)  # Wait up to 2 minutes
+
+        # Check for errors
+        if exception_container:
+            raise exception_container[0]
+
+        # Check if thread finished
+        if thread.is_alive():
+            raise TimeoutError("Multi-hop retrieval timed out after 120 seconds")
+
+        # Return result
+        if result_container:
+            context, hop_evaluations, chunk_hop_map = result_container[0]
+
+            # Apply final reranking and limiting to multi-hop accumulated chunks
+            reranked_context, updated_chunk_hop_map = self.rerank_and_limit_final_chunks(
+                query=request.query,
+                chunks=context.document_chunks,
+                query_id=query_id,
+                chunk_hop_map=chunk_hop_map,
+            )
+
+            return reranked_context, hop_evaluations, updated_chunk_hop_map
+
+        raise RuntimeError("Multi-hop retrieval completed but produced no result")
 
     def _validate_query(self, query: str) -> None:
         """Validate query string.
@@ -322,6 +392,67 @@ class RAGRetriever:
         chunks.sort(key=lambda c: c.relevance_score, reverse=True)
 
         return chunks
+
+    def rerank_and_limit_final_chunks(
+        self, query: str, chunks: list[DocumentChunk], query_id: UUID, chunk_hop_map: dict[UUID, int]
+    ) -> tuple[RAGContext, dict[UUID, int]]:
+        """Apply final hybrid reranking and limit to accumulated chunks.
+
+        This method is used by multi-hop retrieval to rerank all accumulated chunks
+        after all hops are complete, ensuring the most relevant chunks are prioritized.
+
+        Args:
+            query: Original user query (for BM25 search)
+            chunks: Accumulated chunks to rerank
+            query_id: Query UUID for creating RAGContext
+            chunk_hop_map: Mapping of chunk_id to hop number
+
+        Returns:
+            Tuple of (reranked RAGContext, updated chunk_hop_map)
+        """
+        if not chunks:
+            empty_context = RAGContext.from_retrieval(query_id=query_id, chunks=[])
+            return empty_context, {}
+
+        logger.info(
+            "applying_final_reranking",
+            chunks_before=len(chunks),
+            max_chunks=MAXIMUM_FINAL_CHUNK_COUNT,
+        )
+
+        # Only apply hybrid reranking if hybrid retriever is enabled
+        if self.hybrid_retriever:
+            # Use the hybrid retriever's retrieve_hybrid method to re-rank all chunks
+            # This performs a fresh BM25 search on the original query and fuses with existing vector scores
+            reranked_chunks = self.hybrid_retriever.retrieve_hybrid(
+                query=query,  # Use original user query for BM25
+                vector_chunks=chunks,
+                top_k=MAXIMUM_FINAL_CHUNK_COUNT,
+            )
+        else:
+            # If hybrid retriever not available, just limit by relevance score
+            # Sort by relevance score descending and take top MAXIMUM_FINAL_CHUNK_COUNT
+            reranked_chunks = sorted(chunks, key=lambda c: c.relevance_score, reverse=True)[
+                :MAXIMUM_FINAL_CHUNK_COUNT
+            ]
+
+        # Update chunk_hop_map to only include remaining chunks
+        remaining_chunk_ids = {c.chunk_id for c in reranked_chunks}
+        updated_chunk_hop_map = {
+            chunk_id: hop_num
+            for chunk_id, hop_num in chunk_hop_map.items()
+            if chunk_id in remaining_chunk_ids
+        }
+
+        # Create new RAGContext with reranked chunks
+        reranked_context = RAGContext.from_retrieval(query_id=query_id, chunks=reranked_chunks)
+
+        logger.info(
+            "final_reranking_complete",
+            chunks_after=len(reranked_chunks),
+        )
+
+        return reranked_context, updated_chunk_hop_map
 
     def _build_hybrid_index(self) -> None:
         """Build BM25 index from all chunks in vector database."""
