@@ -14,6 +14,7 @@ import yaml
 
 from src.lib.constants import (
     LLM_MAX_RETRIES,
+    MAXIMUM_FINAL_CHUNK_COUNT,
     MAX_CHUNK_LENGTH_FOR_EVALUATION,
     RAG_HOP_CHUNK_LIMIT,
     RAG_HOP_EVALUATION_MODEL,
@@ -262,7 +263,64 @@ class MultiHopRetriever:
                 last_reasoning=hop_evaluations[-1].reasoning,
             )
 
-        # Build final RAGContext from accumulated chunks
+        # Apply final hybrid reranking to accumulated chunks
+        if accumulated_chunks and self.base_retriever.hybrid_retriever:
+            logger.info(
+                "multi_hop_applying_final_reranking",
+                chunks_before_reranking=len(accumulated_chunks),
+            )
+
+            # Use the hybrid retriever's retrieve_hybrid method to re-rank all accumulated chunks
+            # This performs a fresh BM25 search on the original query and fuses with existing vector scores
+            reranked_chunks = self.base_retriever.hybrid_retriever.retrieve_hybrid(
+                query=query,  # Use original user query for BM25
+                vector_chunks=accumulated_chunks,
+                top_k=MAXIMUM_FINAL_CHUNK_COUNT,
+            )
+
+            # Update accumulated_chunks with reranked and limited chunks
+            accumulated_chunks = reranked_chunks
+
+            # Update chunk_hop_map to only include remaining chunks after reranking
+            remaining_chunk_ids = {c.chunk_id for c in accumulated_chunks}
+            chunk_hop_map = {
+                chunk_id: hop_num
+                for chunk_id, hop_num in chunk_hop_map.items()
+                if chunk_id in remaining_chunk_ids
+            }
+
+            logger.info(
+                "multi_hop_final_reranking_complete",
+                chunks_after_reranking=len(accumulated_chunks),
+                max_chunks_limit=MAXIMUM_FINAL_CHUNK_COUNT,
+            )
+        elif accumulated_chunks and not self.base_retriever.hybrid_retriever:
+            # If hybrid retriever not available, just limit by relevance score
+            logger.info(
+                "multi_hop_applying_relevance_limit",
+                chunks_before_limit=len(accumulated_chunks),
+            )
+
+            # Sort by relevance score descending and take top MAXIMUM_FINAL_CHUNK_COUNT
+            accumulated_chunks = sorted(
+                accumulated_chunks, key=lambda c: c.relevance_score, reverse=True
+            )[:MAXIMUM_FINAL_CHUNK_COUNT]
+
+            # Update chunk_hop_map to only include remaining chunks
+            remaining_chunk_ids = {c.chunk_id for c in accumulated_chunks}
+            chunk_hop_map = {
+                chunk_id: hop_num
+                for chunk_id, hop_num in chunk_hop_map.items()
+                if chunk_id in remaining_chunk_ids
+            }
+
+            logger.info(
+                "multi_hop_relevance_limit_complete",
+                chunks_after_limit=len(accumulated_chunks),
+                max_chunks_limit=MAXIMUM_FINAL_CHUNK_COUNT,
+            )
+
+        # Build final RAGContext from accumulated chunks (now reranked and limited)
         final_context = RAGContext.from_retrieval(query_id=query_id, chunks=accumulated_chunks)
 
         logger.info(

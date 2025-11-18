@@ -85,6 +85,9 @@ class RAGEvaluator:
         precision_at_5 = self._calculate_precision_at_k(ranks_of_required, k=5)
         mrr = self._calculate_mrr(ranks_of_required)
 
+        # Calculate max ground truth rank (highest rank where a ground truth was found)
+        max_ground_truth_rank = max(ranks_of_required) if ranks_of_required else 0
+
         return RAGTestResult(
             test_id=test_case.test_id,
             query=test_case.query,
@@ -106,6 +109,7 @@ class RAGEvaluator:
             retrieval_time_seconds=retrieval_time_seconds,
             embedding_cost_usd=embedding_cost_usd,
             run_number=run_number,
+            max_ground_truth_rank=max_ground_truth_rank,
         )
 
     def _calculate_map(self, ranks: list[int], total_relevant: int) -> float:

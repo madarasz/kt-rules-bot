@@ -124,6 +124,9 @@ class RAGTestResult:
         None  # Hop number for each retrieved chunk (parallel to retrieved_chunks)
     )
 
+    # Ground truth rank analysis (for MAXIMUM_FINAL_CHUNK_COUNT tuning)
+    max_ground_truth_rank: int = 0  # Highest rank position where a ground truth was found
+
 
 @dataclass
 class RAGTestSummary:
@@ -189,3 +192,7 @@ class RAGTestSummary:
     hop_can_answer_precision: float = (
         0.0  # Precision: times ground truth missing & hop made / total hops made
     )
+
+    # Ground truth rank analysis (for MAXIMUM_FINAL_CHUNK_COUNT tuning)
+    max_ground_truth_rank_found: int = 0  # Highest rank where any ground truth was found across all tests
+    avg_max_ground_truth_rank: float = 0.0  # Average max rank per test
