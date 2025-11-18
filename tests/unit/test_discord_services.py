@@ -16,7 +16,7 @@ from src.models.rag_context import DocumentChunk, RAGContext
 from src.models.user_query import UserQuery
 from src.services.discord.context_manager import ConversationContextManager
 from src.services.discord.feedback_logger import FeedbackLogger
-from src.services.discord.formatter import add_feedback_reactions
+from src.services.discord.formatter import create_feedback_view
 from src.services.discord.handlers import handle_message
 
 # ==================== FIXTURES ====================
@@ -230,18 +230,166 @@ async def test_context_manager_cleanup_expired():
 # ==================== RESPONSE FORMATTER TESTS ====================
 
 
+def test_create_feedback_view():
+    """Test creating feedback button view."""
+    from src.services.discord.feedback_buttons import FeedbackView
+
+    feedback_logger = Mock()
+
+    view = create_feedback_view(
+        feedback_logger=feedback_logger, query_id="query-123", response_id="response-456"
+    )
+
+    assert isinstance(view, FeedbackView)
+    assert view.query_id == "query-123"
+    assert view.response_id == "response-456"
+    assert view.feedback_logger == feedback_logger
+
+
+# ==================== FEEDBACK BUTTON TESTS ====================
+
+
 @pytest.mark.asyncio
-async def test_add_feedback_reactions():
-    """Test adding feedback reaction buttons."""
-    message = AsyncMock(spec=discord.Message)
-    message.add_reaction = AsyncMock()
+async def test_feedback_view_helpful_button():
+    """Test 'Helpful' button click records feedback."""
+    from src.services.discord.feedback_buttons import FeedbackView
 
-    await add_feedback_reactions(message)
+    # Setup
+    feedback_logger = Mock()
+    feedback_logger.record_button_feedback = AsyncMock()
 
-    assert message.add_reaction.call_count == 2
-    calls = [call[0][0] for call in message.add_reaction.call_args_list]
-    assert "👍" in calls
-    assert "👎" in calls
+    view = FeedbackView(
+        feedback_logger=feedback_logger,
+        query_id="query-123",
+        response_id="response-456",
+        timeout=60,
+    )
+
+    # Mock interaction
+    interaction = Mock(spec=discord.Interaction)
+    interaction.user = Mock()
+    interaction.user.id = 123456789
+    interaction.response = Mock()
+    interaction.response.send_message = AsyncMock()
+
+    # Trigger button click
+    button = Mock(spec=discord.ui.Button)
+    await view.helpful_button(interaction, button)
+
+    # Verify feedback logged
+    feedback_logger.record_button_feedback.assert_called_once_with(
+        query_id="query-123",
+        response_id="response-456",
+        user_id="123456789",
+        feedback_type="helpful",
+    )
+
+    # Verify ephemeral response sent
+    interaction.response.send_message.assert_called_once()
+    assert "Thanks for your feedback!" in interaction.response.send_message.call_args[0][0]
+
+
+@pytest.mark.asyncio
+async def test_feedback_view_not_helpful_button():
+    """Test 'Not Helpful' button click records feedback."""
+    from src.services.discord.feedback_buttons import FeedbackView
+
+    # Setup
+    feedback_logger = Mock()
+    feedback_logger.record_button_feedback = AsyncMock()
+
+    view = FeedbackView(
+        feedback_logger=feedback_logger,
+        query_id="query-123",
+        response_id="response-456",
+        timeout=60,
+    )
+
+    # Mock interaction
+    interaction = Mock(spec=discord.Interaction)
+    interaction.user = Mock()
+    interaction.user.id = 123456789
+    interaction.response = Mock()
+    interaction.response.send_message = AsyncMock()
+
+    # Trigger button click
+    button = Mock(spec=discord.ui.Button)
+    await view.not_helpful_button(interaction, button)
+
+    # Verify feedback logged
+    feedback_logger.record_button_feedback.assert_called_once_with(
+        query_id="query-123",
+        response_id="response-456",
+        user_id="123456789",
+        feedback_type="not_helpful",
+    )
+
+
+@pytest.mark.asyncio
+async def test_feedback_view_prevents_duplicate_votes():
+    """Test that users can't vote twice on same response."""
+    from src.services.discord.feedback_buttons import FeedbackView
+
+    # Setup
+    feedback_logger = Mock()
+    feedback_logger.record_button_feedback = AsyncMock()
+
+    view = FeedbackView(
+        feedback_logger=feedback_logger,
+        query_id="query-123",
+        response_id="response-456",
+        timeout=60,
+    )
+
+    # Mock interaction (same user)
+    interaction = Mock(spec=discord.Interaction)
+    interaction.user = Mock()
+    interaction.user.id = 123456789
+    interaction.response = Mock()
+    interaction.response.send_message = AsyncMock()
+
+    # First vote
+    button = Mock(spec=discord.ui.Button)
+    await view.helpful_button(interaction, button)
+
+    # Second vote (should be rejected)
+    await view.helpful_button(interaction, button)
+
+    # Verify only logged once
+    assert feedback_logger.record_button_feedback.call_count == 1
+
+    # Verify second interaction got rejection message
+    assert interaction.response.send_message.call_count == 2
+    assert "already provided feedback" in interaction.response.send_message.call_args[0][0]
+
+
+@pytest.mark.asyncio
+async def test_feedback_logger_record_button_feedback():
+    """Test FeedbackLogger.record_button_feedback() method."""
+    from src.lib.database import AnalyticsDatabase
+
+    # Setup
+    analytics_db = Mock(spec=AnalyticsDatabase)
+    analytics_db.enabled = True
+    analytics_db.increment_vote = Mock()
+
+    logger = FeedbackLogger(analytics_db=analytics_db)
+
+    # Record button feedback
+    await logger.record_button_feedback(
+        query_id="query-123",
+        response_id="response-456",
+        user_id="123456789",
+        feedback_type="helpful",
+    )
+
+    # Verify DB incremented
+    analytics_db.increment_vote.assert_called_once_with("query-123", "upvote")
+
+    # Verify cache updated
+    assert len(logger.feedback_cache) == 1
+    cache_key = list(logger.feedback_cache.keys())[0]
+    assert logger.feedback_cache[cache_key]["feedback_type"] == "helpful"
 
 
 # ==================== FEEDBACK LOGGER TESTS ====================
