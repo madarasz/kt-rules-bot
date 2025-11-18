@@ -34,6 +34,7 @@ class RAGReportGenerator:
         content.append("## Overall Metrics")
         content.append("")
         content.append(f"**Total Tests**: {summary.total_tests}")
+        content.append(f"**Total Time**: {summary.total_time_seconds:.2f}s")
         content.append("")
 
         # Ragas metrics
