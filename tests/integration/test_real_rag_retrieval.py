@@ -30,7 +30,8 @@ def temp_rules_dir():
 
     # Create a test rule document
     rules_file = Path(temp_dir) / "test-rules.md"
-    rules_file.write_text("""---
+    rules_file.write_text(
+        """---
 source: Test Rules
 last_update_date: 2024-01-01
 document_type: core-rules
@@ -48,7 +49,8 @@ Models can shoot at visible enemy models during the shooting phase.
 ## Barricades
 
 Barricades provide cover to models. You can shoot through barricades but the target gets the benefit of cover.
-""")
+"""
+    )
 
     yield temp_dir
     shutil.rmtree(temp_dir, ignore_errors=True)

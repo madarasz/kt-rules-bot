@@ -49,14 +49,10 @@ class ImportChecker(ast.NodeVisitor):
         """Check regular imports."""
         if self.in_try_block:
             modules = ", ".join(alias.name for alias in node.names)
-            self.errors.append(
-                (node.lineno, f"Import in try/except block: {modules}")
-            )
+            self.errors.append((node.lineno, f"Import in try/except block: {modules}"))
         if self.in_function:
             modules = ", ".join(alias.name for alias in node.names)
-            self.errors.append(
-                (node.lineno, f"Import inside function/method: {modules}")
-            )
+            self.errors.append((node.lineno, f"Import inside function/method: {modules}"))
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:

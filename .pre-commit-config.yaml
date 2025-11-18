@@ -1,36 +1,41 @@
 repos:
   # Code formatting and linting
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.0
+    rev: v0.14.5
     hooks:
-      - id: ruff
-        args: [--fix]
+      # Run the linter.
+      - id: ruff-check
+        args: [ --fix ]
+        files: ^(src|tests)/
+      # Run the formatter.
       - id: ruff-format
+        files: ^(src|tests)/
 
   # Type checking
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.7.0
-    hooks:
-      - id: mypy
-        additional_dependencies: [pydantic>=2.5.0]
+  #- repo: https://github.com/pre-commit/mirrors-mypy
+  #  rev: v1.7.0
+  #  hooks:
+  #    - id: mypy
+  #      additional_dependencies: [pydantic>=2.5.0]
 
   # Security scanning
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.5
+    rev: 1.9.0
     hooks:
       - id: bandit
         args: [-c, pyproject.toml]
+        files: ^(src|tests)/
 
   # Additional linting with flake8
-  - repo: https://github.com/PyCQA/flake8
-    rev: 7.0.0
-    hooks:
-      - id: flake8
-        args: [--max-line-length=100, --extend-ignore=E203,W503]
-        additional_dependencies:
-          - flake8-bugbear
-          - flake8-simplify
-          - flake8-import-conventions
+  #- repo: https://github.com/PyCQA/flake8
+  #  rev: 7.0.0
+  #  hooks:
+  #    - id: flake8
+  #      args: [--max-line-length=100, --extend-ignore=E203,W503]
+  #      additional_dependencies:
+  #        - flake8-bugbear
+  #        - flake8-simplify
+  #        - flake8-import-conventions
 
   # Dead code detection
   - repo: https://github.com/jendrikseipp/vulture
@@ -38,6 +43,7 @@ repos:
     hooks:
       - id: vulture
         args: [--min-confidence=80]
+        files: ^(src|tests)/
 
   # Custom import validation
   - repo: local

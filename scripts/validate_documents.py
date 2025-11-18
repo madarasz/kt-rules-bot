@@ -48,9 +48,9 @@ def main():
             print(f"   - {error}")
             invalid_count += 1
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Results: {valid_count} valid, {invalid_count} invalid")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     sys.exit(0 if invalid_count == 0 else 1)
 

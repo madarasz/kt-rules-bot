@@ -72,20 +72,22 @@ def main():
         print(f"   Admin Status: {query['admin_status']}")
 
         # Check chunks
-        chunks = db.get_chunks_for_query(query['query_id'])
+        chunks = db.get_chunks_for_query(query["query_id"])
         if chunks:
             print(f"   Chunks: {len(chunks)} retrieved")
             for j, chunk in enumerate(chunks[:3], 1):  # Show first 3
                 print(f"      {j}. Rank {chunk['rank']}: {chunk['chunk_header'] or 'No header'}")
                 print(f"         Score: {chunk['final_score']:.3f}")
-                print(f"         Vector: {chunk['vector_similarity']}, BM25: {chunk['bm25_score']}, RRF: {chunk['rrf_score']}")
+                print(
+                    f"         Vector: {chunk['vector_similarity']}, BM25: {chunk['bm25_score']}, RRF: {chunk['rrf_score']}"
+                )
         else:
             print("   ⚠️  Chunks: NONE (this is the bug!)")
 
         print()
 
     # Admin status breakdown
-    status_counts = stats.get('status_counts', {})
+    status_counts = stats.get("status_counts", {})
     if status_counts:
         print("📈 Admin Status Breakdown:")
         for status, count in status_counts.items():
@@ -107,6 +109,7 @@ def main():
     print("2. If no chunks: Check bot logs for DB insertion errors")
     print("3. If no feedback: Click 👍/👎 reactions in Discord")
     print("4. View in dashboard: streamlit run src/cli/admin_dashboard.py")
+
 
 if __name__ == "__main__":
     main()

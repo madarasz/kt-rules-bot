@@ -67,9 +67,7 @@ def migrate_analytics_db(db_path: str) -> None:
         # Create missing indexes
         print("\n🔍 Checking indexes...")
 
-        indexes = [
-            ("idx_quote_validation_score", "queries", "quote_validation_score"),
-        ]
+        indexes = [("idx_quote_validation_score", "queries", "quote_validation_score")]
 
         cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='index'")
         existing_indexes = {row[0] for row in cursor.fetchall()}
@@ -93,7 +91,8 @@ def migrate_analytics_db(db_path: str) -> None:
         )
         if not cursor.fetchone():
             print("  ➕ Creating table invalid_quotes")
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE invalid_quotes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     query_id TEXT NOT NULL,
@@ -104,7 +103,8 @@ def migrate_analytics_db(db_path: str) -> None:
                     created_at TEXT NOT NULL,
                     FOREIGN KEY (query_id) REFERENCES queries(query_id) ON DELETE CASCADE
                 )
-            """)
+            """
+            )
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_invalid_quotes_query_id ON invalid_quotes(query_id)"
             )
