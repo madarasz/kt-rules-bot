@@ -86,22 +86,34 @@ class RAGReportGenerator:
             content.append("")
 
         # Max ground truth rank metrics (for MAXIMUM_FINAL_CHUNK_COUNT tuning)
-        if summary.max_ground_truth_rank_found > 0:
-            content.append("### Ground Truth Rank Analysis")
-            content.append("")
-            content.append("| Metric | Value | Description |")
-            content.append("|--------|-------|-------------|")
+        # Always show this section, even if 0, to help diagnose retrieval issues
+        content.append("### Ground Truth Rank Analysis")
+        content.append("")
+        content.append("| Metric | Value | Description |")
+        content.append("|--------|-------|-------------|")
+        content.append(
+            f"| **Max Ground Truth Rank Found** | {summary.max_ground_truth_rank_found} | Highest rank where any ground truth was found |"
+        )
+        content.append(
+            f"| **Avg Max Ground Truth Rank** | {summary.avg_max_ground_truth_rank:.2f} | Average max rank per test |"
+        )
+        content.append("")
+
+        # Provide context-appropriate tuning tips
+        if summary.max_ground_truth_rank_found == 0:
             content.append(
-                f"| **Max Ground Truth Rank Found** | {summary.max_ground_truth_rank_found} | Highest rank where any ground truth was found |"
+                "⚠️ **Warning**: No ground truths found in any test. This may indicate: (1) retrieval quality issues, "
+                "(2) `MAXIMUM_FINAL_CHUNK_COUNT` is too low and cutting off relevant chunks, or (3) test cases don't have ground_truth_contexts defined."
             )
+        elif summary.max_ground_truth_rank_found < 20:
             content.append(
-                f"| **Avg Max Ground Truth Rank** | {summary.avg_max_ground_truth_rank:.2f} | Average max rank per test |"
+                f"💡 **Tuning tip**: Max rank is {summary.max_ground_truth_rank_found} (< 20), you can reduce `MAXIMUM_FINAL_CHUNK_COUNT` to save costs."
             )
-            content.append("")
+        else:
             content.append(
-                f"💡 **Tuning tip**: If max rank is consistently < 20, you can reduce `MAXIMUM_FINAL_CHUNK_COUNT` to save costs."
+                f"💡 **Tuning tip**: Max rank is {summary.max_ground_truth_rank_found} (>= 20), consider keeping or increasing `MAXIMUM_FINAL_CHUNK_COUNT`."
             )
-            content.append("")
+        content.append("")
 
         # Missing chunks analysis
         content.append("## Missing Chunks")
