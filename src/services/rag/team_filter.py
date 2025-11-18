@@ -118,8 +118,6 @@ STOP_WORDS = {
     "too",
     "so",
     "such",
-    # Game-specific common words (appear in many ability/operative names)
-    # "blood", "field", "battle", "death", "kill", "shot", "fire", "dark", "light",
 }
 
 # Common abbreviations and alternative names
@@ -249,7 +247,23 @@ class TeamFilter:
         # Filter query words to remove stop words (for alias matching)
         query_words = [w for w in query_lower.split() if w not in STOP_WORDS]
 
-        # 1. Check operative names (prefer multi-word matches, fall back to single-word)
+        # Apply different matching strategies
+        self._match_operatives(query_lower, relevant_teams)
+        self._match_abilities(query_lower, relevant_teams)
+        self._match_aliases(query_lower, query_words, relevant_teams)
+        self._match_team_names_fuzzy(query_words, relevant_teams)
+
+        result = sorted(relevant_teams)
+        logger.info("teams_extracted", query=query, teams_found=len(result), teams=result)
+        return result
+
+    def _match_operatives(self, query_lower: str, relevant_teams: set[str]) -> None:
+        """Match operative names in query (prefer multi-word, fall back to single-word).
+
+        Args:
+            query_lower: Lowercased query
+            relevant_teams: Set to add matched teams to
+        """
         for operative, teams in self._operative_to_teams.items():
             if len(operative) < 4:
                 continue
@@ -261,16 +275,10 @@ class TeamFilter:
             matched_words = [w for w in operative_words if len(w) >= 4 and w in query_lower]
             match_count = len(matched_words)
 
-            # Matching criteria:
-            # - Single-word operatives: require 1 word match
-            # - 2-word operatives: require 1+ word match
-            # - 3+ word operatives: require 1 distinctive word (6+ chars) OR 2+ regular words
-            has_distinctive_match = any(len(w) >= 6 for w in matched_words)
-
-            if len(operative_words) >= 3:
-                required_matches = 1 if has_distinctive_match else 2
-            else:
-                required_matches = 1
+            # Determine required matches based on operative length
+            required_matches = self._calculate_operative_required_matches(
+                operative_words, matched_words
+            )
 
             if match_count >= required_matches:
                 relevant_teams.update(teams)
@@ -283,7 +291,35 @@ class TeamFilter:
                     teams=teams,
                 )
 
-        # 2. Check abilities/ploys (multi-word matching, more strict)
+    def _calculate_operative_required_matches(
+        self, operative_words: list[str], matched_words: list[str]
+    ) -> int:
+        """Calculate required matches for operative matching.
+
+        Args:
+            operative_words: Words in operative name (stop words filtered)
+            matched_words: Words that matched in query
+
+        Returns:
+            Required number of matches
+        """
+        # Single-word operatives: require 1 word match
+        # 2-word operatives: require 1+ word match
+        # 3+ word operatives: require 1 distinctive word (6+ chars) OR 2+ regular words
+        has_distinctive_match = any(len(w) >= 6 for w in matched_words)
+
+        if len(operative_words) >= 3:
+            return 1 if has_distinctive_match else 2
+        else:
+            return 1
+
+    def _match_abilities(self, query_lower: str, relevant_teams: set[str]) -> None:
+        """Match abilities/ploys in query (multi-word matching, more strict).
+
+        Args:
+            query_lower: Lowercased query
+            relevant_teams: Set to add matched teams to
+        """
         for ability, teams in self._ability_to_teams.items():
             if len(ability) < 4:
                 continue
@@ -299,11 +335,8 @@ class TeamFilter:
             matched_words = [w for w in ability_words if w in query_lower]
             match_count = len(matched_words)
 
-            # Matching criteria:
-            # - Single-word abilities: require exact match
-            # - 2-word abilities: require 2/2 words (exact phrase)
-            # - 3+ word abilities: require 2+ words to match
-            required_matches = 1 if ability_words_count == 1 else min(2, ability_words_count)
+            # Determine required matches
+            required_matches = self._calculate_ability_required_matches(ability_words_count)
 
             if match_count >= required_matches:
                 relevant_teams.update(teams)
@@ -316,25 +349,69 @@ class TeamFilter:
                     teams=teams,
                 )
 
-        # 3. Check for team aliases (bidirectional fuzzy match)
+    def _calculate_ability_required_matches(self, ability_words_count: int) -> int:
+        """Calculate required matches for ability matching.
+
+        Args:
+            ability_words_count: Number of words in ability
+
+        Returns:
+            Required number of matches
+        """
+        # Single-word abilities: require exact match
+        # 2-word abilities: require 2/2 words (exact phrase)
+        # 3+ word abilities: require 2+ words to match
+        return 1 if ability_words_count == 1 else min(2, ability_words_count)
+
+    def _match_aliases(
+        self, query_lower: str, query_words: list[str], relevant_teams: set[str]
+    ) -> None:
+        """Match team aliases in query (bidirectional fuzzy match).
+
+        Args:
+            query_lower: Lowercased query
+            query_words: Query words with stop words filtered
+            relevant_teams: Set to add matched teams to
+        """
         for alias, teams in TEAM_ALIASES.items():
-            # Check if alias is in query OR fuzzy match on words
+            # Check if alias is in query
             if alias in query_lower:
                 relevant_teams.update(teams)
-            else:
-                # Try fuzzy matching alias words against filtered query words
-                alias_words = alias.split()
-                for alias_word in alias_words:
-                    if len(alias_word) >= 4:
-                        for query_word in query_words:
-                            if len(query_word) >= 4:
-                                similarity = fuzz.ratio(alias_word, query_word)
-                                if similarity >= TEAM_MATCH_THRESHOLD:
-                                    relevant_teams.update(teams)
-                                    break
+                continue
 
-        # 4. Fuzzy match against team names
-        # Use filtered query words
+            # Try fuzzy matching alias words against filtered query words
+            if self._fuzzy_match_alias(alias, query_words):
+                relevant_teams.update(teams)
+
+    def _fuzzy_match_alias(self, alias: str, query_words: list[str]) -> bool:
+        """Fuzzy match alias against query words.
+
+        Args:
+            alias: Alias string
+            query_words: Query words with stop words filtered
+
+        Returns:
+            True if fuzzy match found
+        """
+        alias_words = alias.split()
+        for alias_word in alias_words:
+            if len(alias_word) >= 4:
+                for query_word in query_words:
+                    if len(query_word) >= 4:
+                        similarity = fuzz.ratio(alias_word, query_word)
+                        if similarity >= TEAM_MATCH_THRESHOLD:
+                            return True
+        return False
+
+    def _match_team_names_fuzzy(
+        self, query_words: list[str], relevant_teams: set[str]
+    ) -> None:
+        """Fuzzy match against team names.
+
+        Args:
+            query_words: Query words with stop words filtered
+            relevant_teams: Set to add matched teams to
+        """
         for word in query_words:
             if len(word) < 4:  # Skip short words
                 continue
@@ -347,10 +424,6 @@ class TeamFilter:
                 team_name, score, _ = match
                 relevant_teams.add(team_name)
                 logger.debug("team_fuzzy_match", word=word, team=team_name, score=score)
-
-        result = sorted(relevant_teams)
-        logger.info("teams_extracted", query=query, teams_found=len(result), teams=result)
-        return result
 
     def filter_structure(self, relevant_teams: list[str]) -> dict[str, Any]:
         """Filter teams structure to only include relevant teams.
