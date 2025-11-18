@@ -601,6 +601,13 @@ class RAGTestRunner:
             bm25_weight = self.retriever.hybrid_retriever.bm25_weight
             vector_weight = self.retriever.hybrid_retriever.vector_weight
 
+        # Calculate max ground truth rank statistics
+        max_ground_truth_ranks = [r.max_ground_truth_rank for r in results if r.max_ground_truth_rank > 0]
+        max_ground_truth_rank_found = max(max_ground_truth_ranks) if max_ground_truth_ranks else 0
+        avg_max_ground_truth_rank = (
+            sum(max_ground_truth_ranks) / len(max_ground_truth_ranks) if max_ground_truth_ranks else 0.0
+        )
+
         return RAGTestSummary(
             total_tests=len(results),
             mean_map=mean_map,
@@ -637,4 +644,6 @@ class RAGTestRunner:
             ground_truth_chunks_per_hop=ground_truth_per_hop,
             hop_can_answer_recall=hop_can_answer_recall,
             hop_can_answer_precision=hop_can_answer_precision,
+            max_ground_truth_rank_found=max_ground_truth_rank_found,
+            avg_max_ground_truth_rank=avg_max_ground_truth_rank,
         )

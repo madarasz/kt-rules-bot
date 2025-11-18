@@ -129,6 +129,11 @@ QUALITY_TEST_RATE_LIMIT_INITIAL_DELAY = 10.0  # Initial retry delay in seconds (
 RAG_MAX_CHUNKS = 7  # Maximum document chunks to retrieve
 RAG_MIN_RELEVANCE = 0.45  # Minimum cosine similarity threshold
 
+# Maximum chunks in final context after reranking (especially for multi-hop)
+# This limits the total number of chunks sent to the LLM after all hops are complete
+# Default: 20 chunks (tune based on max_ground_truth_rank from RAG tests)
+MAXIMUM_FINAL_CHUNK_COUNT = 20
+
 # Note: Increased from 5→15 chunks for better multi-hop queries
 # Note: Lowered from 0.6→0.45 relevance for better recall
 # See CHANGELOG-RETRIEVAL.md for tuning history
