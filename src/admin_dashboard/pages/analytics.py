@@ -51,7 +51,7 @@ def render(db: AnalyticsDatabase) -> None:
     _render_cost_analysis(df)
     _render_llm_model_performance(df)
     _render_top_downvoted_queries(df)
-    _render_quote_hallucinations(df, db)
+    _render_quote_hallucinations(df)
 
     # Chunk relevance stats
     st.subheader("🎯 RAG Chunk Relevance Analysis")
@@ -186,12 +186,11 @@ def _render_top_downvoted_queries(df: pd.DataFrame) -> None:
     st.dataframe(top_downvoted, use_container_width=True, hide_index=True)
 
 
-def _render_quote_hallucinations(df: pd.DataFrame, db: AnalyticsDatabase) -> None:
+def _render_quote_hallucinations(df: pd.DataFrame) -> None:
     """Render quote hallucinations section.
 
     Args:
         df: DataFrame of queries
-        db: Database instance
     """
     st.subheader("⚠️ Quote Hallucinations")
 

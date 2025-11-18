@@ -41,15 +41,14 @@ def render(db: AnalyticsDatabase) -> None:
         card.render()
 
     # Query selector at the bottom
-    _render_query_selector(queries, db)
+    _render_query_selector(queries)
 
 
-def _render_query_selector(queries: list[dict], db: AnalyticsDatabase) -> None:
+def _render_query_selector(queries: list[dict]) -> None:
     """Render query selector dropdown with view button.
 
     Args:
         queries: List of query data dictionaries
-        db: Database instance
     """
     st.subheader("View Query Details")
 

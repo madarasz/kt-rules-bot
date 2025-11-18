@@ -43,12 +43,8 @@ def initialize_database() -> AnalyticsDatabase | None:
         return None
 
 
-def render_sidebar(db: AnalyticsDatabase) -> None:
-    """Render sidebar with navigation.
-
-    Args:
-        db: Database instance
-    """
+def render_sidebar() -> None:
+    """Render sidebar with navigation."""
     st.sidebar.title("🤖 Kill Team Bot")
     st.sidebar.write("Admin Dashboard")
 
@@ -109,7 +105,7 @@ def main() -> None:
         st.stop()
 
     # Render sidebar navigation
-    render_sidebar(db)
+    render_sidebar()
 
     # Get current page and route to it
     current_page = get_current_page()
