@@ -5,10 +5,11 @@ Aggregated code quality checker.
 Runs all quality tools and generates a comprehensive report with scores.
 """
 
+import argparse
 import json
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 
@@ -268,6 +269,26 @@ class QualityChecker:
             ]
         )
 
+    def get_summary_stats(self) -> dict:
+        """Calculate summary statistics."""
+        scored_metrics = [m for m in self.metrics if m.score >= 0]
+        overall_score = sum(m.score for m in scored_metrics) / len(scored_metrics) if scored_metrics else 0
+
+        return {
+            "overall_score": round(overall_score, 1),
+            "passed": sum(1 for m in self.metrics if m.status == "pass"),
+            "warned": sum(1 for m in self.metrics if m.status == "warn"),
+            "failed": sum(1 for m in self.metrics if m.status == "fail"),
+            "total": len(self.metrics),
+        }
+
+    def get_json_report(self) -> str:
+        """Generate JSON report of all metrics."""
+        summary = self.get_summary_stats()
+        return json.dumps(
+            {"metrics": [asdict(m) for m in self.metrics], "summary": summary}, indent=2
+        )
+
     def print_report(self) -> None:
         """Print a formatted quality report."""
         print("\n" + "=" * 80)
@@ -286,28 +307,20 @@ class QualityChecker:
             print(f"   Details: {metric.details}")
 
         # Calculate overall score (exclude metrics with score -1)
-        scored_metrics = [m for m in self.metrics if m.score >= 0]
-        if scored_metrics:
-            overall_score = sum(m.score for m in scored_metrics) / len(scored_metrics)
-        else:
-            overall_score = 0
-
-        passed = sum(1 for m in self.metrics if m.status == "pass")
-        warned = sum(1 for m in self.metrics if m.status == "warn")
-        failed = sum(1 for m in self.metrics if m.status == "fail")
+        summary = self.get_summary_stats()
 
         print("\n" + "=" * 80)
-        print(f"OVERALL SCORE: {overall_score:.1f}/100")
-        print(f"Passed: {passed}/{len(self.metrics)}")
-        print(f"Warnings: {warned}/{len(self.metrics)}")
-        print(f"Failed: {failed}/{len(self.metrics)}")
+        print(f"OVERALL SCORE: {summary['overall_score']}/100")
+        print(f"Passed: {summary['passed']}/{summary['total']}")
+        print(f"Warnings: {summary['warned']}/{summary['total']}")
+        print(f"Failed: {summary['failed']}/{summary['total']}")
         print("=" * 80 + "\n")
 
         # Exit code based on failures
-        if failed > 0:
+        if summary["failed"] > 0:
             print("❌ Quality checks failed! Please address the issues above.")
             sys.exit(1)
-        elif warned > 0:
+        elif summary["warned"] > 0:
             print("⚠️  Quality checks passed with warnings.")
             sys.exit(0)
         else:
@@ -317,10 +330,25 @@ class QualityChecker:
 
 def main() -> None:
     """Main entry point."""
+    parser = argparse.ArgumentParser(description="Run code quality checks")
+    parser.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format (default: text)",
+    )
+    args = parser.parse_args()
+
     project_root = Path(__file__).parent.parent
     checker = QualityChecker(project_root)
     checker.run_all_checks()
-    checker.print_report()
+
+    if args.format == "json":
+        print(checker.get_json_report())
+        # Exit with success in JSON mode (don't fail CI, just report)
+        sys.exit(0)
+    else:
+        checker.print_report()
 
 
 if __name__ == "__main__":
