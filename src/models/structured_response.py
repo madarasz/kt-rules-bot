@@ -14,6 +14,7 @@ class StructuredQuote:
 
     quote_title: str  # "Core Rules: Actions"
     quote_text: str  # Relevant excerpt
+    chunk_id: str = ""  # Optional chunk ID for attribution (last 8 chars of UUID)
 
     def to_markdown(self) -> str:
         """Convert to markdown blockquote format.
@@ -95,7 +96,9 @@ class StructuredLLMResponse:
                 raise ValueError(f"Invalid quote structure: {quote_data}")
             quotes.append(
                 StructuredQuote(
-                    quote_title=quote_data["quote_title"], quote_text=quote_data["quote_text"]
+                    quote_title=quote_data["quote_title"],
+                    quote_text=quote_data["quote_text"],
+                    chunk_id=quote_data.get("chunk_id", ""),  # Optional field
                 )
             )
 

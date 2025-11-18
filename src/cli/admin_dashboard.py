@@ -144,8 +144,8 @@ def render_query_browser(db: AnalyticsDatabase) -> None:
     # Display queries in individual rows with delete buttons
     for _idx, query in enumerate(queries):
         with st.container():
-            col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns(
-                [2, 3, 1, 1, 1, 1, 0.7, 1, 0.5]
+            col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns(
+                [2, 3, 1, 1, 1, 1, 0.7, 0.7, 1, 0.5]
             )
 
             with col1:
@@ -195,13 +195,21 @@ def render_query_browser(db: AnalyticsDatabase) -> None:
                     st.write("-")
 
             with col8:
+                # Quote validation
+                quote_score = query.get("quote_validation_score")
+                quote_icon = get_quote_validation_icon(
+                    quote_score, query.get("quote_valid_count"), query.get("quote_total_count")
+                )
+                st.write(quote_icon)
+
+            with col9:
                 # View button to navigate to detail
                 if st.button("👁️", key=f"view_{query['query_id']}", help="View details"):
                     st.session_state["selected_query_id"] = query["query_id"]
                     st.session_state["current_page"] = "🔍 Query Detail"
                     st.rerun()
 
-            with col9:
+            with col10:
                 # Delete button with confirmation
                 delete_key = f"delete_{query['query_id']}"
                 confirm_key = f"confirm_delete_{query['query_id']}"
@@ -249,6 +257,32 @@ def bool_to_icon(value: bool) -> str:
     if value is True:
         return "✅"
     return "❌"
+
+
+def get_quote_validation_icon(
+    quote_validation_score: float | None,
+    _quote_valid_count: int | None = None,
+    _quote_total_count: int | None = None,
+) -> str:
+    """Get icon for quote validation score.
+
+    Args:
+        quote_validation_score: Validation score (0-1) or None
+        _quote_valid_count: Number of valid quotes (unused, for future use)
+        _quote_total_count: Total number of quotes (unused, for future use)
+
+    Returns:
+        Icon string representing the validation status
+    """
+    if quote_validation_score is None:
+        return "-"
+
+    if quote_validation_score >= 0.95:
+        return "✅"
+    elif quote_validation_score >= 0.7:
+        return "⚠️"
+    else:
+        return "❌"
 
 
 def render_query_detail(db: AnalyticsDatabase):
@@ -327,6 +361,45 @@ def render_query_detail(db: AnalyticsDatabase):
         # Cost
         cost = query.get("cost", 0.0)
         st.write(f"**Cost:** ${cost:.5f}")
+
+        # Quote validation
+        quote_validation_score = query.get("quote_validation_score")
+        if quote_validation_score is not None:
+            quote_total = query.get("quote_total_count", 0)
+            quote_valid = query.get("quote_valid_count", 0)
+            score_icon = get_quote_validation_icon(quote_validation_score, quote_valid, quote_total)
+
+            st.write(
+                f"**Quote Validation:** {score_icon} {quote_validation_score:.1%} ({quote_valid}/{quote_total} valid)"
+            )
+        else:
+            st.write("**Quote Validation:** N/A")
+
+    # Quote validation details (if there are invalid quotes)
+    quote_invalid_count = query.get("quote_invalid_count", 0)
+    if quote_invalid_count > 0:
+        st.subheader("⚠️ Invalid Quotes Detected")
+        invalid_quotes = db.get_invalid_quotes_for_query(query_id)
+
+        if invalid_quotes:
+            for i, invalid_quote in enumerate(invalid_quotes, 1):
+                with st.expander(
+                    f"❌ Invalid Quote {i}: {invalid_quote.get('quote_title', 'No title')}"
+                ):
+                    st.write(f"**Title:** {invalid_quote.get('quote_title', 'N/A')}")
+                    st.text_area(
+                        "Quote Text",
+                        value=invalid_quote.get("quote_text", ""),
+                        height=100,
+                        disabled=True,
+                        key=f"invalid_quote_{i}",
+                    )
+                    st.write(
+                        f"**Claimed Chunk ID:** {invalid_quote.get('claimed_chunk_id', 'N/A')}"
+                    )
+                    st.write(f"**Reason:** {invalid_quote.get('reason', 'N/A')}")
+        else:
+            st.info("Invalid quotes count is non-zero but no invalid quotes found in database.")
 
     # Hop evaluations (if multi-hop was used)
     if query.get("hops_used", 0) > 0:
@@ -606,18 +679,23 @@ def render_analytics(db: AnalyticsDatabase):
             .agg(
                 {
                     "query_id": "count",
-                    "confidence_score": "mean",
+                    "quote_validation_score": "mean",
                     "upvotes": "sum",
                     "downvotes": "sum",
                 }
             )
             .reset_index()
         )
-        model_stats.columns = ["Model", "Queries", "Avg Confidence", "Upvotes", "Downvotes"]
+        model_stats.columns = ["Model", "Queries", "Avg Quote Validation", "Upvotes", "Downvotes"]
         model_stats["Helpful Rate"] = model_stats["Upvotes"] / (
             model_stats["Upvotes"] + model_stats["Downvotes"]
         )
         model_stats["Helpful Rate"] = model_stats["Helpful Rate"].fillna(0)
+
+        # Format quote validation as percentage
+        model_stats["Avg Quote Validation"] = model_stats["Avg Quote Validation"].apply(
+            lambda x: f"{x:.1%}" if pd.notna(x) else "N/A"
+        )
 
         st.dataframe(model_stats, use_container_width=True, hide_index=True)
 
@@ -636,6 +714,66 @@ def render_analytics(db: AnalyticsDatabase):
             ]
         ]
         st.dataframe(top_downvoted, use_container_width=True, hide_index=True)
+
+    # Quote hallucinations
+    st.subheader("⚠️ Quote Hallucinations")
+    if queries:
+        # Filter for queries with quote validation score < 1.0
+        hallucination_queries = df[
+            (df["quote_validation_score"].notna()) & (df["quote_validation_score"] < 1.0)
+        ].copy()
+
+        if not hallucination_queries.empty:
+            # Prepare display data
+            hallucination_queries["validation_display"] = hallucination_queries.apply(
+                lambda row: f"{get_quote_validation_icon(row['quote_validation_score'], row['quote_valid_count'], row['quote_total_count'])} "
+                f"{row['quote_validation_score']:.0%} "
+                f"({row['quote_valid_count']}/{row['quote_total_count']} valid)",
+                axis=1,
+            )
+
+            hallucination_display = hallucination_queries[
+                ["timestamp", "query_text", "llm_model", "validation_display", "query_id"]
+            ].copy()
+            hallucination_display.columns = [
+                "Timestamp",
+                "Query",
+                "Model",
+                "Validation Score",
+                "query_id",
+            ]
+
+            # Sort by validation score (worst first)
+            hallucination_display = hallucination_display.sort_values("Validation Score")
+
+            # Display clickable table
+            for _, row in hallucination_display.iterrows():
+                col1, col2, col3, col4, col5 = st.columns([2, 4, 2, 2, 1])
+
+                with col1:
+                    st.write(pd.to_datetime(row["Timestamp"]).strftime("%Y-%m-%d %H:%M"))
+
+                with col2:
+                    query_preview = (
+                        row["Query"][:80] + "..." if len(row["Query"]) > 80 else row["Query"]
+                    )
+                    st.write(query_preview)
+
+                with col3:
+                    st.write(row["Model"])
+
+                with col4:
+                    st.write(row["Validation Score"])
+
+                with col5:
+                    if st.button("👁️", key=f"view_halluc_{row['query_id']}", help="View details"):
+                        st.session_state["selected_query_id"] = row["query_id"]
+                        st.session_state["current_page"] = "🔍 Query Detail"
+                        st.rerun()
+
+            st.info(f"📊 Found {len(hallucination_display)} queries with quote validation issues")
+        else:
+            st.success("✅ No quote hallucinations detected!")
 
     # Chunk relevance stats
     st.subheader("🎯 RAG Chunk Relevance Analysis")

@@ -67,8 +67,8 @@ class ClaudeAdapter(LLMProvider):
         """
         start_time = time.time()
 
-        # Build prompt with context
-        full_prompt = self._build_prompt(request.prompt, request.context)
+        # Build prompt with context and optional chunk IDs
+        full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
 
         try:
             # Select schema based on configuration
