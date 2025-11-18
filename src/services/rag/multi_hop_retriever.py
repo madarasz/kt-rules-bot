@@ -133,7 +133,11 @@ class MultiHopRetriever:
             return {}
 
     async def retrieve_multi_hop(
-        self, query: str, context_key: str, query_id: UUID
+        self,
+        query: str,
+        context_key: str,
+        query_id: UUID,
+        initial_chunks: list[DocumentChunk] | None = None,
     ) -> tuple[RAGContext, list[HopEvaluation], dict[UUID, int]]:
         """Perform multi-hop retrieval with LLM-guided context evaluation.
 
@@ -141,6 +145,7 @@ class MultiHopRetriever:
             query: User's original question
             context_key: Context key for tracking
             query_id: Query UUID
+            initial_chunks: Optional initial chunks from Hop 0 (if already retrieved)
 
         Returns:
             Tuple of:
@@ -152,28 +157,42 @@ class MultiHopRetriever:
         hop_evaluations: list[HopEvaluation] = []
         chunk_hop_map: dict[UUID, int] = {}
 
-        # Hop 0: Initial retrieval with original query
         logger.info("multi_hop_started", query=query, max_hops=self.max_hops)
 
-        initial_request = RetrieveRequest(
-            query=query,
-            context_key=context_key,
-            max_chunks=self.chunks_per_hop,
-            use_multi_hop=False,  # Prevent infinite recursion
-        )
+        # Hop 0: Use provided initial chunks or retrieve them
+        if initial_chunks is not None:
+            # Use provided initial chunks (already retrieved in retriever.py)
+            accumulated_chunks.extend(initial_chunks)
 
-        initial_context, _, _ = self.base_retriever.retrieve(initial_request, query_id)
-        accumulated_chunks.extend(initial_context.document_chunks)
+            # Track hop 0 chunks
+            for chunk in initial_chunks:
+                chunk_hop_map[chunk.chunk_id] = 0
 
-        # Track hop 0 chunks
-        for chunk in initial_context.document_chunks:
-            chunk_hop_map[chunk.chunk_id] = 0
+            logger.info(
+                "multi_hop_using_provided_initial_chunks",
+                chunks_count=len(initial_chunks),
+            )
+        else:
+            # Perform initial retrieval (fallback for backward compatibility)
+            initial_request = RetrieveRequest(
+                query=query,
+                context_key=context_key,
+                max_chunks=self.chunks_per_hop,
+                use_multi_hop=False,  # Prevent infinite recursion
+            )
 
-        logger.info(
-            "multi_hop_initial_retrieval",
-            chunks_retrieved=len(initial_context.document_chunks),
-            avg_relevance=initial_context.avg_relevance,
-        )
+            initial_context, _, _ = self.base_retriever.retrieve(initial_request, query_id)
+            accumulated_chunks.extend(initial_context.document_chunks)
+
+            # Track hop 0 chunks
+            for chunk in initial_context.document_chunks:
+                chunk_hop_map[chunk.chunk_id] = 0
+
+            logger.info(
+                "multi_hop_initial_retrieval",
+                chunks_retrieved=len(initial_context.document_chunks),
+                avg_relevance=initial_context.avg_relevance,
+            )
 
         # Iterative hops (1 to max_hops)
         for hop_num in range(1, self.max_hops + 1):
