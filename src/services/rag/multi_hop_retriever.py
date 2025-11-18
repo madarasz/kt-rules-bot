@@ -263,7 +263,6 @@ class MultiHopRetriever:
             )
 
         # Build final RAGContext from accumulated chunks
-        # Note: Final reranking and limiting happens in retriever.py after this returns
         final_context = RAGContext.from_retrieval(query_id=query_id, chunks=accumulated_chunks)
 
         logger.info(
