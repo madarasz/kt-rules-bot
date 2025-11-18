@@ -145,7 +145,7 @@ STRUCTURED_OUTPUT_SCHEMA = {
                         "description": "Chunk ID from context (last 8 chars of UUID, e.g., 'a1b2c3d4'). Optional for backward compatibility.",
                     },
                 },
-                "required": ["quote_title", "quote_text"],
+                "required": ["quote_title", "quote_text", "chunk_id"],
                 "additionalProperties": False,
             },
         },
