@@ -28,9 +28,7 @@ class QueryFilters:
 
         with col1:
             date_range = st.selectbox(
-                "Date Range",
-                ["Last 24 hours", "Last 7 days", "Last 30 days", "All time"],
-                index=3,
+                "Date Range", ["Last 24 hours", "Last 7 days", "Last 30 days", "All time"], index=3
             )
 
         with col2:

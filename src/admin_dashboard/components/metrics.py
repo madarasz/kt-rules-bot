@@ -64,7 +64,9 @@ def render_chunk_relevance_metrics(stats: dict) -> None:
         st.info(f"📈 Relevance Rate: {relevance_rate:.1%} (of reviewed chunks)")
 
 
-def render_database_info(db_path: str, total_queries: int, retention_days: int, enabled: bool) -> None:
+def render_database_info(
+    db_path: str, total_queries: int, retention_days: int, enabled: bool
+) -> None:
     """Render database information metrics.
 
     Args:

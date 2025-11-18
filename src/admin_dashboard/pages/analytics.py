@@ -7,7 +7,11 @@ import streamlit as st
 
 from src.lib.database import AnalyticsDatabase
 
-from ..components.metrics import render_chunk_relevance_metrics, render_cost_metrics, render_overview_metrics
+from ..components.metrics import (
+    render_chunk_relevance_metrics,
+    render_cost_metrics,
+    render_overview_metrics,
+)
 from ..utils.formatters import format_timestamp
 from ..utils.icons import get_quote_validation_icon
 from ..utils.session import set_selected_query
@@ -137,7 +141,12 @@ def _render_llm_model_performance(df: pd.DataFrame) -> None:
     model_stats = (
         df.groupby("llm_model")
         .agg(
-            {"query_id": "count", "quote_validation_score": "mean", "upvotes": "sum", "downvotes": "sum"}
+            {
+                "query_id": "count",
+                "quote_validation_score": "mean",
+                "upvotes": "sum",
+                "downvotes": "sum",
+            }
         )
         .reset_index()
     )
@@ -225,7 +234,9 @@ def _render_hallucination_row(row: pd.Series) -> None:
         st.write(format_timestamp(row["timestamp"]))
 
     with col2:
-        query_preview = row["query_text"][:80] + "..." if len(row["query_text"]) > 80 else row["query_text"]
+        query_preview = (
+            row["query_text"][:80] + "..." if len(row["query_text"]) > 80 else row["query_text"]
+        )
         st.write(query_preview)
 
     with col3:

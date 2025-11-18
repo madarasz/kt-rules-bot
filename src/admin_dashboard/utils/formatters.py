@@ -1,7 +1,5 @@
 """Formatting utilities for the admin dashboard."""
 
-from datetime import datetime
-
 import pandas as pd
 
 
