@@ -78,6 +78,24 @@ class RAGReportGenerator:
 
             content.append("")
 
+        # Max ground truth rank metrics (for MAXIMUM_FINAL_CHUNK_COUNT tuning)
+        if summary.max_ground_truth_rank_found > 0:
+            content.append("### Ground Truth Rank Analysis")
+            content.append("")
+            content.append("| Metric | Value | Description |")
+            content.append("|--------|-------|-------------|")
+            content.append(
+                f"| **Max Ground Truth Rank Found** | {summary.max_ground_truth_rank_found} | Highest rank where any ground truth was found |"
+            )
+            content.append(
+                f"| **Avg Max Ground Truth Rank** | {summary.avg_max_ground_truth_rank:.2f} | Average max rank per test |"
+            )
+            content.append("")
+            content.append(
+                f"💡 **Tuning tip**: If max rank is consistently < 20, you can reduce `MAXIMUM_FINAL_CHUNK_COUNT` to save costs."
+            )
+            content.append("")
+
         # Missing chunks analysis
         content.append("## Missing Chunks")
         content.append("")
