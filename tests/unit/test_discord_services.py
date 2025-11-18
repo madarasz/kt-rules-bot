@@ -251,7 +251,7 @@ def test_create_feedback_view():
 
 @pytest.mark.asyncio
 async def test_feedback_view_helpful_button():
-    """Test 'Helpful' button click records feedback."""
+    """Test 'Helpful' button click records feedback and adds reaction."""
     from src.services.discord.feedback_buttons import FeedbackView
 
     # Setup
@@ -269,8 +269,10 @@ async def test_feedback_view_helpful_button():
     interaction = Mock(spec=discord.Interaction)
     interaction.user = Mock()
     interaction.user.id = 123456789
+    interaction.message = AsyncMock()
+    interaction.message.add_reaction = AsyncMock()
     interaction.response = Mock()
-    interaction.response.send_message = AsyncMock()
+    interaction.response.defer = AsyncMock()
 
     # Trigger button click
     button = Mock(spec=discord.ui.Button)
@@ -282,16 +284,19 @@ async def test_feedback_view_helpful_button():
         response_id="response-456",
         user_id="123456789",
         feedback_type="helpful",
+        previous_feedback_type=None,
     )
 
-    # Verify ephemeral response sent
-    interaction.response.send_message.assert_called_once()
-    assert "Thanks for your feedback!" in interaction.response.send_message.call_args[0][0]
+    # Verify reaction added
+    interaction.message.add_reaction.assert_called_once_with("👍")
+
+    # Verify interaction deferred (no message sent)
+    interaction.response.defer.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_feedback_view_not_helpful_button():
-    """Test 'Not Helpful' button click records feedback."""
+    """Test 'Not Helpful' button click records feedback and adds reaction."""
     from src.services.discord.feedback_buttons import FeedbackView
 
     # Setup
@@ -309,8 +314,10 @@ async def test_feedback_view_not_helpful_button():
     interaction = Mock(spec=discord.Interaction)
     interaction.user = Mock()
     interaction.user.id = 123456789
+    interaction.message = AsyncMock()
+    interaction.message.add_reaction = AsyncMock()
     interaction.response = Mock()
-    interaction.response.send_message = AsyncMock()
+    interaction.response.defer = AsyncMock()
 
     # Trigger button click
     button = Mock(spec=discord.ui.Button)
@@ -322,12 +329,16 @@ async def test_feedback_view_not_helpful_button():
         response_id="response-456",
         user_id="123456789",
         feedback_type="not_helpful",
+        previous_feedback_type=None,
     )
+
+    # Verify reaction added
+    interaction.message.add_reaction.assert_called_once_with("👎")
 
 
 @pytest.mark.asyncio
-async def test_feedback_view_prevents_duplicate_votes():
-    """Test that users can't vote twice on same response."""
+async def test_feedback_view_allows_vote_changes():
+    """Test that users can change their vote from helpful to not helpful."""
     from src.services.discord.feedback_buttons import FeedbackView
 
     # Setup
@@ -345,22 +356,30 @@ async def test_feedback_view_prevents_duplicate_votes():
     interaction = Mock(spec=discord.Interaction)
     interaction.user = Mock()
     interaction.user.id = 123456789
+    interaction.message = AsyncMock()
+    interaction.message.add_reaction = AsyncMock()
     interaction.response = Mock()
-    interaction.response.send_message = AsyncMock()
+    interaction.response.defer = AsyncMock()
 
-    # First vote
+    # First vote: helpful
     button = Mock(spec=discord.ui.Button)
     await view.helpful_button(interaction, button)
 
-    # Second vote (should be rejected)
-    await view.helpful_button(interaction, button)
+    # Second vote: not helpful (changing vote)
+    await view.not_helpful_button(interaction, button)
 
-    # Verify only logged once
-    assert feedback_logger.record_button_feedback.call_count == 1
+    # Verify both votes were logged
+    assert feedback_logger.record_button_feedback.call_count == 2
 
-    # Verify second interaction got rejection message
-    assert interaction.response.send_message.call_count == 2
-    assert "already provided feedback" in interaction.response.send_message.call_args[0][0]
+    # Verify first call had no previous feedback
+    first_call = feedback_logger.record_button_feedback.call_args_list[0]
+    assert first_call[1]["feedback_type"] == "helpful"
+    assert first_call[1]["previous_feedback_type"] is None
+
+    # Verify second call tracked previous feedback
+    second_call = feedback_logger.record_button_feedback.call_args_list[1]
+    assert second_call[1]["feedback_type"] == "not_helpful"
+    assert second_call[1]["previous_feedback_type"] == "helpful"
 
 
 @pytest.mark.asyncio
@@ -390,6 +409,46 @@ async def test_feedback_logger_record_button_feedback():
     assert len(logger.feedback_cache) == 1
     cache_key = list(logger.feedback_cache.keys())[0]
     assert logger.feedback_cache[cache_key]["feedback_type"] == "helpful"
+
+
+@pytest.mark.asyncio
+async def test_feedback_logger_vote_change():
+    """Test FeedbackLogger handles vote changes correctly."""
+    from src.lib.database import AnalyticsDatabase
+
+    # Setup
+    analytics_db = Mock(spec=AnalyticsDatabase)
+    analytics_db.enabled = True
+    analytics_db.increment_vote = Mock()
+    analytics_db.decrement_vote = Mock()
+
+    logger = FeedbackLogger(analytics_db=analytics_db)
+
+    # First vote: helpful
+    await logger.record_button_feedback(
+        query_id="query-123",
+        response_id="response-456",
+        user_id="123456789",
+        feedback_type="helpful",
+        previous_feedback_type=None,
+    )
+
+    # Change vote: not helpful
+    await logger.record_button_feedback(
+        query_id="query-123",
+        response_id="response-456",
+        user_id="123456789",
+        feedback_type="not_helpful",
+        previous_feedback_type="helpful",
+    )
+
+    # Verify first vote incremented
+    assert analytics_db.increment_vote.call_count == 2
+    analytics_db.increment_vote.assert_any_call("query-123", "upvote")
+    analytics_db.increment_vote.assert_any_call("query-123", "downvote")
+
+    # Verify old vote decremented
+    analytics_db.decrement_vote.assert_called_once_with("query-123", "upvote")
 
 
 # ==================== FEEDBACK LOGGER TESTS ====================

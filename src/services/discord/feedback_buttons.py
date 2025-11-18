@@ -23,7 +23,7 @@ class FeedbackView(discord.ui.View):
         self.feedback_logger = feedback_logger
         self.query_id = query_id
         self.response_id = response_id
-        self.voters = set()  # Track who voted to prevent duplicates
+        self.voters = {}  # Track votes: {user_id: feedback_type}
 
     @discord.ui.button(label="Helpful 👍", style=discord.ButtonStyle.success, custom_id="helpful")
     async def helpful_button(self, interaction: discord.Interaction, _button: discord.ui.Button):
@@ -33,7 +33,9 @@ class FeedbackView(discord.ui.View):
     @discord.ui.button(
         label="Not Helpful 👎", style=discord.ButtonStyle.danger, custom_id="not_helpful"
     )
-    async def not_helpful_button(self, interaction: discord.Interaction, _button: discord.ui.Button):
+    async def not_helpful_button(
+        self, interaction: discord.Interaction, _button: discord.ui.Button
+    ):
         """Handle 'Not Helpful' button click."""
         await self._handle_feedback(interaction, "not_helpful", "👎")
 
@@ -49,15 +51,20 @@ class FeedbackView(discord.ui.View):
         """
         user_id = str(interaction.user.id)
 
-        # Prevent duplicate votes from same user
-        if user_id in self.voters:
-            await interaction.response.send_message(
-                "You've already provided feedback on this response!", ephemeral=True
-            )
-            return
+        # Check if user already voted
+        previous_feedback = self.voters.get(user_id)
 
-        # Record vote
-        self.voters.add(user_id)
+        # Update vote tracking
+        self.voters[user_id] = feedback_type
+
+        # Add emoji reaction to the bot's message
+        try:
+            await interaction.message.add_reaction(emoji)
+        except Exception as e:
+            logger.warning(f"Failed to add reaction: {e}")
+
+        # Acknowledge the interaction without sending a message
+        await interaction.response.defer()
 
         # Log to feedback logger
         if self.feedback_logger:
@@ -66,12 +73,8 @@ class FeedbackView(discord.ui.View):
                 response_id=self.response_id,
                 user_id=user_id,
                 feedback_type=feedback_type,
+                previous_feedback_type=previous_feedback,
             )
-
-        # Send ephemeral acknowledgement
-        await interaction.response.send_message(
-            f"Thanks for your feedback! {emoji}", ephemeral=True
-        )
 
         logger.info(
             f"Feedback button clicked: {feedback_type}",
@@ -79,6 +82,7 @@ class FeedbackView(discord.ui.View):
                 "query_id": self.query_id,
                 "response_id": self.response_id,
                 "feedback_type": feedback_type,
+                "previous_feedback": previous_feedback,
                 "user_id": user_id[:16],  # Partial for privacy
             },
         )
