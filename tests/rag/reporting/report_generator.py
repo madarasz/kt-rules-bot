@@ -33,8 +33,14 @@ class RAGReportGenerator:
         # Overall Metrics
         content.append("## Overall Metrics")
         content.append("")
+
+        # Calculate total cost including hop evaluations (used in multiple places)
+        total_cost_with_hops = summary.total_cost_usd + summary.hop_evaluation_cost_usd
+
         content.append(f"**Total Tests**: {summary.total_tests}")
         content.append(f"**Total Time**: {summary.total_time_seconds:.2f}s")
+        content.append(f"**Avg Retrieval Time**: {summary.avg_retrieval_time_seconds:.3f}s")
+        content.append(f"**Total Cost**: ${total_cost_with_hops:.6f}")
         content.append("")
 
         # Ragas metrics
@@ -121,9 +127,6 @@ class RAGReportGenerator:
         content.append("|--------|-------|")
         content.append(f"| **Total Time** | {summary.total_time_seconds:.2f}s |")
         content.append(f"| **Avg Retrieval Time** | {summary.avg_retrieval_time_seconds:.3f}s |")
-
-        # Calculate total cost including hop evaluations
-        total_cost_with_hops = summary.total_cost_usd + summary.hop_evaluation_cost_usd
         content.append(f"| **Total Cost** | ${total_cost_with_hops:.6f} |")
 
         # Cost breakdown - group embeddings together
