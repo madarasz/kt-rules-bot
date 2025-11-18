@@ -276,7 +276,8 @@ async def test_feedback_view_helpful_button():
     interaction.response.defer = AsyncMock()
 
     # Trigger button click (call the callback directly)
-    await view.helpful_button.callback(interaction)
+    # Discord.py passes (button, interaction) to the callback
+    await view.helpful_button.callback(view.helpful_button, interaction)
 
     # Verify feedback logged
     feedback_logger.record_button_feedback.assert_called_once_with(
@@ -320,7 +321,8 @@ async def test_feedback_view_not_helpful_button():
     interaction.response.defer = AsyncMock()
 
     # Trigger button click (call the callback directly)
-    await view.not_helpful_button.callback(interaction)
+    # Discord.py passes (button, interaction) to the callback
+    await view.not_helpful_button.callback(view.not_helpful_button, interaction)
 
     # Verify feedback logged
     feedback_logger.record_button_feedback.assert_called_once_with(
@@ -362,10 +364,11 @@ async def test_feedback_view_allows_vote_changes():
     interaction.response.defer = AsyncMock()
 
     # First vote: helpful (call the callback directly)
-    await view.helpful_button.callback(interaction)
+    # Discord.py passes (button, interaction) to the callback
+    await view.helpful_button.callback(view.helpful_button, interaction)
 
     # Second vote: not helpful (changing vote)
-    await view.not_helpful_button.callback(interaction)
+    await view.not_helpful_button.callback(view.not_helpful_button, interaction)
 
     # Verify both votes were logged
     assert feedback_logger.record_button_feedback.call_count == 2
