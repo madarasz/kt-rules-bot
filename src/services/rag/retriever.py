@@ -12,6 +12,7 @@ from src.lib.constants import (
     BM25_B,
     BM25_K1,
     BM25_WEIGHT,
+    MAXIMUM_FINAL_CHUNK_COUNT,
     RAG_ENABLE_QUERY_EXPANSION,
     RAG_ENABLE_QUERY_NORMALIZATION,
     RAG_MAX_HOPS,
@@ -176,44 +177,14 @@ class RAGRetriever:
                 context, hop_evaluations, chunk_hop_map = result_container[0]
 
                 # Apply final reranking and limiting to multi-hop accumulated chunks
-                if context.document_chunks:
-                    logger.info(
-                        "multi_hop_applying_final_reranking_in_retriever",
-                        chunks_before=len(context.document_chunks),
-                    )
+                reranked_context, updated_chunk_hop_map = self.rerank_and_limit_final_chunks(
+                    query=request.query,
+                    chunks=context.document_chunks,
+                    query_id=query_id,
+                    chunk_hop_map=chunk_hop_map,
+                )
 
-                    # Import here to avoid circular dependency
-                    from src.lib.constants import MAXIMUM_FINAL_CHUNK_COUNT
-
-                    # Rerank and limit the accumulated chunks
-                    reranked_chunks = self.rerank_and_limit_final_chunks(
-                        query=request.query,
-                        chunks=context.document_chunks,
-                        max_chunks=MAXIMUM_FINAL_CHUNK_COUNT,
-                    )
-
-                    # Update chunk_hop_map to only include remaining chunks
-                    remaining_chunk_ids = {c.chunk_id for c in reranked_chunks}
-                    updated_chunk_hop_map = {
-                        chunk_id: hop_num
-                        for chunk_id, hop_num in chunk_hop_map.items()
-                        if chunk_id in remaining_chunk_ids
-                    }
-
-                    # Create new RAGContext with reranked chunks
-                    reranked_context = RAGContext.from_retrieval(
-                        query_id=query_id, chunks=reranked_chunks
-                    )
-
-                    logger.info(
-                        "multi_hop_final_reranking_in_retriever_complete",
-                        chunks_after=len(reranked_chunks),
-                    )
-
-                    return reranked_context, hop_evaluations, updated_chunk_hop_map
-
-                # No chunks to rerank
-                return result_container[0]
+                return reranked_context, hop_evaluations, updated_chunk_hop_map
 
             raise RuntimeError("Multi-hop retrieval completed but produced no result")
 
@@ -362,6 +333,67 @@ class RAGRetriever:
         chunks.sort(key=lambda c: c.relevance_score, reverse=True)
 
         return chunks
+
+    def rerank_and_limit_final_chunks(
+        self, query: str, chunks: list[DocumentChunk], query_id: UUID, chunk_hop_map: dict[UUID, int]
+    ) -> tuple[RAGContext, dict[UUID, int]]:
+        """Apply final hybrid reranking and limit to accumulated chunks.
+
+        This method is used by multi-hop retrieval to rerank all accumulated chunks
+        after all hops are complete, ensuring the most relevant chunks are prioritized.
+
+        Args:
+            query: Original user query (for BM25 search)
+            chunks: Accumulated chunks to rerank
+            query_id: Query UUID for creating RAGContext
+            chunk_hop_map: Mapping of chunk_id to hop number
+
+        Returns:
+            Tuple of (reranked RAGContext, updated chunk_hop_map)
+        """
+        if not chunks:
+            empty_context = RAGContext.from_retrieval(query_id=query_id, chunks=[])
+            return empty_context, {}
+
+        logger.info(
+            "applying_final_reranking",
+            chunks_before=len(chunks),
+            max_chunks=MAXIMUM_FINAL_CHUNK_COUNT,
+        )
+
+        # Only apply hybrid reranking if hybrid retriever is enabled
+        if self.hybrid_retriever:
+            # Use the hybrid retriever's retrieve_hybrid method to re-rank all chunks
+            # This performs a fresh BM25 search on the original query and fuses with existing vector scores
+            reranked_chunks = self.hybrid_retriever.retrieve_hybrid(
+                query=query,  # Use original user query for BM25
+                vector_chunks=chunks,
+                top_k=MAXIMUM_FINAL_CHUNK_COUNT,
+            )
+        else:
+            # If hybrid retriever not available, just limit by relevance score
+            # Sort by relevance score descending and take top MAXIMUM_FINAL_CHUNK_COUNT
+            reranked_chunks = sorted(chunks, key=lambda c: c.relevance_score, reverse=True)[
+                :MAXIMUM_FINAL_CHUNK_COUNT
+            ]
+
+        # Update chunk_hop_map to only include remaining chunks
+        remaining_chunk_ids = {c.chunk_id for c in reranked_chunks}
+        updated_chunk_hop_map = {
+            chunk_id: hop_num
+            for chunk_id, hop_num in chunk_hop_map.items()
+            if chunk_id in remaining_chunk_ids
+        }
+
+        # Create new RAGContext with reranked chunks
+        reranked_context = RAGContext.from_retrieval(query_id=query_id, chunks=reranked_chunks)
+
+        logger.info(
+            "final_reranking_complete",
+            chunks_after=len(reranked_chunks),
+        )
+
+        return reranked_context, updated_chunk_hop_map
 
     def _build_hybrid_index(self) -> None:
         """Build BM25 index from all chunks in vector database."""
