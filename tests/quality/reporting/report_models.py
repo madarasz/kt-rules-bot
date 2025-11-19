@@ -69,6 +69,9 @@ class IndividualTestResult:
     explanation_faithfulness_feedback: str | None = None
     answer_correctness_feedback: str | None = None
 
+    # Ragas evaluation error tracking (for grey bar visualization)
+    ragas_evaluation_error: bool = False
+
     # Legacy support - optional for backward compatibility
     requirements: list[RequirementResult] | None = None
 
