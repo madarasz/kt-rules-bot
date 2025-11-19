@@ -106,7 +106,12 @@ def rag_test(
         print("=" * 80)
         print(f"Total Time: {summary.total_time_seconds:.2f}s")
         print(f"Avg Retrieval Time: {summary.avg_retrieval_time_seconds:.3f}s")
-        print(f"Total Cost: ${summary.total_cost_usd:.6f}")
+
+        # Calculate total cost including hop evaluations
+        total_cost_with_hops = summary.total_cost_usd + summary.hop_evaluation_cost_usd
+        print(f"Total Cost: ${total_cost_with_hops:.6f}")
+        print(f"  ├─ Embeddings: ${summary.total_cost_usd:.6f}")
+        print(f"  └─ Hop Evaluations: ${summary.hop_evaluation_cost_usd:.6f}")
         print("")
 
         # Generate report

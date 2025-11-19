@@ -25,11 +25,11 @@ from src.lib.constants import (
     TEAMS_STRUCTURE_PATH,
 )
 from src.lib.logging import get_logger
-from src.lib.tokens import estimate_cost
 from src.models.rag_context import DocumentChunk, RAGContext
 from src.models.rag_request import RetrieveRequest
 from src.services.llm.base import GenerationConfig, GenerationRequest, RateLimitError
 from src.services.llm.factory import LLMProviderFactory
+from src.services.rag.hop_cost_calculator import calculate_hop_evaluation_cost
 from src.services.rag.team_filter import TeamFilter
 
 logger = get_logger(__name__)
@@ -400,19 +400,8 @@ class MultiHopRetriever:
                 if "can_answer" not in data or "reasoning" not in data:
                     raise ValueError(f"Missing required fields in response: {data}")
 
-                # Calculate cost based on token usage from response
-                cost_usd = estimate_cost(
-                    prompt_tokens=int(response.token_count * 0.7),  # Estimate 70% prompt
-                    completion_tokens=int(response.token_count * 0.3),  # Estimate 30% completion
-                    model=RAG_HOP_EVALUATION_MODEL,
-                )
-
-                logger.debug(
-                    "hop_evaluation_cost",
-                    tokens=response.token_count,
-                    cost_usd=cost_usd,
-                    model=RAG_HOP_EVALUATION_MODEL,
-                )
+                # Calculate cost using actual token counts (single source of truth)
+                cost_usd = calculate_hop_evaluation_cost(response, RAG_HOP_EVALUATION_MODEL)
 
                 return HopEvaluation(
                     can_answer=data["can_answer"],

@@ -445,6 +445,51 @@ class RAGReportGenerator:
         content.append("=" * 80)
         content.append("")
 
+        # Add ground truth contexts section
+        content.append("Ground Truth Contexts:")
+        for gt_context in result.ground_truth_contexts:
+            # Check if this ground truth was found
+            found = False
+            rank = None
+            hop_num = None
+
+            # Search through retrieved chunks (headers first, then full text)
+            gt_lower = gt_context.strip().lower().replace("*", "")
+
+            # Check headers first
+            for i, header in enumerate(result.retrieved_chunks, start=1):
+                header_lower = header.strip().lower().replace("*", "")
+                if gt_lower in header_lower:
+                    found = True
+                    rank = i
+                    # Get hop number if available
+                    if result.chunk_hop_numbers and len(result.chunk_hop_numbers) >= i:
+                        hop_num = result.chunk_hop_numbers[i - 1]
+                    break
+
+            # If not found in headers, check full text
+            if not found:
+                for i, text in enumerate(result.retrieved_chunk_texts, start=1):
+                    text_lower = text.strip().lower().replace("*", "")
+                    if gt_lower in text_lower:
+                        found = True
+                        rank = i
+                        # Get hop number if available
+                        if result.chunk_hop_numbers and len(result.chunk_hop_numbers) >= i:
+                            hop_num = result.chunk_hop_numbers[i - 1]
+                        break
+
+            # Format output with emoji and details
+            if found:
+                hop_display = f", hop {hop_num}" if hop_num is not None else ""
+                content.append(f"✅ (rank #{rank}{hop_display}) \"{gt_context}\"")
+            else:
+                content.append(f"❌ \"{gt_context}\"")
+
+        content.append("")
+        content.append("=" * 80)
+        content.append("")
+
         for i, (header, text) in enumerate(
             zip(result.retrieved_chunks, result.retrieved_chunk_texts, strict=False), start=1
         ):
