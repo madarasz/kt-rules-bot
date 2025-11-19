@@ -253,6 +253,23 @@ class QualityTestRunner:
             score = self.ragas_evaluator.calculate_aggregate_score(ragas_metrics)
             passed = score >= 80.0  # 80% threshold for passing
 
+        # Check if any Ragas metrics failed (are None when they should have values)
+        # This indicates a Ragas evaluation failure that should be tracked for grey bar visualization
+        ragas_evaluation_error = False
+        if not no_eval and structured_llm_response is not None:
+            # Check if any of the LLM-based Ragas metrics failed
+            # (quote_precision and quote_recall are locally calculated and should always succeed)
+            if (
+                ragas_metrics.quote_faithfulness is None
+                or ragas_metrics.explanation_faithfulness is None
+                or ragas_metrics.answer_correctness is None
+            ):
+                ragas_evaluation_error = True
+                logger.error(
+                    f"Ragas evaluation failed for test {test_case.test_id} on model {model} - "
+                    f"some metrics returned None/NaN"
+                )
+
         # Calculate main LLM cost
         cost = estimate_cost(
             prompt_tokens=int(token_count * 0.7),
@@ -272,6 +289,17 @@ class QualityTestRunner:
             embedding_cost=embedding_cost,
             total_cost=total_cost,
         )
+
+        # Defensive handling: Convert NaN to 0 before int conversion
+        # This should not happen anymore after our fixes, but be extra defensive
+        import math
+
+        if isinstance(score, float) and math.isnan(score):
+            logger.error(
+                f"Score is NaN for test {test_case.test_id} on model {model} - converting to 0"
+            )
+            score = 0.0
+            ragas_evaluation_error = True
 
         return IndividualTestResult(
             test_id=test_case.test_id,
@@ -302,6 +330,7 @@ class QualityTestRunner:
             quote_faithfulness_feedback=ragas_metrics.quote_faithfulness_feedback,
             explanation_faithfulness_feedback=ragas_metrics.explanation_faithfulness_feedback,
             answer_correctness_feedback=ragas_metrics.answer_correctness_feedback,
+            ragas_evaluation_error=ragas_evaluation_error,
             requirements=None,  # Legacy field, no longer used
         )
 

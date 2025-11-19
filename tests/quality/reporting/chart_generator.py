@@ -197,7 +197,7 @@ class ChartGenerator:
         self,
         chart_path: str,
         models: list[str],
-        _avg_scores: list[float],
+        avg_scores: list[float],
         avg_times: list[float],
         avg_costs: list[float],
         avg_chars: list[float],
@@ -208,7 +208,11 @@ class ChartGenerator:
         test_queries: set[str],
         title: str,
     ) -> str:
-        """Create a chart with the given data."""
+        """Create a chart with the given data.
+
+        Note: avg_scores parameter is not used directly - we calculate earned_scores
+        and error_scores from the breakdown instead for better visualization.
+        """
         # Create figure
         fig, ax1 = plt.subplots(figsize=(14, 8))
 
@@ -230,7 +234,7 @@ class ChartGenerator:
 
         # Colors
         color_earned = "#2ecc71"  # Green for earned points
-        color_llm_error = "#95a5a6"  # Grey for LLM errors
+        color_llm_error = "#95a5a6"  # Grey for evaluation errors (LLM + Ragas)
         color_time = "#3498db"  # Blue
         color_cost = "#e74c3c"  # Red
         color_chars = "#8B4513"  # Brown
@@ -242,7 +246,7 @@ class ChartGenerator:
             llm_error_scores,
             width,
             bottom=earned_scores,
-            label="LLM Error %",
+            label="Evaluation Error % (LLM + Ragas)",
             color=color_llm_error,
             alpha=0.8,
         )
@@ -368,7 +372,12 @@ class ChartGenerator:
         return chart_path
 
     def _calculate_score_breakdown(self, models: list[str]) -> tuple:
-        """Calculate earned scores and LLM error scores for each model."""
+        """Calculate earned scores and evaluation error scores for each model.
+
+        Evaluation errors include:
+        - LLM generation errors (timeouts, rate limits, content filters)
+        - Ragas evaluation errors (metric calculation failures returning NaN)
+        """
         earned_scores = []
         llm_error_scores = []
 
@@ -382,15 +391,19 @@ class ChartGenerator:
             total_score = sum(r.score for r in model_results)
             total_max = sum(r.max_score for r in model_results)
 
-            # Calculate LLM errors - look for results with errors
-            total_llm_error = 0
+            # Calculate evaluation errors - look for results with LLM or Ragas errors
+            total_eval_error = 0
             for result in model_results:
-                if result.error:  # LLM generation failed
-                    total_llm_error += result.max_score - result.score
+                # LLM generation failed (timeout, rate limit, content filter, etc.)
+                if result.error:
+                    total_eval_error += result.max_score - result.score
+                # Ragas evaluation failed (NaN metrics)
+                elif result.ragas_evaluation_error:
+                    total_eval_error += result.max_score - result.score
 
             if total_max > 0:
                 earned_pct = (total_score / total_max) * 100
-                llm_error_pct = (total_llm_error / total_max) * 100
+                llm_error_pct = (total_eval_error / total_max) * 100
             else:
                 earned_pct = 0.0
                 llm_error_pct = 0.0
@@ -399,6 +412,74 @@ class ChartGenerator:
             llm_error_scores.append(llm_error_pct)
 
         return earned_scores, llm_error_scores
+
+    def _calculate_ragas_metric_breakdown(
+        self, models: list[str], metric_name: str
+    ) -> tuple[list[float], list[float]]:
+        """Calculate earned and error portions for a specific Ragas metric.
+
+        For each model, calculates:
+        - Earned: Average of successful evaluations
+        - Error: Lost potential from failed evaluations (estimated using avg of successful)
+
+        Args:
+            models: List of model names
+            metric_name: Name of the metric attribute (e.g., 'quote_precision')
+
+        Returns:
+            Tuple of (earned_values, error_values) lists
+        """
+        earned_values = []
+        error_values = []
+
+        for model in models:
+            model_results = [r for r in self.report.results if r.model == model]
+            if not model_results:
+                earned_values.append(0.0)
+                error_values.append(0.0)
+                continue
+
+            # Separate successful and failed evaluations
+            successful_values = []
+            failed_count = 0
+
+            for result in model_results:
+                metric_value = getattr(result, metric_name, None)
+
+                # Check if this specific metric failed
+                if metric_value is None and result.ragas_evaluation_error:
+                    failed_count += 1
+                elif metric_value is not None:
+                    successful_values.append(metric_value)
+                # If metric is None but ragas_evaluation_error is False, it's a successful 0.0
+
+            total_count = len(model_results)
+
+            if total_count == 0:
+                earned_values.append(0.0)
+                error_values.append(0.0)
+                continue
+
+            # Calculate earned portion (average of successful)
+            if successful_values:
+                avg_successful = sum(successful_values) / len(successful_values)
+                earned = (sum(successful_values) / total_count)
+            else:
+                # All evaluations failed - assume they would have scored 0.5 (middle of range)
+                avg_successful = 0.5
+                earned = 0.0
+
+            # Calculate error portion (lost potential from failures)
+            if failed_count > 0:
+                # Estimate lost score: if evaluations had succeeded, they would have scored avg_successful
+                error = (avg_successful * failed_count) / total_count
+            else:
+                error = 0.0
+
+            earned_values.append(earned)
+            error_values.append(error)
+
+        return earned_values, error_values
 
     def _add_individual_points(self, ax, positions, models: list[str], metric: str):
         """Add individual data points as small circles on the chart."""
@@ -448,89 +529,17 @@ class ChartGenerator:
 
         chart_path = os.path.join(self.report_dir, "chart_ragas_metrics.png")
 
-        # Aggregate Ragas metrics by model and test case
-        # Structure: model -> test_id -> list of metric values
-        model_test_data = {}
-        for result in self.report.results:
-            if result.model not in model_test_data:
-                model_test_data[result.model] = {}
-            if result.test_id not in model_test_data[result.model]:
-                model_test_data[result.model][result.test_id] = {
-                    "quote_precision": [],
-                    "quote_recall": [],
-                    "quote_faithfulness": [],
-                    "explanation_faithfulness": [],
-                    "answer_correctness": [],
-                }
+        # Get unique models
+        models = sorted(set(r.model for r in self.report.results))
 
-            # Append metrics, treating None as 0.0
-            model_test_data[result.model][result.test_id]["quote_precision"].append(
-                result.quote_precision if result.quote_precision is not None else 0.0
-            )
-            model_test_data[result.model][result.test_id]["quote_recall"].append(
-                result.quote_recall if result.quote_recall is not None else 0.0
-            )
-            model_test_data[result.model][result.test_id]["quote_faithfulness"].append(
-                result.quote_faithfulness if result.quote_faithfulness is not None else 0.0
-            )
-            model_test_data[result.model][result.test_id]["explanation_faithfulness"].append(
-                result.explanation_faithfulness
-                if result.explanation_faithfulness is not None
-                else 0.0
-            )
-            model_test_data[result.model][result.test_id]["answer_correctness"].append(
-                result.answer_correctness if result.answer_correctness is not None else 0.0
-            )
-
-        # Calculate per-test averages, then overall averages and std devs
-        models = list(model_test_data.keys())
-        avg_quote_precision = []
-        avg_quote_recall = []
-        avg_quote_faithfulness = []
-        avg_explanation_faithfulness = []
-        avg_answer_correctness = []
-        std_quote_precision = []
-        std_quote_recall = []
-        std_quote_faithfulness = []
-        std_explanation_faithfulness = []
-        std_answer_correctness = []
-
-        for model in models:
-            # Calculate average for each test (across runs)
-            test_avg_qp = [
-                np.mean(model_test_data[model][test_id]["quote_precision"])
-                for test_id in model_test_data[model]
-            ]
-            test_avg_qr = [
-                np.mean(model_test_data[model][test_id]["quote_recall"])
-                for test_id in model_test_data[model]
-            ]
-            test_avg_qf = [
-                np.mean(model_test_data[model][test_id]["quote_faithfulness"])
-                for test_id in model_test_data[model]
-            ]
-            test_avg_ef = [
-                np.mean(model_test_data[model][test_id]["explanation_faithfulness"])
-                for test_id in model_test_data[model]
-            ]
-            test_avg_ac = [
-                np.mean(model_test_data[model][test_id]["answer_correctness"])
-                for test_id in model_test_data[model]
-            ]
-
-            # Overall average is the mean of per-test averages
-            avg_quote_precision.append(np.mean(test_avg_qp))
-            avg_quote_recall.append(np.mean(test_avg_qr))
-            avg_quote_faithfulness.append(np.mean(test_avg_qf))
-            avg_explanation_faithfulness.append(np.mean(test_avg_ef))
-            avg_answer_correctness.append(np.mean(test_avg_ac))
-
-            # Std dev is calculated from per-test averages (between-test variability)
-            std_quote_precision.append(np.std(test_avg_qp) if len(test_avg_qp) > 1 else 0)
-            std_quote_recall.append(np.std(test_avg_qr) if len(test_avg_qr) > 1 else 0)
-            std_quote_faithfulness.append(np.std(test_avg_qf) if len(test_avg_qf) > 1 else 0)
-            std_explanation_faithfulness.append(np.std(test_avg_ef) if len(test_avg_ef) > 1 else 0)
-            std_answer_correctness.append(np.std(test_avg_ac) if len(test_avg_ac) > 1 else 0)
+        # Calculate earned and error portions for each metric
+        earned_qp, error_qp = self._calculate_ragas_metric_breakdown(models, "quote_precision")
+        earned_qr, error_qr = self._calculate_ragas_metric_breakdown(models, "quote_recall")
+        earned_qf, error_qf = self._calculate_ragas_metric_breakdown(models, "quote_faithfulness")
+        earned_ef, error_ef = self._calculate_ragas_metric_breakdown(
+            models, "explanation_faithfulness"
+        )
+        earned_ac, error_ac = self._calculate_ragas_metric_breakdown(models, "answer_correctness")
 
         # Create figure
         fig, ax = plt.subplots(figsize=(14, 8))
@@ -546,96 +555,39 @@ class ChartGenerator:
         pos4 = x + 1 * width
         pos5 = x + 2 * width
 
-        # Determine if we should show error bars
-        show_error_bars = self.report.is_multi_run
-
         # Colors for each metric
         color_qp = "#3498db"  # Blue - Quote Precision
         color_qr = "#2ecc71"  # Green - Quote Recall
         color_qf = "#9b59b6"  # Purple - Quote Faithfulness
         color_ef = "#e74c3c"  # Red - Explanation Faithfulness
         color_ac = "#f39c12"  # Orange - Answer Correctness
+        color_error = "#95a5a6"  # Grey for evaluation errors
 
-        # Plot bars for each metric
-        ax.bar(pos1, avg_quote_precision, width, label="Quote Precision", color=color_qp, alpha=0.8)
-        ax.bar(pos2, avg_quote_recall, width, label="Quote Recall", color=color_qr, alpha=0.8)
+        # Plot stacked bars for each metric (earned + error portions)
+        # First, plot earned portions (colored bars)
+        ax.bar(pos1, earned_qp, width, label="Quote Precision", color=color_qp, alpha=0.8)
+        ax.bar(pos2, earned_qr, width, label="Quote Recall", color=color_qr, alpha=0.8)
+        ax.bar(pos3, earned_qf, width, label="Quote Faithfulness", color=color_qf, alpha=0.8)
         ax.bar(
-            pos3,
-            avg_quote_faithfulness,
-            width,
-            label="Quote Faithfulness",
-            color=color_qf,
-            alpha=0.8,
+            pos4, earned_ef, width, label="Explanation Faithfulness", color=color_ef, alpha=0.8
         )
-        ax.bar(
-            pos4,
-            avg_explanation_faithfulness,
-            width,
-            label="Explanation Faithfulness",
-            color=color_ef,
-            alpha=0.8,
-        )
-        ax.bar(
-            pos5,
-            avg_answer_correctness,
-            width,
-            label="Answer Correctness",
-            color=color_ac,
-            alpha=0.8,
-        )
+        ax.bar(pos5, earned_ac, width, label="Answer Correctness", color=color_ac, alpha=0.8)
 
-        # Add error bars if multi-run
-        if show_error_bars:
-            ax.errorbar(
-                pos1,
-                avg_quote_precision,
-                yerr=std_quote_precision,
-                fmt="none",
-                ecolor="gray",
-                capsize=5,
-                capthick=2,
-                alpha=0.7,
-            )
-            ax.errorbar(
-                pos2,
-                avg_quote_recall,
-                yerr=std_quote_recall,
-                fmt="none",
-                ecolor="gray",
-                capsize=5,
-                capthick=2,
-                alpha=0.7,
-            )
-            ax.errorbar(
-                pos3,
-                avg_quote_faithfulness,
-                yerr=std_quote_faithfulness,
-                fmt="none",
-                ecolor="gray",
-                capsize=5,
-                capthick=2,
-                alpha=0.7,
-            )
-            ax.errorbar(
-                pos4,
-                avg_explanation_faithfulness,
-                yerr=std_explanation_faithfulness,
-                fmt="none",
-                ecolor="gray",
-                capsize=5,
-                capthick=2,
-                alpha=0.7,
-            )
-            ax.errorbar(
-                pos5,
-                avg_answer_correctness,
-                yerr=std_answer_correctness,
-                fmt="none",
-                ecolor="gray",
-                capsize=5,
-                capthick=2,
-                alpha=0.7,
-            )
+        # Then, plot error portions (grey bars stacked on top)
+        # Only add label once (for the first metric) to avoid duplicate legend entries
+        ax.bar(
+            pos1,
+            error_qp,
+            width,
+            bottom=earned_qp,
+            label="Evaluation Errors",
+            color=color_error,
+            alpha=0.8,
+        )
+        ax.bar(pos2, error_qr, width, bottom=earned_qr, color=color_error, alpha=0.8)
+        ax.bar(pos3, error_qf, width, bottom=earned_qf, color=color_error, alpha=0.8)
+        ax.bar(pos4, error_ef, width, bottom=earned_ef, color=color_error, alpha=0.8)
+        ax.bar(pos5, error_ac, width, bottom=earned_ac, color=color_error, alpha=0.8)
 
         # Labels and title
         ax.set_xlabel("Model", fontsize=12, fontweight="bold")

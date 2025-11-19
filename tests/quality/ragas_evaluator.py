@@ -9,6 +9,7 @@ Evaluates RAG responses using Ragas metrics:
 """
 
 import asyncio
+import math
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
@@ -226,18 +227,32 @@ class RagasEvaluator:
             result_qf_df = result_quote_faithfulness.to_pandas()
             result_explanation_df = result_explanation.to_pandas()
 
+            # Helper function to safely extract metric and check for NaN
+            def safe_extract_metric(df, metric_name: str, metric_label: str):
+                """Extract metric from dataframe, checking for NaN values."""
+                if metric_name not in df:
+                    return None
+                value = df[metric_name].iloc[0]
+                # Check if value is NaN
+                if isinstance(value, float) and math.isnan(value):
+                    logger.error(
+                        f"Ragas metric {metric_label} returned NaN - evaluation failed for this metric"
+                    )
+                    return None
+                return value
+
             metrics = RagasMetrics(
                 quote_precision=retrieval_metrics.context_precision,
                 quote_recall=retrieval_metrics.context_recall,
-                quote_faithfulness=result_qf_df["faithfulness"].iloc[0]
-                if "faithfulness" in result_qf_df
-                else None,
-                explanation_faithfulness=result_explanation_df["faithfulness"].iloc[0]
-                if "faithfulness" in result_explanation_df
-                else None,
-                answer_correctness=result_explanation_df["answer_correctness"].iloc[0]
-                if "answer_correctness" in result_explanation_df
-                else None,
+                quote_faithfulness=safe_extract_metric(
+                    result_qf_df, "faithfulness", "quote_faithfulness"
+                ),
+                explanation_faithfulness=safe_extract_metric(
+                    result_explanation_df, "faithfulness", "explanation_faithfulness"
+                ),
+                answer_correctness=safe_extract_metric(
+                    result_explanation_df, "answer_correctness", "answer_correctness"
+                ),
             )
 
             # Generate detailed feedback for each metric
@@ -327,15 +342,25 @@ class RagasEvaluator:
 
         scores = []
         if metrics.quote_precision is not None:
-            scores.append(metrics.quote_precision)
+            # Check for NaN - should not happen here due to local calculation, but be defensive
+            if not (isinstance(metrics.quote_precision, float) and math.isnan(metrics.quote_precision)):
+                scores.append(metrics.quote_precision)
         if metrics.quote_recall is not None:
-            scores.append(metrics.quote_recall)
+            # Check for NaN - should not happen here due to local calculation, but be defensive
+            if not (isinstance(metrics.quote_recall, float) and math.isnan(metrics.quote_recall)):
+                scores.append(metrics.quote_recall)
         if metrics.quote_faithfulness is not None:
-            scores.append(metrics.quote_faithfulness)
+            # Check for NaN - safe_extract_metric should have filtered these out, but be defensive
+            if not (isinstance(metrics.quote_faithfulness, float) and math.isnan(metrics.quote_faithfulness)):
+                scores.append(metrics.quote_faithfulness)
         if metrics.explanation_faithfulness is not None:
-            scores.append(metrics.explanation_faithfulness)
+            # Check for NaN - safe_extract_metric should have filtered these out, but be defensive
+            if not (isinstance(metrics.explanation_faithfulness, float) and math.isnan(metrics.explanation_faithfulness)):
+                scores.append(metrics.explanation_faithfulness)
         if metrics.answer_correctness is not None:
-            scores.append(metrics.answer_correctness)
+            # Check for NaN - safe_extract_metric should have filtered these out, but be defensive
+            if not (isinstance(metrics.answer_correctness, float) and math.isnan(metrics.answer_correctness)):
+                scores.append(metrics.answer_correctness)
 
         if not scores:
             return 0.0
