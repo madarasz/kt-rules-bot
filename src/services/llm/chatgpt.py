@@ -49,7 +49,7 @@ class ChatGPTAdapter(LLMProvider):
         self.client = AsyncOpenAI(api_key=api_key)
 
         # GPT-5 and O-series models have limited parameter support and use reasoning tokens
-        reasoning_models = ["gpt-5", "gpt-5-mini", "o3", "o3-mini", "o4-mini"]
+        reasoning_models = ["gpt-5.1-chat-latest", "gpt-5.1", "gpt-5", "gpt-5-mini", "o3", "o3-mini", "o4-mini"]
         self.supports_logprobs = model not in reasoning_models
         self.uses_completion_tokens = model in reasoning_models
         self.supports_temperature = (
