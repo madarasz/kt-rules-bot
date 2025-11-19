@@ -146,6 +146,11 @@ class RAGTestSummary:
     avg_retrieval_time_seconds: float  # Average time per retrieval
     total_cost_usd: float  # Total cost for all embeddings
 
+    # Test metadata
+    runs_per_test: int = 1  # Number of runs per test case
+    total_ground_truths: int = 0  # Total number of ground truth contexts across all test cases (in single run)
+    test_set_codename: str | None = None  # Test set codename from YAML file
+
     # Multi-run statistics (if applicable)
     std_dev_map: float = 0.0
     std_dev_recall_at_5: float = 0.0

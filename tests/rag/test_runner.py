@@ -128,6 +128,28 @@ class RAGTestRunner:
         logger.info("test_cases_loaded", count=len(test_cases))
         return test_cases
 
+    def _extract_test_set_codename(self) -> str | None:
+        """Extract test set codename from user-examples.yaml first line.
+
+        Returns:
+            Test set codename if found, otherwise None
+        """
+        user_examples_path = self.test_cases_dir / "user-examples.yaml"
+        if not user_examples_path.exists():
+            return None
+
+        try:
+            with open(user_examples_path) as f:
+                first_line = f.readline().strip()
+                # Expected format: "# TEST SET CODENAME: THANKS-GIVING"
+                if first_line.startswith("# TEST SET CODENAME:"):
+                    codename = first_line.split(":", 1)[1].strip()
+                    return codename
+        except Exception as e:
+            logger.warning("failed_to_extract_test_set_codename", error=str(e))
+
+        return None
+
     def run_test(
         self,
         test_case: RAGTestCase,
@@ -608,6 +630,24 @@ class RAGTestRunner:
             sum(max_ground_truth_ranks) / len(max_ground_truth_ranks) if max_ground_truth_ranks else 0.0
         )
 
+        # Calculate test metadata
+        # Determine runs per test by checking how many results share the same test_id
+        runs_per_test = 1
+        if results:
+            first_test_id = results[0].test_id
+            runs_per_test = sum(1 for r in results if r.test_id == first_test_id)
+
+        # Calculate total ground truths (in a single run, so use unique test_ids)
+        unique_test_ids = set(r.test_id for r in results)
+        total_ground_truths = 0
+        for test_id in unique_test_ids:
+            # Get first result for this test_id
+            test_result = next(r for r in results if r.test_id == test_id)
+            total_ground_truths += len(test_result.ground_truth_contexts)
+
+        # Extract test set codename
+        test_set_codename = self._extract_test_set_codename()
+
         return RAGTestSummary(
             total_tests=len(results),
             mean_map=mean_map,
@@ -628,6 +668,9 @@ class RAGTestRunner:
             total_time_seconds=total_time_seconds,
             avg_retrieval_time_seconds=avg_retrieval_time,
             total_cost_usd=total_embedding_cost_only,  # Just embeddings (hop costs tracked separately)
+            runs_per_test=runs_per_test,
+            total_ground_truths=total_ground_truths,
+            test_set_codename=test_set_codename,
             rag_max_chunks=max_chunks,
             rag_min_relevance=min_relevance,
             embedding_model=EMBEDDING_MODEL,

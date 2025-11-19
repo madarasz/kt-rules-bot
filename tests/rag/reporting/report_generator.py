@@ -12,6 +12,23 @@ from tests.rag.test_case_models import RAGTestResult, RAGTestSummary
 class RAGReportGenerator:
     """Generates markdown reports for RAG test results."""
 
+    @staticmethod
+    def _format_time(seconds: float) -> str:
+        """Format time in seconds as 'Xmin Ys' or 'Xs'.
+
+        Args:
+            seconds: Time in seconds
+
+        Returns:
+            Formatted time string (e.g., "2min 5s" or "45s")
+        """
+        total_minutes = int(seconds // 60)
+        total_seconds = int(seconds % 60)
+        if total_minutes > 0:
+            return f"{total_minutes}min {total_seconds}s"
+        else:
+            return f"{total_seconds}s"
+
     def generate_report(
         self, results: list[RAGTestResult], summary: RAGTestSummary, output_path: Path
     ) -> None:
@@ -37,8 +54,13 @@ class RAGReportGenerator:
         # Calculate total cost including hop evaluations (used in multiple places)
         total_cost_with_hops = summary.total_cost_usd + summary.hop_evaluation_cost_usd
 
+        # Test set metadata
+        if summary.test_set_codename:
+            content.append(f"**Test Set**: {summary.test_set_codename}")
         content.append(f"**Total Tests**: {summary.total_tests}")
-        content.append(f"**Total Time**: {summary.total_time_seconds:.2f}s")
+        content.append(f"**Runs per Test**: {summary.runs_per_test}")
+        content.append(f"**Total Ground Truths**: {summary.total_ground_truths}")
+        content.append(f"**Total Time**: {self._format_time(summary.total_time_seconds)}")
         content.append(f"**Avg Retrieval Time**: {summary.avg_retrieval_time_seconds:.3f}s")
         content.append(f"**Total Cost**: ${total_cost_with_hops:.6f}")
         content.append("")
@@ -55,6 +77,17 @@ class RAGReportGenerator:
             content.append(
                 f"| **Context Recall** | {summary.mean_ragas_context_recall:.3f} | Proportion of ground truth found in retrieved contexts |"
             )
+
+            # Add standard deviation rows if available (multi-run tests)
+            if summary.std_dev_ragas_context_precision > 0:
+                content.append(
+                    f"| **Context Precision Std Dev** | ±{summary.std_dev_ragas_context_precision:.3f} | Standard deviation across runs |"
+                )
+            if summary.std_dev_ragas_context_recall > 0:
+                content.append(
+                    f"| **Context Recall Std Dev** | ±{summary.std_dev_ragas_context_recall:.3f} | Standard deviation across runs |"
+                )
+
             content.append("")
 
         # Hopping metrics (if multi-hop enabled and data available)
