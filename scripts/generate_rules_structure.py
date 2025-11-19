@@ -38,7 +38,6 @@ TRIM_HEADER_TEXT = [
     "UNIVERSAL EQUIPMENT - ",
 ]
 
-
 def trim_leaf_text(text: str) -> str:
     """Remove unwanted prefixes from leaf text (list items).
 
@@ -150,21 +149,6 @@ def categorize_team(
 def is_operative_header(header: str, upper: str, team: str) -> bool:
     """Check if header represents an operative."""
     if " - " not in header:
-        return False
-
-    # Must contain team name or operative keywords
-    operative_keywords = [
-        team,
-        "LEADER",
-        "WARRIOR",
-        "GUNNER",
-        "SNIPER",
-        "SERGEANT",
-        "CAPTAIN",
-        "GRENADIER",
-        "OPERATIVE",
-    ]
-    if not any(kw in upper for kw in operative_keywords):
         return False
 
     # Must not contain exclusion keywords
