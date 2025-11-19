@@ -3,6 +3,7 @@ discord.py>=2.3.2
 
 # RAG & LLM
 langchain>=0.1.0
+langchain-openai>=0.1.0  # Langchain OpenAI integration for RAGAS
 llama-index-core>=0.10.0
 chromadb>=0.4.0
 anthropic>=0.73.0  # Latest version with structured outputs beta support
@@ -10,7 +11,7 @@ openai>=2.8.1  # Latest version released Nov 2025
 google-genai>=0.6.0  # New unified Google GenAI SDK (replaces google-generativeai), GA since May 2025
 httpx>=0.25.0  # HTTP client for Grok API
 rank-bm25>=0.2.2  # BM25 keyword search for hybrid retrieval
-ragas>=0.1.0  # RAG evaluation framework
+ragas>=0.3.9  # RAG evaluation framework
 rapidfuzz>=3.0.0  # Fuzzy string matching for team name extraction
 
 # Utilities

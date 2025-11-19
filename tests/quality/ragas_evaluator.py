@@ -13,11 +13,20 @@ import math
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
+import os
+from pathlib import Path
+
 from datasets import Dataset
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
 from ragas import evaluate
-from ragas.metrics import answer_correctness, faithfulness
+from ragas.llms import LangchainLLMWrapper
+from ragas.metrics import AnswerCorrectness, Faithfulness
 
 from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
+
+# Load environment variables from config/.env
+load_dotenv("config/.env")
 from src.lib.logging import get_logger
 from src.lib.ragas_adapter import evaluate_retrieval
 from src.lib.text_utils import normalize_text_for_matching
@@ -25,6 +34,27 @@ from src.lib.tokens import estimate_cost
 from src.models.structured_response import StructuredLLMResponse
 
 logger = get_logger(__name__)
+
+
+def _get_ragas_llm(judge_model: str):
+    """Get a configured RAGAS LLM instance.
+
+    Args:
+        judge_model: Model name to use for RAGAS evaluation
+
+    Returns:
+        Configured RAGAS LLM instance
+    """
+    # Get OpenAI API key from environment
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if not openai_api_key:
+        raise ValueError("OPENAI_API_KEY environment variable is required for RAGAS evaluation")
+
+    # Use Langchain wrapper with ChatOpenAI (new RAGAS API)
+    chat_llm = ChatOpenAI(model=judge_model, api_key=openai_api_key)
+    llm = LangchainLLMWrapper(chat_llm)
+
+    return llm
 
 
 def _run_ragas_evaluate_sync(dataset, metrics):
@@ -101,7 +131,18 @@ class RagasEvaluator:
         Args:
             llm_model: Optional LLM model name for Ragas evaluation (uses default if not specified)
         """
-        self.llm_model = llm_model
+        self.llm_model = llm_model or QUALITY_TEST_JUDGE_MODEL
+        self._ragas_llm = None
+
+    def _get_configured_llm(self):
+        """Get or create a configured RAGAS LLM instance.
+
+        Returns:
+            Configured RAGAS LLM instance
+        """
+        if self._ragas_llm is None:
+            self._ragas_llm = _get_ragas_llm(self.llm_model)
+        return self._ragas_llm
 
     async def evaluate(
         self,
@@ -194,6 +235,14 @@ class RagasEvaluator:
             dataset_quote_faithfulness = Dataset.from_dict(data_quote_faithfulness)
             dataset_explanation = Dataset.from_dict(data_explanation)
 
+            # Configure RAGAS metrics with LLM
+            ragas_llm = self._get_configured_llm()
+
+            # Create metric instances with configured LLM
+            faithfulness_metric_quote = Faithfulness(llm=ragas_llm)
+            faithfulness_metric_explanation = Faithfulness(llm=ragas_llm)
+            answer_correctness_metric = AnswerCorrectness(llm=ragas_llm)
+
             # Run Ragas evaluation in separate thread to avoid event loop conflicts
             # Ragas uses async HTTP clients internally which can cause "Event loop is closed" errors
             # when running in parallel with asyncio.to_thread(). Using ThreadPoolExecutor with
@@ -206,7 +255,7 @@ class RagasEvaluator:
                 executor,
                 _run_ragas_evaluate_sync,
                 dataset_quote_faithfulness,
-                [faithfulness],  # This measures quote faithfulness
+                [faithfulness_metric_quote],  # This measures quote faithfulness
             )
 
             # Run Ragas evaluation - Part 2: Explanation metrics
@@ -215,8 +264,8 @@ class RagasEvaluator:
                 _run_ragas_evaluate_sync,
                 dataset_explanation,
                 [
-                    faithfulness,
-                    answer_correctness,
+                    faithfulness_metric_explanation,
+                    answer_correctness_metric,
                 ],  # Explanation faithfulness and answer correctness
             )
 
