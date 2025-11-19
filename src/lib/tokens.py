@@ -85,14 +85,17 @@ def estimate_cost(prompt_tokens: int, completion_tokens: int, model: str) -> flo
     """
     # Pricing per 1K tokens (as of 2025 October)
     pricing = {
+        "gpt-5.1": {"prompt": 0.00125, "completion": 0.01},
+        "gpt-5.1-chat-latest": {"prompt": 0.00125, "completion": 0.01},
         "gpt-5": {"prompt": 0.00125, "completion": 0.01},
         "gpt-5-mini": {"prompt": 0.00025, "completion": 0.002},
-        "gpt-4.1": {"prompt": 0.003, "completion": 0.012},
-        "gpt-4.1-mini": {"prompt": 0.0008, "completion": 0.0032},
+        "gpt-4.1": {"prompt": 0.002, "completion": 0.008},
+        "gpt-4.1-mini": {"prompt": 0.0004, "completion": 0.0016},
         "gpt-4o": {"prompt": 0.0025, "completion": 0.01},
         "claude-sonnet-4-5-20250929": {"prompt": 0.003, "completion": 0.006},
         "claude-opus-4-1-20250805": {"prompt": 0.015, "completion": 0.075},
         "claude-haiku-4-5-20251001": {"prompt": 0.001, "completion": 0.005},
+        "gemini-3-pro-preview": {"prompt": 0.002, "completion": 0.012},
         "gemini-2.5-pro": {"prompt": 0.00125, "completion": 0.01},
         "gemini-2.5-flash": {"prompt": 0.0003, "completion": 0.0025},
         "deepseek-chat": {"prompt": 0.00028, "completion": 0.00042},

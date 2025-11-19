@@ -15,8 +15,11 @@ LLM_PROVIDERS_LITERAL = Literal[
     "claude-4.5-sonnet",
     "claude-4.1-opus",
     "claude-4.5-haiku",
+    "gemini-3-pro-preview",
     "gemini-2.5-pro",
     "gemini-2.5-flash",
+    "gpt-5.1",
+    "gpt-5.1-chat-latest",
     "gpt-5",
     "gpt-5-mini",
     "gpt-4.1",
@@ -50,6 +53,7 @@ LLM_PROVIDERS_LITERAL = Literal[
 ALL_LLM_PROVIDERS = list(get_args(LLM_PROVIDERS_LITERAL))
 
 PDF_EXTRACTION_PROVIDERS = [
+    "gemini-3-pro-preview",
     "gemini-2.5-pro",  # Recommended: Most reliable
     "gemini-2.5-flash",  # Recommended: Fast and reliable
     "claude-4.5-sonnet",
@@ -58,17 +62,19 @@ PDF_EXTRACTION_PROVIDERS = [
 
 # Quality test providers (curated list for --all-models testing)
 QUALITY_TEST_PROVIDERS = [
+    "gpt-5.1-chat-latest",
     "gpt-4.1",
     "gpt-4o",
-    "gpt-4.1-mini",
+    #"gpt-4.1-mini",
     "claude-4.5-sonnet",
-    "claude-4.5-haiku",
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
+    #"claude-4.5-haiku",
+    "gemini-3-pro-preview",
+    #"gemini-2.5-flash",
+    #"gemini-2.5-pro",
     "deepseek-chat",
     "grok-4-fast-reasoning",
-    "grok-3",
-    "grok-3-mini",
+    #"grok-3",
+    #"grok-3-mini",
     # "deepseek-reasoner"
     # "dial-gpt-4.1",  # denied WHY??
     # "dial-gpt-5",    # denied
