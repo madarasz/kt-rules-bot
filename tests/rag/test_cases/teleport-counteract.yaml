@@ -1,7 +1,0 @@
-test_id: teleport-counteract
-query: >
-  Can I use the Teleport Pad during counteract?
-
-ground_truth_contexts:
-  - "TELEPORT PAD"
-  - "COUNTERACT"

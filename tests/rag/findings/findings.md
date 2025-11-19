@@ -1,3 +1,9 @@
+# Test set update 2025.11.19.
+- new RAG est set codename: `THANKS-GIVING`
+- commented out couple of trivial tests
+- total tests: 18
+- total ground truths: 36
+- based on forumals, 3 runs is good for a quick check, 10 runs is enough if my "Minimum Detectable Difference you care about" is 3% for Recall@k metric
 # Hop judge test 2025.10.26.
 `Claude-4.5-Haiku` is worse than `GTP-4.1-mini` as a hop judge. +1s execution time, GTP finds occasionally more chunks and uses less hops
 # Multi-hop improvement 2025.11.16
