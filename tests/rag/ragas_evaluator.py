@@ -94,6 +94,8 @@ def add_ragas_metrics_to_result(
         "hops_used": base_result.hops_used,
         "hop_evaluations": base_result.hop_evaluations,
         "chunk_hop_numbers": base_result.chunk_hop_numbers,
+        # Ground truth rank analysis
+        "max_ground_truth_rank": base_result.max_ground_truth_rank,
     }
 
     # Add Ragas metrics if available
