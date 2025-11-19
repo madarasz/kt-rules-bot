@@ -4,14 +4,21 @@ This module provides wrapper functions to integrate Ragas metrics into our testi
 It converts our data formats to Ragas format and provides helper functions for metric calculation.
 """
 
+import os
 from dataclasses import dataclass
 from typing import Any
 
 from datasets import Dataset
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
 from ragas import evaluate
-from ragas.metrics import answer_relevancy, faithfulness
+from ragas.llms import LangchainLLMWrapper
+from ragas.metrics import AnswerRelevancy, Faithfulness
 
 from src.lib.text_utils import ground_truth_matches_text
+
+# Load environment variables from config/.env
+load_dotenv("config/.env")
 
 
 @dataclass
@@ -87,7 +94,7 @@ def evaluate_generation(
     response: str,
     retrieved_contexts: list[str],
     ground_truth_answer: str | None = None,
-    _judge_model: str | None = None,
+    judge_model: str | None = None,
 ) -> RagasGenerationMetrics:
     """Evaluate generation quality using Ragas metrics.
 
@@ -96,7 +103,7 @@ def evaluate_generation(
         response: The generated response from the LLM
         retrieved_contexts: List of retrieved document chunks used for generation
         ground_truth_answer: Optional reference answer for comparison
-        _judge_model: Optional LLM model for Ragas evaluation (currently unused)
+        judge_model: Optional LLM model for Ragas evaluation (defaults to gpt-4o)
 
     Returns:
         RagasGenerationMetrics with faithfulness and answer_relevancy
@@ -113,12 +120,20 @@ def evaluate_generation(
 
     dataset = Dataset.from_dict(data)
 
-    # Select metrics based on available data
-    metrics = [faithfulness, answer_relevancy]
+    # Configure LLM for Ragas
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if not openai_api_key:
+        raise ValueError("OPENAI_API_KEY environment variable is required for RAGAS evaluation")
 
-    # Configure LLM for Ragas (if judge_model provided)
-    # Note: Ragas uses OpenAI by default if no LLM is configured
-    # Future enhancement: Configure custom LLM based on judge_model parameter
+    # Use Langchain wrapper with ChatOpenAI (new RAGAS API)
+    chat_llm = ChatOpenAI(model=judge_model or "gpt-4o", api_key=openai_api_key)
+    llm = LangchainLLMWrapper(chat_llm)
+
+    # Create metric instances with configured LLM
+    faithfulness_metric = Faithfulness(llm=llm)
+    answer_relevancy_metric = AnswerRelevancy(llm=llm)
+
+    metrics = [faithfulness_metric, answer_relevancy_metric]
 
     try:
         # Run Ragas evaluation

@@ -337,7 +337,7 @@ class ReportGenerator:
                             content.append(f"- **Ragas Error:** {result.ragas_error}")
                         content.append("")  # Blank line after metrics
 
-                    content.append(f"- **Tokens:** {result.tokens}")
+                    # content.append(f"- **Tokens:** {result.tokens}")
                     content.append(f"- **Cost:** ${result.total_cost_usd:.4f}")
                     if (
                         result.multi_hop_cost_usd > 0
