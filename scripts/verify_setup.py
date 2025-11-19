@@ -161,7 +161,6 @@ def main() -> int:
     print("Documentation:")
     docs = [
         (project_root / "docs" / "CODE_QUALITY.md", "CODE_QUALITY.md"),
-        (project_root / "docs" / "QUALITY_QUICK_START.md", "QUALITY_QUICK_START.md"),
         (project_root / "docs" / "SETUP_QUALITY.md", "SETUP_QUALITY.md"),
     ]
     for filepath, description in docs:
