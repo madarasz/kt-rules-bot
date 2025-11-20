@@ -7,6 +7,6 @@ ground_truth_answers:
   - Using the teleport pad requires the operative to be set up on the other teleport pad, which is not wholly within 2" of the first one.
 ground_truth_contexts:
   # Teleport Pad rule
-  - whenever a friendly operative on a teleport pad performs the Charge, Fall Back or Reposition action, you can teleport it. If you do, don't move it. Instead, remove it from the killzone and set it back up on the other teleport pad.
+  - whenever a friendly operative on a teleport pad performs the Charge, Fall Back or Reposition action, you can teleport it.
   # Counteract rule
-  - That operative cannot move more than 2", or must be set up wholly within 2" if it’s removed and set up again, while counteracting
+  - That operative cannot move more than 2", or must be set up wholly within 2" if it's removed and set up again, while counteracting
