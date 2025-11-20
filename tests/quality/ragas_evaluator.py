@@ -710,7 +710,7 @@ class RagasEvaluator:
 
         # For low scores, check which ground truths are covered
         if score < 0.8 and ground_truth_answers:
-            feedback_lines.append("\n**Ground Truth Coverage Analysis:**")
+            feedback_lines.append("\n**Ground Truth Answser Coverage Analysis:**")
 
             explanation_lower = explanation.lower()
             missing_truths = []
@@ -756,20 +756,20 @@ class RagasEvaluator:
 
             # Show covered ground truths
             if covered_truths:
-                feedback_lines.append("\n✓ **Covered ground truths:**")
+                feedback_lines.append("\n✓ **Covered ground truth answers:**")
                 for idx, gt, cov in covered_truths[:3]:
                     feedback_lines.append(f"  {idx}. {gt} ({cov * 100:.0f}% terms found)")
 
             # Show missing ground truths
             if missing_truths:
-                feedback_lines.append("\n❌ **Missing or weakly covered ground truths:**")
+                feedback_lines.append("\n❌ **Missing or weakly covered ground truth answers:**")
                 for idx, gt, cov in missing_truths:
                     feedback_lines.append(f"  {idx}. {gt} ({cov * 100:.0f}% terms found)")
 
             if not missing_truths and not covered_truths:
                 feedback_lines.append("- Unable to perform detailed coverage analysis")
                 feedback_lines.append(
-                    f"- Review answer against {len(ground_truth_answers)} ground truth statement(s)"
+                    f"- Review answer against {len(ground_truth_answers)} ground truth answer statement(s)"
                 )
 
         return "\n".join(feedback_lines) if feedback_lines else None
