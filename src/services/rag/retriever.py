@@ -436,13 +436,20 @@ class RAGRetriever:
                 :MAXIMUM_FINAL_CHUNK_COUNT
             ]
 
-        # Update chunk_hop_map to only include remaining chunks
+        # Update chunk_hop_map to include remaining chunks
+        # New chunks introduced during final reranking (from BM25) are marked as hop 99
         remaining_chunk_ids = {c.chunk_id for c in reranked_chunks}
-        updated_chunk_hop_map = {
-            chunk_id: hop_num
-            for chunk_id, hop_num in chunk_hop_map.items()
-            if chunk_id in remaining_chunk_ids
-        }
+        updated_chunk_hop_map = {}
+        new_chunks_count = 0
+
+        for chunk_id in remaining_chunk_ids:
+            if chunk_id in chunk_hop_map:
+                # Keep existing hop number
+                updated_chunk_hop_map[chunk_id] = chunk_hop_map[chunk_id]
+            else:
+                # New chunk introduced during final reranking
+                updated_chunk_hop_map[chunk_id] = 99
+                new_chunks_count += 1
 
         # Create new RAGContext with reranked chunks
         reranked_context = RAGContext.from_retrieval(query_id=query_id, chunks=reranked_chunks)
@@ -450,6 +457,7 @@ class RAGRetriever:
         logger.info(
             "final_reranking_complete",
             chunks_after=len(reranked_chunks),
+            new_chunks_from_reranking=new_chunks_count,
         )
 
         return reranked_context, updated_chunk_hop_map
