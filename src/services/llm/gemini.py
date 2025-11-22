@@ -105,8 +105,8 @@ HOP_EVALUATION_SCHEMA_GEMINI = {
             "description": "Brief explanation (1-2 sentences) of what context you have or what's missing",
         },
         "missing_query": {
-            "type": ["string", "null"],
-            "description": "If can_answer=false, a focused retrieval query for missing rules. If can_answer=true, null",
+            "type": "string",
+            "description": "If can_answer=false, a focused retrieval query for missing rules. If can_answer=true, use empty string ''",
         },
     },
     "required": ["can_answer", "reasoning", "missing_query"],
