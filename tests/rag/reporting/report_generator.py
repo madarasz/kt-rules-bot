@@ -93,12 +93,12 @@ class RAGReportGenerator:
         content.append(f"**Total Tests**: {summary.total_tests}")
         content.append(f"**Total Ground Truths**: {summary.total_ground_truths}")
         content.append(f"**Total Time**: {self._format_time(summary.total_time_seconds)}")
-        content.append(f"**Total Cost**: \${total_cost_with_hops:.6f}  ")
+        content.append(rf"**Total Cost**: \${total_cost_with_hops:.6f}  ")
 
         # Cost breakdown - group embeddings together
-        content.append(f" └─ **Embeddings**: \${summary.total_cost_usd:.6f}")
+        content.append(rf" └─ **Embeddings**: ¢{(summary.total_cost_usd * 100):.6f}")
         if summary.rag_max_hops > 0:
-            content.append(f" └─ **Hop Evaluations**: \${summary.hop_evaluation_cost_usd:.6f}")
+            content.append(rf" └─ **Hop Evaluations**: \${summary.hop_evaluation_cost_usd:.6f}")
             content.append(f"**Avg Hops Used**: {summary.avg_hops_used:.2f}")
         content.append("")
 

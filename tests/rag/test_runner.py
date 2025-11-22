@@ -19,12 +19,12 @@ from src.lib.constants import (
     RRF_K,
 )
 from src.lib.logging import get_logger
+from src.lib.text_utils import ground_truth_matches_text
 from src.lib.tokens import estimate_embedding_cost
 from src.models.rag_request import RetrieveRequest
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.retriever import RAGRetriever
 from tests.rag.evaluator import RAGEvaluator
-from src.lib.text_utils import ground_truth_matches_text
 from tests.rag.ragas_evaluator import RagasRAGEvaluator, add_ragas_metrics_to_result
 from tests.rag.test_case_models import RAGTestCase, RAGTestResult, RAGTestSummary
 
@@ -640,7 +640,7 @@ class RAGTestRunner:
             runs_per_test = sum(1 for r in results if r.test_id == first_test_id)
 
         # Calculate total ground truths (in a single run, so use unique test_ids)
-        unique_test_ids = set(r.test_id for r in results)
+        unique_test_ids = {r.test_id for r in results}
         total_ground_truths = 0
         for test_id in unique_test_ids:
             # Get first result for this test_id

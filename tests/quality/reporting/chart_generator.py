@@ -126,7 +126,6 @@ class ChartGenerator:
         return self._create_chart(
             chart_path=chart_path,
             models=models,
-            avg_scores=avg_scores,
             avg_times=avg_times,
             avg_costs=avg_costs,
             avg_chars=avg_chars,
@@ -158,7 +157,6 @@ class ChartGenerator:
             model_data[result.model]["chars"].append(result.output_char_count)
 
         models = list(model_data.keys())
-        avg_scores = [np.mean(model_data[m]["scores"]) for m in models]
         avg_times = [np.mean(model_data[m]["times"]) for m in models]
         avg_costs = [np.mean(model_data[m]["costs"]) for m in models]
         avg_chars = [np.mean(model_data[m]["chars"]) for m in models]
@@ -181,7 +179,6 @@ class ChartGenerator:
         return self._create_chart(
             chart_path=chart_path,
             models=models,
-            avg_scores=avg_scores,
             avg_times=avg_times,
             avg_costs=avg_costs,
             avg_chars=avg_chars,
@@ -197,7 +194,6 @@ class ChartGenerator:
         self,
         chart_path: str,
         models: list[str],
-        avg_scores: list[float],
         avg_times: list[float],
         avg_costs: list[float],
         avg_chars: list[float],
@@ -208,11 +204,7 @@ class ChartGenerator:
         test_queries: set[str],
         title: str,
     ) -> str:
-        """Create a chart with the given data.
-
-        Note: avg_scores parameter is not used directly - we calculate earned_scores
-        and error_scores from the breakdown instead for better visualization.
-        """
+        """Create a chart with the given data."""
         # Create figure
         fig, ax1 = plt.subplots(figsize=(14, 8))
 
@@ -395,10 +387,7 @@ class ChartGenerator:
             total_eval_error = 0
             for result in model_results:
                 # LLM generation failed (timeout, rate limit, content filter, etc.)
-                if result.error:
-                    total_eval_error += result.max_score - result.score
-                # Ragas evaluation failed (NaN metrics)
-                elif result.ragas_evaluation_error:
+                if result.error or result.ragas_evaluation_error:
                     total_eval_error += result.max_score - result.score
 
             if total_max > 0:
@@ -470,11 +459,8 @@ class ChartGenerator:
                 earned = 0.0
 
             # Calculate error portion (lost potential from failures)
-            if failed_count > 0:
-                # Estimate lost score: if evaluations had succeeded, they would have scored avg_successful
-                error = (avg_successful * failed_count) / total_count
-            else:
-                error = 0.0
+            # Estimate lost score: if evaluations had succeeded, they would have scored avg_successful
+            error = (avg_successful * failed_count) / total_count if failed_count > 0 else 0.0
 
             earned_values.append(earned)
             error_values.append(error)
@@ -530,7 +516,7 @@ class ChartGenerator:
         chart_path = os.path.join(self.report_dir, "chart_ragas_metrics.png")
 
         # Get unique models
-        models = sorted(set(r.model for r in self.report.results))
+        models = sorted({r.model for r in self.report.results})
 
         # Calculate earned and error portions for each metric
         earned_qp, error_qp = self._calculate_ragas_metric_breakdown(models, "quote_precision")

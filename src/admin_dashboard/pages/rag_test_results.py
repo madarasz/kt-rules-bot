@@ -6,6 +6,7 @@ from src.lib.database import AnalyticsDatabase
 
 from ..utils.session import set_selected_rag_test_run
 
+_COLUMN_WIDTHS = [0.5, 1.5, 2, 1.5, 0.8, 1, 1, 1, 0.8, 1.2, 0.5]
 
 def render(db: AnalyticsDatabase) -> None:
     """Render the RAG test results page.
@@ -36,7 +37,7 @@ def render(db: AnalyticsDatabase) -> None:
 def _render_table_header() -> None:
     """Render table header row."""
     col_fav, col_timestamp, col_name, col_test_set, col_runs, col_time, col_cost, col_recall, col_hops, col_can_answer, col_delete = st.columns(
-        [0.5, 1.5, 2, 1.5, 0.8, 1, 1, 1, 0.8, 1.2, 0.5]
+        _COLUMN_WIDTHS
     )
 
     with col_fav:
@@ -76,7 +77,7 @@ def _render_test_run_row(run: dict, db: AnalyticsDatabase) -> None:
 
     # Create columns for the row
     col_fav, col_timestamp, col_name, col_test_set, col_runs, col_time, col_cost, col_recall, col_hops, col_can_answer, col_delete = st.columns(
-        [0.5, 1.5, 2, 1.5, 0.8, 1, 1, 1, 0.8, 1.2, 0.5]
+        _COLUMN_WIDTHS
     )
 
     # Favorite toggle
