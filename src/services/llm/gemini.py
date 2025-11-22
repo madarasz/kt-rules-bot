@@ -30,87 +30,9 @@ from src.services.llm.gemini_quote_extractor import (
     number_sentences_in_chunk,
     post_process_gemini_response,
 )
+from src.services.llm.gemini_schemas import GeminiAnswer, HopEvaluation
 
 logger = get_logger(__name__)
-
-
-# Gemini-specific schemas (Gemini doesn't support additionalProperties field)
-STRUCTURED_OUTPUT_SCHEMA_GEMINI = {
-    "type": "object",
-    "properties": {
-        "smalltalk": {
-            "type": "boolean",
-            "description": "True if this is casual conversation (not rules-related), False if answering a rules question",
-        },
-        "short_answer": {"type": "string", "description": "Direct, short answer (e.g., 'Yes.')"},
-        "persona_short_answer": {
-            "type": "string",
-            "description": "Short condescending phrase after the direct answer (e.g., 'The affirmative is undeniable.')",
-        },
-        "quotes": {
-            "type": "array",
-            "description": "Relevant rule quotations from Kill Team 3rd Edition rules",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "quote_title": {
-                        "type": "string",
-                        "description": "Rule name (e.g., 'Core Rules: Actions')",
-                    },
-                    "quote_text": {
-                        "type": "string",
-                        "description": "MUST BE EMPTY to avoid RECITATION errors. Use sentence_numbers instead.",
-                    },
-                    "sentence_numbers": {
-                        "type": "array",
-                        "description": "1-indexed sentence numbers containing relevant rule text (e.g., [2] or [2, 3])",
-                        "items": {"type": "integer"},
-                    },
-                    "chunk_id": {
-                        "type": "string",
-                        "description": "Chunk ID from context (last 8 chars of UUID, e.g., 'a1b2c3d4')",
-                    },
-                },
-                "required": ["quote_title", "quote_text", "sentence_numbers", "chunk_id"],
-            },
-        },
-        "explanation": {
-            "type": "string",
-            "description": "Brief rules-based explanation using official Kill Team terminology",
-        },
-        "persona_afterword": {
-            "type": "string",
-            "description": "Dismissive concluding sentence (e.g., 'The logic is unimpeachable.')",
-        },
-    },
-    "required": [
-        "smalltalk",
-        "short_answer",
-        "persona_short_answer",
-        "quotes",
-        "explanation",
-        "persona_afterword",
-    ],
-}
-
-HOP_EVALUATION_SCHEMA_GEMINI = {
-    "type": "object",
-    "properties": {
-        "can_answer": {
-            "type": "boolean",
-            "description": "True if the retrieved context is sufficient to answer the question, false otherwise",
-        },
-        "reasoning": {
-            "type": "string",
-            "description": "Brief explanation (1-2 sentences) of what context you have or what's missing",
-        },
-        "missing_query": {
-            "type": "string",
-            "description": "If can_answer=false, a focused retrieval query for missing rules. If can_answer=true, use empty string ''",
-        },
-    },
-    "required": ["can_answer", "reasoning", "missing_query"],
-}
 
 
 class GeminiAdapter(LLMProvider):
@@ -183,23 +105,23 @@ class GeminiAdapter(LLMProvider):
         full_prompt = f"{gemini_system_prompt}\n\n{self._build_prompt(request.prompt, numbered_chunks, synthetic_chunk_ids)}"
 
         try:
-            # Select schema based on configuration
+            # Select Pydantic schema based on configuration
             schema_type = request.config.structured_output_schema
 
             if schema_type == "hop_evaluation":
-                schema = HOP_EVALUATION_SCHEMA_GEMINI
-                logger.debug("Using hop evaluation schema")
+                pydantic_model = HopEvaluation
+                logger.debug("Using hop evaluation schema (Pydantic)")
             else:  # "default"
-                schema = STRUCTURED_OUTPUT_SCHEMA_GEMINI
-                logger.debug("Using default answer schema")
+                pydantic_model = GeminiAnswer
+                logger.debug("Using default answer schema (Pydantic)")
 
             # Configure generation with JSON mode for structured output
-            # Gemini requires schema without additionalProperties field
+            # Use Pydantic model's JSON schema (Google's recommended approach as of Nov 2024)
             generation_config = {
                 "max_output_tokens": request.config.max_tokens,
                 "temperature": request.config.temperature,
                 "response_mime_type": "application/json",
-                "response_schema": schema,
+                "response_schema": pydantic_model.model_json_schema(),
             }
 
             # Call Gemini API with timeout using new API
@@ -274,14 +196,15 @@ class GeminiAdapter(LLMProvider):
                     "Try rephrasing or use a different model (--provider claude-4.5-sonnet)."
                 ) from e
 
-            # Validate JSON is parseable (Gemini can sometimes return invalid JSON)
+            # Validate and parse JSON using Pydantic
             try:
-                response_json = json.loads(answer_text)
-                logger.debug(f"Extracted structured JSON from Gemini: {len(answer_text)} chars")
-            except json.JSONDecodeError as e:
-                logger.error(f"Gemini returned invalid JSON: {e}")
+                # Validate with Pydantic model for type safety
+                pydantic_response = pydantic_model.model_validate_json(answer_text)
+                logger.debug(f"Validated structured JSON with Pydantic: {len(answer_text)} chars")
+            except Exception as e:
+                logger.error(f"Gemini returned invalid JSON or schema mismatch: {e}")
                 raise ValueError(
-                    f"Gemini returned invalid JSON despite JSON mode. "
+                    f"Gemini returned invalid JSON or schema validation failed. "
                     f"Response may be malformed. Error: {e}"
                 ) from e
 
@@ -292,17 +215,24 @@ class GeminiAdapter(LLMProvider):
             # POST-PROCESSING: Extract verbatim quotes using sentence numbers
             # Only for default schema (not hop_evaluation)
             if schema_type == "default":
-                response_json = post_process_gemini_response(
-                    response_json,
+                # Convert Pydantic model to dict for post-processing
+                response_dict = pydantic_response.model_dump()
+
+                response_dict = post_process_gemini_response(
+                    response_dict,
                     request.context,  # Original unnumbered chunks
                     request.chunk_ids,
                     chunk_id_to_sentences,
                 )
+
                 # Re-serialize to JSON string
-                answer_text = json.dumps(response_json)
+                answer_text = json.dumps(response_dict)
                 logger.debug(
-                    f"Post-processed quotes: {len(response_json.get('quotes', []))} quotes extracted"
+                    f"Post-processed quotes: {len(response_dict.get('quotes', []))} quotes extracted"
                 )
+            else:
+                # For hop_evaluation, just use the Pydantic response as-is
+                answer_text = pydantic_response.model_dump_json()
 
             # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations
