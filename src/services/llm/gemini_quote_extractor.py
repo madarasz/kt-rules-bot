@@ -182,6 +182,10 @@ def post_process_gemini_response(
     """
     quotes = response_json.get("quotes", [])
 
+    logger.info(
+        f"Post-processing {len(quotes)} quotes. Available chunk IDs: {list(chunk_id_to_sentences.keys())}"
+    )
+
     for quote in quotes:
         quote_text = quote.get("quote_text", "").strip()
         sentence_numbers = quote.get("sentence_numbers", [])
@@ -208,9 +212,14 @@ def post_process_gemini_response(
         if not sentences:
             logger.warning(
                 f"No sentences found for chunk_id '{chunk_id}' (quote: '{quote_title}'). "
+                f"Available chunk IDs: {list(chunk_id_to_sentences.keys())}. "
                 "Cannot extract quote."
             )
             continue
+
+        logger.info(
+            f"Looking up chunk_id '{chunk_id}' for quote '{quote_title}': found {len(sentences)} sentences"
+        )
 
         # Extract verbatim quote
         verbatim_quote = extract_verbatim_quote(sentences, sentence_numbers, quote_title)
