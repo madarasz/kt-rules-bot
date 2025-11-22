@@ -159,17 +159,20 @@ class GeminiAdapter(LLMProvider):
         for i, chunk in enumerate(request.context):
             # Get chunk ID (last 8 chars of UUID, or index-based fallback)
             if request.chunk_ids and i < len(request.chunk_ids):
-                chunk_id = request.chunk_ids[i][-8:]
+                full_chunk_id = request.chunk_ids[i]
+                chunk_id = full_chunk_id[-8:] if len(full_chunk_id) > 8 else full_chunk_id
             else:
-                chunk_id = f"chunk_{i}"
+                chunk_id = str(i)  # Use index as fallback
 
             # Number sentences in this chunk
             numbered_chunk, sentences = number_sentences_in_chunk(chunk)
             numbered_chunks.append(numbered_chunk)
+
+            # Store with the chunk_id that will appear in the response
             chunk_id_to_sentences[chunk_id] = sentences
 
-            logger.debug(
-                f"Numbered chunk {chunk_id}: {len(sentences)} sentences",
+            logger.info(
+                f"Pre-processing chunk: ID='{chunk_id}', sentences={len(sentences)}",
                 extra={"chunk_id": chunk_id, "sentence_count": len(sentences)},
             )
 
