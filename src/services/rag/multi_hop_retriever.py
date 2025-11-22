@@ -30,7 +30,7 @@ from src.models.rag_request import RetrieveRequest
 from src.services.llm.base import GenerationConfig, GenerationRequest, RateLimitError
 from src.services.llm.factory import LLMProviderFactory
 from src.services.rag.hop_cost_calculator import calculate_hop_evaluation_cost
-from src.services.rag.team_filter import TeamFilter
+from src.services.rag.team_filtering import TeamFilter
 
 logger = get_logger(__name__)
 
