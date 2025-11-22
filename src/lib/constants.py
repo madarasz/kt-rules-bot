@@ -188,6 +188,9 @@ MARKDOWN_CHUNK_HEADER_LEVEL = 2  # Max header level to chunk at: chunks at ## up
 # System prompt file path for LLM providers (base template)
 LLM_SYSTEM_PROMPT_FILE_PATH = "prompts/rule-helper-prompt.md"
 
+# Gemini-specific prompt (leaves quote_text empty to avoid RECITATION errors)
+LLM_SYSTEM_PROMPT_FILE_PATH_GEMINI = "prompts/rule-helper-prompt-gemini.md"
+
 # Note: Personality-specific files (acknowledgements, disclaimers) are now
 # loaded via src.lib.personality based on PERSONALITY env variable
 

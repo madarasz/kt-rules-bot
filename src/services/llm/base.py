@@ -18,6 +18,7 @@ from src.lib.constants import (
     LLM_EXTRACTION_TIMEOUT,
     LLM_GENERATION_TIMEOUT,
     LLM_SYSTEM_PROMPT_FILE_PATH,
+    LLM_SYSTEM_PROMPT_FILE_PATH_GEMINI,
 )
 from src.lib.personality import (
     get_afterword_example,
@@ -25,36 +26,45 @@ from src.lib.personality import (
     get_short_answer_example,
 )
 
-# Cached system prompt (loaded once from file)
-_SYSTEM_PROMPT_CACHE: str | None = None
+# Cached system prompts (loaded once from file, keyed by file path)
+_SYSTEM_PROMPT_CACHE: dict[str, str] = {}
 
 
-def load_system_prompt() -> str:
-    """Load system prompt from prompts/rule-helper-prompt.md.
+def load_system_prompt(prompt_file_path: str | None = None) -> str:
+    """Load system prompt from specified file or default prompt file.
 
     Loads the prompt file once, replaces personality placeholders, and caches it.
+
+    Args:
+        prompt_file_path: Optional path to prompt file. If None, uses LLM_SYSTEM_PROMPT_FILE_PATH.
+                         Use LLM_SYSTEM_PROMPT_FILE_PATH_GEMINI for Gemini models.
 
     Returns:
         System prompt text with personality injected
 
     Raises:
-        FileNotFoundError: If prompts/rule-helper-prompt.md does not exist
+        FileNotFoundError: If prompt file does not exist
     """
     global _SYSTEM_PROMPT_CACHE
 
-    if _SYSTEM_PROMPT_CACHE is not None:
-        return _SYSTEM_PROMPT_CACHE
+    # Use default prompt file if not specified
+    if prompt_file_path is None:
+        prompt_file_path = LLM_SYSTEM_PROMPT_FILE_PATH
+
+    # Check cache
+    if prompt_file_path in _SYSTEM_PROMPT_CACHE:
+        return _SYSTEM_PROMPT_CACHE[prompt_file_path]
 
     # Locate prompt file relative to project root
     # Assuming this file is at src/services/llm/base.py
     current_file = Path(__file__)
     project_root = current_file.parent.parent.parent.parent
-    prompt_file = project_root / LLM_SYSTEM_PROMPT_FILE_PATH
+    prompt_file = project_root / prompt_file_path
 
     if not prompt_file.exists():
         raise FileNotFoundError(
             f"System prompt file not found: {prompt_file}\n"
-            f"Expected location: {LLM_SYSTEM_PROMPT_FILE_PATH}"
+            f"Expected location: {prompt_file_path}"
         )
 
     # Read the base template
@@ -66,8 +76,8 @@ def load_system_prompt() -> str:
     template = template.replace("[PERSONALITY AFTERWORD]", get_afterword_example())
 
     # Cache and return
-    _SYSTEM_PROMPT_CACHE = template
-    return _SYSTEM_PROMPT_CACHE
+    _SYSTEM_PROMPT_CACHE[prompt_file_path] = template
+    return _SYSTEM_PROMPT_CACHE[prompt_file_path]
 
 
 # Exception classes
