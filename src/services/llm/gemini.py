@@ -155,6 +155,7 @@ class GeminiAdapter(LLMProvider):
         # PRE-PROCESSING: Number sentences in chunks to enable quote extraction
         numbered_chunks = []
         chunk_id_to_sentences = {}  # Store sentence lists for post-processing
+        synthetic_chunk_ids = []  # Chunk IDs that match what we store
 
         for i, chunk in enumerate(request.context):
             # Get chunk ID (last 8 chars of UUID, or index-based fallback)
@@ -170,14 +171,16 @@ class GeminiAdapter(LLMProvider):
 
             # Store with the chunk_id that will appear in the response
             chunk_id_to_sentences[chunk_id] = sentences
+            synthetic_chunk_ids.append(chunk_id)
 
             logger.info(
                 f"Pre-processing chunk: ID='{chunk_id}', sentences={len(sentences)}",
                 extra={"chunk_id": chunk_id, "sentence_count": len(sentences)},
             )
 
-        # Build prompt with NUMBERED chunks (instead of original chunks)
-        full_prompt = f"{gemini_system_prompt}\n\n{self._build_prompt(request.prompt, numbered_chunks, request.chunk_ids)}"
+        # Build prompt with NUMBERED chunks
+        # Use synthetic_chunk_ids to ensure consistency with what we stored
+        full_prompt = f"{gemini_system_prompt}\n\n{self._build_prompt(request.prompt, numbered_chunks, synthetic_chunk_ids)}"
 
         try:
             # Select schema based on configuration
