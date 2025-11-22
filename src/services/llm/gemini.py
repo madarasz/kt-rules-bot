@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from google import genai
 
+from src.lib.constants import LLM_SYSTEM_PROMPT_FILE_PATH_GEMINI
 from src.lib.logging import get_logger
 from src.services.llm.base import (
     AuthenticationError,
@@ -22,6 +23,7 @@ from src.services.llm.base import (
     LLMResponse,
     PDFParseError,
     RateLimitError,
+    load_system_prompt,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
 
@@ -138,8 +140,11 @@ class GeminiAdapter(LLMProvider):
         """
         start_time = time.time()
 
+        # Use Gemini-specific prompt (leaves quote_text empty to avoid RECITATION errors)
+        gemini_system_prompt = load_system_prompt(LLM_SYSTEM_PROMPT_FILE_PATH_GEMINI)
+
         # Build prompt with system message and context
-        full_prompt = f"{request.config.system_prompt}\n\n{self._build_prompt(request.prompt, request.context, request.chunk_ids)}"
+        full_prompt = f"{gemini_system_prompt}\n\n{self._build_prompt(request.prompt, request.context, request.chunk_ids)}"
 
         try:
             # Select schema based on configuration
