@@ -105,6 +105,27 @@ CREATE TABLE IF NOT EXISTS invalid_quotes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_invalid_quotes_query_id ON invalid_quotes(query_id);
+
+CREATE TABLE IF NOT EXISTS rag_test_runs (
+    run_id TEXT PRIMARY KEY,
+    timestamp TEXT NOT NULL,
+    test_set TEXT,
+    runs_per_test INTEGER,
+    avg_retrieval_time REAL,
+    avg_retrieval_cost REAL,
+    context_recall REAL,
+    avg_hops_used REAL,
+    can_answer_recall REAL,
+    full_report_md TEXT,
+    run_name TEXT DEFAULT '',
+    comments TEXT DEFAULT '',
+    favorite INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_rag_test_runs_timestamp ON rag_test_runs(timestamp);
+CREATE INDEX IF NOT EXISTS idx_rag_test_runs_test_set ON rag_test_runs(test_set);
+CREATE INDEX IF NOT EXISTS idx_rag_test_runs_favorite ON rag_test_runs(favorite);
 """
 
 
@@ -932,6 +953,204 @@ class AnalyticsDatabase:
         except Exception as e:
             logger.error(f"Failed to get queries with relevant chunks: {e}", exc_info=True)
             return []
+
+    def insert_rag_test_run(self, run_data: dict[str, Any]) -> None:
+        """Insert RAG test run record.
+
+        Args:
+            run_data: Dictionary with RAG test run fields (see schema)
+        """
+        if not self.enabled:
+            return
+
+        try:
+            now = datetime.now(UTC).isoformat()
+
+            with self._get_connection() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO rag_test_runs (
+                        run_id, timestamp, test_set, runs_per_test,
+                        avg_retrieval_time, avg_retrieval_cost, context_recall,
+                        avg_hops_used, can_answer_recall, full_report_md,
+                        run_name, comments, favorite, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        run_data["run_id"],
+                        run_data["timestamp"],
+                        run_data.get("test_set", ""),
+                        run_data.get("runs_per_test", 1),
+                        run_data.get("avg_retrieval_time"),
+                        run_data.get("avg_retrieval_cost"),
+                        run_data.get("context_recall"),
+                        run_data.get("avg_hops_used"),
+                        run_data.get("can_answer_recall"),
+                        run_data.get("full_report_md", ""),
+                        run_data.get("run_name", ""),
+                        run_data.get("comments", ""),
+                        0,  # favorite (default False)
+                        now,
+                    ),
+                )
+                conn.commit()
+
+            logger.info(
+                "RAG test run inserted into analytics DB", extra={"run_id": run_data["run_id"]}
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to insert RAG test run: {e}", exc_info=True)
+
+    def get_all_rag_test_runs(
+        self, limit: int = 100, offset: int = 0, favorite_only: bool = False
+    ) -> list[dict[str, Any]]:
+        """Get all RAG test runs with optional filters.
+
+        Args:
+            limit: Maximum number of results
+            offset: Pagination offset
+            favorite_only: If True, only return favorited runs
+
+        Returns:
+            List of RAG test run dictionaries
+        """
+        if not self.enabled:
+            return []
+
+        try:
+            query = "SELECT * FROM rag_test_runs WHERE 1=1"
+            params = []
+
+            if favorite_only:
+                query += " AND favorite = 1"
+
+            query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+
+            with self._get_connection() as conn:
+                cursor = conn.execute(query, params)
+                rows = cursor.fetchall()
+
+            return [dict(row) for row in rows]
+
+        except Exception as e:
+            logger.error(f"Failed to get RAG test runs: {e}", exc_info=True)
+            return []
+
+    def get_rag_test_run_by_id(self, run_id: str) -> dict[str, Any] | None:
+        """Get a single RAG test run by ID.
+
+        Args:
+            run_id: Run ID
+
+        Returns:
+            RAG test run dictionary or None if not found
+        """
+        if not self.enabled:
+            return None
+
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    "SELECT * FROM rag_test_runs WHERE run_id = ?", (run_id,)
+                )
+                row = cursor.fetchone()
+
+            return dict(row) if row else None
+
+        except Exception as e:
+            logger.error(f"Failed to get RAG test run: {e}", exc_info=True)
+            return None
+
+    def update_rag_test_run(
+        self,
+        run_id: str,
+        run_name: str | None = None,
+        comments: str | None = None,
+        favorite: bool | None = None,
+    ) -> None:
+        """Update RAG test run fields.
+
+        Args:
+            run_id: Run ID
+            run_name: New run name (optional)
+            comments: New comments (optional)
+            favorite: New favorite status (optional)
+        """
+        if not self.enabled:
+            return
+
+        try:
+            set_clauses = []
+            params = []
+
+            if run_name is not None:
+                set_clauses.append("run_name = ?")
+                params.append(run_name)
+
+            if comments is not None:
+                set_clauses.append("comments = ?")
+                params.append(comments)
+
+            if favorite is not None:
+                set_clauses.append("favorite = ?")
+                params.append(1 if favorite else 0)
+
+            if not set_clauses:
+                return
+
+            params.append(run_id)
+
+            # Safe: all column names are hardcoded above
+            # nosec B608: set_clauses only contains hardcoded SQL fragments
+            query_sql = (
+                "UPDATE rag_test_runs SET " + ", ".join(set_clauses) + " WHERE run_id = ?"
+            )  # nosec B608
+
+            with self._get_connection() as conn:
+                conn.execute(query_sql, params)
+                conn.commit()
+
+            logger.info("RAG test run updated", extra={"run_id": run_id})
+
+        except Exception as e:
+            logger.error(f"Failed to update RAG test run: {e}", exc_info=True)
+
+    def delete_rag_test_run(self, run_id: str) -> bool:
+        """Delete a RAG test run.
+
+        Args:
+            run_id: Run ID
+
+        Returns:
+            True if run was deleted, False if not found or error
+        """
+        if not self.enabled:
+            return False
+
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    """
+                    DELETE FROM rag_test_runs
+                    WHERE run_id = ?
+                """,
+                    (run_id,),
+                )
+                deleted_count = cursor.rowcount
+                conn.commit()
+
+            if deleted_count > 0:
+                logger.info("RAG test run deleted from analytics DB", extra={"run_id": run_id})
+                return True
+            else:
+                logger.warning("RAG test run not found for deletion", extra={"run_id": run_id})
+                return False
+
+        except Exception as e:
+            logger.error(f"Failed to delete RAG test run: {e}", exc_info=True)
+            return False
 
     @classmethod
     def from_config(cls) -> "AnalyticsDatabase":

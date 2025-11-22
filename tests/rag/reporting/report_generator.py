@@ -88,18 +88,18 @@ class RAGReportGenerator:
         if summary.test_set_codename:
             content.append(f"**Test Set**: {summary.test_set_codename}")
         content.append(f"**Avg Retrieval Time**: {summary.avg_retrieval_time_seconds:.3f}s")
-        content.append(f"**Avg Retrieval Cost**: {avg_retrieval_cost_cents:.3f}¢ |")
+        content.append(f"**Avg Retrieval Cost**: ¢{avg_retrieval_cost_cents:.3f}")
         content.append(f"**Runs per Test**: {summary.runs_per_test}")
         content.append(f"**Total Tests**: {summary.total_tests}")
         content.append(f"**Total Ground Truths**: {summary.total_ground_truths}")
         content.append(f"**Total Time**: {self._format_time(summary.total_time_seconds)}")
-        content.append(f"**Total Cost**: ${total_cost_with_hops:.6f}")
+        content.append(f"**Total Cost**: \${total_cost_with_hops:.6f}  ")
 
         # Cost breakdown - group embeddings together
-        content.append(f" └─ Embeddings**: ${summary.total_cost_usd:.6f} |")
+        content.append(f" └─ **Embeddings**: \${summary.total_cost_usd:.6f}")
         if summary.rag_max_hops > 0:
-            content.append(f" └─ Hop Evaluations**: ${summary.hop_evaluation_cost_usd:.6f} |")
-            content.append(f" **Avg Hops Used**: {summary.avg_hops_used:.2f} |")
+            content.append(f" └─ **Hop Evaluations**: \${summary.hop_evaluation_cost_usd:.6f}")
+            content.append(f"**Avg Hops Used**: {summary.avg_hops_used:.2f}")
         content.append("")
 
         # Ragas metrics

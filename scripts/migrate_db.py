@@ -112,6 +112,45 @@ def migrate_analytics_db(db_path: str) -> None:
         else:
             print("  ✅ Table invalid_quotes already exists")
 
+        # Check for rag_test_runs table
+        cursor = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='rag_test_runs'"
+        )
+        if not cursor.fetchone():
+            print("  ➕ Creating table rag_test_runs")
+            conn.execute(
+                """
+                CREATE TABLE rag_test_runs (
+                    run_id TEXT PRIMARY KEY,
+                    timestamp TEXT NOT NULL,
+                    test_set TEXT,
+                    runs_per_test INTEGER,
+                    avg_retrieval_time REAL,
+                    avg_retrieval_cost REAL,
+                    context_recall REAL,
+                    avg_hops_used REAL,
+                    can_answer_recall REAL,
+                    full_report_md TEXT,
+                    run_name TEXT DEFAULT '',
+                    comments TEXT DEFAULT '',
+                    favorite INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL
+                )
+            """
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_rag_test_runs_timestamp ON rag_test_runs(timestamp)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_rag_test_runs_test_set ON rag_test_runs(test_set)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_rag_test_runs_favorite ON rag_test_runs(favorite)"
+            )
+            applied_count += 1
+        else:
+            print("  ✅ Table rag_test_runs already exists")
+
         conn.commit()
 
         if applied_count > 0:
