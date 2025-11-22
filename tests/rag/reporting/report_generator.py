@@ -13,6 +13,35 @@ class RAGReportGenerator:
     """Generates markdown reports for RAG test results."""
 
     @staticmethod
+    def _group_missing_chunks(
+        results: list[RAGTestResult],
+    ) -> list[tuple[int, str, str]]:
+        """Group duplicate missing chunks and count occurrences.
+
+        Args:
+            results: List of test results
+
+        Returns:
+            List of (count, test_id, chunk_text) tuples, sorted by count (descending)
+        """
+        from collections import Counter
+
+        # Build list of (test_id, chunk_text) pairs
+        missing_pairs = []
+        for result in results:
+            for missing_chunk in result.missing_chunks:
+                missing_pairs.append((result.test_id, missing_chunk))
+
+        # Count occurrences
+        counter = Counter(missing_pairs)
+
+        # Convert to list of (count, test_id, chunk) sorted by count descending
+        grouped = [(count, test_id, chunk) for (test_id, chunk), count in counter.items()]
+        grouped.sort(key=lambda x: x[0], reverse=True)
+
+        return grouped
+
+    @staticmethod
     def _format_time(seconds: float) -> str:
         """Format time in seconds as 'Xmin Ys' or 'Xs'.
 
@@ -53,16 +82,24 @@ class RAGReportGenerator:
 
         # Calculate total cost including hop evaluations (used in multiple places)
         total_cost_with_hops = summary.total_cost_usd + summary.hop_evaluation_cost_usd
+        avg_retrieval_cost_cents = (total_cost_with_hops / summary.total_tests) * 100
 
         # Test set metadata
         if summary.test_set_codename:
             content.append(f"**Test Set**: {summary.test_set_codename}")
-        content.append(f"**Total Tests**: {summary.total_tests}")
+        content.append(f"**Avg Retrieval Time**: {summary.avg_retrieval_time_seconds:.3f}s")
+        content.append(f"**Avg Retrieval Cost**: ¢{avg_retrieval_cost_cents:.3f}")
         content.append(f"**Runs per Test**: {summary.runs_per_test}")
+        content.append(f"**Total Tests**: {summary.total_tests}")
         content.append(f"**Total Ground Truths**: {summary.total_ground_truths}")
         content.append(f"**Total Time**: {self._format_time(summary.total_time_seconds)}")
-        content.append(f"**Avg Retrieval Time**: {summary.avg_retrieval_time_seconds:.3f}s")
-        content.append(f"**Total Cost**: ${total_cost_with_hops:.6f}")
+        content.append(rf"**Total Cost**: \${total_cost_with_hops:.6f}  ")
+
+        # Cost breakdown - group embeddings together
+        content.append(rf" └─ **Embeddings**: ¢{(summary.total_cost_usd * 100):.6f}")
+        if summary.rag_max_hops > 0:
+            content.append(rf" └─ **Hop Evaluations**: \${summary.hop_evaluation_cost_usd:.6f}")
+            content.append(f"**Avg Hops Used**: {summary.avg_hops_used:.2f}")
         content.append("")
 
         # Ragas metrics
@@ -112,9 +149,10 @@ class RAGReportGenerator:
             # Per-hop breakdown
             if summary.ground_truth_chunks_per_hop:
                 for hop_num, count in enumerate(summary.ground_truth_chunks_per_hop, start=1):
-                    content.append(
-                        f"| **Ground Truth in Hop {hop_num}** | {count} | Total ground truth chunks found in hop {hop_num} across all tests |"
-                    )
+                    if count > 0:
+                        content.append(
+                            f"| **Ground Truth in Hop {hop_num}** | {count} | Total ground truth chunks found in hop {hop_num} across all tests |"
+                        )
 
             content.append("")
 
@@ -132,58 +170,27 @@ class RAGReportGenerator:
         )
         content.append("")
 
-        # Provide context-appropriate tuning tips
-        if summary.max_ground_truth_rank_found == 0:
-            content.append(
-                "⚠️ **Warning**: No ground truths found in any test. This may indicate: (1) retrieval quality issues, "
-                "(2) `MAXIMUM_FINAL_CHUNK_COUNT` is too low and cutting off relevant chunks, or (3) test cases don't have ground_truth_contexts defined."
-            )
-        elif summary.max_ground_truth_rank_found < 20:
-            content.append(
-                f"💡 **Tuning tip**: Max rank is {summary.max_ground_truth_rank_found} (< 20), you can reduce `MAXIMUM_FINAL_CHUNK_COUNT` to save costs."
-            )
-        else:
-            content.append(
-                f"💡 **Tuning tip**: Max rank is {summary.max_ground_truth_rank_found} (>= 20), consider keeping or increasing `MAXIMUM_FINAL_CHUNK_COUNT`."
-            )
-        content.append("")
-
         # Missing chunks analysis
         content.append("## Missing Chunks")
         content.append("")
-        missing_chunks_found = False
-        count_missing_chunks = 0
-        for result in results:
-            if result.missing_chunks:
-                missing_chunks_found = True
-                for missing_chunk in result.missing_chunks:
-                    content.append(f"- **{result.test_id}**: *{missing_chunk}*")
-                    count_missing_chunks += 1
-        content.append(f"\n\n**Number of missing chunks**: {count_missing_chunks}")
 
-        if not missing_chunks_found:
+        # Group and count duplicate missing chunks
+        grouped_missing = self._group_missing_chunks(results)
+
+        if grouped_missing:
+            for count, test_id, chunk_text in grouped_missing:
+                if count > 1:
+                    content.append(f"- {count}x **{test_id}**: *{chunk_text}*")
+                else:
+                    content.append(f"- **{test_id}**: *{chunk_text}*")
+
+            total_missing = sum(count for count, _, _ in grouped_missing)
+            content.append(f"\n**Number of missing chunks**: {total_missing}")
+        else:
             content.append("No missing chunks - all required chunks were retrieved!")
-        content.append("")
-
-        # Performance metrics
-        content.append("## Performance Metrics")
-        content.append("")
-        content.append("| Metric | Value |")
-        content.append("|--------|-------|")
-        content.append(f"| **Total Time** | {summary.total_time_seconds:.2f}s |")
-        content.append(f"| **Avg Retrieval Time** | {summary.avg_retrieval_time_seconds:.3f}s |")
-        content.append(f"| **Total Cost** | ${total_cost_with_hops:.6f} |")
-
-        # Cost breakdown - group embeddings together
-        content.append(f"| **RAG Costs** | ${total_cost_with_hops:.6f} |")
-        content.append(f"| └─ Embeddings** | ${summary.total_cost_usd:.6f} |")
-
-        # Add hop-specific metrics if multi-hop is enabled
-        if summary.rag_max_hops > 0:
-            content.append(f"| └─ Hop Evaluations** | ${summary.hop_evaluation_cost_usd:.6f} |")
-            content.append(f"| **Avg Hops Used** | {summary.avg_hops_used:.2f} |")
 
         content.append("")
+
 
         # Multi-run statistics
         if (
@@ -208,6 +215,8 @@ class RAGReportGenerator:
         content.append(f"| RAG_MAX_CHUNKS | {summary.rag_max_chunks} |")
         content.append(f"| RAG_MIN_RELEVANCE | {summary.rag_min_relevance} |")
         content.append(f"| EMBEDDING_MODEL | {summary.embedding_model} |")
+        content.append(f"| MARKDOWN_CHUNK_HEADER_LEVEL | {summary.chunk_header_level} |")
+        content.append(f"| MAX_CHUNK_LENGTH_FOR_EVALUATION | {summary.max_chunk_length_for_evaluation} |")
         content.append(f"| RRF k | {summary.rrf_k} |")
         content.append(f"| BM25 k1 | {summary.bm25_k1} |")
         content.append(f"| BM25 b | {summary.bm25_b} |")
@@ -225,6 +234,7 @@ class RAGReportGenerator:
             content.append(f"| RAG_MAX_HOPS | {summary.rag_max_hops} |")
             content.append(f"| RAG_HOP_CHUNK_LIMIT | {summary.rag_hop_chunk_limit} |")
             content.append(f"| RAG_HOP_EVALUATION_MODEL | {summary.rag_hop_evaluation_model} |")
+            content.append(f"| MAXIMUM_FINAL_CHUNK_COUNT | {summary.maximum_final_chunk_count} |")
 
         content.append("")
 

@@ -19,12 +19,12 @@ from src.lib.constants import (
     RRF_K,
 )
 from src.lib.logging import get_logger
+from src.lib.text_utils import ground_truth_matches_text
 from src.lib.tokens import estimate_embedding_cost
 from src.models.rag_request import RetrieveRequest
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.retriever import RAGRetriever
 from tests.rag.evaluator import RAGEvaluator
-from src.lib.text_utils import ground_truth_matches_text
 from tests.rag.ragas_evaluator import RagasRAGEvaluator, add_ragas_metrics_to_result
 from tests.rag.test_case_models import RAGTestCase, RAGTestResult, RAGTestSummary
 
@@ -318,6 +318,7 @@ class RAGTestRunner:
         total_time_seconds: float,
         max_chunks: int = RAG_MAX_CHUNKS,
         min_relevance: float = RAG_MIN_RELEVANCE,
+        test_set: str | None = None,
     ) -> RAGTestSummary:
         """Calculate summary statistics across all results.
 
@@ -326,6 +327,7 @@ class RAGTestRunner:
             total_time_seconds: Total time for all tests
             max_chunks: RAG_MAX_CHUNKS used
             min_relevance: RAG_MIN_RELEVANCE used
+            test_set: Optional test set override (e.g., "filtered" for specific test runs)
 
         Returns:
             RAGTestSummary
@@ -638,15 +640,15 @@ class RAGTestRunner:
             runs_per_test = sum(1 for r in results if r.test_id == first_test_id)
 
         # Calculate total ground truths (in a single run, so use unique test_ids)
-        unique_test_ids = set(r.test_id for r in results)
+        unique_test_ids = {r.test_id for r in results}
         total_ground_truths = 0
         for test_id in unique_test_ids:
             # Get first result for this test_id
             test_result = next(r for r in results if r.test_id == test_id)
             total_ground_truths += len(test_result.ground_truth_contexts)
 
-        # Extract test set codename
-        test_set_codename = self._extract_test_set_codename()
+        # Extract test set codename (or use provided override)
+        test_set_codename = test_set if test_set is not None else self._extract_test_set_codename()
 
         return RAGTestSummary(
             total_tests=len(results),

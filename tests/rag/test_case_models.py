@@ -14,6 +14,8 @@ from src.lib.constants import (
     BM25_WEIGHT,
     EMBEDDING_MODEL,
     MARKDOWN_CHUNK_HEADER_LEVEL,
+    MAX_CHUNK_LENGTH_FOR_EVALUATION,
+    MAXIMUM_FINAL_CHUNK_COUNT,
     RAG_ENABLE_QUERY_EXPANSION,
     RAG_ENABLE_QUERY_NORMALIZATION,
     RAG_HOP_CHUNK_LIMIT,
@@ -168,6 +170,7 @@ class RAGTestSummary:
     rag_min_relevance: float = RAG_MIN_RELEVANCE
     embedding_model: str = EMBEDDING_MODEL
     chunk_header_level: int = MARKDOWN_CHUNK_HEADER_LEVEL
+    max_chunk_length_for_evaluation: int = MAX_CHUNK_LENGTH_FOR_EVALUATION
     rrf_k: int = RRF_K
     bm25_k1: float = BM25_K1
     bm25_b: float = BM25_B
@@ -181,6 +184,7 @@ class RAGTestSummary:
     rag_max_hops: int = RAG_MAX_HOPS
     rag_hop_chunk_limit: int = RAG_HOP_CHUNK_LIMIT
     rag_hop_evaluation_model: str = RAG_HOP_EVALUATION_MODEL
+    maximum_final_chunk_count: int = MAXIMUM_FINAL_CHUNK_COUNT
 
     # Multi-hop statistics
     avg_hops_used: float = 0.0  # Average hops performed per test

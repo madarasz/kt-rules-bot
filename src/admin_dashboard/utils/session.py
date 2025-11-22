@@ -141,3 +141,22 @@ def set_admin_notes_state(query_id: str, notes: str) -> None:
         notes: Admin notes
     """
     st.session_state[f"admin_notes_{query_id}"] = notes
+
+
+def set_selected_rag_test_run(run_id: str) -> None:
+    """Set the selected RAG test run ID and navigate to detail page.
+
+    Args:
+        run_id: RAG test run ID to select
+    """
+    st.session_state["selected_rag_test_run_id"] = run_id
+    navigate_to_page(PAGE_NAMES["RAG_TEST_DETAIL"])
+
+
+def get_selected_rag_test_run() -> str | None:
+    """Get the selected RAG test run ID from session state.
+
+    Returns:
+        Selected RAG test run ID or None
+    """
+    return st.session_state.get("selected_rag_test_run_id")

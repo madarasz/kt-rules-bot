@@ -256,19 +256,18 @@ class QualityTestRunner:
         # Check if any Ragas metrics failed (are None when they should have values)
         # This indicates a Ragas evaluation failure that should be tracked for grey bar visualization
         ragas_evaluation_error = False
-        if not no_eval and structured_llm_response is not None:
-            # Check if any of the LLM-based Ragas metrics failed
-            # (quote_precision and quote_recall are locally calculated and should always succeed)
-            if (
-                ragas_metrics.quote_faithfulness is None
-                or ragas_metrics.explanation_faithfulness is None
-                or ragas_metrics.answer_correctness is None
-            ):
-                ragas_evaluation_error = True
-                logger.error(
-                    f"Ragas evaluation failed for test {test_case.test_id} on model {model} - "
-                    f"some metrics returned None/NaN"
-                )
+        # Check if any of the LLM-based Ragas metrics failed
+        # (quote_precision and quote_recall are locally calculated and should always succeed)
+        if not no_eval and structured_llm_response is not None and (
+            ragas_metrics.quote_faithfulness is None
+            or ragas_metrics.explanation_faithfulness is None
+            or ragas_metrics.answer_correctness is None
+        ):
+            ragas_evaluation_error = True
+            logger.error(
+                f"Ragas evaluation failed for test {test_case.test_id} on model {model} - "
+                f"some metrics returned None/NaN"
+            )
 
         # Calculate main LLM cost
         cost = estimate_cost(
