@@ -7,9 +7,13 @@ This script scans the extracted-rules directory and creates hierarchical YAML st
 - teams-structure.yml: Team faction rules and operatives only
 
 Usage:
-    python scripts/generate_rules_structure.py
+    python scripts/generate_rules_structure.py [--header LEVEL]
+
+Arguments:
+    --header LEVEL  Override the default header level (default: MARKDOWN_CHUNK_HEADER_LEVEL from constants)
 """
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -20,7 +24,11 @@ import yaml
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.lib.constants import RULES_STRUCTURE_PATH, TEAMS_STRUCTURE_PATH, MARKDOWN_CHUNK_HEADER_LEVEL
+from src.lib.constants import (
+    MARKDOWN_CHUNK_HEADER_LEVEL,
+    RULES_STRUCTURE_PATH,
+    TEAMS_STRUCTURE_PATH,
+)
 
 # Configuration
 EXTRACTED_RULES_DIR = Path(__file__).parent.parent / "extracted-rules"
@@ -151,9 +159,12 @@ def categorize_tacops(headers: list[dict[str, Any]]) -> dict[str, Any]:
         title = node["title"]
         categorized = False
 
-        if " - TAC OP - " in title.upper():
-            tacop_name, _, archetype = title.partition(" - TAC OP - ")
-            archetype = archetype.strip().upper()
+        sep = " - TAC OP - "
+        upper_title = title.upper()
+        if sep in upper_title:
+            split_index = upper_title.index(sep)
+            tacop_name = title[:split_index]
+            archetype = upper_title[split_index + len(sep) :].strip()
             if archetype in categories:
                 # Create tac op node with cleaned name and any children
                 tacop_node = {
@@ -419,10 +430,10 @@ def remove_team_prefix(header: str, team: str) -> str:
 
 
 def process_file(
-    file_path: Path, is_team: bool = False, is_tacops: bool = False, exclude: list[str] = None
+    file_path: Path, is_team: bool = False, is_tacops: bool = False, exclude: list[str] = None, header_level: int = None
 ) -> Any:
     """Process a markdown file and return its structure in YAML-friendly format."""
-    headers = extract_headers(file_path)
+    headers = extract_headers(file_path, max_level=header_level)
 
     if is_team:
         # Categorize team headers, then convert each category to YAML format
@@ -463,7 +474,7 @@ def format_key(name: str) -> str:
 
 
 def process_directory(
-    dir_path: Path, is_team_dir: bool = False, exclude: list[str] = None
+    dir_path: Path, is_team_dir: bool = False, exclude: list[str] = None, header_level: int = None
 ) -> dict[str, Any]:
     """Process directory recursively and return structure."""
     result = {}
@@ -481,11 +492,12 @@ def process_directory(
                     is_team=is_team_dir,
                     is_tacops=(item.stem.lower() == "tacops"),
                     exclude=exclude,
+                    header_level=header_level,
                 )
                 result[format_key(item.stem)] = structure
 
             elif item.is_dir() and has_markdown_files(item):
-                subdir = process_directory(item, is_team_dir=(item.name == "team"), exclude=exclude)
+                subdir = process_directory(item, is_team_dir=(item.name == "team"), exclude=exclude, header_level=header_level)
                 if subdir:
                     result[format_key(item.name)] = subdir
 
@@ -495,7 +507,7 @@ def process_directory(
     return result
 
 
-def generate_structures() -> tuple[dict[str, Any], dict[str, Any]]:
+def generate_structures(header_level: int = None) -> tuple[dict[str, Any], dict[str, Any]]:
     """Generate both rules and teams structures."""
     print(f"Scanning directory: {EXTRACTED_RULES_DIR}")
 
@@ -511,18 +523,18 @@ def generate_structures() -> tuple[dict[str, Any], dict[str, Any]]:
 
             if item.is_file() and item.suffix == ".md":
                 # Top-level markdown files: extract headers and convert to YAML format
-                headers = extract_headers(item)
+                headers = extract_headers(item, max_level=header_level)
                 rules[format_key(item.stem)] = nodes_to_yaml_format(headers)
 
             elif item.is_dir() and has_markdown_files(item):
                 if item.name == "team":
                     # Process teams separately with exclusions
                     teams = process_directory(
-                        item, is_team_dir=True, exclude=TEAMS_EXCLUDE_CATEGORIES
+                        item, is_team_dir=True, exclude=TEAMS_EXCLUDE_CATEGORIES, header_level=header_level
                     )
                 else:
                     # Process other directories for rules
-                    structure = process_directory(item)
+                    structure = process_directory(item, header_level=header_level)
                     if structure:
                         rules[format_key(item.name)] = structure
 
@@ -554,15 +566,31 @@ def write_yaml(structure: dict[str, Any], output_path: Path) -> None:
 
 def main() -> int:
     """Main entry point."""
+    parser = argparse.ArgumentParser(
+        description="Generate rules-structure.yml and teams-structure.yml from extracted-rules directory"
+    )
+    parser.add_argument(
+        "--header",
+        type=int,
+        default=None,
+        metavar="LEVEL",
+        help=f"Override the default header level (default: {MARKDOWN_CHUNK_HEADER_LEVEL})",
+    )
+    args = parser.parse_args()
+
     print("=" * 60)
     print("Generating Kill Team Rules Structure")
+    if args.header is not None:
+        print(f"Using header level: {args.header}")
+    else:
+        print(f"Using default header level: {MARKDOWN_CHUNK_HEADER_LEVEL}")
     print("=" * 60)
 
     if not EXTRACTED_RULES_DIR.exists():
         print(f"Error: Directory not found: {EXTRACTED_RULES_DIR}")
         return 1
 
-    rules, teams = generate_structures()
+    rules, teams = generate_structures(header_level=args.header)
 
     if not rules and not teams:
         print("Error: No structure generated")

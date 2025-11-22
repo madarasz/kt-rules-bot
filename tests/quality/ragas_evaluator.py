@@ -10,11 +10,9 @@ Evaluates RAG responses using Ragas metrics:
 
 import asyncio
 import math
+import os
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-
-import os
-from pathlib import Path
 
 from datasets import Dataset
 from dotenv import load_dotenv
@@ -24,14 +22,14 @@ from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import AnswerCorrectness, Faithfulness
 
 from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
-
-# Load environment variables from config/.env
-load_dotenv("config/.env")
 from src.lib.logging import get_logger
 from src.lib.ragas_adapter import evaluate_retrieval
 from src.lib.text_utils import normalize_text_for_matching
 from src.lib.tokens import estimate_cost
 from src.models.structured_response import StructuredLLMResponse
+
+# Load environment variables from config/.env
+load_dotenv("config/.env")
 
 logger = get_logger(__name__)
 
@@ -390,26 +388,21 @@ class RagasEvaluator:
             return 0.0
 
         scores = []
-        if metrics.quote_precision is not None:
-            # Check for NaN - should not happen here due to local calculation, but be defensive
-            if not (isinstance(metrics.quote_precision, float) and math.isnan(metrics.quote_precision)):
-                scores.append(metrics.quote_precision)
-        if metrics.quote_recall is not None:
-            # Check for NaN - should not happen here due to local calculation, but be defensive
-            if not (isinstance(metrics.quote_recall, float) and math.isnan(metrics.quote_recall)):
-                scores.append(metrics.quote_recall)
-        if metrics.quote_faithfulness is not None:
-            # Check for NaN - safe_extract_metric should have filtered these out, but be defensive
-            if not (isinstance(metrics.quote_faithfulness, float) and math.isnan(metrics.quote_faithfulness)):
-                scores.append(metrics.quote_faithfulness)
-        if metrics.explanation_faithfulness is not None:
-            # Check for NaN - safe_extract_metric should have filtered these out, but be defensive
-            if not (isinstance(metrics.explanation_faithfulness, float) and math.isnan(metrics.explanation_faithfulness)):
-                scores.append(metrics.explanation_faithfulness)
-        if metrics.answer_correctness is not None:
-            # Check for NaN - safe_extract_metric should have filtered these out, but be defensive
-            if not (isinstance(metrics.answer_correctness, float) and math.isnan(metrics.answer_correctness)):
-                scores.append(metrics.answer_correctness)
+        # Check for NaN - should not happen here due to local calculation, but be defensive
+        if metrics.quote_precision is not None and not (isinstance(metrics.quote_precision, float) and math.isnan(metrics.quote_precision)):
+            scores.append(metrics.quote_precision)
+        # Check for NaN - should not happen here due to local calculation, but be defensive
+        if metrics.quote_recall is not None and not (isinstance(metrics.quote_recall, float) and math.isnan(metrics.quote_recall)):
+            scores.append(metrics.quote_recall)
+        # Check for NaN - safe_extract_metric should have filtered these out, but be defensive
+        if metrics.quote_faithfulness is not None and not (isinstance(metrics.quote_faithfulness, float) and math.isnan(metrics.quote_faithfulness)):
+            scores.append(metrics.quote_faithfulness)
+        # Check for NaN - safe_extract_metric should have filtered these out, but be defensive
+        if metrics.explanation_faithfulness is not None and not (isinstance(metrics.explanation_faithfulness, float) and math.isnan(metrics.explanation_faithfulness)):
+            scores.append(metrics.explanation_faithfulness)
+        # Check for NaN - safe_extract_metric should have filtered these out, but be defensive
+        if metrics.answer_correctness is not None and not (isinstance(metrics.answer_correctness, float) and math.isnan(metrics.answer_correctness)):
+            scores.append(metrics.answer_correctness)
 
         if not scores:
             return 0.0

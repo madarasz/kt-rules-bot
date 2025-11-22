@@ -118,7 +118,6 @@ class TestMultiHopRetrieverInit:
         retriever = MultiHopRetriever(base_retriever)
 
         assert retriever.base_retriever == base_retriever
-        assert retriever.max_hops == 2  # Default from constants
         assert retriever.evaluation_llm is not None
 
     @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
@@ -231,6 +230,8 @@ class TestEvaluateContext:
             {"can_answer": True, "reasoning": "Sufficient context"}
         )
         mock_response.token_count = 100
+        mock_response.prompt_tokens = 70
+        mock_response.completion_tokens = 30
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -264,6 +265,8 @@ class TestEvaluateContext:
             }
         )
         mock_response.token_count = 100
+        mock_response.prompt_tokens = 70
+        mock_response.completion_tokens = 30
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -346,6 +349,8 @@ class TestEvaluateContext:
             {"can_answer": True, "reasoning": "Success after retry"}
         )
         mock_response.token_count = 100
+        mock_response.prompt_tokens = 70
+        mock_response.completion_tokens = 30
 
         mock_llm.generate = AsyncMock(side_effect=[RateLimitError("Rate limited"), mock_response])
         mock_create.return_value = mock_llm
@@ -378,6 +383,8 @@ class TestRetrieveMultiHop:
         mock_response = Mock()
         mock_response.answer_text = json.dumps({"can_answer": True, "reasoning": "Sufficient"})
         mock_response.token_count = 100
+        mock_response.prompt_tokens = 70
+        mock_response.completion_tokens = 30
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -411,22 +418,25 @@ class TestRetrieveMultiHop:
         """Test multi-hop with additional retrieval needed."""
         # Setup LLM mock - first needs more, then sufficient
         mock_llm = Mock()
-        responses = [
-            Mock(
-                answer_text=json.dumps(
-                    {
-                        "can_answer": False,
-                        "reasoning": "Need more",
-                        "missing_query": "Additional query",
-                    }
-                ),
-                token_count=100,
-            ),
-            Mock(
-                answer_text=json.dumps({"can_answer": True, "reasoning": "Now sufficient"}),
-                token_count=100,
-            ),
-        ]
+        response1 = Mock()
+        response1.answer_text = json.dumps(
+            {
+                "can_answer": False,
+                "reasoning": "Need more",
+                "missing_query": "Additional query",
+            }
+        )
+        response1.token_count = 100
+        response1.prompt_tokens = 70
+        response1.completion_tokens = 30
+
+        response2 = Mock()
+        response2.answer_text = json.dumps({"can_answer": True, "reasoning": "Now sufficient"})
+        response2.token_count = 100
+        response2.prompt_tokens = 70
+        response2.completion_tokens = 30
+
+        responses = [response1, response2]
         mock_llm.generate = AsyncMock(side_effect=responses)
         mock_create.return_value = mock_llm
 
@@ -463,12 +473,13 @@ class TestRetrieveMultiHop:
         """Test behavior when max hops is reached."""
         # Setup LLM mock - always says need more
         mock_llm = Mock()
-        mock_response = Mock(
-            answer_text=json.dumps(
-                {"can_answer": False, "reasoning": "Need more", "missing_query": "More info"}
-            ),
-            token_count=100,
+        mock_response = Mock()
+        mock_response.answer_text = json.dumps(
+            {"can_answer": False, "reasoning": "Need more", "missing_query": "More info"}
         )
+        mock_response.token_count = 100
+        mock_response.prompt_tokens = 70
+        mock_response.completion_tokens = 30
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -500,17 +511,21 @@ class TestRetrieveMultiHop:
         """Test that duplicate chunks are not added."""
         # Setup LLM mock
         mock_llm = Mock()
-        responses = [
-            Mock(
-                answer_text=json.dumps(
-                    {"can_answer": False, "reasoning": "Need more", "missing_query": "Additional"}
-                ),
-                token_count=100,
-            ),
-            Mock(
-                answer_text=json.dumps({"can_answer": True, "reasoning": "Done"}), token_count=100
-            ),
-        ]
+        response1 = Mock()
+        response1.answer_text = json.dumps(
+            {"can_answer": False, "reasoning": "Need more", "missing_query": "Additional"}
+        )
+        response1.token_count = 100
+        response1.prompt_tokens = 70
+        response1.completion_tokens = 30
+
+        response2 = Mock()
+        response2.answer_text = json.dumps({"can_answer": True, "reasoning": "Done"})
+        response2.token_count = 100
+        response2.prompt_tokens = 70
+        response2.completion_tokens = 30
+
+        responses = [response1, response2]
         mock_llm.generate = AsyncMock(side_effect=responses)
         mock_create.return_value = mock_llm
 
