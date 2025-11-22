@@ -26,6 +26,10 @@ from src.services.llm.base import (
     load_system_prompt,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
+from src.services.llm.gemini_quote_extractor import (
+    number_sentences_in_chunk,
+    post_process_gemini_response,
+)
 
 logger = get_logger(__name__)
 
@@ -55,14 +59,19 @@ STRUCTURED_OUTPUT_SCHEMA_GEMINI = {
                     },
                     "quote_text": {
                         "type": "string",
-                        "description": "Relevant excerpt from the rule",
+                        "description": "MUST BE EMPTY to avoid RECITATION errors. Use sentence_numbers instead.",
+                    },
+                    "sentence_numbers": {
+                        "type": "array",
+                        "description": "1-indexed sentence numbers containing relevant rule text (e.g., [2] or [2, 3])",
+                        "items": {"type": "integer"},
                     },
                     "chunk_id": {
                         "type": "string",
-                        "description": "Chunk ID from context (last 8 chars of UUID, e.g., 'a1b2c3d4'). Optional for backward compatibility.",
+                        "description": "Chunk ID from context (last 8 chars of UUID, e.g., 'a1b2c3d4')",
                     },
                 },
-                "required": ["quote_title", "quote_text", "chunk_id"],
+                "required": ["quote_title", "quote_text", "sentence_numbers", "chunk_id"],
             },
         },
         "explanation": {
@@ -140,11 +149,32 @@ class GeminiAdapter(LLMProvider):
         """
         start_time = time.time()
 
-        # Use Gemini-specific prompt (leaves quote_text empty to avoid RECITATION errors)
+        # Use Gemini-specific prompt (uses sentence numbers to avoid RECITATION errors)
         gemini_system_prompt = load_system_prompt(LLM_SYSTEM_PROMPT_FILE_PATH_GEMINI)
 
-        # Build prompt with system message and context
-        full_prompt = f"{gemini_system_prompt}\n\n{self._build_prompt(request.prompt, request.context, request.chunk_ids)}"
+        # PRE-PROCESSING: Number sentences in chunks to enable quote extraction
+        numbered_chunks = []
+        chunk_id_to_sentences = {}  # Store sentence lists for post-processing
+
+        for i, chunk in enumerate(request.context):
+            # Get chunk ID (last 8 chars of UUID, or index-based fallback)
+            if request.chunk_ids and i < len(request.chunk_ids):
+                chunk_id = request.chunk_ids[i][-8:]
+            else:
+                chunk_id = f"chunk_{i}"
+
+            # Number sentences in this chunk
+            numbered_chunk, sentences = number_sentences_in_chunk(chunk)
+            numbered_chunks.append(numbered_chunk)
+            chunk_id_to_sentences[chunk_id] = sentences
+
+            logger.debug(
+                f"Numbered chunk {chunk_id}: {len(sentences)} sentences",
+                extra={"chunk_id": chunk_id, "sentence_count": len(sentences)},
+            )
+
+        # Build prompt with NUMBERED chunks (instead of original chunks)
+        full_prompt = f"{gemini_system_prompt}\n\n{self._build_prompt(request.prompt, numbered_chunks, request.chunk_ids)}"
 
         try:
             # Select schema based on configuration
@@ -240,7 +270,7 @@ class GeminiAdapter(LLMProvider):
 
             # Validate JSON is parseable (Gemini can sometimes return invalid JSON)
             try:
-                json.loads(answer_text)
+                response_json = json.loads(answer_text)
                 logger.debug(f"Extracted structured JSON from Gemini: {len(answer_text)} chars")
             except json.JSONDecodeError as e:
                 logger.error(f"Gemini returned invalid JSON: {e}")
@@ -252,6 +282,21 @@ class GeminiAdapter(LLMProvider):
             # Validate it's not empty
             if not answer_text or not answer_text.strip():
                 raise Exception("Gemini returned empty JSON")
+
+            # POST-PROCESSING: Extract verbatim quotes using sentence numbers
+            # Only for default schema (not hop_evaluation)
+            if schema_type == "default":
+                response_json = post_process_gemini_response(
+                    response_json,
+                    request.context,  # Original unnumbered chunks
+                    request.chunk_ids,
+                    chunk_id_to_sentences,
+                )
+                # Re-serialize to JSON string
+                answer_text = json.dumps(response_json)
+                logger.debug(
+                    f"Post-processed quotes: {len(response_json.get('quotes', []))} quotes extracted"
+                )
 
             # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations
