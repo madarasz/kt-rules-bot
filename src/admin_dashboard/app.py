@@ -8,7 +8,15 @@ import streamlit as st
 from src.lib.database import AnalyticsDatabase
 
 from . import auth
-from .pages import analytics, query_browser, query_detail, rag_tests, settings
+from .pages import (
+    analytics,
+    export_tests,
+    query_browser,
+    query_detail,
+    rag_test_detail,
+    rag_test_results,
+    settings,
+)
 from .utils.constants import PAGE_NAMES
 from .utils.session import get_current_page, initialize_session_state, navigate_to_page
 
@@ -54,7 +62,9 @@ def render_sidebar() -> None:
         PAGE_NAMES["QUERY_BROWSER"],
         PAGE_NAMES["QUERY_DETAIL"],
         PAGE_NAMES["ANALYTICS"],
-        PAGE_NAMES["RAG_TESTS"],
+        PAGE_NAMES["RAG_TEST_RESULTS"],
+        PAGE_NAMES["RAG_TEST_DETAIL"],
+        PAGE_NAMES["EXPORT_TESTS"],
         PAGE_NAMES["SETTINGS"],
     ]
 
@@ -81,8 +91,12 @@ def route_to_page(page: str, db: AnalyticsDatabase) -> None:
         query_detail.render(db)
     elif page == PAGE_NAMES["ANALYTICS"]:
         analytics.render(db)
-    elif page == PAGE_NAMES["RAG_TESTS"]:
-        rag_tests.render(db)
+    elif page == PAGE_NAMES["RAG_TEST_RESULTS"]:
+        rag_test_results.render(db)
+    elif page == PAGE_NAMES["RAG_TEST_DETAIL"]:
+        rag_test_detail.render(db)
+    elif page == PAGE_NAMES["EXPORT_TESTS"]:
+        export_tests.render(db)
     elif page == PAGE_NAMES["SETTINGS"]:
         settings.render(db)
 
