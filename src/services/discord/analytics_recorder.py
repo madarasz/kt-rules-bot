@@ -5,7 +5,7 @@ from uuid import UUID
 
 import discord
 
-from src.lib.constants import RAG_MAX_HOPS, RAG_HOP_EVALUATION_MODEL
+from src.lib.constants import RAG_HOP_EVALUATION_MODEL, RAG_MAX_HOPS
 from src.lib.database import AnalyticsDatabase
 from src.lib.logging import get_logger
 from src.models.rag_context import RAGContext

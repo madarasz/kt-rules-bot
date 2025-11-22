@@ -464,11 +464,28 @@ class MultiHopRetriever:
         formatted_chunks = []
         for i, chunk in enumerate(chunks, 1):
             header = chunk.header or "Unknown Section"
-            text = (
-                chunk.text[:MAX_CHUNK_LENGTH_FOR_EVALUATION] + "..."
-                if len(chunk.text) > MAX_CHUNK_LENGTH_FOR_EVALUATION
-                else chunk.text
-            )
+
+            # Check if truncation is needed
+            if len(chunk.text) > MAX_CHUNK_LENGTH_FOR_EVALUATION:
+                truncated_text = chunk.text[:MAX_CHUNK_LENGTH_FOR_EVALUATION]
+                remaining_text = chunk.text[MAX_CHUNK_LENGTH_FOR_EVALUATION:]
+
+                # Extract header lines (### or ####) from the truncated portion
+                # This preserves section structure info even when content is cut off
+                missing_headers = []
+                for line in remaining_text.split('\n'):
+                    stripped = line.strip()
+                    if stripped.startswith('####') or stripped.startswith('###'):
+                        missing_headers.append(stripped)
+
+                # Build final text with truncation marker and missing headers
+                if missing_headers:
+                    text = truncated_text + "...\n" + "\n".join(missing_headers)
+                else:
+                    text = truncated_text + "..."
+            else:
+                text = chunk.text
+
             formatted_chunks.append(f"{i}. **{header}**\n{text}\n")
 
         return "\n".join(formatted_chunks)

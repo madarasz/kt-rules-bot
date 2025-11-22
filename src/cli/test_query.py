@@ -216,7 +216,7 @@ async def _perform_llm_generation(services: TestQueryServices, query: str, rag_c
 
 
 def _print_rag_results(
-    rag_context, hop_evaluations, chunk_hop_map, rag_time, max_hops: int
+    rag_context, hop_evaluations, chunk_hop_map, rag_time
 ) -> None:
     """Print RAG retrieval results.
 
@@ -225,7 +225,6 @@ def _print_rag_results(
         hop_evaluations: List of hop evaluations
         chunk_hop_map: Chunk ID to hop number mapping
         rag_time: Time taken for RAG retrieval
-        max_hops: Maximum hops configured
     """
     print(f"Retrieved {rag_context.total_chunks} chunks in {rag_time:.2f}s")
     print(f"Average relevance: {rag_context.avg_relevance:.2f}")
@@ -391,7 +390,7 @@ def test_query(
         )
         initial_retrieval_time = rag_time - hop_total_time
 
-        _print_rag_results(rag_context, hop_evaluations, chunk_hop_map, rag_time, current_max_hops)
+        _print_rag_results(rag_context, hop_evaluations, chunk_hop_map, rag_time)
 
     except Exception as e:
         logger.error(f"RAG retrieval failed: {e}", exc_info=True)
