@@ -10,6 +10,7 @@ import time
 from uuid import uuid4
 
 from google import genai
+from google.genai import types
 
 from src.lib.constants import LLM_SYSTEM_PROMPT_FILE_PATH_GEMINI
 from src.lib.logging import get_logger
@@ -50,7 +51,10 @@ class GeminiAdapter(LLMProvider):
         if genai is None:
             raise ImportError("google-genai package not installed. Run: pip install google-genai")
 
-        self.client = genai.Client(api_key=api_key)
+        self.client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(api_version='v1')
+        )
         self.model = model
 
         # Gemini 2.5+ models with thinking capabilities use reasoning tokens
@@ -219,7 +223,7 @@ class GeminiAdapter(LLMProvider):
                 pydantic_response = pydantic_model.model_validate_json(answer_text)
                 logger.debug(f"Validated structured JSON with Pydantic: {len(answer_text)} chars")
             except Exception as e:
-                logger.error(f"Gemini returned invalid JSON or schema mismatch: {e}")
+                logger.exception("Gemini returned invalid JSON or schema mismatch")
                 raise ValueError(
                     f"Gemini returned invalid JSON or schema validation failed. "
                     f"Response may be malformed. Error: {e}"

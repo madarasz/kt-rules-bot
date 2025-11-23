@@ -151,15 +151,15 @@ def extract_verbatim_quote(
 
 def post_process_gemini_response(
     response_json: dict[str, Any],
-    original_chunks: list[str],
-    chunk_ids: list[str] | None,
+    _original_chunks: list[str],
+    _chunk_ids: list[str] | None,
     chunk_id_to_sentences: dict[str, list[str]],
 ) -> dict[str, Any]:
     """Replace empty quote_text fields with verbatim quotes using sentence_numbers.
 
     Args:
         response_json: Gemini's JSON response with sentence_numbers
-        original_chunks: Original unnumbered chunks
+        _original_chunks: Original unnumbered chunks (unused, kept for interface compatibility)
         chunk_ids: Optional list of chunk IDs (UUIDs)
         chunk_id_to_sentences: Mapping of chunk_id (last 8 chars) -> sentence list
 
