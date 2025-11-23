@@ -13,8 +13,6 @@ from openai import AsyncOpenAI
 
 from src.lib.logging import get_logger
 from src.services.llm.base import (
-    HOP_EVALUATION_SCHEMA,
-    STRUCTURED_OUTPUT_SCHEMA,
     AuthenticationError,
     ContentFilterError,
     ExtractionRequest,
@@ -27,6 +25,7 @@ from src.services.llm.base import (
     TokenLimitError,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
+from src.services.llm.schemas import Answer, HopEvaluation
 
 logger = get_logger(__name__)
 
@@ -79,45 +78,25 @@ class ChatGPTAdapter(LLMProvider):
         full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
 
         try:
-            # Build API call parameters
+            # Select Pydantic model based on configuration
+            schema_type = request.config.structured_output_schema
+
+            if schema_type == "hop_evaluation":
+                pydantic_model = HopEvaluation
+                logger.debug("Using hop evaluation schema (Pydantic)")
+            else:  # "default"
+                pydantic_model = Answer
+                logger.debug("Using default answer schema (Pydantic)")
+
+            # Build API call parameters for parse method
             api_params = {
                 "model": self.model,
                 "messages": [
                     {"role": "system", "content": request.config.system_prompt},
                     {"role": "user", "content": full_prompt},
                 ],
+                "response_format": pydantic_model,
             }
-
-            # Select schema based on configuration
-            schema_type = request.config.structured_output_schema
-
-            if schema_type == "hop_evaluation":
-                schema = HOP_EVALUATION_SCHEMA
-                function_name = "evaluate_context_sufficiency"
-                function_description = (
-                    "Evaluate if retrieved context is sufficient to answer the question"
-                )
-                logger.debug("Using hop evaluation schema")
-            else:  # "default"
-                schema = STRUCTURED_OUTPUT_SCHEMA
-                function_name = "format_kill_team_answer"
-                function_description = "Format Kill Team rules answer with quotes and explanation"
-                logger.debug("Using default answer schema")
-
-            # Use structured output with appropriate schema
-            api_params["tools"] = [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": function_name,
-                        "description": function_description,
-                        "parameters": schema,
-                        "strict": True,  # Enforces 100% schema compliance
-                    },
-                }
-            ]
-            api_params["tool_choice"] = {"type": "function", "function": {"name": function_name}}
-            api_params["parallel_tool_calls"] = False  # Required for strict mode
 
             # GPT-5 uses max_completion_tokens (includes both reasoning and visible output tokens)
             # Other models use max_tokens
@@ -137,32 +116,30 @@ class ChatGPTAdapter(LLMProvider):
             if self.supports_temperature:
                 api_params["temperature"] = request.config.temperature
 
-            # Note: Logprobs not available with tool use (structured output)
-            # Skipping logprobs since we always use structured output
-
-            # Call OpenAI API with timeout
+            # Call OpenAI API with timeout using parse method for Pydantic structured outputs
             response = await asyncio.wait_for(
-                self.client.chat.completions.create(**api_params),
+                self.client.beta.chat.completions.parse(**api_params),
                 timeout=request.config.timeout_seconds,
             )
 
             latency_ms = int((time.time() - start_time) * 1000)
 
-            # Extract answer text from structured output
+            # Extract answer text from parsed Pydantic output
             choice = response.choices[0]
 
-            if not choice.message.tool_calls:
-                raise Exception("Expected structured output via tool calls but none returned")
+            # Access the parsed Pydantic model
+            parsed_output = choice.message.parsed
+            if not parsed_output:
+                raise Exception("Expected parsed Pydantic output but none returned")
 
-            tool_call = choice.message.tool_calls[0]
-            answer_text = tool_call.function.arguments  # JSON string
+            answer_text = parsed_output.model_dump_json()
             logger.debug(
-                f"Extracted structured JSON output ({schema_type}): {len(answer_text)} chars"
+                f"Extracted structured JSON output (Pydantic): {len(answer_text)} chars"
             )
 
             # Validate it's not empty
             if not answer_text or not answer_text.strip():
-                raise Exception("GPT returned empty JSON in tool call")
+                raise Exception("GPT returned empty JSON in parsed output")
 
             # Check if citations are included (only for default schema)
             citations_included = (

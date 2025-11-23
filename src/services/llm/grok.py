@@ -9,11 +9,10 @@ import time
 from uuid import uuid4
 
 import httpx
+import pydantic
 
 from src.lib.logging import get_logger
 from src.services.llm.base import (
-    HOP_EVALUATION_SCHEMA,
-    STRUCTURED_OUTPUT_SCHEMA,
     AuthenticationError,
     ContentFilterError,
     ExtractionRequest,
@@ -26,6 +25,7 @@ from src.services.llm.base import (
     TokenLimitError,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
+from src.services.llm.schemas import Answer, HopEvaluation
 
 logger = get_logger(__name__)
 
@@ -71,23 +71,18 @@ class GrokAdapter(LLMProvider):
         full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
 
         try:
-            # Select schema based on configuration
+            # Select Pydantic model based on configuration
             schema_type = request.config.structured_output_schema
 
             if schema_type == "hop_evaluation":
-                schema = HOP_EVALUATION_SCHEMA
-                function_name = "evaluate_context_sufficiency"
-                function_description = (
-                    "Evaluate if retrieved context is sufficient to answer the question"
-                )
-                logger.debug("Using hop evaluation schema")
+                pydantic_model = HopEvaluation
+                logger.debug("Using hop evaluation schema (Pydantic)")
             else:  # "default"
-                schema = STRUCTURED_OUTPUT_SCHEMA
-                function_name = "format_kill_team_answer"
-                function_description = "Format Kill Team rules answer with quotes and explanation"
-                logger.debug("Using default answer schema")
+                pydantic_model = Answer
+                logger.debug("Using default answer schema (Pydantic)")
 
-            # Build API request payload with structured output (Grok supports OpenAI-compatible function calling)
+            # Build API request payload with structured output using Pydantic JSON schema
+            # Grok supports OpenAI-compatible response_format for structured outputs
             payload = {
                 "model": self.model,
                 "messages": [
@@ -97,17 +92,14 @@ class GrokAdapter(LLMProvider):
                 "max_tokens": request.config.max_tokens,
                 "temperature": request.config.temperature,
                 "stream": False,
-                "tools": [
-                    {
-                        "type": "function",
-                        "function": {
-                            "name": function_name,
-                            "description": function_description,
-                            "parameters": schema,
-                        },
-                    }
-                ],
-                "tool_choice": {"type": "function", "function": {"name": function_name}},
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": pydantic_model.__name__,
+                        "schema": pydantic_model.model_json_schema(),
+                        "strict": True,
+                    },
+                },
             }
 
             # Call Grok API with timeout
@@ -132,46 +124,43 @@ class GrokAdapter(LLMProvider):
             # Parse response
             response_data = response.json()
 
-            # Extract structured JSON from tool calls
+            # Extract structured JSON from response
             if not response_data.get("choices") or len(response_data["choices"]) == 0:
                 raise Exception("Grok returned no choices in response")
 
             choice = response_data["choices"][0]
             message = choice.get("message", {})
 
-            # Check for tool calls (structured output)
-            tool_calls = message.get("tool_calls")
-            if not tool_calls or len(tool_calls) == 0:
-                # Check finish_reason for errors
-                finish_reason = choice.get("finish_reason")
-                logger.warning(f"Grok returned no tool calls. Finish reason: {finish_reason}")
+            # Check finish_reason for errors
+            finish_reason = choice.get("finish_reason")
+            if finish_reason == "content_filter":
+                raise ContentFilterError("Grok content filter blocked response")
+            elif finish_reason == "length":
+                raise TokenLimitError("Grok output was truncated due to max_tokens limit")
 
-                if finish_reason == "content_filter":
-                    raise ContentFilterError("Grok content filter blocked response")
-                elif finish_reason == "length":
-                    raise TokenLimitError("Grok output was truncated due to max_tokens limit")
-                else:
-                    raise Exception(
-                        f"Expected structured output via tool calls but none returned (finish_reason: {finish_reason})"
-                    )
-
-            # Extract JSON from tool call
-            tool_call = tool_calls[0]
-            function_args = tool_call.get("function", {}).get("arguments", "")
-
-            if not function_args:
-                raise Exception("Grok tool call has empty arguments")
-
-            # Parse and validate JSON
-            try:
-                json.loads(function_args)  # Validate JSON is parseable
-                answer_text = function_args  # JSON string
-                logger.debug(
-                    f"Extracted structured JSON from Grok tool call: {len(answer_text)} chars"
+            # Extract JSON content from message
+            content = message.get("content", "")
+            if not content:
+                raise Exception(
+                    f"Grok returned no content (finish_reason: {finish_reason})"
                 )
-            except json.JSONDecodeError as e:
-                logger.error(f"Grok returned invalid JSON in tool call: {e}")
-                raise ValueError(f"Grok returned invalid JSON: {e}") from e
+
+            # Parse and validate JSON with Pydantic
+            try:
+                # Validate with Pydantic model for type safety
+                parsed_output = pydantic_model.model_validate_json(content)
+                answer_text = parsed_output.model_dump_json()
+                logger.debug(
+                    f"Extracted structured JSON from Grok (Pydantic): {len(answer_text)} chars"
+                )
+            except pydantic.ValidationError as e:
+                logger.error(f"Grok returned JSON that failed Pydantic validation: {e}")
+                raise ValueError(
+                    f"Grok returned JSON that failed schema validation: {e}"
+                ) from e
+            except Exception as e:
+                logger.exception("Unexpected error during Grok response parsing")
+                raise ValueError(f"Unexpected error parsing Grok response: {e}") from e
 
             # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations
