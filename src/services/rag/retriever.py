@@ -111,7 +111,7 @@ class RAGRetriever:
         )
 
     def retrieve(
-        self, request: RetrieveRequest, query_id: UUID
+        self, request: RetrieveRequest, query_id: UUID, verbose: bool = False
     ) -> tuple[RAGContext, list[Any], dict[UUID, int]]:
         """Retrieve relevant rule documents for a user query.
 
@@ -120,6 +120,7 @@ class RAGRetriever:
         Args:
             request: Retrieval request parameters
             query_id: Query UUID for tracking
+            verbose: If True, capture filled prompts in HopEvaluation objects
 
         Returns:
             Tuple of:
@@ -143,7 +144,7 @@ class RAGRetriever:
 
         # If multi-hop enabled, continue with additional retrieval hops
         if request.use_multi_hop and self.multi_hop_retriever:
-            return self._perform_multi_hop_retrieval(request, query_id, initial_chunks)
+            return self._perform_multi_hop_retrieval(request, query_id, initial_chunks, verbose)
 
         # Single-hop: create context and return
         context = self._create_rag_context(query_id, initial_chunks, request.min_relevance)
@@ -258,7 +259,7 @@ class RAGRetriever:
         )
 
     def _perform_multi_hop_retrieval(
-        self, request: RetrieveRequest, query_id: UUID, initial_chunks: list[DocumentChunk]
+        self, request: RetrieveRequest, query_id: UUID, initial_chunks: list[DocumentChunk], verbose: bool = False
     ) -> tuple[RAGContext, list[Any], dict[UUID, int]]:
         """Perform multi-hop retrieval starting from initial chunks.
 
@@ -266,6 +267,7 @@ class RAGRetriever:
             request: Retrieval request parameters
             query_id: Query UUID
             initial_chunks: Initial retrieved chunks from Hop 0
+            verbose: If True, capture filled prompts in HopEvaluation objects
 
         Returns:
             Tuple of (RAGContext, hop_evaluations, chunk_hop_map)
@@ -289,6 +291,7 @@ class RAGRetriever:
                             context_key=request.context_key,
                             query_id=query_id,
                             initial_chunks=initial_chunks,
+                            verbose=verbose,
                         )
                     )
                     result_container.append(result)

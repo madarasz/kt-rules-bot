@@ -46,6 +46,7 @@ class HopEvaluation:
         cost_usd: float = 0.0,
         retrieval_time_s: float = 0.0,
         evaluation_time_s: float = 0.0,
+        filled_prompt: str | None = None,
     ):
         self.can_answer = can_answer
         self.reasoning = reasoning
@@ -53,6 +54,7 @@ class HopEvaluation:
         self.cost_usd = cost_usd
         self.retrieval_time_s = retrieval_time_s  # Time for retrieval
         self.evaluation_time_s = evaluation_time_s  # Time for LLM evaluation
+        self.filled_prompt = filled_prompt  # Optional: filled prompt for verbose output
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for database storage."""
@@ -138,6 +140,7 @@ class MultiHopRetriever:
         context_key: str,
         query_id: UUID,
         initial_chunks: list[DocumentChunk] | None = None,
+        verbose: bool = False,
     ) -> tuple[RAGContext, list[HopEvaluation], dict[UUID, int]]:
         """Perform multi-hop retrieval with LLM-guided context evaluation.
 
@@ -146,6 +149,7 @@ class MultiHopRetriever:
             context_key: Context key for tracking
             query_id: Query UUID
             initial_chunks: Optional initial chunks from Hop 0 (if already retrieved)
+            verbose: If True, capture filled prompts in HopEvaluation objects
 
         Returns:
             Tuple of:
@@ -200,7 +204,7 @@ class MultiHopRetriever:
             try:
                 eval_start = time.time()
                 evaluation = await self._evaluate_context(
-                    user_query=query, retrieved_chunks=accumulated_chunks
+                    user_query=query, retrieved_chunks=accumulated_chunks, verbose=verbose
                 )
                 evaluation.evaluation_time_s = time.time() - eval_start
 
@@ -294,13 +298,14 @@ class MultiHopRetriever:
         return final_context, hop_evaluations, chunk_hop_map
 
     async def _evaluate_context(
-        self, user_query: str, retrieved_chunks: list[DocumentChunk]
+        self, user_query: str, retrieved_chunks: list[DocumentChunk], verbose: bool = False
     ) -> HopEvaluation:
         """Evaluate if retrieved context is sufficient to answer query.
 
         Args:
             user_query: Original user question
             retrieved_chunks: Currently accumulated chunks
+            verbose: If True, capture filled prompt in HopEvaluation
 
         Returns:
             HopEvaluation with can_answer flag and optional missing_query
@@ -408,6 +413,7 @@ class MultiHopRetriever:
                     reasoning=data["reasoning"],
                     missing_query=data.get("missing_query"),
                     cost_usd=cost_usd,
+                    filled_prompt=prompt if verbose else None,
                 )
 
             except RateLimitError as e:
