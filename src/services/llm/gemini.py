@@ -138,12 +138,14 @@ class GeminiAdapter(LLMProvider):
             else:
                 max_tokens = request.config.max_tokens
 
-            generation_config = {
-                "max_output_tokens": max_tokens,
-                "temperature": request.config.temperature,
-                "response_mime_type": "application/json",
-                "response_schema": pydantic_model.model_json_schema(),
-            }
+            # Configure generation with JSON mode for structured output
+            # Use types.GenerateContentConfig for proper parameter passing
+            generation_config = types.GenerateContentConfig(
+                max_output_tokens=max_tokens,
+                temperature=request.config.temperature,
+                response_mime_type="application/json",
+                response_schema=pydantic_model.model_json_schema(),
+            )
 
             # Call Gemini API with timeout using new API
             # Note: google-genai doesn't have native async support yet

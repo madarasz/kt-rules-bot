@@ -84,13 +84,19 @@ class DeepSeekAdapter(LLMProvider):
 
             if schema_type == "hop_evaluation":
                 pydantic_model = HopEvaluation
+                function_name = "evaluate_context_sufficiency"
+                function_description = (
+                    "Evaluate if retrieved context is sufficient to answer the question"
+                )
                 logger.debug("Using hop evaluation schema (Pydantic)")
             else:  # "default"
                 pydantic_model = Answer
+                function_name = "format_kill_team_answer"
+                function_description = "Format Kill Team rules answer with quotes and explanation"
                 logger.debug("Using default answer schema (Pydantic)")
 
-            # Build API call parameters with Pydantic structured output
-            # DeepSeek supports OpenAI-compatible parse method
+            # Build API call parameters with function calling (DeepSeek doesn't support parse method yet)
+            # Use Pydantic model for schema generation and validation
             api_params = {
                 "model": self.model,
                 "messages": [
@@ -99,18 +105,28 @@ class DeepSeekAdapter(LLMProvider):
                 ],
                 "max_tokens": token_limit,
                 "temperature": request.config.temperature,
-                "response_format": pydantic_model,
+                "tools": [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": function_name,
+                            "description": function_description,
+                            "parameters": pydantic_model.model_json_schema(),
+                        },
+                    }
+                ],
+                "tool_choice": {"type": "function", "function": {"name": function_name}},
             }
 
-            # Call DeepSeek API with timeout using parse method
+            # Call DeepSeek API with timeout
             response = await asyncio.wait_for(
-                self.client.beta.chat.completions.parse(**api_params),
+                self.client.chat.completions.create(**api_params),
                 timeout=request.config.timeout_seconds,
             )
 
             latency_ms = int((time.time() - start_time) * 1000)
 
-            # Extract structured JSON from parsed Pydantic output
+            # Extract structured JSON from tool calls
             choice = response.choices[0]
 
             # For deepseek-reasoner, also extract reasoning content if available
@@ -122,11 +138,10 @@ class DeepSeekAdapter(LLMProvider):
                         f"DeepSeek reasoning chain-of-thought: {reasoning_content[:200]}..."
                     )
 
-            # Check for parsed output
-            parsed_output = choice.message.parsed
-            if not parsed_output:
+            # Check for tool calls (structured output)
+            if not choice.message.tool_calls:
                 logger.warning(
-                    f"DeepSeek returned no parsed output. Finish reason: {choice.finish_reason}"
+                    f"DeepSeek returned no tool calls. Finish reason: {choice.finish_reason}"
                 )
                 # Check if there's a refusal
                 refusal = getattr(choice.message, "refusal", None)
@@ -136,14 +151,26 @@ class DeepSeekAdapter(LLMProvider):
                     raise TokenLimitError("DeepSeek output was truncated due to max_tokens limit")
                 else:
                     raise Exception(
-                        f"Expected parsed Pydantic output but none returned (finish_reason: {choice.finish_reason})"
+                        f"Expected tool calls but none returned (finish_reason: {choice.finish_reason})"
                     )
 
-            # Extract JSON from Pydantic model
-            answer_text = parsed_output.model_dump_json()
-            logger.debug(
-                f"Extracted structured JSON from DeepSeek (Pydantic): {len(answer_text)} chars"
-            )
+            # Extract JSON from tool call
+            tool_call = choice.message.tool_calls[0]
+            function_args = tool_call.function.arguments
+
+            if not function_args:
+                raise Exception("DeepSeek tool call has empty arguments")
+
+            # Validate with Pydantic for type safety
+            try:
+                parsed_output = pydantic_model.model_validate_json(function_args)
+                answer_text = parsed_output.model_dump_json()
+                logger.debug(
+                    f"Extracted structured JSON from DeepSeek (Pydantic): {len(answer_text)} chars"
+                )
+            except Exception as e:
+                logger.error(f"DeepSeek returned JSON that failed Pydantic validation: {e}")
+                raise ValueError(f"DeepSeek JSON validation error: {e}") from e
 
             # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations
