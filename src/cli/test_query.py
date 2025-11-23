@@ -122,7 +122,7 @@ def _initialize_services(model: str | None, rag_only: bool) -> TestQueryServices
 
 
 def _perform_rag_retrieval(
-    services: TestQueryServices, query: str, max_chunks: int, max_hops: int
+    services: TestQueryServices, query: str, max_chunks: int, max_hops: int, verbose: bool = False
 ) -> tuple:
     """Perform RAG retrieval and calculate costs.
 
@@ -131,6 +131,7 @@ def _perform_rag_retrieval(
         query: User query
         max_chunks: Maximum chunks to retrieve
         max_hops: Maximum hops for multi-hop retrieval
+        verbose: If True, capture detailed hop evaluation prompts
 
     Returns:
         Tuple of (rag_context, hop_evaluations, chunk_hop_map, rag_time, cost_breakdown)
@@ -146,6 +147,7 @@ def _perform_rag_retrieval(
             use_multi_hop=(max_hops > 0),
         ),
         query_id=query_id,
+        verbose=verbose,
     )
 
     rag_time = (datetime.now(UTC) - start_time).total_seconds()
@@ -216,7 +218,7 @@ async def _perform_llm_generation(services: TestQueryServices, query: str, rag_c
 
 
 def _print_rag_results(
-    rag_context, hop_evaluations, chunk_hop_map, rag_time
+    rag_context, hop_evaluations, chunk_hop_map, rag_time, verbose: bool = False
 ) -> None:
     """Print RAG retrieval results.
 
@@ -225,6 +227,7 @@ def _print_rag_results(
         hop_evaluations: List of hop evaluations
         chunk_hop_map: Chunk ID to hop number mapping
         rag_time: Time taken for RAG retrieval
+        verbose: If True, display chunks and hop evaluation prompts
     """
     print(f"Retrieved {rag_context.total_chunks} chunks in {rag_time:.2f}s")
     print(f"Average relevance: {rag_context.avg_relevance:.2f}")
@@ -237,8 +240,12 @@ def _print_rag_results(
     if hop_evaluations:
         _print_multi_hop_info(hop_evaluations, chunk_hop_map, rag_context)
 
-    # Display all chunks
-    if rag_context.document_chunks:
+    # Display hop evaluation prompts if verbose
+    if verbose and hop_evaluations:
+        _print_hop_evaluation_prompts(hop_evaluations)
+
+    # Display all chunks only if verbose
+    if verbose and rag_context.document_chunks:
         _print_chunks(rag_context.document_chunks, chunk_hop_map, hop_evaluations)
 
 
@@ -279,6 +286,25 @@ def _print_multi_hop_info(hop_evaluations, chunk_hop_map, rag_context) -> None:
         for chunk in chunks:
             print(f"  - {chunk.header} (score: {chunk.relevance_score:.3f})")
     print()
+
+
+def _print_hop_evaluation_prompts(hop_evaluations) -> None:
+    """Print hop evaluation prompts with filled placeholders.
+
+    Args:
+        hop_evaluations: List of hop evaluations with filled_prompt field
+    """
+    print(f"\n{'=' * 60}")
+    print("HOP EVALUATION PROMPTS")
+    print(f"{'=' * 60}")
+
+    for i, hop_eval in enumerate(hop_evaluations, 1):
+        print(f"\n--- Hop {i} Evaluation Prompt ---")
+        if hop_eval.filled_prompt:
+            print(hop_eval.filled_prompt)
+        else:
+            print("(Prompt not captured - verbose mode may not be enabled)")
+        print(f"\n{'-' * 60}")
 
 
 def _print_chunks(chunks, chunk_hop_map, hop_evaluations) -> None:
@@ -338,6 +364,7 @@ def test_query(
     max_chunks: int = RAG_MAX_CHUNKS,
     rag_only: bool = False,
     max_hops: int = None,  # type: ignore[assignment]
+    verbose: bool = False,
 ) -> None:
     """Test RAG + LLM pipeline locally.
 
@@ -347,6 +374,7 @@ def test_query(
         max_chunks: Maximum chunks to retrieve
         rag_only: If True, stop after RAG retrieval (no LLM call)
         max_hops: Override RAG_MAX_HOPS constant (None = use constant)
+        verbose: If True, show detailed output including chunks and hop evaluation prompts
     """
     # Override RAG_MAX_HOPS if specified
     current_max_hops = max_hops if max_hops is not None else RAG_MAX_HOPS
@@ -379,7 +407,7 @@ def test_query(
 
     try:
         rag_context, hop_evaluations, chunk_hop_map, rag_time, cost_breakdown = (
-            _perform_rag_retrieval(services, query, max_chunks, current_max_hops)
+            _perform_rag_retrieval(services, query, max_chunks, current_max_hops, verbose)
         )
 
         # Calculate initial retrieval time (total minus hop times)
@@ -390,7 +418,7 @@ def test_query(
         )
         initial_retrieval_time = rag_time - hop_total_time
 
-        _print_rag_results(rag_context, hop_evaluations, chunk_hop_map, rag_time)
+        _print_rag_results(rag_context, hop_evaluations, chunk_hop_map, rag_time, verbose)
 
     except Exception as e:
         logger.error(f"RAG retrieval failed: {e}", exc_info=True)
