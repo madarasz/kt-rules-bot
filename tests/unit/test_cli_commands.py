@@ -243,6 +243,7 @@ def test_main_routes_query_command():
                 max_chunks=5,
                 rag_only=False,
                 max_hops=None,
+                verbose=False,
             )
 
 

@@ -87,6 +87,9 @@ def create_parser() -> argparse.ArgumentParser:
         default=None,
         help="Override RAG_MAX_HOPS constant (0=disable multi-hop, 1+=enable)",
     )
+    query_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Show detailed output (chunks and hop evaluation prompts)"
+    )
 
     # Command: health
     health_parser = subparsers.add_parser(
@@ -288,6 +291,7 @@ def main() -> None:
                 max_chunks=args.max_chunks,
                 rag_only=args.rag_only,
                 max_hops=args.max_hops,
+                verbose=args.verbose,
             )
 
         elif args.command == "health":
