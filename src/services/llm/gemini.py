@@ -52,6 +52,11 @@ class GeminiAdapter(LLMProvider):
 
         self.client = genai.Client(api_key=api_key)
         self.model = model
+
+        # Gemini 2.5+ models with thinking capabilities use reasoning tokens
+        reasoning_models = ["gemini-2.5-pro", "gemini-3-pro-preview"]
+        self.uses_completion_tokens = model in reasoning_models
+
         logger.info(f"Initialized Gemini adapter with model {model}")
 
     async def generate(self, request: GenerationRequest) -> LLMResponse:
@@ -117,8 +122,20 @@ class GeminiAdapter(LLMProvider):
 
             # Configure generation with JSON mode for structured output
             # Use Pydantic model's JSON schema (Google's recommended approach as of Nov 2024)
+
+            # Gemini 2.5+ uses reasoning tokens (similar to GPT-5/o-series)
+            # Multiply by 3 to give enough room for both reasoning and visible output
+            if self.uses_completion_tokens:
+                max_tokens = request.config.max_tokens * 3
+                logger.info(
+                    f"Gemini 2.5+: Using max_output_tokens={max_tokens} "
+                    f"(3x {request.config.max_tokens} to account for reasoning tokens)"
+                )
+            else:
+                max_tokens = request.config.max_tokens
+
             generation_config = {
-                "max_output_tokens": request.config.max_tokens,
+                "max_output_tokens": max_tokens,
                 "temperature": request.config.temperature,
                 "response_mime_type": "application/json",
                 "response_schema": pydantic_model.model_json_schema(),
