@@ -9,6 +9,7 @@ import time
 from uuid import uuid4
 
 import httpx
+import pydantic
 
 from src.lib.logging import get_logger
 from src.services.llm.base import (
@@ -152,14 +153,14 @@ class GrokAdapter(LLMProvider):
                 logger.debug(
                     f"Extracted structured JSON from Grok (Pydantic): {len(answer_text)} chars"
                 )
-            except json.JSONDecodeError as e:
-                logger.error(f"Grok returned invalid JSON: {e}")
-                raise ValueError(f"Grok returned invalid JSON: {e}") from e
-            except Exception as e:
-                logger.exception("Grok returned JSON that failed Pydantic validation")
+            except pydantic.ValidationError as e:
+                logger.error(f"Grok returned JSON that failed Pydantic validation: {e}")
                 raise ValueError(
-                    f"Grok returned JSON that failed schema validation. Error: {e}"
+                    f"Grok returned JSON that failed schema validation: {e}"
                 ) from e
+            except Exception as e:
+                logger.exception("Unexpected error during Grok response parsing")
+                raise ValueError(f"Unexpected error parsing Grok response: {e}") from e
 
             # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations

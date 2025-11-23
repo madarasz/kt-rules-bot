@@ -7,6 +7,7 @@ Based on specs/001-we-are-building/tasks.md T047
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
+import anthropic
 import pytest
 
 from src.models.rag_context import DocumentChunk, RAGContext
@@ -44,8 +45,15 @@ class TestClaudeAdapter:
     async def test_generate_rate_limit(self, claude_adapter):
         """Test rate limit error handling."""
         # Mock rate limit error (new Pydantic approach uses beta.messages.parse)
+        # Create mock response for Anthropic exception
+        mock_response = Mock()
+        mock_response.status_code = 429
+        mock_body = {"error": {"message": "rate_limit exceeded", "type": "rate_limit_error"}}
+
         claude_adapter.client.beta.messages.parse = AsyncMock(
-            side_effect=Exception("rate_limit exceeded")
+            side_effect=anthropic.RateLimitError(
+                "rate_limit exceeded", response=mock_response, body=mock_body
+            )
         )
 
         request = GenerationRequest(prompt="Test", context=["Context"], config=GenerationConfig())
@@ -57,8 +65,15 @@ class TestClaudeAdapter:
     async def test_generate_auth_error(self, claude_adapter):
         """Test authentication error handling."""
         # Mock authentication error (new Pydantic approach uses beta.messages.parse)
+        # Create mock response for Anthropic exception
+        mock_response = Mock()
+        mock_response.status_code = 401
+        mock_body = {"error": {"message": "authentication failed 401", "type": "authentication_error"}}
+
         claude_adapter.client.beta.messages.parse = AsyncMock(
-            side_effect=Exception("authentication failed 401")
+            side_effect=anthropic.AuthenticationError(
+                "authentication failed 401", response=mock_response, body=mock_body
+            )
         )
 
         request = GenerationRequest(prompt="Test", context=["Context"], config=GenerationConfig())
