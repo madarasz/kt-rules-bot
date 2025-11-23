@@ -94,6 +94,7 @@ class HopEvaluation(BaseModel):
     reasoning: str = Field(
         description="Brief explanation (1-2 sentences) of what context you have or what's missing"
     )
-    missing_query: str = Field(
-        description="If can_answer=false, a focused retrieval query for missing rules. If can_answer=true, use empty string ''"
+    missing_query: str | None = Field(
+        default=None,
+        description="If can_answer=false, a focused retrieval query for missing rules. If can_answer=true, null or empty string",
     )
