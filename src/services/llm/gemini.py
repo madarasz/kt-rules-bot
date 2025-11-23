@@ -52,8 +52,7 @@ class GeminiAdapter(LLMProvider):
             raise ImportError("google-genai package not installed. Run: pip install google-genai")
 
         self.client = genai.Client(
-            api_key=api_key,
-            http_options=types.HttpOptions(api_version='v1')
+            api_key=api_key
         )
         self.model = model
 
