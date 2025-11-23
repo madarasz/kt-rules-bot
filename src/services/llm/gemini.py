@@ -139,12 +139,12 @@ class GeminiAdapter(LLMProvider):
                 max_tokens = request.config.max_tokens
 
             # Configure generation with JSON mode for structured output
-            # Use types.GenerateContentConfig for proper parameter passing
+            # Use types.GenerateContentConfig with Pydantic model (not .model_json_schema())
             generation_config = types.GenerateContentConfig(
                 max_output_tokens=max_tokens,
                 temperature=request.config.temperature,
                 response_mime_type="application/json",
-                response_schema=pydantic_model.model_json_schema(),
+                response_schema=pydantic_model,  # Pass Pydantic model directly
             )
 
             # Call Gemini API with timeout using new API
