@@ -5,7 +5,6 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
 import asyncio
-import json
 import time
 from uuid import uuid4
 
@@ -13,8 +12,6 @@ from openai import AsyncOpenAI
 
 from src.lib.logging import get_logger
 from src.services.llm.base import (
-    HOP_EVALUATION_SCHEMA,
-    STRUCTURED_OUTPUT_SCHEMA,
     AuthenticationError,
     ContentFilterError,
     ExtractionRequest,
@@ -26,6 +23,7 @@ from src.services.llm.base import (
     TokenLimitError,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
+from src.services.llm.schemas import Answer, HopEvaluation
 
 logger = get_logger(__name__)
 
@@ -81,23 +79,24 @@ class DeepSeekAdapter(LLMProvider):
         )
 
         try:
-            # Select schema based on configuration
+            # Select Pydantic model based on configuration
             schema_type = request.config.structured_output_schema
 
             if schema_type == "hop_evaluation":
-                schema = HOP_EVALUATION_SCHEMA
+                pydantic_model = HopEvaluation
                 function_name = "evaluate_context_sufficiency"
                 function_description = (
                     "Evaluate if retrieved context is sufficient to answer the question"
                 )
-                logger.debug("Using hop evaluation schema")
+                logger.debug("Using hop evaluation schema (Pydantic)")
             else:  # "default"
-                schema = STRUCTURED_OUTPUT_SCHEMA
+                pydantic_model = Answer
                 function_name = "format_kill_team_answer"
                 function_description = "Format Kill Team rules answer with quotes and explanation"
-                logger.debug("Using default answer schema")
+                logger.debug("Using default answer schema (Pydantic)")
 
-            # Build API call parameters with structured output (DeepSeek supports OpenAI-compatible function calling)
+            # Build API call parameters with function calling (DeepSeek doesn't support parse method yet)
+            # Use Pydantic model for schema generation and validation
             api_params = {
                 "model": self.model,
                 "messages": [
@@ -112,7 +111,7 @@ class DeepSeekAdapter(LLMProvider):
                         "function": {
                             "name": function_name,
                             "description": function_description,
-                            "parameters": schema,
+                            "parameters": pydantic_model.model_json_schema(),
                         },
                     }
                 ],
@@ -152,7 +151,7 @@ class DeepSeekAdapter(LLMProvider):
                     raise TokenLimitError("DeepSeek output was truncated due to max_tokens limit")
                 else:
                     raise Exception(
-                        f"Expected structured output via tool calls but none returned (finish_reason: {choice.finish_reason})"
+                        f"Expected tool calls but none returned (finish_reason: {choice.finish_reason})"
                     )
 
             # Extract JSON from tool call
@@ -162,16 +161,16 @@ class DeepSeekAdapter(LLMProvider):
             if not function_args:
                 raise Exception("DeepSeek tool call has empty arguments")
 
-            # Parse and validate JSON
+            # Validate with Pydantic for type safety
             try:
-                json.loads(function_args)  # Validate JSON is parseable
-                answer_text = function_args  # JSON string
+                parsed_output = pydantic_model.model_validate_json(function_args)
+                answer_text = parsed_output.model_dump_json()
                 logger.debug(
-                    f"Extracted structured JSON from DeepSeek tool call: {len(answer_text)} chars"
+                    f"Extracted structured JSON from DeepSeek (Pydantic): {len(answer_text)} chars"
                 )
-            except json.JSONDecodeError as e:
-                logger.error(f"DeepSeek returned invalid JSON in tool call: {e}")
-                raise ValueError(f"DeepSeek returned invalid JSON: {e}") from e
+            except Exception as e:
+                logger.error(f"DeepSeek returned JSON that failed Pydantic validation: {e}")
+                raise ValueError(f"DeepSeek JSON validation error: {e}") from e
 
             # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations

@@ -31,7 +31,7 @@ from src.services.llm.gemini_quote_extractor import (
     number_sentences_in_chunk,
     post_process_gemini_response,
 )
-from src.services.llm.gemini_schemas import GeminiAnswer, HopEvaluation
+from src.services.llm.schemas import GeminiAnswer, HopEvaluation
 
 logger = get_logger(__name__)
 
@@ -52,8 +52,7 @@ class GeminiAdapter(LLMProvider):
             raise ImportError("google-genai package not installed. Run: pip install google-genai")
 
         self.client = genai.Client(
-            api_key=api_key,
-            http_options=types.HttpOptions(api_version='v1')
+            api_key=api_key
         )
         self.model = model
 
@@ -138,12 +137,14 @@ class GeminiAdapter(LLMProvider):
             else:
                 max_tokens = request.config.max_tokens
 
-            generation_config = {
-                "max_output_tokens": max_tokens,
-                "temperature": request.config.temperature,
-                "response_mime_type": "application/json",
-                "response_schema": pydantic_model.model_json_schema(),
-            }
+            # Configure generation with JSON mode for structured output
+            # Use types.GenerateContentConfig with Pydantic model (not .model_json_schema())
+            generation_config = types.GenerateContentConfig(
+                max_output_tokens=max_tokens,
+                temperature=request.config.temperature,
+                response_mime_type="application/json",
+                response_schema=pydantic_model,  # Pass Pydantic model directly
+            )
 
             # Call Gemini API with timeout using new API
             # Note: google-genai doesn't have native async support yet

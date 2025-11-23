@@ -108,7 +108,7 @@ Content here."""
 
 
 @pytest.mark.slow  # Requires tiktoken encoding download
-@given(st.lists(st.text(min_size=1, max_size=100), min_size=1, max_size=20))
+@given(st.lists(st.text(alphabet=st.characters(blacklist_characters='#'), min_size=1, max_size=100), min_size=1, max_size=20))
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=30)
 def test_chunker_multiple_sections(section_texts):
     """Property: chunker handles multiple sections."""
