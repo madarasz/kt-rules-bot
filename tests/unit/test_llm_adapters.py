@@ -43,8 +43,8 @@ class TestClaudeAdapter:
 
     async def test_generate_rate_limit(self, claude_adapter):
         """Test rate limit error handling."""
-        # Mock rate limit error
-        claude_adapter.client.messages.create = AsyncMock(
+        # Mock rate limit error (new Pydantic approach uses beta.messages.parse)
+        claude_adapter.client.beta.messages.parse = AsyncMock(
             side_effect=Exception("rate_limit exceeded")
         )
 
@@ -56,7 +56,8 @@ class TestClaudeAdapter:
 
     async def test_generate_auth_error(self, claude_adapter):
         """Test authentication error handling."""
-        claude_adapter.client.messages.create = AsyncMock(
+        # Mock authentication error (new Pydantic approach uses beta.messages.parse)
+        claude_adapter.client.beta.messages.parse = AsyncMock(
             side_effect=Exception("authentication failed 401")
         )
 
