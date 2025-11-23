@@ -5,7 +5,6 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
 import asyncio
-import json
 import time
 from uuid import uuid4
 
@@ -13,8 +12,6 @@ from openai import AsyncOpenAI
 
 from src.lib.logging import get_logger
 from src.services.llm.base import (
-    HOP_EVALUATION_SCHEMA,
-    STRUCTURED_OUTPUT_SCHEMA,
     AuthenticationError,
     ContentFilterError,
     ExtractionRequest,
@@ -26,6 +23,7 @@ from src.services.llm.base import (
     TokenLimitError,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
+from src.services.llm.schemas import Answer, HopEvaluation
 
 logger = get_logger(__name__)
 
@@ -81,23 +79,18 @@ class DeepSeekAdapter(LLMProvider):
         )
 
         try:
-            # Select schema based on configuration
+            # Select Pydantic model based on configuration
             schema_type = request.config.structured_output_schema
 
             if schema_type == "hop_evaluation":
-                schema = HOP_EVALUATION_SCHEMA
-                function_name = "evaluate_context_sufficiency"
-                function_description = (
-                    "Evaluate if retrieved context is sufficient to answer the question"
-                )
-                logger.debug("Using hop evaluation schema")
+                pydantic_model = HopEvaluation
+                logger.debug("Using hop evaluation schema (Pydantic)")
             else:  # "default"
-                schema = STRUCTURED_OUTPUT_SCHEMA
-                function_name = "format_kill_team_answer"
-                function_description = "Format Kill Team rules answer with quotes and explanation"
-                logger.debug("Using default answer schema")
+                pydantic_model = Answer
+                logger.debug("Using default answer schema (Pydantic)")
 
-            # Build API call parameters with structured output (DeepSeek supports OpenAI-compatible function calling)
+            # Build API call parameters with Pydantic structured output
+            # DeepSeek supports OpenAI-compatible parse method
             api_params = {
                 "model": self.model,
                 "messages": [
@@ -106,28 +99,18 @@ class DeepSeekAdapter(LLMProvider):
                 ],
                 "max_tokens": token_limit,
                 "temperature": request.config.temperature,
-                "tools": [
-                    {
-                        "type": "function",
-                        "function": {
-                            "name": function_name,
-                            "description": function_description,
-                            "parameters": schema,
-                        },
-                    }
-                ],
-                "tool_choice": {"type": "function", "function": {"name": function_name}},
+                "response_format": pydantic_model,
             }
 
-            # Call DeepSeek API with timeout
+            # Call DeepSeek API with timeout using parse method
             response = await asyncio.wait_for(
-                self.client.chat.completions.create(**api_params),
+                self.client.beta.chat.completions.parse(**api_params),
                 timeout=request.config.timeout_seconds,
             )
 
             latency_ms = int((time.time() - start_time) * 1000)
 
-            # Extract structured JSON from tool calls
+            # Extract structured JSON from parsed Pydantic output
             choice = response.choices[0]
 
             # For deepseek-reasoner, also extract reasoning content if available
@@ -139,10 +122,11 @@ class DeepSeekAdapter(LLMProvider):
                         f"DeepSeek reasoning chain-of-thought: {reasoning_content[:200]}..."
                     )
 
-            # Check for tool calls (structured output)
-            if not choice.message.tool_calls:
+            # Check for parsed output
+            parsed_output = choice.message.parsed
+            if not parsed_output:
                 logger.warning(
-                    f"DeepSeek returned no tool calls. Finish reason: {choice.finish_reason}"
+                    f"DeepSeek returned no parsed output. Finish reason: {choice.finish_reason}"
                 )
                 # Check if there's a refusal
                 refusal = getattr(choice.message, "refusal", None)
@@ -152,26 +136,14 @@ class DeepSeekAdapter(LLMProvider):
                     raise TokenLimitError("DeepSeek output was truncated due to max_tokens limit")
                 else:
                     raise Exception(
-                        f"Expected structured output via tool calls but none returned (finish_reason: {choice.finish_reason})"
+                        f"Expected parsed Pydantic output but none returned (finish_reason: {choice.finish_reason})"
                     )
 
-            # Extract JSON from tool call
-            tool_call = choice.message.tool_calls[0]
-            function_args = tool_call.function.arguments
-
-            if not function_args:
-                raise Exception("DeepSeek tool call has empty arguments")
-
-            # Parse and validate JSON
-            try:
-                json.loads(function_args)  # Validate JSON is parseable
-                answer_text = function_args  # JSON string
-                logger.debug(
-                    f"Extracted structured JSON from DeepSeek tool call: {len(answer_text)} chars"
-                )
-            except json.JSONDecodeError as e:
-                logger.error(f"DeepSeek returned invalid JSON in tool call: {e}")
-                raise ValueError(f"DeepSeek returned invalid JSON: {e}") from e
+            # Extract JSON from Pydantic model
+            answer_text = parsed_output.model_dump_json()
+            logger.debug(
+                f"Extracted structured JSON from DeepSeek (Pydantic): {len(answer_text)} chars"
+            )
 
             # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations

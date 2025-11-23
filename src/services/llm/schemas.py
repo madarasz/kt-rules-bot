@@ -1,14 +1,52 @@
-"""Pydantic models for Gemini structured output schemas.
+"""Pydantic models for LLM structured output schemas.
 
-Uses Pydantic BaseModel for type-safe schema definitions, compatible with
-Google's November 2024 structured output enhancements.
+Uses Pydantic BaseModel for type-safe schema definitions, compatible with:
+- Anthropic Claude Structured Outputs (Nov 2025)
+- OpenAI Structured Outputs (2024)
+- Google Gemini JSON mode (Nov 2024)
+- X/Grok Structured Outputs (2024)
 """
 
 from pydantic import BaseModel, Field
 
 
+# Standard models (Claude, OpenAI, Grok)
+class Quote(BaseModel):
+    """Quote from Kill Team rules with verbatim text."""
+
+    quote_title: str = Field(description="Rule name (e.g., 'Core Rules: Actions', 'Silent')")
+    quote_text: str = Field(
+        description="Relevant excerpt from the rule (must be verbatim from context)"
+    )
+    chunk_id: str = Field(
+        description="Chunk ID from context (last 8 chars of UUID, e.g., 'a1b2c3d4')"
+    )
+
+
+class Answer(BaseModel):
+    """Structured answer for Kill Team rules queries."""
+
+    smalltalk: bool = Field(
+        description="True if casual conversation (not rules-related), False if answering a rules question"
+    )
+    short_answer: str = Field(description="Direct, short answer (e.g., 'Yes.', 'No.')")
+    persona_short_answer: str = Field(
+        description="Short condescending phrase after the direct answer (e.g., 'The affirmative is undeniable.')"
+    )
+    quotes: list[Quote] = Field(
+        description="Relevant rule quotations from Kill Team 3rd Edition rules"
+    )
+    explanation: str = Field(
+        description="Brief rules-based explanation using official Kill Team terminology"
+    )
+    persona_afterword: str = Field(
+        description="Dismissive concluding sentence (e.g., 'The logic is unimpeachable.')"
+    )
+
+
+# Gemini-specific models (uses sentence numbers to avoid RECITATION errors)
 class GeminiQuote(BaseModel):
-    """Quote from Kill Team rules with sentence numbers for extraction."""
+    """Quote from Kill Team rules with sentence numbers for extraction (Gemini-specific)."""
 
     quote_title: str = Field(description="Rule name (e.g., 'Core Rules: Actions', 'Silent')")
     quote_text: str = Field(
@@ -24,7 +62,7 @@ class GeminiQuote(BaseModel):
 
 
 class GeminiAnswer(BaseModel):
-    """Structured answer from Gemini for Kill Team rules queries."""
+    """Structured answer for Kill Team rules queries (Gemini-specific with sentence numbers)."""
 
     smalltalk: bool = Field(
         description="True if casual conversation (not rules-related), False if answering a rules question"
