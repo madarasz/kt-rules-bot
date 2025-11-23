@@ -31,7 +31,7 @@ from src.services.llm.gemini_quote_extractor import (
     number_sentences_in_chunk,
     post_process_gemini_response,
 )
-from src.services.llm.gemini_schemas import GeminiAnswer, HopEvaluation
+from src.services.llm.schemas import GeminiAnswer, HopEvaluation
 
 logger = get_logger(__name__)
 
