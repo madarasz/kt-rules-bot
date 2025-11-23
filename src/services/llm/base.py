@@ -18,7 +18,6 @@ from src.lib.constants import (
     LLM_EXTRACTION_TIMEOUT,
     LLM_GENERATION_TIMEOUT,
     LLM_SYSTEM_PROMPT_FILE_PATH,
-    LLM_SYSTEM_PROMPT_FILE_PATH_GEMINI,
 )
 from src.lib.personality import (
     get_afterword_example,
