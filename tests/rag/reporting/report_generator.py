@@ -140,6 +140,9 @@ class RAGReportGenerator:
                 f"| **Avg Ground Truth Found in Hops** | {summary.avg_ground_truth_found_improvement:.2f} | Average number of ground truth chunks found via hops |"
             )
             content.append(
+                f"| **Avg Filtered Teams Count** | {summary.avg_filtered_teams_count:.2f} | Average number of teams after filtering for hop evaluation |"
+            )
+            content.append(
                 f"| **Can Answer Recall** | {summary.hop_can_answer_recall:.3f} | Proportion of times LLM hopped when ground truth was missing |"
             )
             content.append(
@@ -378,8 +381,8 @@ class RAGReportGenerator:
                     content.append(f"- {chunk}")
                 content.append("")
 
-            # Hop evaluations (if multi-hop was used)
-            if first_result.hops_used > 0 and first_result.hop_evaluations:
+            # Hop evaluations (if multi-hop retrieval was attempted)
+            if first_result.hop_evaluations:
                 content.append("**Hop Evaluations**:")
                 content.append("")
                 for hop_eval in first_result.hop_evaluations:
@@ -400,8 +403,8 @@ class RAGReportGenerator:
             content.append("**Retrieved Chunks**:")
             content.append("")
 
-            # Table header - add hop column if multi-hop was used
-            if first_result.hops_used > 0:
+            # Table header - add hop column if multi-hop retrieval was attempted
+            if first_result.hop_evaluations:
                 content.append("| Rank | Hop | Chunk | Final | Vector | BM25 | RRF |")
                 content.append("|------|-----|-------|-------|--------|------|-----|")
             else:
@@ -452,8 +455,8 @@ class RAGReportGenerator:
                 # RRF score should always be present
                 rrf_score = metadata.get("rrf_score", 0.0)
 
-                # Format as table row - include hop number if multi-hop
-                if first_result.hops_used > 0:
+                # Format as table row - include hop number if multi-hop retrieval was attempted
+                if first_result.hop_evaluations:
                     content.append(
                         f"| {i} | {hop_num} | {chunk_header}{marker} | {relevance:.4f} | {vector_display} | {bm25_display} | {rrf_score:.4f} |"
                     )

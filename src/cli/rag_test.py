@@ -108,6 +108,7 @@ def rag_test(
         print("=" * 80)
         print(f"Total Time: {summary.total_time_seconds:.2f}s")
         print(f"Avg Retrieval Time: {summary.avg_retrieval_time_seconds:.3f}s")
+        print(f"Avg Filtered Teams: {summary.avg_filtered_teams_count:.2f}")
 
         # Calculate total cost including hop evaluations
         total_cost_with_hops = summary.total_cost_usd + summary.hop_evaluation_cost_usd
@@ -179,6 +180,9 @@ def _save_to_database(timestamp: str, summary, report_path: Path) -> None:
             full_report_md = report_path.read_text()
 
         # Create run data
+        # Calculate total cost including hop evaluations (matches report generator)
+        total_cost_with_hops = summary.total_cost_usd + summary.hop_evaluation_cost_usd
+
         run_data = {
             "run_id": timestamp,  # Use timestamp as unique run ID
             "timestamp": datetime.now().isoformat(),
@@ -186,7 +190,7 @@ def _save_to_database(timestamp: str, summary, report_path: Path) -> None:
             "runs_per_test": summary.runs_per_test,
             "avg_retrieval_time": summary.avg_retrieval_time_seconds,
             # saved in cents to avoid floating point issues
-            "avg_retrieval_cost": summary.total_cost_usd * 100 / summary.total_tests if summary.total_tests > 0 else 0.0,
+            "avg_retrieval_cost": total_cost_with_hops * 100 / summary.total_tests if summary.total_tests > 0 else 0.0,
             "context_recall": summary.mean_ragas_context_recall,
             "avg_hops_used": summary.avg_hops_used,
             "can_answer_recall": summary.hop_can_answer_recall,
