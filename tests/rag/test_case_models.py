@@ -125,6 +125,7 @@ class RAGTestResult:
     chunk_hop_numbers: list[int] = (
         None  # Hop number for each retrieved chunk (parallel to retrieved_chunks)
     )
+    filtered_teams_count: int = 0  # Number of teams after filtering for hop evaluation
 
     # Ground truth rank analysis (for MAXIMUM_FINAL_CHUNK_COUNT tuning)
     max_ground_truth_rank: int = 0  # Highest rank position where a ground truth was found
@@ -192,6 +193,7 @@ class RAGTestSummary:
     avg_ground_truth_found_improvement: float = (
         0.0  # Average number of ground truth chunks found via hops
     )
+    avg_filtered_teams_count: float = 0.0  # Average number of teams after filtering for hop evaluation
     ground_truth_chunks_per_hop: list[int] = (
         None  # List of ground truth chunks found in each hop [hop1, hop2, ...]
     )

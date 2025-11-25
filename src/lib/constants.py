@@ -65,16 +65,16 @@ QUALITY_TEST_PROVIDERS = [
     "gpt-5.1-chat-latest",
     "gpt-4.1",
     "gpt-4o",
-    #"gpt-4.1-mini",
+    # "gpt-4.1-mini",
     "claude-4.5-sonnet",
-    #"claude-4.5-haiku",
+    "claude-4.5-haiku",
     "gemini-3-pro-preview",
-    #"gemini-2.5-flash",
-    #"gemini-2.5-pro",
+    "gemini-2.5-flash",
+    # "gemini-2.5-pro",
     "deepseek-chat",
     "grok-4-fast-reasoning",
-    #"grok-3",
-    #"grok-3-mini",
+    # "grok-3",
+    # "grok-3-mini",
     # "deepseek-reasoner"
     # "dial-gpt-4.1",  # denied WHY??
     # "dial-gpt-5",    # denied
@@ -195,6 +195,19 @@ LLM_SYSTEM_PROMPT_FILE_PATH_GEMINI = "prompts/rule-helper-prompt-gemini.md"
 # loaded via src.lib.personality based on PERSONALITY env variable
 
 # ============================================================================
+# Chunk Summary Generation Constants
+# ============================================================================
+
+# Enable/disable LLM-generated chunk summaries during ingestion (default: True)
+SUMMARY_ENABLED = True
+
+# LLM model to use for summary generation (use cheap/fast model)
+SUMMARY_LLM_MODEL = "gpt-4.1-mini"
+
+# Path to summary generation prompt template
+CHUNK_SUMMARY_PROMPT_PATH = "prompts/chunk-summary-prompt.md"
+
+# ============================================================================
 # RAG Keyword Normalization Constants
 # ============================================================================
 
@@ -225,7 +238,7 @@ RAG_SYNONYM_DICT_PATH = "data/rag_synonyms.json"
 # Maximum number of retrieval iterations after initial query (default: 0 = disabled)
 # 0 = single-hop only (multi-hop disabled)
 # 1 = initial + 1 hop, 2 = initial + 2 hops, etc.
-RAG_MAX_HOPS = 2
+RAG_MAX_HOPS = 1
 
 # Maximum chunks to retrieve per hop
 # Total chunks accumulated = (MAX_HOPS + 1) × HOP_CHUNK_LIMIT

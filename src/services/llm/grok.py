@@ -4,7 +4,6 @@ Implements LLMProvider interface for Grok models.
 Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
-import json
 import time
 from uuid import uuid4
 

@@ -73,6 +73,7 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
     documents_skipped = 0
     validation_errors = 0
     total_chunks = 0
+    total_summary_cost = 0.0
 
     for md_file in md_files:
         try:
@@ -110,6 +111,7 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
 
             documents_processed += 1
             total_chunks += result.embedding_count
+            total_summary_cost += result.summary_cost_usd
             print(
                 f"✓ {relative_path} - {result.documents_processed} docs, "
                 f"{result.embedding_count} embeddings"
@@ -127,6 +129,7 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
     print(f"  Documents skipped: {documents_skipped}")
     print(f"  Validation errors: {validation_errors}")
     print(f"  Total chunks created: {total_chunks}")
+    print(f"  Summarization cost: ${total_summary_cost:.4f}")
     print(f"{'=' * 60}")
 
     logger.info(
@@ -136,6 +139,7 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
             "documents_skipped": documents_skipped,
             "validation_errors": validation_errors,
             "total_chunks": total_chunks,
+            "total_summary_cost_usd": f"${total_summary_cost:.4f}",
         },
     )
 
