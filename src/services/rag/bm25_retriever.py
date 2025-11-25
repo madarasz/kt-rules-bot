@@ -57,8 +57,15 @@ class BM25Retriever:
         self.chunks = chunks
 
         # Tokenize corpus (lowercase, split on whitespace/punctuation)
+        # Include summary from metadata if available for better keyword matching
         self.tokenized_corpus = [
-            self._tokenize(chunk.text + " " + chunk.header) for chunk in chunks
+            self._tokenize(
+                chunk.text
+                + " "
+                + chunk.header
+                + (" " + chunk.metadata.get("summary", "") if chunk.metadata.get("summary") else "")
+            )
+            for chunk in chunks
         ]
 
         # Build BM25 index with custom parameters

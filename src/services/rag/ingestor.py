@@ -3,15 +3,19 @@
 Implements ingest() method from specs/001-we-are-building/contracts/rag-pipeline.md
 """
 
+import asyncio
 import time
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
+from src.lib.constants import SUMMARY_ENABLED
 from src.lib.logging import get_logger
+from src.lib.tokens import estimate_cost
 from src.models.rule_document import RuleDocument
 from src.services.rag.chunker import MarkdownChunker
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.keyword_extractor import KeywordExtractor
+from src.services.rag.summarizer import ChunkSummarizer
 from src.services.rag.vector_db import VectorDBService
 
 logger = get_logger(__name__)
@@ -28,6 +32,7 @@ class IngestionResult:
     errors: list[str]  # Filenames that failed
     warnings: list[str]  # Non-fatal issues
     duration_seconds: float
+    summary_cost_usd: float = 0.0  # Total cost of summary generation (if enabled)
 
 
 class InvalidDocumentError(Exception):
@@ -57,6 +62,7 @@ class RAGIngestor:
         embedding_service: EmbeddingService | None = None,
         vector_db_service: VectorDBService | None = None,
         keyword_extractor: KeywordExtractor | None = None,
+        summarizer: ChunkSummarizer | None = None,
         db_path: str | None = None,
     ):
         """Initialize RAG ingestor.
@@ -66,15 +72,19 @@ class RAGIngestor:
             embedding_service: Embedding service (creates if None)
             vector_db_service: Vector DB service (creates if None)
             keyword_extractor: Keyword extractor (creates if None)
+            summarizer: Chunk summarizer (creates if None and SUMMARY_ENABLED)
             db_path: Optional database path (only used if vector_db_service is None)
         """
         self.chunker = chunker or MarkdownChunker()
         self.embedding_service = embedding_service or EmbeddingService()
         self.vector_db = vector_db_service or VectorDBService(db_path=db_path)
         self.keyword_extractor = keyword_extractor or KeywordExtractor()
+        self.summarizer = summarizer or (ChunkSummarizer() if SUMMARY_ENABLED else None)
         self.document_hashes: dict[str, str] = {}  # filename -> hash mapping
 
-        logger.info("rag_ingestor_initialized")
+        logger.info(
+            "rag_ingestor_initialized", summary_generation_enabled=SUMMARY_ENABLED
+        )
 
     def ingest(self, documents: list[RuleDocument]) -> IngestionResult:
         """Ingest rule documents into the RAG system.
@@ -102,6 +112,7 @@ class RAGIngestor:
         documents_processed = 0
         documents_failed = 0
         embedding_count = 0
+        total_summary_cost = 0.0  # Track summary generation costs
         errors: list[str] = []
         warnings: list[str] = []
         all_chunks = []  # Collect all chunks for keyword extraction
@@ -135,8 +146,27 @@ class RAGIngestor:
                     chunk_count=len(chunks),
                 )
 
+                # Generate summaries for chunks (if enabled)
+                if self.summarizer:
+                    chunks, prompt_tokens, completion_tokens, model = asyncio.run(
+                        self.summarizer.generate_summaries(chunks)
+                    )
+                    if prompt_tokens > 0:  # Only calculate cost if summary was generated
+                        summary_cost = estimate_cost(prompt_tokens, completion_tokens, model)
+                        total_summary_cost += summary_cost
+                        logger.debug(
+                            "summaries_generated",
+                            document_id=str(document.document_id),
+                            chunk_count=len(chunks),
+                            cost_usd=f"${summary_cost:.4f}",
+                        )
+
                 # Generate embeddings for chunks
-                chunk_texts = [chunk.text for chunk in chunks]
+                # Include summary in embedding text for better semantic search
+                chunk_texts = [
+                    f"{chunk.header}\n{chunk.summary}\n{chunk.text}" if chunk.summary else chunk.text
+                    for chunk in chunks
+                ]
                 embeddings = self._generate_embeddings_with_retry(chunk_texts, document.filename)
 
                 # Prepare data for vector DB
@@ -152,6 +182,7 @@ class RAGIngestor:
                         "header_level": chunk.header_level,
                         "position": chunk.position,
                         "filename": document.filename,
+                        "summary": chunk.summary,  # Add summary to metadata
                     }
                     for chunk in chunks
                 ]
@@ -225,6 +256,7 @@ class RAGIngestor:
             errors=errors,
             warnings=warnings,
             duration_seconds=duration,
+            summary_cost_usd=total_summary_cost,
         )
 
         logger.info(
@@ -234,6 +266,7 @@ class RAGIngestor:
             failed=documents_failed,
             embeddings=embedding_count,
             duration=duration,
+            summary_cost_usd=f"${total_summary_cost:.4f}",
         )
 
         return result
