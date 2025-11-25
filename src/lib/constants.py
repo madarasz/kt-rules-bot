@@ -256,6 +256,7 @@ RAG_HOP_RATE_LIMIT_DELAY = 5.0
 
 # Hop evaluation prompt file path
 RAG_HOP_EVALUATION_PROMPT_PATH = "prompts/hop-evaluation-prompt.md"
+#RAG_HOP_EVALUATION_PROMPT_PATH = "prompts/hop-evaluation-prompt-with-rule-reference.md"
 
 # Rules structure file paths (for hop evaluation context)
 RULES_STRUCTURE_PATH = "extracted-rules/rules-structure.yml"
