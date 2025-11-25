@@ -48,8 +48,8 @@
   query: >
     what is the largest blast radius the Wrecka Crew can get?
   ground_truth_contexts:
-    - "KABOOM!"
-    - "Rokkit rack" # TANKBUSTA
+    - "Use this firefight ploy when a friendly **WRECKA KREW** operative performs the **Shoot** action and a weapon with the **Blast** weapon rule" # KABOOM!
+    - "Don't select a valid target. Instead, place your Pulsa marker **visible** to this operative" # TANKBUSTA
 
 # - test_id: fight-through-wall
 #   query: >
@@ -167,4 +167,4 @@
   query: >
     if an operative has accurate 1 from two different sources, does that count as accurate 2?
   ground_truth_contexts:
-    - "Accurate x"
+    - "You can retain up to x attack dice as normal successes without rolling them." # Accurate x
