@@ -22,6 +22,7 @@ from src.lib.constants import (
     RAG_HOP_RATE_LIMIT_DELAY,
     RAG_MAX_HOPS,
     RULES_STRUCTURE_PATH,
+    SUMMARY_ENABLED,
     TEAMS_STRUCTURE_PATH,
 )
 from src.lib.logging import get_logger
@@ -47,6 +48,7 @@ class HopEvaluation:
         retrieval_time_s: float = 0.0,
         evaluation_time_s: float = 0.0,
         filled_prompt: str | None = None,
+        filtered_teams_count: int = 0,
     ):
         self.can_answer = can_answer
         self.reasoning = reasoning
@@ -55,6 +57,7 @@ class HopEvaluation:
         self.retrieval_time_s = retrieval_time_s  # Time for retrieval
         self.evaluation_time_s = evaluation_time_s  # Time for LLM evaluation
         self.filled_prompt = filled_prompt  # Optional: filled prompt for verbose output
+        self.filtered_teams_count = filtered_teams_count  # Number of teams after filtering
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for database storage."""
@@ -65,6 +68,7 @@ class HopEvaluation:
             "cost_usd": self.cost_usd,
             "retrieval_time_s": self.retrieval_time_s,
             "evaluation_time_s": self.evaluation_time_s,
+            "filtered_teams_count": self.filtered_teams_count,
         }
 
 
@@ -414,6 +418,7 @@ class MultiHopRetriever:
                     missing_query=data.get("missing_query"),
                     cost_usd=cost_usd,
                     filled_prompt=prompt if verbose else None,
+                    filtered_teams_count=len(relevant_teams),
                 )
 
             except RateLimitError as e:
@@ -492,6 +497,9 @@ class MultiHopRetriever:
             else:
                 text = chunk.text
 
-            formatted_chunks.append(f"{i}. **{header}**\n{text}\n")
+            if SUMMARY_ENABLED:
+                formatted_chunks.append(f"{i}. ## {text}\n")
+            else:
+                formatted_chunks.append(f"{i}. **{header}**\n{text}\n")
 
         return "\n".join(formatted_chunks)

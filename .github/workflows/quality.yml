@@ -40,7 +40,7 @@ jobs:
           fail_ci_if_error: false
 
   complexity:
-    name: Code Complexity & Maintainability
+    name: Linting & Code Complexity & Maintainability
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +56,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Check linting
+        run: |
+          ruff check src tests
+      
       - name: Check cyclomatic complexity
         run: |
           radon cc src --min B --show-complexity

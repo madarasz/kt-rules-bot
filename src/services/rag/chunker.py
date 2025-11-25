@@ -22,6 +22,7 @@ class MarkdownChunk:
     header_level: int  # 0 for whole doc, 1-4 for #-####
     position: int  # Position in original document
     token_count: int
+    summary: str = ""  # One-sentence LLM-generated summary (populated during ingestion)
 
 
 class MarkdownChunker:

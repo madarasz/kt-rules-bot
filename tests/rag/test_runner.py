@@ -236,12 +236,17 @@ class RAGTestRunner:
                     "reasoning": eval.reasoning,
                     "missing_query": eval.missing_query,
                     "cost_usd": eval.cost_usd,
+                    "filtered_teams_count": eval.filtered_teams_count,
                 }
                 for i, eval in enumerate(hop_evaluations)
             ]
             for eval in hop_evaluations:
                 if eval.can_answer is False:
                     result.hops_used += 1
+
+            # Store filtered_teams_count from first hop evaluation (deterministic for the query)
+            if hop_evaluations:
+                result.filtered_teams_count = hop_evaluations[0].filtered_teams_count
 
         # Map chunk IDs to hop numbers
         if chunk_hop_map:
@@ -515,6 +520,30 @@ class RAGTestRunner:
         # Calculate multi-hop statistics
         avg_hops_used = sum(r.hops_used for r in results) / len(results) if results else 0.0
 
+        # Calculate average filtered teams count
+        # Include all results where hop evaluation occurred (hop_evaluations is not None and not empty)
+        # This includes cases where can_answer=True on first evaluation (no additional hops performed)
+        results_with_hop_evaluation = [
+            r for r in results if r.hop_evaluations is not None and len(r.hop_evaluations) > 0
+        ]
+        if results_with_hop_evaluation:
+            teams_counts = [r.filtered_teams_count for r in results_with_hop_evaluation]
+            avg_filtered_teams_count = sum(teams_counts) / len(teams_counts)
+            logger.info(
+                "summary_filtered_teams_calculated",
+                total_results=len(results),
+                results_with_hop_evaluation=len(results_with_hop_evaluation),
+                teams_counts=teams_counts,
+                avg=avg_filtered_teams_count,
+            )
+        else:
+            avg_filtered_teams_count = 0.0
+            logger.warning(
+                "no_hop_evaluations_found",
+                total_results=len(results),
+                multi_hop_enabled=RAG_MAX_HOPS > 0,
+            )
+
         # Calculate hop-specific ground truth statistics
         # Track how many ground truth chunks were found in each hop across all tests
         from collections import defaultdict
@@ -686,6 +715,7 @@ class RAGTestRunner:
             avg_hops_used=avg_hops_used,
             hop_evaluation_cost_usd=hop_evaluation_cost,
             avg_ground_truth_found_improvement=avg_ground_truth_improvement,
+            avg_filtered_teams_count=avg_filtered_teams_count,
             ground_truth_chunks_per_hop=ground_truth_per_hop,
             hop_can_answer_recall=hop_can_answer_recall,
             hop_can_answer_precision=hop_can_answer_precision,
