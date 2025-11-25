@@ -1,5 +1,5 @@
-# TEST SET CODENAME: THANKS-GIVING
-# LAST UPDATE: 2024-11-19
+# TEST SET CODENAME: SLEEPING-BEAVER
+# LAST UPDATE: 2024-11-23
 
 # - test_id: rain-bitter-demise
 #   query: >
@@ -14,7 +14,23 @@
 #   ground_truth_contexts:
 #     - "TELEPORT PAD"
 #     - "COUNTERACT"
-
+- test_id: warpcoven-heal
+  query: >
+    Can I heal with a Warpcoven?
+  ground_truth_contexts:
+    - "**PSYCHIC**. Select one friendly **WARPCOVEN** operative **visible** to and **within 6\"** of this operative. That operative regains up to 2D3 lost wounds."
+- test_id: warpcoven-fly
+  query: >
+    Can I fly with a Warpcoven?
+  ground_truth_contexts:
+    - "Once per turning point, when this operative is performing the **Charge** or **Reposition** action during its activation, it can **FLY**."
+- test_id: slow-gunner
+  query: >
+    if my angels of death heavy gunner gets hit with a hierotek circle chronomancer countertemporal nanomine, how much base movement will the heavy gunner have?
+  ground_truth_contexts:
+    - "CHRONOMANCER - Countertemporal Nanomine"
+    - "ANGELS OF DEATH - HEAVY INTERCESSOR GUNNER"
+    - "An operative's Move stat can never be changed to less than 4\". This takes precedence over all stat changes."
 - test_id: sniper-twice
   query: >
     Can the Eliminator Sniper shoot twice in a turning point?
@@ -32,8 +48,8 @@
   query: >
     what is the largest blast radius the Wrecka Crew can get?
   ground_truth_contexts:
-    - "WRECKA KREW - KABOOM!"
-    - "WRECKA KREW - TANKBUSTA ROKKITEER"
+    - "KABOOM!"
+    - "Rokkit rack" # TANKBUSTA
 
 # - test_id: fight-through-wall
 #   query: >
@@ -61,17 +77,17 @@
   ground_truth_contexts:
     - "Torrent x"
     - "The target you select is the primary target. After shooting the primary target, shoot with this weapon against each secondary target in an order of your choice (roll each sequence separately)."
-- test_id: team-validity # FAILS
+- test_id: team-validity
   query: >
     which teams are tournament legal currently?
   ground_truth_contexts:
     - "When planning your tournament, you must determine if it will be using the Classified format."
-    - "The full list of Classified kill teams can be found below."
+    - "The full list of **Classified** kill teams can be found below"
 - test_id: team-rotation
   query: >
-    Which teams are rotating out soon?
+    Which teams that have rotated out?
   ground_truth_contexts:
-    - "The full list of Classified kill teams can be found below."
+    - "Non-classified kill teams"
 
 #- test_id: cp-lost-cancelled
 #  query: >

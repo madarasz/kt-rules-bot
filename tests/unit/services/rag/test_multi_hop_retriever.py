@@ -216,6 +216,48 @@ class TestFormatChunksForPrompt:
         assert "..." in result  # Should be truncated
 
 
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
+    @patch("src.services.rag.multi_hop_retriever.SUMMARY_ENABLED", True)
+    def test_format_with_summary_enabled(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
+        """Test chunk formatting when SUMMARY_ENABLED is True."""
+        mock_create.return_value = Mock()
+        mock_yaml_load.return_value = {}
+        mock_open.return_value.__enter__.return_value.read.return_value = "prompt"
+
+        retriever = MultiHopRetriever(Mock())
+        result = retriever._format_chunks_for_prompt(sample_chunks)
+
+        # With SUMMARY_ENABLED=True, format is "{i}. ## {text}"
+        # Headers should NOT be shown separately (only text)
+        assert "1. ## Content about overwatch" in result
+        assert "2. ## Content about charges" in result
+        # Headers should not appear as **Header** format
+        assert "**Overwatch Rules**" not in result
+        assert "**Charge Rules**" not in result
+
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
+    @patch("src.services.rag.multi_hop_retriever.SUMMARY_ENABLED", False)
+    def test_format_with_summary_disabled(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
+        """Test chunk formatting when SUMMARY_ENABLED is False."""
+        mock_create.return_value = Mock()
+        mock_yaml_load.return_value = {}
+        mock_open.return_value.__enter__.return_value.read.return_value = "prompt"
+
+        retriever = MultiHopRetriever(Mock())
+        result = retriever._format_chunks_for_prompt(sample_chunks)
+
+        # With SUMMARY_ENABLED=False, format is "{i}. **{header}**\n{text}"
+        # Headers should be shown as bold markdown
+        assert "1. **Overwatch Rules**" in result
+        assert "2. **Charge Rules**" in result
+        assert "Content about overwatch" in result
+        assert "Content about charges" in result
+
+
 class TestEvaluateContext:
     """Tests for _evaluate_context method."""
 
