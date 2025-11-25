@@ -167,8 +167,8 @@ class TestFormatChunksForPrompt:
         retriever = MultiHopRetriever(Mock())
         result = retriever._format_chunks_for_prompt([sample_chunks[0]])
 
-        assert "1. **Overwatch Rules**" in result
-        assert "Content about overwatch" in result
+        # With SUMMARY_ENABLED=True, format is "1. ## {text}"
+        assert "1. ## Content about overwatch" in result
 
     @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
     @patch("builtins.open", create=True)
@@ -182,8 +182,9 @@ class TestFormatChunksForPrompt:
         retriever = MultiHopRetriever(Mock())
         result = retriever._format_chunks_for_prompt(sample_chunks)
 
-        assert "1. **Overwatch Rules**" in result
-        assert "2. **Charge Rules**" in result
+        # With SUMMARY_ENABLED=True, format is "{i}. ## {text}"
+        assert "1. ## Content about overwatch" in result
+        assert "2. ## Content about charges" in result
 
     @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
     @patch("builtins.open", create=True)

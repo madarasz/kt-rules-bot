@@ -7,10 +7,12 @@ This script scans the extracted-rules directory and creates hierarchical YAML st
 - teams-structure.yml: Team faction rules and operatives only
 
 Usage:
-    python scripts/generate_rules_structure.py [--header LEVEL]
+    python scripts/generate_rules_structure.py [--header LEVEL] [--summary]
 
 Arguments:
     --header LEVEL  Override the default header level (default: MARKDOWN_CHUNK_HEADER_LEVEL from constants)
+    --summary       Retrieve summaries from ChromaDB for header level 2 elements in teams-structure.yml only
+                    (requires ingestion to be run beforehand)
 """
 
 import argparse
@@ -29,13 +31,14 @@ from src.lib.constants import (
     RULES_STRUCTURE_PATH,
     TEAMS_STRUCTURE_PATH,
 )
+from src.services.rag.vector_db import VectorDBService
 
 # Configuration
 EXTRACTED_RULES_DIR = Path(__file__).parent.parent / "extracted-rules"
 RULES_OUTPUT_FILE = Path(__file__).parent.parent / RULES_STRUCTURE_PATH
 TEAMS_OUTPUT_FILE = Path(__file__).parent.parent / TEAMS_STRUCTURE_PATH
 # TEAMS_EXCLUDE_CATEGORIES = ['Operative Selection', 'Strategy Ploys', 'Firefight Ploys', 'Faction Equipment']
-TEAMS_EXCLUDE_CATEGORIES = ["Operative Selection"]
+TEAMS_EXCLUDE_CATEGORIES = ['Archetypes']
 EXCLUDE_HEADERS = ["WEAPON RULES"]
 TRIM_HEADER_TEXT = [
     "BHETA-DECIMA - ",
@@ -277,6 +280,59 @@ def categorize_team(
     return {k: v for k, v in categories.items() if v and k not in exclude}
 
 
+def generate_category_summaries(file_path: Path, vector_db: VectorDBService) -> dict[str, str]:
+    """Retrieve summaries from ChromaDB for all level 2 headers in a team file.
+
+    Assumes ingestion was run beforehand and summaries are already in the database.
+
+    Args:
+        file_path: Path to the markdown file
+        vector_db: VectorDBService instance to query ChromaDB
+
+    Returns:
+        Dict mapping header titles (cleaned) to their summaries
+    """
+    summaries = {}
+    filename = file_path.name
+    team_name = format_key(file_path.stem).upper()
+
+    print(f"  Retrieving summaries for {filename} from ChromaDB...")
+
+    try:
+        # Query ChromaDB for all chunks from this file (using where filter)
+        results = vector_db.collection.get(
+            where={"filename": filename},
+            include=["metadatas"]
+        )
+
+        if not results or not results["metadatas"]:
+            print(f"    Warning: No chunks found in ChromaDB for {filename}")
+            return summaries
+
+        # Process each chunk's metadata
+        for metadata in results["metadatas"]:
+            header = metadata.get("header", "")
+            summary = metadata.get("summary", "")
+            header_level = metadata.get("header_level", 0)
+
+            # Only process level 2 headers with summaries
+            if header_level != 2 or not summary:
+                continue
+
+            # Clean the header and remove team prefix (for operatives)
+            cleaned_header = clean_header(header)
+            # Remove team prefix if this is an operative (matches categorize_team logic)
+            cleaned_header = remove_team_prefix(cleaned_header, team_name)
+            summaries[cleaned_header] = summary
+
+        print(f"    Retrieved {len(summaries)} header summaries")
+
+    except Exception as e:
+        print(f"    Error retrieving summaries from ChromaDB: {e}")
+
+    return summaries
+
+
 def nodes_to_yaml_format(nodes: list[dict[str, Any]], parent_title: str = None) -> list[Any]:
     """Convert hierarchical node structure to YAML-friendly format.
 
@@ -430,7 +486,13 @@ def remove_team_prefix(header: str, team: str) -> str:
 
 
 def process_file(
-    file_path: Path, is_team: bool = False, is_tacops: bool = False, exclude: list[str] = None, header_level: int = None
+    file_path: Path,
+    is_team: bool = False,
+    is_tacops: bool = False,
+    exclude: list[str] = None,
+    header_level: int = None,
+    generate_summaries: bool = False,
+    vector_db: VectorDBService = None,
 ) -> Any:
     """Process a markdown file and return its structure in YAML-friendly format."""
     headers = extract_headers(file_path, max_level=header_level)
@@ -438,7 +500,45 @@ def process_file(
     if is_team:
         # Categorize team headers, then convert each category to YAML format
         categorized = categorize_team(headers, file_path.stem, exclude)
-        return {k: nodes_to_yaml_format(v) for k, v in categorized.items()}
+
+        # Retrieve summaries from database if requested
+        if generate_summaries and vector_db:
+            summaries = generate_category_summaries(file_path, vector_db)
+
+            # Integrate summaries into the structure
+            result = {}
+            for category, nodes in categorized.items():
+                # Check if this is a single-node category with no children
+                if len(nodes) == 1 and not nodes[0].get("children"):
+                    # Use summary as scalar value
+                    node_title = clean_header(nodes[0]["title"])
+                    summary = summaries.get(node_title, "")
+                    if summary:
+                        result[category] = summary
+                    else:
+                        # No summary available, use original format
+                        result[category] = nodes_to_yaml_format(nodes)
+                else:
+                    # Multiple nodes or nodes with children: create list with summaries
+                    items = []
+                    for node in nodes:
+                        node_title = clean_header(node["title"])
+                        summary = summaries.get(node_title, "")
+
+                        if summary:
+                            # Node has summary: use dict format with summary as value
+                            # (children are not included when summary is present)
+                            items.append({node_title: summary})
+                        else:
+                            # No summary available: use original format with children
+                            yaml_node = nodes_to_yaml_format([node])
+                            items.extend(yaml_node)
+
+                    result[category] = items
+
+            return result
+        else:
+            return {k: nodes_to_yaml_format(v) for k, v in categorized.items()}
     elif is_tacops:
         # Categorize tacops, then convert each category to YAML format
         categorized = categorize_tacops(headers)
@@ -474,7 +574,12 @@ def format_key(name: str) -> str:
 
 
 def process_directory(
-    dir_path: Path, is_team_dir: bool = False, exclude: list[str] = None, header_level: int = None
+    dir_path: Path,
+    is_team_dir: bool = False,
+    exclude: list[str] = None,
+    header_level: int = None,
+    generate_summaries: bool = False,
+    vector_db: VectorDBService = None,
 ) -> dict[str, Any]:
     """Process directory recursively and return structure."""
     result = {}
@@ -493,11 +598,20 @@ def process_directory(
                     is_tacops=(item.stem.lower() == "tacops"),
                     exclude=exclude,
                     header_level=header_level,
+                    generate_summaries=generate_summaries and is_team_dir,  # Only for team files
+                    vector_db=vector_db,
                 )
                 result[format_key(item.stem)] = structure
 
             elif item.is_dir() and has_markdown_files(item):
-                subdir = process_directory(item, is_team_dir=(item.name == "team"), exclude=exclude, header_level=header_level)
+                subdir = process_directory(
+                    item,
+                    is_team_dir=(item.name == "team"),
+                    exclude=exclude,
+                    header_level=header_level,
+                    generate_summaries=generate_summaries,
+                    vector_db=vector_db,
+                )
                 if subdir:
                     result[format_key(item.name)] = subdir
 
@@ -507,12 +621,27 @@ def process_directory(
     return result
 
 
-def generate_structures(header_level: int = None) -> tuple[dict[str, Any], dict[str, Any]]:
+def generate_structures(
+    header_level: int = None, generate_summaries: bool = False
+) -> tuple[dict[str, Any], dict[str, Any]]:
     """Generate both rules and teams structures."""
     print(f"Scanning directory: {EXTRACTED_RULES_DIR}")
+    if generate_summaries:
+        print("Summary retrieval: ENABLED (teams-structure.yml only)")
+        print("  Assumes ingestion was run beforehand")
 
     rules = {}
     teams = {}
+
+    # Initialize VectorDB service if summaries are enabled
+    vector_db = None
+    if generate_summaries:
+        try:
+            vector_db = VectorDBService()
+            print(f"  Connected to ChromaDB ({vector_db.collection.count()} chunks)")
+        except Exception as e:
+            print(f"  Warning: Could not connect to ChromaDB: {e}")
+            print("  Continuing without summaries...")
 
     try:
         items = sorted(EXTRACTED_RULES_DIR.iterdir(), key=lambda x: (x.is_file(), x.name))
@@ -530,7 +659,12 @@ def generate_structures(header_level: int = None) -> tuple[dict[str, Any], dict[
                 if item.name == "team":
                     # Process teams separately with exclusions
                     teams = process_directory(
-                        item, is_team_dir=True, exclude=TEAMS_EXCLUDE_CATEGORIES, header_level=header_level
+                        item,
+                        is_team_dir=True,
+                        exclude=TEAMS_EXCLUDE_CATEGORIES,
+                        header_level=header_level,
+                        generate_summaries=generate_summaries,  # Only for teams
+                        vector_db=vector_db,
                     )
                 else:
                     # Process other directories for rules
@@ -576,6 +710,11 @@ def main() -> int:
         metavar="LEVEL",
         help=f"Override the default header level (default: {MARKDOWN_CHUNK_HEADER_LEVEL})",
     )
+    parser.add_argument(
+        "--summary",
+        action="store_true",
+        help="Retrieve summaries from ChromaDB for header level 2 elements in teams-structure.yml only (requires ingestion first)",
+    )
     args = parser.parse_args()
 
     print("=" * 60)
@@ -584,13 +723,15 @@ def main() -> int:
         print(f"Using header level: {args.header}")
     else:
         print(f"Using default header level: {MARKDOWN_CHUNK_HEADER_LEVEL}")
+    if args.summary:
+        print("Summary generation: ENABLED")
     print("=" * 60)
 
     if not EXTRACTED_RULES_DIR.exists():
         print(f"Error: Directory not found: {EXTRACTED_RULES_DIR}")
         return 1
 
-    rules, teams = generate_structures(header_level=args.header)
+    rules, teams = generate_structures(header_level=args.header, generate_summaries=args.summary)
 
     if not rules and not teams:
         print("Error: No structure generated")

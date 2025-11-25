@@ -22,6 +22,7 @@ from src.lib.constants import (
     RAG_HOP_RATE_LIMIT_DELAY,
     RAG_MAX_HOPS,
     RULES_STRUCTURE_PATH,
+    SUMMARY_ENABLED,
     TEAMS_STRUCTURE_PATH,
 )
 from src.lib.logging import get_logger
@@ -496,6 +497,9 @@ class MultiHopRetriever:
             else:
                 text = chunk.text
 
-            formatted_chunks.append(f"{i}. **{header}**\n{text}\n")
+            if SUMMARY_ENABLED:
+                formatted_chunks.append(f"{i}. ## {text}\n")
+            else:
+                formatted_chunks.append(f"{i}. **{header}**\n{text}\n")
 
         return "\n".join(formatted_chunks)
