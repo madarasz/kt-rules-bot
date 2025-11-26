@@ -4,5 +4,5 @@ query: >
   who places the banner, me or my opponent?
 
 ground_truth_contexts:
-  - "PLANT BANNER"
-  - "Place Marker (1AP)" # Missing
+  - "PLANT BANNER": "Place your Banner mission marker within the active operative's control range, wholly within your opponent's territory and more than 5\" from a neutral killzone edge."
+  - "Place Marker (1AP)": "Place a marker the active operative is carrying within its control range."

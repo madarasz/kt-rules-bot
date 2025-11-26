@@ -38,7 +38,7 @@ class RagasGenerationMetrics:
 
 
 def evaluate_retrieval(
-    retrieved_contexts: list[str], ground_truth_contexts: list[str]
+    retrieved_contexts: list[str], ground_truth_contexts: list[dict[str, str]]
 ) -> RagasRetrievalMetrics:
     """Evaluate retrieval quality using Ragas metrics.
 
@@ -47,19 +47,20 @@ def evaluate_retrieval(
     substring appears in any of the retrieved contexts.
 
     Args:
-        query: The user query
         retrieved_contexts: List of retrieved document chunks (full text)
-        ground_truth_contexts: List of expected context substrings
-        judge_model: Optional LLM model for Ragas evaluation (unused in substring mode)
+        ground_truth_contexts: List of {key: value} dicts where value is the text for matching
 
     Returns:
         RagasRetrievalMetrics with context_precision and context_recall
     """
 
+    # Extract values from ground_truth_contexts dicts for matching
+    ground_truth_values = [next(iter(gt_dict.values())) for gt_dict in ground_truth_contexts]
+
     # Calculate custom substring-based context recall
     # Recall = (number of ground truth substrings found) / (total ground truth substrings)
     found_count = 0
-    for ground_truth_substring in ground_truth_contexts:
+    for ground_truth_substring in ground_truth_values:
         # Check if this ground truth substring appears in any retrieved context
         for retrieved_context in retrieved_contexts:
             if ground_truth_matches_text(ground_truth_substring, retrieved_context):
@@ -67,7 +68,7 @@ def evaluate_retrieval(
                 break  # Found this ground truth, move to next one
 
     context_recall_value = (
-        found_count / len(ground_truth_contexts) if ground_truth_contexts else 0.0
+        found_count / len(ground_truth_values) if ground_truth_values else 0.0
     )
 
     # Calculate custom substring-based context precision
@@ -75,7 +76,7 @@ def evaluate_retrieval(
     relevant_retrieved_count = 0
     for retrieved_context in retrieved_contexts:
         # Check if this retrieved context contains any ground truth substring
-        for ground_truth_substring in ground_truth_contexts:
+        for ground_truth_substring in ground_truth_values:
             if ground_truth_matches_text(ground_truth_substring, retrieved_context):
                 relevant_retrieved_count += 1
                 break  # This retrieved context is relevant, move to next one

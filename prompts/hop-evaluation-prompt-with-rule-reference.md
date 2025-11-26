@@ -22,6 +22,7 @@ Before deciding you can answer, actively scan BOTH rules lists for:
 - **Keyword matches in summaries**: Summaries may mention relevant mechanics — scan them for question keywords (e.g., if user asks about "dash", check if any faction rule summary mentions dashing/DASH)
 - **Related mechanics**: If the question involves an effect (damage reduction, movement penalty), look for rules governing that mechanic's limits or interactions (e.g., movement reduction → "Minimum move stat")
 - **Rule definitions for named items**: Weapon rules on operative cards are not RULE definitions. You should request the weapon rule separately.
+- **Faction-specific capabilities**: If the user asks whether a SPECIFIC faction/team can do something (fly, counteract, etc.), look for the FACTION RULE that grants that capability, not just the generic core rule. The faction rule explains IF and HOW they get the ability.
 
 # User Question
 {user_query}
@@ -58,9 +59,11 @@ Signs a rule is MISSING (may need to request):
    - Rules governing mechanics involved in the question (limits, minimums, restrictions)
    - Base rule definitions for any named weapons/abilities (e.g., "Torrent" rule for a "Torrent 2" weapon)
 
-4. **Bias toward retrieval**: If a core mechanic mentioned in the question (counteract, shooting, orders, movement) lacks its rule definition in Retrieved Context, request it. When uncertain whether context is sufficient, retrieve more.
+4. **Cross-reference Retrieved Context**: Scan the Retrieved Context for references to other game terms (especially CAPITALIZED terms, bolded terms, or terms in quotes). Check if these referenced terms exist in Available Rules Reference. If they do and aren't already retrieved, they may be needed.
 
-5. **Decide**: Only return `can_answer: true` if you have DEFINITIONS for all terms AND all governing mechanics.
+5. **Bias toward retrieval**: If a core mechanic mentioned in the question (counteract, shooting, orders, movement) lacks its rule definition in Retrieved Context, request it. When uncertain whether context is sufficient, retrieve more.
+
+6. **Decide**: Only return `can_answer: true` if you have DEFINITIONS for all terms AND all governing mechanics.
 
 # Constraints
 
@@ -69,12 +72,22 @@ Signs a rule is MISSING (may need to request):
 - Use official Kill Team terminology from the Available Rules Reference.
 - Retrieval queries should use exact term names from the Available Rules Reference when possible.
 - Each retrieval query must be under 100 characters.
-- In `missing_query`, use term names only — omit words like "rules", "definition", "ability", "details".
+- In `missing_query`, use EXACT rule names from Available Rules Reference, including suffixes like "X" (e.g., "Blast X" not "Blast"). Separate multiple terms with comma and space (e.g., "Blast X, Torrent X").
 - **Bias toward retrieval**: Err on the side of requesting more rules. If uncertain, retrieve.
 - **Names ≠ Definitions**: Seeing "Seek Light" weapon on an operative is NOT the same as having the "Seek" weapon rule. Request the rule.
 - **Mechanics need rules**: If the question involves a game mechanic (counteract, shooting, orders, movement effects), its core rule definition must be in Retrieved Context.
 - **Scan summaries for keywords**: Available Rules summaries often reveal relevance — if user asks about "flying" and a faction rule summary mentions "FLY", that rule is relevant.
+- **Named entities need their rules**: If the user mentions a specific item, equipment, ploy, or operative by name, request THAT entity's rule — not just related mechanics. "Portable barricade" → request "PORTABLE BARRICADES", not just "COVER".
+- **Question mechanics are mandatory**: If a core game mechanic appears in the user's question (counteract, shoot, fight, charge, dash, orders), its rule definition MUST be in Retrieved Context. If missing, request it — no exceptions.
 - Respond ONLY with valid JSON (no markdown fences, no explanation outside JSON).
+
+# Common Mistakes to Avoid
+
+- Requesting generic core rules when a faction rule grants the capability (request both)
+- Using abbreviated rule names instead of verbatim names from Available Rules Reference
+- Requesting only mechanics (COVER) when user asks about a specific entity (HEAVY BARRICADES)
+- Missing rules referenced WITHIN the Retrieved Context itself
+- Saying "can answer" when a mechanic from the question has no rule definition retrieved
 
 # Output Format
 ```json

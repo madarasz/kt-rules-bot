@@ -33,7 +33,7 @@ class RAGTestCase:
 
     test_id: str
     query: str
-    ground_truth_contexts: list[str]  # Substrings of expected chunks for evaluation
+    ground_truth_contexts: list[dict[str, str]]  # List of {key: value} where key is human-readable identifier and value is text for matching
 
     @classmethod
     def from_yaml(cls, file_path: Path) -> list["RAGTestCase"]:
@@ -85,7 +85,7 @@ class RAGTestResult:
 
     test_id: str
     query: str
-    ground_truth_contexts: list[str]
+    ground_truth_contexts: list[str]  # Keys only (for display)
     retrieved_chunks: list[str]  # Headers of retrieved chunks in order
     retrieved_chunk_texts: list[str]  # Full text of retrieved chunks
     retrieved_relevance_scores: list[float]  # Relevance scores for each retrieved chunk
@@ -111,6 +111,8 @@ class RAGTestResult:
     retrieval_time_seconds: float  # Time taken for retrieval
     embedding_cost_usd: float  # Cost of generating query embedding
 
+    # Optional fields (with defaults)
+    ground_truth_values: dict[str, str] | None = None  # Mapping of key -> value (for matching in reports)
     run_number: int = 1  # For multi-run tests
 
     # Ragas Metrics (optional, calculated if ground_truth_contexts provided)

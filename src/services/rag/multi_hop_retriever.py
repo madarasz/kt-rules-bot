@@ -6,6 +6,7 @@ and requests additional information if needed.
 
 import asyncio
 import json
+import re
 import time
 from typing import Any
 from uuid import UUID
@@ -238,8 +239,11 @@ class MultiHopRetriever:
                     )
                     break
 
+                # Normalize comma-separated values: ensure space after commas
+                normalized_query = re.sub(r',(?! )', ', ', evaluation.missing_query)
+
                 hop_request = RetrieveRequest(
-                    query=evaluation.missing_query,
+                    query=normalized_query,
                     context_key=context_key,
                     max_chunks=self.chunks_per_hop,
                     use_multi_hop=False,  # Prevent infinite recursion
@@ -264,7 +268,7 @@ class MultiHopRetriever:
                 logger.info(
                     "multi_hop_retrieval",
                     hop=hop_num,
-                    query=evaluation.missing_query,
+                    query=normalized_query,
                     chunks_retrieved=len(hop_context.document_chunks),
                     new_unique_chunks=len(new_chunks),
                     total_chunks=len(accumulated_chunks),

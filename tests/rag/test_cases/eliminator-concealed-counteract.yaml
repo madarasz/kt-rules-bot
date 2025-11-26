@@ -3,7 +3,7 @@ query: >
   Can the Eliminator Sniper shoot during counteract while having Conceal order?
 
 ground_truth_contexts:
-  - "During each friendly ANGEL OF DEATH operative's activation"
-  - "ELIMINATOR SNIPER"
-  - "Silent"
-  - "When you would activate a ready friendly operative, if all your operatives are expended but your opponent still has ready operatives, you can select an expended friendly operative with an Engage order to perform a 1AP action (excluding Guard) for free."
+  - "ASTARTES - Faction Rule": "During each friendly **ANGEL OF DEATH** operative's activation"
+  - "ELIMINATOR SNIPER": "ANGELS OF DEATH - ELIMINATOR SNIPER"
+  - "Silent": "An operative can perform the Shoot action with this weapon while it has a **Conceal** order."
+  - "Counteract": "When you would activate a **ready** friendly operative, if all your operatives are **expended** but your opponent still has **ready** operatives"

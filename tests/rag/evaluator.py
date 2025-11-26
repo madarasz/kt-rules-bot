@@ -48,13 +48,15 @@ class RAGEvaluator:
         missing = []
         ranks_of_required = []
 
-        for gt_context in test_case.ground_truth_contexts:
+        for gt_dict in test_case.ground_truth_contexts:
+            # Extract key (human-readable identifier) and value (text for matching)
+            gt_key, gt_value = next(iter(gt_dict.items()))
             found_match = False
 
             # Check if ground truth is contained in any retrieved header
             for i, retr_header in enumerate(retrieved_headers, start=1):
-                if ground_truth_matches_text(gt_context, retr_header):
-                    found.append(gt_context)
+                if ground_truth_matches_text(gt_value, retr_header):
+                    found.append(gt_key)
                     ranks_of_required.append(i)
                     found_match = True
                     break  # Only count first match
@@ -62,14 +64,14 @@ class RAGEvaluator:
             # Check if ground truth is contained in any retrieved text (if not found in header)
             if not found_match:
                 for i, retr_text in enumerate(retrieved_texts, start=1):
-                    if ground_truth_matches_text(gt_context, retr_text):
-                        found.append(gt_context)
+                    if ground_truth_matches_text(gt_value, retr_text):
+                        found.append(gt_key)
                         ranks_of_required.append(i)
                         found_match = True
                         break
 
             if not found_match:
-                missing.append(gt_context)
+                missing.append(gt_key)
 
         # Calculate metrics
         map_score = self._calculate_map(ranks_of_required, len(test_case.ground_truth_contexts))
@@ -89,10 +91,17 @@ class RAGEvaluator:
         # Calculate max ground truth rank (highest rank where a ground truth was found)
         max_ground_truth_rank = max(ranks_of_required) if ranks_of_required else 0
 
+        # Extract keys from ground_truth_contexts for storage in result
+        ground_truth_keys = [next(iter(gt_dict.keys())) for gt_dict in test_case.ground_truth_contexts]
+
+        # Create mapping of keys to values for report generator
+        ground_truth_mapping = {next(iter(gt_dict.keys())): next(iter(gt_dict.values())) for gt_dict in test_case.ground_truth_contexts}
+
         return RAGTestResult(
             test_id=test_case.test_id,
             query=test_case.query,
-            ground_truth_contexts=test_case.ground_truth_contexts,
+            ground_truth_contexts=ground_truth_keys,
+            ground_truth_values=ground_truth_mapping,
             retrieved_chunks=retrieved_headers,
             retrieved_chunk_texts=retrieved_texts,
             retrieved_relevance_scores=retrieved_scores,
