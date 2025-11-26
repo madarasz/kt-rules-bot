@@ -399,19 +399,20 @@ class RAGRetriever:
     def rerank_and_limit_final_chunks(
         self, query: str, chunks: list[DocumentChunk], query_id: UUID, chunk_hop_map: dict[UUID, int]
     ) -> tuple[RAGContext, dict[UUID, int]]:
-        """Apply final hybrid reranking and limit to accumulated chunks.
+        """Sort accumulated chunks by relevance score and limit to maximum count.
 
-        This method is used by multi-hop retrieval to rerank all accumulated chunks
-        after all hops are complete, ensuring the most relevant chunks are prioritized.
+        This method is used by multi-hop retrieval to finalize all accumulated chunks
+        after all hops are complete, sorting by their original relevance scores and
+        limiting to MAXIMUM_FINAL_CHUNK_COUNT.
 
         Args:
-            query: Original user query (for BM25 search)
-            chunks: Accumulated chunks to rerank
+            query: Original user query (unused, kept for interface compatibility)
+            chunks: Accumulated chunks to limit
             query_id: Query UUID for creating RAGContext
             chunk_hop_map: Mapping of chunk_id to hop number
 
         Returns:
-            Tuple of (reranked RAGContext, updated chunk_hop_map)
+            Tuple of (limited RAGContext, updated chunk_hop_map)
         """
         if not chunks:
             empty_context = RAGContext.from_retrieval(query_id=query_id, chunks=[])
@@ -423,44 +424,26 @@ class RAGRetriever:
             max_chunks=MAXIMUM_FINAL_CHUNK_COUNT,
         )
 
-        # Only apply hybrid reranking if hybrid retriever is enabled
-        if self.hybrid_retriever:
-            # Use the hybrid retriever's retrieve_hybrid method to re-rank all chunks
-            # This performs a fresh BM25 search on the original query and fuses with existing vector scores
-            reranked_chunks = self.hybrid_retriever.retrieve_hybrid(
-                query=query,  # Use original user query for BM25
-                vector_chunks=chunks,
-                top_k=MAXIMUM_FINAL_CHUNK_COUNT,
-            )
-        else:
-            # If hybrid retriever not available, just limit by relevance score
-            # Sort by relevance score descending and take top MAXIMUM_FINAL_CHUNK_COUNT
-            reranked_chunks = sorted(chunks, key=lambda c: c.relevance_score, reverse=True)[
-                :MAXIMUM_FINAL_CHUNK_COUNT
-            ]
+        # Sort by relevance score descending and take top MAXIMUM_FINAL_CHUNK_COUNT
+        # Each chunk retains its original relevance score from its retrieval context
+        reranked_chunks = sorted(chunks, key=lambda c: c.relevance_score, reverse=True)[
+            :MAXIMUM_FINAL_CHUNK_COUNT
+        ]
 
-        # Update chunk_hop_map to include remaining chunks
-        # New chunks introduced during final reranking (from BM25) are marked as hop 99
+        # Update chunk_hop_map to include only remaining chunks
         remaining_chunk_ids = {c.chunk_id for c in reranked_chunks}
-        updated_chunk_hop_map = {}
-        new_chunks_count = 0
+        updated_chunk_hop_map = {
+            chunk_id: chunk_hop_map[chunk_id]
+            for chunk_id in remaining_chunk_ids
+            if chunk_id in chunk_hop_map
+        }
 
-        for chunk_id in remaining_chunk_ids:
-            if chunk_id in chunk_hop_map:
-                # Keep existing hop number
-                updated_chunk_hop_map[chunk_id] = chunk_hop_map[chunk_id]
-            else:
-                # New chunk introduced during final reranking
-                updated_chunk_hop_map[chunk_id] = 99
-                new_chunks_count += 1
-
-        # Create new RAGContext with reranked chunks
+        # Create new RAGContext with limited chunks
         reranked_context = RAGContext.from_retrieval(query_id=query_id, chunks=reranked_chunks)
 
         logger.info(
             "final_reranking_complete",
             chunks_after=len(reranked_chunks),
-            new_chunks_from_reranking=new_chunks_count,
         )
 
         return reranked_context, updated_chunk_hop_map

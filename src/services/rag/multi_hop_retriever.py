@@ -372,7 +372,7 @@ class MultiHopRetriever:
             prompt=prompt,
             context=[],
             config=GenerationConfig(
-                max_tokens=200,
+                max_tokens=300,
                 temperature=0.0,  # Deterministic
                 timeout_seconds=self.evaluation_timeout,
                 system_prompt="",  # Empty system prompt for hop evaluation

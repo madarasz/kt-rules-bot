@@ -133,7 +133,7 @@ QUALITY_TEST_RATE_LIMIT_INITIAL_DELAY = 10.0  # Initial retry delay in seconds (
 # ============================================================================
 
 # Default retrieval parameters (used everywhere including Discord bot)
-RAG_MAX_CHUNKS = 7  # Maximum document chunks to retrieve
+RAG_MAX_CHUNKS = 15  # Maximum document chunks to retrieve
 RAG_MIN_RELEVANCE = 0.45  # Minimum cosine similarity threshold
 
 # Maximum chunks in final context after reranking (especially for multi-hop)
@@ -255,15 +255,15 @@ RAG_HOP_EVALUATION_TIMEOUT = 20
 RAG_HOP_RATE_LIMIT_DELAY = 5.0
 
 # Hop evaluation prompt file path
-RAG_HOP_EVALUATION_PROMPT_PATH = "prompts/hop-evaluation-prompt.md"
-#RAG_HOP_EVALUATION_PROMPT_PATH = "prompts/hop-evaluation-prompt-with-rule-reference.md"
+#RAG_HOP_EVALUATION_PROMPT_PATH = "prompts/hop-evaluation-prompt.md"
+RAG_HOP_EVALUATION_PROMPT_PATH = "prompts/hop-evaluation-prompt-with-rule-reference.md"
 
 # Rules structure file paths (for hop evaluation context)
 RULES_STRUCTURE_PATH = "extracted-rules/rules-structure.yml"
 TEAMS_STRUCTURE_PATH = "extracted-rules/teams-structure.yml"
 
 # Max length of chunk text for hop evaluation formatting
-MAX_CHUNK_LENGTH_FOR_EVALUATION = 300
+MAX_CHUNK_LENGTH_FOR_EVALUATION = 500
 
 # ============================================================================
 # Notes
