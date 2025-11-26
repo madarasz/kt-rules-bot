@@ -505,6 +505,9 @@ def process_file(
         if generate_summaries and vector_db:
             summaries = generate_category_summaries(file_path, vector_db)
 
+            # Get team name for consistent prefix removal (matching generate_category_summaries logic)
+            team_name = format_key(file_path.stem).upper()
+
             # Integrate summaries into the structure
             result = {}
             for category, nodes in categorized.items():
@@ -512,7 +515,9 @@ def process_file(
                 if len(nodes) == 1 and not nodes[0].get("children"):
                     # Use summary as scalar value
                     node_title = clean_header(nodes[0]["title"])
-                    summary = summaries.get(node_title, "")
+                    # Look up summary using team-prefix-removed key (matches storage in generate_category_summaries)
+                    lookup_key = remove_team_prefix(node_title, team_name)
+                    summary = summaries.get(lookup_key, "")
                     if summary:
                         result[category] = summary
                     else:
@@ -523,7 +528,9 @@ def process_file(
                     items = []
                     for node in nodes:
                         node_title = clean_header(node["title"])
-                        summary = summaries.get(node_title, "")
+                        # Look up summary using team-prefix-removed key (matches storage in generate_category_summaries)
+                        lookup_key = remove_team_prefix(node_title, team_name)
+                        summary = summaries.get(lookup_key, "")
 
                         if summary:
                             # Node has summary: use dict format with summary as value
