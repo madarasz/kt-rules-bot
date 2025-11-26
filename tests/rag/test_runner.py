@@ -559,8 +559,10 @@ class RAGTestRunner:
                 for i, chunk_text in enumerate(result.retrieved_chunk_texts):
                     hop_number = result.chunk_hop_numbers[i]
                     # Check if this chunk matches any ground truth context
-                    for gt_context in result.ground_truth_contexts:
-                        if ground_truth_matches_text(gt_context, chunk_text):
+                    # Use values from ground_truth_values for matching
+                    gt_values = result.ground_truth_values.values() if result.ground_truth_values else result.ground_truth_contexts
+                    for gt_value in gt_values:
+                        if ground_truth_matches_text(gt_value, chunk_text):
                             hop_ground_truth_counts[hop_number] += 1
                             if hop_number > 0:  # Only count hops, not initial retrieval
                                 total_ground_truth_improvement += 1
@@ -601,10 +603,12 @@ class RAGTestRunner:
 
                     # Check if all ground truths are present in accumulated chunks at this point
                     all_ground_truths_present = True
-                    for gt_context in result.ground_truth_contexts:
+                    # Use values from ground_truth_values for matching
+                    gt_values = result.ground_truth_values.values() if result.ground_truth_values else result.ground_truth_contexts
+                    for gt_value in gt_values:
                         found_in_accumulated = False
                         for chunk_text in accumulated_chunk_texts:
-                            if ground_truth_matches_text(gt_context, chunk_text):
+                            if ground_truth_matches_text(gt_value, chunk_text):
                                 found_in_accumulated = True
                                 break
                         if not found_in_accumulated:

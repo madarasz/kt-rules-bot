@@ -73,6 +73,7 @@ def add_ragas_metrics_to_result(
         "test_id": base_result.test_id,
         "query": base_result.query,
         "ground_truth_contexts": base_result.ground_truth_contexts,
+        "ground_truth_values": base_result.ground_truth_values,
         "retrieved_chunks": base_result.retrieved_chunks,
         "retrieved_chunk_texts": base_result.retrieved_chunk_texts,
         "retrieved_relevance_scores": base_result.retrieved_relevance_scores,

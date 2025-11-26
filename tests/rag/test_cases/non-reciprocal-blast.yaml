@@ -4,4 +4,4 @@ query: >
   to its target, but not to be hit by the blast?
 
 ground_truth_contexts:
-  - "The target you select is the primary target. After shooting the primary target, shoot with this weapon against each secondary target in an order of your choice"
+  - "Blast x": "The target you select is the primary target. After shooting the primary target, shoot with this weapon against each secondary target"

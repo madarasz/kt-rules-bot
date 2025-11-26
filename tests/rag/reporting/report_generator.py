@@ -304,10 +304,12 @@ class RAGReportGenerator:
             # Found vs Missing (Ground truth contexts are shown here)
             content.append("**Found** ✅:")
             if first_result.found_chunks:
-                for chunk in first_result.found_chunks:
+                for chunk_key in first_result.found_chunks:
                     # Find rank, relevance, and metadata (use substring matching)
                     # Match logic from evaluator.py: check header first, then text
-                    chunk_lower = chunk.strip().lower().replace("*", "")
+                    # Use the value from ground_truth_values for matching
+                    chunk_value = first_result.ground_truth_values.get(chunk_key, chunk_key) if first_result.ground_truth_values else chunk_key
+                    chunk_lower = chunk_value.strip().lower().replace("*", "")
                     rank = None
                     relevance = None
                     metadata = None
@@ -370,7 +372,7 @@ class RAGReportGenerator:
                             score_parts.append(f"rrf: {rrf_score:.4f}")
 
                     score_display = ", ".join(score_parts) if score_parts else "N/A"
-                    content.append(f"- {chunk} (rank #{rank}, {score_display})")
+                    content.append(f"- {chunk_key} (rank #{rank}, {score_display})")
             else:
                 content.append("- (none)")
             content.append("")
@@ -433,9 +435,11 @@ class RAGReportGenerator:
                 marker = ""
                 chunk_header_lower = chunk_header.strip().lower().replace("*", "")
                 chunk_text_lower = chunk_text.strip().lower().replace("*", "")
-                for found_chunk in first_result.found_chunks:
-                    # Check if found_chunk is contained IN chunk_header OR chunk_text (consistent with evaluator.py)
-                    found_chunk_lower = found_chunk.strip().lower().replace("*", "")
+                for found_chunk_key in first_result.found_chunks:
+                    # Check if found_chunk value is contained IN chunk_header OR chunk_text (consistent with evaluator.py)
+                    # Use the value from ground_truth_values for matching
+                    found_chunk_value = first_result.ground_truth_values.get(found_chunk_key, found_chunk_key) if first_result.ground_truth_values else found_chunk_key
+                    found_chunk_lower = found_chunk_value.strip().lower().replace("*", "")
                     if (
                         found_chunk_lower in chunk_header_lower
                         or found_chunk_lower in chunk_text_lower
@@ -493,14 +497,16 @@ class RAGReportGenerator:
 
         # Add ground truth contexts section
         content.append("Ground Truth Contexts:")
-        for gt_context in result.ground_truth_contexts:
+        for gt_key in result.ground_truth_contexts:
             # Check if this ground truth was found
             found = False
             rank = None
             hop_num = None
 
+            # Use the value from ground_truth_values for matching
+            gt_value = result.ground_truth_values.get(gt_key, gt_key) if result.ground_truth_values else gt_key
             # Search through retrieved chunks (headers first, then full text)
-            gt_lower = gt_context.strip().lower().replace("*", "")
+            gt_lower = gt_value.strip().lower().replace("*", "")
 
             # Check headers first
             for i, header in enumerate(result.retrieved_chunks, start=1):
@@ -525,12 +531,12 @@ class RAGReportGenerator:
                             hop_num = result.chunk_hop_numbers[i - 1]
                         break
 
-            # Format output with emoji and details
+            # Format output with emoji and details (display key, not value)
             if found:
                 hop_display = f", hop {hop_num}" if hop_num is not None else ""
-                content.append(f"✅ (rank #{rank}{hop_display}) \"{gt_context}\"")
+                content.append(f"✅ (rank #{rank}{hop_display}) \"{gt_key}\"")
             else:
-                content.append(f"❌ \"{gt_context}\"")
+                content.append(f"❌ \"{gt_key}\"")
 
         content.append("")
         content.append("=" * 80)
@@ -543,9 +549,11 @@ class RAGReportGenerator:
             marker = ""
             header_lower = header.strip().lower().replace("*", "")
             text_lower = text.strip().lower().replace("*", "")
-            for found_chunk in result.found_chunks:
-                # Check if found_chunk is contained IN header or text (consistent with evaluator.py)
-                found_chunk_lower = found_chunk.strip().lower().replace("*", "")
+            for found_chunk_key in result.found_chunks:
+                # Check if found_chunk value is contained IN header or text (consistent with evaluator.py)
+                # Use the value from ground_truth_values for matching
+                found_chunk_value = result.ground_truth_values.get(found_chunk_key, found_chunk_key) if result.ground_truth_values else found_chunk_key
+                found_chunk_lower = found_chunk_value.strip().lower().replace("*", "")
                 if found_chunk_lower in header_lower or found_chunk_lower in text_lower:
                     marker = "✅ REQUIRED"
                     break

@@ -3,5 +3,5 @@ query: >
   Can a dude get guard shot more than once during an activation?
 
 ground_truth_contexts:
-  - "On Guard"
-  - "MARKSMAN VETERAN - Vigilant Marksman"
+  - "On Guard": "Once during each enemy operative's activation, after that enemy operative performs an action"
+  - "Vigilant Marksman": "This operative can perform the **Guard** action during its activation regardless of the killzone"
