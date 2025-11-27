@@ -120,12 +120,14 @@ CREATE TABLE IF NOT EXISTS rag_test_runs (
     run_name TEXT DEFAULT '',
     comments TEXT DEFAULT '',
     favorite INTEGER DEFAULT 0,
+    sort_order INTEGER DEFAULT NULL,
     created_at TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_rag_test_runs_timestamp ON rag_test_runs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_rag_test_runs_test_set ON rag_test_runs(test_set);
 CREATE INDEX IF NOT EXISTS idx_rag_test_runs_favorite ON rag_test_runs(favorite);
+CREATE INDEX IF NOT EXISTS idx_rag_test_runs_sort_order ON rag_test_runs(sort_order);
 """
 
 
@@ -1025,7 +1027,7 @@ class AnalyticsDatabase:
             if favorite_only:
                 query += " AND favorite = 1"
 
-            query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+            query += " ORDER BY COALESCE(sort_order, 999999) ASC, timestamp DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
 
             with self._get_connection() as conn:
@@ -1116,6 +1118,40 @@ class AnalyticsDatabase:
 
         except Exception as e:
             logger.error(f"Failed to update RAG test run: {e}", exc_info=True)
+
+    def update_rag_test_runs_sort_order(self, sort_orders: dict[str, int]) -> bool:
+        """Update sort order for multiple RAG test runs.
+
+        Args:
+            sort_orders: Dictionary mapping run_id to sort_order (1-indexed position)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.enabled:
+            return False
+
+        if not sort_orders:
+            return True
+
+        try:
+            with self._get_connection() as conn:
+                for run_id, sort_order in sort_orders.items():
+                    conn.execute(
+                        "UPDATE rag_test_runs SET sort_order = ? WHERE run_id = ?",
+                        (sort_order, run_id),
+                    )
+                conn.commit()
+
+            logger.info(
+                "RAG test runs sort order updated",
+                extra={"num_runs": len(sort_orders)},
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to update RAG test runs sort order: {e}", exc_info=True)
+            return False
 
     def delete_rag_test_run(self, run_id: str) -> bool:
         """Delete a RAG test run.
