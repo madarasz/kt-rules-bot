@@ -111,9 +111,13 @@ def _render_reorder_mode(test_runs: list[dict], db: AnalyticsDatabase) -> None:
 def _render_comparison_chart(test_runs: list[dict]) -> None:
     """Render comparison bar chart for favorite RAG test runs.
 
-    Displays a grouped bar chart with dual Y-axes comparing:
-    - Context Recall (%) on left Y-axis (green)
-    - Hops, Avg Cost (¢), Avg Time (s) on right Y-axis (purple, red, blue)
+    Displays a grouped bar chart with 4 Y-axes:
+    - Y-axis 1 (left): Context Recall (%) [0-100] (green)
+    - Y-axis 2 (right): Avg Time (s) (blue)
+    - Y-axis 3 (right, hidden): Avg Cost (¢) with 2× scale (red)
+    - Y-axis 4 (right, hidden): Hops scaled to match Recall [0-100] (purple)
+
+    Note: Cost and Hops use separate hidden Y-axes with custom ranges for visual scaling.
 
     Args:
         test_runs: List of test run dictionaries from database
@@ -150,25 +154,27 @@ def _render_comparison_chart(test_runs: list[dict]) -> None:
         offsetgroup=0
     ))
 
-    # Hops bar (right y-axis) - purple
+    # Hops bar (fourth y-axis, overlaid on right) - purple
+    # Uses yaxis4 with custom range to scale [0,1] to match Recall [0,100]
     if "avg_hops_used" in df.columns:
         fig.add_trace(go.Bar(
             name="Hops",
             x=df["display_name"],
             y=df["avg_hops_used"],
             marker_color="#9C27B0",
-            yaxis="y2",
+            yaxis="y4",
             offsetgroup=1
         ))
 
-    # Avg Cost bar (right y-axis) - red
+    # Avg Cost bar (third y-axis, overlaid on right) - red
+    # Uses yaxis3 with custom range to make bars appear 2x bigger
     if "avg_retrieval_cost" in df.columns:
         fig.add_trace(go.Bar(
             name="Avg Cost",
             x=df["display_name"],
             y=df["avg_retrieval_cost"],
             marker_color="#F44336",
-            yaxis="y2",
+            yaxis="y3",
             offsetgroup=2
         ))
 
@@ -183,7 +189,11 @@ def _render_comparison_chart(test_runs: list[dict]) -> None:
             offsetgroup=3
         ))
 
-    # Update layout with dual y-axes
+    max_cost = df["avg_retrieval_cost"].max() if "avg_retrieval_cost" in df.columns else 1
+    max_hops = df["avg_hops_used"].max() if "avg_hops_used" in df.columns else 1
+    max_hops = max_hops if max_hops > 1 else 1
+
+    # Update layout with quad y-axes
     fig.update_layout(
         title="Favorite Test Runs Comparison",
         xaxis=dict(title="Run Name"),
@@ -193,10 +203,24 @@ def _render_comparison_chart(test_runs: list[dict]) -> None:
             range=[0, 100]
         ),
         yaxis2=dict(
-            title=dict(text="Hops / Cost (¢) / Time (s)", font=dict(color="#666666")),
+            title=dict(text="Time (s)", font=dict(color="#666666")),
             tickfont=dict(color="#666666"),
             overlaying="y",
             side="right"
+        ),
+        yaxis3=dict(
+            overlaying="y",
+            side="right",
+            range=[0, max_cost],
+            showticklabels=False,
+            showgrid=False
+        ),
+        yaxis4=dict(
+            overlaying="y",
+            side="right",
+            range=[0, max_hops],
+            showticklabels=False,
+            showgrid=False
         ),
         barmode="group",
         height=500,
