@@ -50,6 +50,8 @@ def migrate_analytics_db(db_path: str) -> None:
             ("queries", "quote_total_count", "INTEGER DEFAULT 0"),
             ("queries", "quote_valid_count", "INTEGER DEFAULT 0"),
             ("queries", "quote_invalid_count", "INTEGER DEFAULT 0"),
+            # RAG test runs sort order (added 2025-01-27)
+            ("rag_test_runs", "sort_order", "INTEGER DEFAULT NULL"),
         ]
 
         applied_count = 0
@@ -67,7 +69,10 @@ def migrate_analytics_db(db_path: str) -> None:
         # Create missing indexes
         print("\n🔍 Checking indexes...")
 
-        indexes = [("idx_quote_validation_score", "queries", "quote_validation_score")]
+        indexes = [
+            ("idx_quote_validation_score", "queries", "quote_validation_score"),
+            ("idx_rag_test_runs_sort_order", "rag_test_runs", "sort_order"),
+        ]
 
         cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='index'")
         existing_indexes = {row[0] for row in cursor.fetchall()}

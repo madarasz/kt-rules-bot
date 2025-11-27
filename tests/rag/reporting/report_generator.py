@@ -252,7 +252,16 @@ class RAGReportGenerator:
                 tests_by_id[result.test_id] = []
             tests_by_id[result.test_id].append(result)
 
-        for test_id, test_results in tests_by_id.items():
+        # Sort: tests with missing chunks first, then the rest
+        sorted_test_items = sorted(
+            tests_by_id.items(),
+            key=lambda item: (
+                len(item[1][0].missing_chunks) == 0,  # False (has missing) comes before True (no missing)
+                item[0],  # Then alphabetically by test_id
+            ),
+        )
+
+        for test_id, test_results in sorted_test_items:
             # Use first result for test details
             first_result = test_results[0]
 

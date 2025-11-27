@@ -1,6 +1,9 @@
 """RAG Test Results page for the admin dashboard."""
 
+import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
+from streamlit_sortables import sort_items
 
 from src.lib.database import AnalyticsDatabase
 
@@ -23,15 +26,190 @@ def render(db: AnalyticsDatabase) -> None:
         st.info("No RAG test runs found. Run tests using `python -m src.cli quality-test` to populate results.")
         return
 
-    # Display test runs table
-    st.subheader(f"Found {len(test_runs)} test runs")
+    # Reorder mode toggle
+    if "reorder_mode" not in st.session_state:
+        st.session_state.reorder_mode = False
 
-    # Render table header
-    _render_table_header()
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.subheader(f"Found {len(test_runs)} test runs")
+    with col2:
+        if st.button(
+            "📝 Reorder Mode" if not st.session_state.reorder_mode else "✅ Done Reordering",
+            use_container_width=True,
+        ):
+            st.session_state.reorder_mode = not st.session_state.reorder_mode
+            st.rerun()
 
-    # Render table with clickable rows
+    # Show reorder mode or normal view
+    if st.session_state.reorder_mode:
+        _render_reorder_mode(test_runs, db)
+    else:
+        # Render comparison chart for favorite runs
+        _render_comparison_chart(test_runs)
+
+        # Display test runs table
+        st.divider()
+
+        # Render table header
+        _render_table_header()
+
+        # Render table with clickable rows
+        for run in test_runs:
+            _render_test_run_row(run, db)
+
+
+def _render_reorder_mode(test_runs: list[dict], db: AnalyticsDatabase) -> None:
+    """Render drag-and-drop reordering interface.
+
+    Args:
+        test_runs: List of test run dictionaries
+        db: Database instance
+    """
+    st.info("🔄 Drag and drop to reorder test runs. Changes will affect both the table and chart order.")
+
+    # Initialize sort_order for runs that don't have it
+    needs_initialization = any(run.get("sort_order") is None for run in test_runs)
+    if needs_initialization:
+        st.warning(
+            "⚠️ First time reordering: This will assign sort order to all runs based on their current position."
+        )
+
+    # Prepare items for sorting with display names
+    items = []
+    run_id_map = {}
     for run in test_runs:
-        _render_test_run_row(run, db)
+        display_name = run.get("run_name") if run.get("run_name") else run["run_id"]
+        fav_marker = "⭐ " if run.get("favorite", 0) else ""
+        label = f"{fav_marker}{display_name}"
+        items.append(label)
+        run_id_map[label] = run["run_id"]
+
+    # Render sortable list
+    st.markdown("### Drag to Reorder")
+    sorted_items = sort_items(items, multi_containers=False, direction="vertical")
+
+    # Save button
+    if st.button("💾 Save New Order", type="primary", use_container_width=True):
+        # Create sort_order mapping (1-indexed)
+        sort_orders = {}
+        for idx, label in enumerate(sorted_items, start=1):
+            run_id = run_id_map[label]
+            sort_orders[run_id] = idx
+
+        # Update database
+        success = db.update_rag_test_runs_sort_order(sort_orders)
+
+        if success:
+            st.success("✅ Order saved successfully!")
+            st.session_state.reorder_mode = False
+            st.rerun()
+        else:
+            st.error("❌ Failed to save order. Please try again.")
+
+
+def _render_comparison_chart(test_runs: list[dict]) -> None:
+    """Render comparison bar chart for favorite RAG test runs.
+
+    Displays a grouped bar chart with dual Y-axes comparing:
+    - Context Recall (%) on left Y-axis (green)
+    - Hops, Avg Cost (¢), Avg Time (s) on right Y-axis (purple, red, blue)
+
+    Args:
+        test_runs: List of test run dictionaries from database
+    """
+    # Filter to favorite runs only
+    favorite_runs = [run for run in test_runs if run.get("favorite", 0)]
+
+    if not favorite_runs:
+        st.info("💡 Mark test runs as favorite (⭐) to see them in the comparison chart.")
+        return
+
+    # Prepare data
+    df = pd.DataFrame(favorite_runs)
+
+    # Reverse order for chart display (right to left)
+    df = df.iloc[::-1]
+
+    # Use run_name if available, otherwise fallback to run_id
+    df["display_name"] = df.apply(
+        lambda row: row["run_name"] if row.get("run_name") else row["run_id"],
+        axis=1
+    )
+
+    # Create figure with secondary y-axis
+    fig = go.Figure()
+
+    # Recall bar (left y-axis) - green
+    fig.add_trace(go.Bar(
+        name="Recall",
+        x=df["display_name"],
+        y=df["context_recall"] * 100,  # Convert to percentage
+        marker_color="#4CAF50",
+        yaxis="y",
+        offsetgroup=0
+    ))
+
+    # Hops bar (right y-axis) - purple
+    if "avg_hops_used" in df.columns:
+        fig.add_trace(go.Bar(
+            name="Hops",
+            x=df["display_name"],
+            y=df["avg_hops_used"],
+            marker_color="#9C27B0",
+            yaxis="y2",
+            offsetgroup=1
+        ))
+
+    # Avg Cost bar (right y-axis) - red
+    if "avg_retrieval_cost" in df.columns:
+        fig.add_trace(go.Bar(
+            name="Avg Cost",
+            x=df["display_name"],
+            y=df["avg_retrieval_cost"],
+            marker_color="#F44336",
+            yaxis="y2",
+            offsetgroup=2
+        ))
+
+    # Avg Time bar (right y-axis) - blue
+    if "avg_retrieval_time" in df.columns:
+        fig.add_trace(go.Bar(
+            name="Avg Time",
+            x=df["display_name"],
+            y=df["avg_retrieval_time"],
+            marker_color="#2196F3",
+            yaxis="y2",
+            offsetgroup=3
+        ))
+
+    # Update layout with dual y-axes
+    fig.update_layout(
+        title="Favorite Test Runs Comparison",
+        xaxis=dict(title="Run Name"),
+        yaxis=dict(
+            title=dict(text="Recall (%)", font=dict(color="#4CAF50")),
+            tickfont=dict(color="#4CAF50"),
+            range=[0, 100]
+        ),
+        yaxis2=dict(
+            title=dict(text="Hops / Cost (¢) / Time (s)", font=dict(color="#666666")),
+            tickfont=dict(color="#666666"),
+            overlaying="y",
+            side="right"
+        ),
+        barmode="group",
+        height=500,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 
 
 def _render_table_header() -> None:
