@@ -170,7 +170,12 @@ class DeepSeekAdapter(LLMProvider):
                 )
             except Exception as e:
                 logger.error(f"DeepSeek returned JSON that failed Pydantic validation: {e}")
-                raise ValueError(f"DeepSeek JSON validation error: {e}") from e
+                # Include the raw response in the error message for debugging
+                error_msg = (
+                    f"DeepSeek JSON validation error: {e}\n\n"
+                    f"RAW RESPONSE:\n{function_args}"
+                )
+                raise ValueError(error_msg) from e
 
             # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations
