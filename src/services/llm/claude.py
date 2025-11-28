@@ -100,6 +100,17 @@ class ClaudeAdapter(LLMProvider):
             # Extract structured output from parsed response
             # response.parsed_output is a Pydantic model instance
             parsed_output = response.parsed_output
+            if not parsed_output:
+                # Try to get raw content for debugging
+                # Check if response has content blocks
+                raw_content = None
+                if hasattr(response, "content") and response.content:
+                    raw_content = str(response.content)
+                error_msg = "Expected parsed Pydantic output but none returned"
+                if raw_content:
+                    error_msg += f"\n\nRAW RESPONSE:\n{raw_content}"
+                raise Exception(error_msg)
+
             answer_text = parsed_output.model_dump_json()
             logger.debug(
                 f"Extracted structured JSON from Claude (Pydantic): {len(answer_text)} chars"

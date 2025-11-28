@@ -130,7 +130,12 @@ class ChatGPTAdapter(LLMProvider):
             # Access the parsed Pydantic model
             parsed_output = choice.message.parsed
             if not parsed_output:
-                raise Exception("Expected parsed Pydantic output but none returned")
+                # Try to get raw content for debugging
+                raw_content = getattr(choice.message, "content", None)
+                error_msg = "Expected parsed Pydantic output but none returned"
+                if raw_content:
+                    error_msg += f"\n\nRAW RESPONSE:\n{raw_content}"
+                raise Exception(error_msg)
 
             answer_text = parsed_output.model_dump_json()
             logger.debug(
