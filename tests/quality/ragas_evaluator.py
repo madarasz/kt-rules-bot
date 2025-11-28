@@ -21,7 +21,7 @@ from ragas import evaluate
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import AnswerCorrectness, Faithfulness
 
-from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
+from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_JUDGING
 from src.lib.logging import get_logger
 from src.lib.ragas_adapter import evaluate_retrieval
 from src.lib.text_utils import normalize_text_for_matching
@@ -187,9 +187,13 @@ class RagasEvaluator:
             # For Quote Precision and Quote Recall:
             # Use evaluate_retrieval from ragas_adapter (substring matching approach)
             # Compare quotes.text (what was cited) against ground_truth_contexts (what should be cited)
+            # Note: evaluate_retrieval expects ground_truth_contexts as list of dicts
+            ground_truth_contexts_dicts = [
+                {"context": gt} for gt in normalized_ground_truth_contexts
+            ]
             retrieval_metrics = evaluate_retrieval(
                 retrieved_contexts=quotes_text,
-                ground_truth_contexts=normalized_ground_truth_contexts,
+                ground_truth_contexts=ground_truth_contexts_dicts,
             )
 
             # For Quote Faithfulness:
@@ -230,76 +234,91 @@ class RagasEvaluator:
                 ],  # Expected answer content (normalized)
             }
 
-            dataset_quote_faithfulness = Dataset.from_dict(data_quote_faithfulness)
-            dataset_explanation = Dataset.from_dict(data_explanation)
+            # Initialize LLM-based metrics as None (may be calculated below)
+            quote_faithfulness_score = None
+            explanation_faithfulness_score = None
+            answer_correctness_score = None
 
-            # Configure RAGAS metrics with LLM
-            ragas_llm = self._get_configured_llm()
+            # Conditionally run LLM-based Ragas metrics based on QUALITY_TEST_JUDGING
+            if QUALITY_TEST_JUDGING == "RAGAS":
+                logger.debug("Running LLM-based Ragas metrics (QUALITY_TEST_JUDGING=RAGAS)")
 
-            # Create metric instances with configured LLM
-            faithfulness_metric_quote = Faithfulness(llm=ragas_llm)
-            faithfulness_metric_explanation = Faithfulness(llm=ragas_llm)
-            answer_correctness_metric = AnswerCorrectness(llm=ragas_llm)
+                dataset_quote_faithfulness = Dataset.from_dict(data_quote_faithfulness)
+                dataset_explanation = Dataset.from_dict(data_explanation)
 
-            # Run Ragas evaluation in separate thread to avoid event loop conflicts
-            # Ragas uses async HTTP clients internally which can cause "Event loop is closed" errors
-            # when running in parallel with asyncio.to_thread(). Using ThreadPoolExecutor with
-            # loop.run_in_executor() properly isolates the evaluation.
-            loop = asyncio.get_event_loop()
-            executor = ThreadPoolExecutor(max_workers=1)
+                # Configure RAGAS metrics with LLM
+                ragas_llm = self._get_configured_llm()
 
-            # Run Ragas evaluation - Part 1: Quote Faithfulness
-            result_quote_faithfulness = await loop.run_in_executor(
-                executor,
-                _run_ragas_evaluate_sync,
-                dataset_quote_faithfulness,
-                [faithfulness_metric_quote],  # This measures quote faithfulness
-            )
+                # Create metric instances with configured LLM
+                faithfulness_metric_quote = Faithfulness(llm=ragas_llm)
+                faithfulness_metric_explanation = Faithfulness(llm=ragas_llm)
+                answer_correctness_metric = AnswerCorrectness(llm=ragas_llm)
 
-            # Run Ragas evaluation - Part 2: Explanation metrics
-            result_explanation = await loop.run_in_executor(
-                executor,
-                _run_ragas_evaluate_sync,
-                dataset_explanation,
-                [
-                    faithfulness_metric_explanation,
-                    answer_correctness_metric,
-                ],  # Explanation faithfulness and answer correctness
-            )
+                # Run Ragas evaluation in separate thread to avoid event loop conflicts
+                # Ragas uses async HTTP clients internally which can cause "Event loop is closed" errors
+                # when running in parallel with asyncio.to_thread(). Using ThreadPoolExecutor with
+                # loop.run_in_executor() properly isolates the evaluation.
+                loop = asyncio.get_event_loop()
+                executor = ThreadPoolExecutor(max_workers=1)
 
-            # Clean up executor
-            executor.shutdown(wait=True)
+                # Run Ragas evaluation - Part 1: Quote Faithfulness
+                result_quote_faithfulness = await loop.run_in_executor(
+                    executor,
+                    _run_ragas_evaluate_sync,
+                    dataset_quote_faithfulness,
+                    [faithfulness_metric_quote],  # This measures quote faithfulness
+                )
 
-            # Extract scores from EvaluationResult objects
-            result_qf_df = result_quote_faithfulness.to_pandas()
-            result_explanation_df = result_explanation.to_pandas()
+                # Run Ragas evaluation - Part 2: Explanation metrics
+                result_explanation = await loop.run_in_executor(
+                    executor,
+                    _run_ragas_evaluate_sync,
+                    dataset_explanation,
+                    [
+                        faithfulness_metric_explanation,
+                        answer_correctness_metric,
+                    ],  # Explanation faithfulness and answer correctness
+                )
 
-            # Helper function to safely extract metric and check for NaN
-            def safe_extract_metric(df, metric_name: str, metric_label: str):
-                """Extract metric from dataframe, checking for NaN values."""
-                if metric_name not in df:
-                    return None
-                value = df[metric_name].iloc[0]
-                # Check if value is NaN
-                if isinstance(value, float) and math.isnan(value):
-                    logger.error(
-                        f"Ragas metric {metric_label} returned NaN - evaluation failed for this metric"
-                    )
-                    return None
-                return value
+                # Clean up executor
+                executor.shutdown(wait=True)
+
+                # Extract scores from EvaluationResult objects
+                result_qf_df = result_quote_faithfulness.to_pandas()
+                result_explanation_df = result_explanation.to_pandas()
+
+                # Helper function to safely extract metric and check for NaN
+                def safe_extract_metric(df, metric_name: str, metric_label: str):
+                    """Extract metric from dataframe, checking for NaN values."""
+                    if metric_name not in df:
+                        return None
+                    value = df[metric_name].iloc[0]
+                    # Check if value is NaN
+                    if isinstance(value, float) and math.isnan(value):
+                        logger.error(
+                            f"Ragas metric {metric_label} returned NaN - evaluation failed for this metric"
+                        )
+                        return None
+                    return value
+
+                quote_faithfulness_score = safe_extract_metric(
+                    result_qf_df, "faithfulness", "quote_faithfulness"
+                )
+                explanation_faithfulness_score = safe_extract_metric(
+                    result_explanation_df, "faithfulness", "explanation_faithfulness"
+                )
+                answer_correctness_score = safe_extract_metric(
+                    result_explanation_df, "answer_correctness", "answer_correctness"
+                )
+            else:
+                logger.debug(f"Skipping LLM-based Ragas metrics (QUALITY_TEST_JUDGING={QUALITY_TEST_JUDGING})")
 
             metrics = RagasMetrics(
                 quote_precision=retrieval_metrics.context_precision,
                 quote_recall=retrieval_metrics.context_recall,
-                quote_faithfulness=safe_extract_metric(
-                    result_qf_df, "faithfulness", "quote_faithfulness"
-                ),
-                explanation_faithfulness=safe_extract_metric(
-                    result_explanation_df, "faithfulness", "explanation_faithfulness"
-                ),
-                answer_correctness=safe_extract_metric(
-                    result_explanation_df, "answer_correctness", "answer_correctness"
-                ),
+                quote_faithfulness=quote_faithfulness_score,
+                explanation_faithfulness=explanation_faithfulness_score,
+                answer_correctness=answer_correctness_score,
             )
 
             # Generate detailed feedback for each metric
@@ -324,38 +343,43 @@ class RagasEvaluator:
                 metrics.answer_correctness, answer_text, ground_truth_answers
             )
 
-            # Estimate cost based on judge model usage
-            # Ragas makes 2 separate evaluations with 3 total metrics (1+2)
-            # Quote Precision/Recall are calculated locally without LLM judge
-            # Estimate token usage: query + context + answer + ground truths for each metric
-            estimated_input_tokens_per_metric = (
-                len(query.split()) * 1.3  # query
-                + sum(len(chunk.split()) * 1.3 for chunk in context_chunks)
-                / 3  # context (averaged)
-                + len(answer_text.split()) * 1.3  # answer
-                + sum(len(gt.split()) * 1.3 for gt in ground_truth_answers)
-                / 3  # ground truths (averaged)
-            )
-            estimated_output_tokens_per_metric = 50  # Judge model outputs are typically short
+            # Estimate cost based on judge model usage (only if LLM-based metrics were run)
+            if QUALITY_TEST_JUDGING == "RAGAS":
+                # Ragas makes 2 separate evaluations with 3 total metrics (1+2)
+                # Quote Precision/Recall are calculated locally without LLM judge
+                # Estimate token usage: query + context + answer + ground truths for each metric
+                estimated_input_tokens_per_metric = (
+                    len(query.split()) * 1.3  # query
+                    + sum(len(chunk.split()) * 1.3 for chunk in context_chunks)
+                    / 3  # context (averaged)
+                    + len(answer_text.split()) * 1.3  # answer
+                    + sum(len(gt.split()) * 1.3 for gt in ground_truth_answers)
+                    / 3  # ground truths (averaged)
+                )
+                estimated_output_tokens_per_metric = 50  # Judge model outputs are typically short
 
-            total_input_tokens = int(
-                estimated_input_tokens_per_metric * 3
-            )  # 3 metrics using LLM judge
-            total_output_tokens = int(estimated_output_tokens_per_metric * 3)
+                total_input_tokens = int(
+                    estimated_input_tokens_per_metric * 3
+                )  # 3 metrics using LLM judge
+                total_output_tokens = int(estimated_output_tokens_per_metric * 3)
 
-            metrics.total_cost_usd = estimate_cost(
-                prompt_tokens=total_input_tokens,
-                completion_tokens=total_output_tokens,
-                model=QUALITY_TEST_JUDGE_MODEL,
-            )
+                metrics.total_cost_usd = estimate_cost(
+                    prompt_tokens=total_input_tokens,
+                    completion_tokens=total_output_tokens,
+                    model=QUALITY_TEST_JUDGE_MODEL,
+                )
 
-            logger.debug(
-                "ragas_cost_estimated",
-                input_tokens=total_input_tokens,
-                output_tokens=total_output_tokens,
-                cost_usd=metrics.total_cost_usd,
-                judge_model=QUALITY_TEST_JUDGE_MODEL,
-            )
+                logger.debug(
+                    "ragas_cost_estimated",
+                    input_tokens=total_input_tokens,
+                    output_tokens=total_output_tokens,
+                    cost_usd=metrics.total_cost_usd,
+                    judge_model=QUALITY_TEST_JUDGE_MODEL,
+                )
+            else:
+                # No LLM-based evaluation costs when judging is OFF
+                metrics.total_cost_usd = 0.0
+                logger.debug("No Ragas LLM costs (QUALITY_TEST_JUDGING=OFF)")
 
             return metrics
 

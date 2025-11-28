@@ -5,6 +5,7 @@ from collections import defaultdict
 
 import numpy as np
 
+from src.lib.constants import QUALITY_TEST_JUDGING
 from tests.quality.reporting.chart_generator import ChartGenerator
 from tests.quality.reporting.report_models import IndividualTestResult, ModelSummary, QualityReport
 
@@ -277,7 +278,8 @@ class ReportGenerator:
 
                     # Display Ragas metrics if available
                     if result.ragas_metrics_available:
-                        content.append("\n**Ragas Metrics:**")
+                        judging_mode_label = " (LLM-based judging: OFF)" if QUALITY_TEST_JUDGING == "OFF" else ""
+                        content.append(f"\n**Ragas Metrics{judging_mode_label}:**")
 
                         # Quote Precision
                         if result.quote_precision is not None:
@@ -484,7 +486,8 @@ class ReportGenerator:
         results_with_ragas = [r for r in self.report.results if r.ragas_metrics_available]
         if results_with_ragas:
             content.append("")
-            content.append("Average Ragas Metrics:")
+            judging_mode_label = " (LLM-based judging: OFF)" if QUALITY_TEST_JUDGING == "OFF" else ""
+            content.append(f"Average Ragas Metrics{judging_mode_label}:")
 
             quote_precision_vals = [
                 r.quote_precision for r in results_with_ragas if r.quote_precision is not None
