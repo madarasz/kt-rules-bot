@@ -68,10 +68,10 @@ QUALITY_TEST_PROVIDERS = [
     "gpt-4o",
     # "gpt-4.1-mini",
     "claude-4.5-sonnet",
-    "claude-4.5-haiku",
+    "claude-4.5-opus",
     "gemini-3-pro-preview",
     "gemini-2.5-flash",
-    # "gemini-2.5-pro",
+    "gemini-2.5-pro",
     "deepseek-chat",
     "grok-4-fast-reasoning",
     # "grok-3",
@@ -118,6 +118,12 @@ LLM_EXTRACTION_TEMPERATURE = 0  # Low temperature for consistent structure
 
 # Default judge model for quality tests
 QUALITY_TEST_JUDGE_MODEL = "gpt-4o"  # Ragas judge model for generation tests
+
+# Quality test judging mode
+# - "RAGAS": Enable LLM-based metrics (Quote Faithfulness, Explanation Faithfulness, Answer Correctness)
+# - "OFF": Disable LLM-based metrics (only Quote Precision and Quote Recall)
+# Note: Quote Precision and Quote Recall are always calculated (local, no LLM required)
+QUALITY_TEST_JUDGING: Literal["RAGAS", "OFF"] = "RAGAS"  # Default: OFF to avoid LLM costs
 
 # Judge evaluation parameters
 QUALITY_TEST_JUDGE_MAX_TOKENS = 150  # Short evaluation responses

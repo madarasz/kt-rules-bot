@@ -4,6 +4,8 @@ import os
 
 import numpy as np
 
+from src.lib.constants import QUALITY_TEST_JUDGING
+
 try:
     import matplotlib
 
@@ -518,62 +520,56 @@ class ChartGenerator:
         # Get unique models
         models = sorted({r.model for r in self.report.results})
 
-        # Calculate earned and error portions for each metric
-        earned_qp, error_qp = self._calculate_ragas_metric_breakdown(models, "quote_precision")
-        earned_qr, error_qr = self._calculate_ragas_metric_breakdown(models, "quote_recall")
-        earned_qf, error_qf = self._calculate_ragas_metric_breakdown(models, "quote_faithfulness")
-        earned_ef, error_ef = self._calculate_ragas_metric_breakdown(
-            models, "explanation_faithfulness"
-        )
-        earned_ac, error_ac = self._calculate_ragas_metric_breakdown(models, "answer_correctness")
+        # Define all possible metrics with their properties
+        all_metrics = [
+            ("quote_precision", "Quote Precision", "#3498db"),  # Blue
+            ("quote_recall", "Quote Recall", "#2ecc71"),  # Green
+            ("quote_faithfulness", "Quote Faithfulness", "#9b59b6"),  # Purple
+            ("explanation_faithfulness", "Explanation Faithfulness", "#e74c3c"),  # Red
+            ("answer_correctness", "Answer Correctness", "#f39c12"),  # Orange
+        ]
+
+        # Filter metrics to only include those with actual data
+        metrics_to_plot = []
+        for metric_name, label, color in all_metrics:
+            # Check if any result has this metric
+            has_data = any(
+                getattr(r, metric_name, None) is not None for r in self.report.results
+            )
+            if has_data:
+                earned, error = self._calculate_ragas_metric_breakdown(models, metric_name)
+                metrics_to_plot.append((metric_name, label, color, earned, error))
+
+        if not metrics_to_plot:
+            return None  # No metrics have data
 
         # Create figure
         fig, ax = plt.subplots(figsize=(14, 8))
 
         # Set up x-axis
         x = np.arange(len(models))
-        width = 0.15  # Width of each bar
+        num_metrics = len(metrics_to_plot)
+        width = 0.8 / num_metrics  # Adjust width based on number of metrics
 
-        # Bar positions - 5 metrics side by side
-        pos1 = x - 2 * width
-        pos2 = x - 1 * width
-        pos3 = x
-        pos4 = x + 1 * width
-        pos5 = x + 2 * width
+        # Calculate bar positions centered around each model
+        positions = []
+        for i in range(num_metrics):
+            offset = (i - (num_metrics - 1) / 2) * width
+            positions.append(x + offset)
 
-        # Colors for each metric
-        color_qp = "#3498db"  # Blue - Quote Precision
-        color_qr = "#2ecc71"  # Green - Quote Recall
-        color_qf = "#9b59b6"  # Purple - Quote Faithfulness
-        color_ef = "#e74c3c"  # Red - Explanation Faithfulness
-        color_ac = "#f39c12"  # Orange - Answer Correctness
         color_error = "#95a5a6"  # Grey for evaluation errors
 
         # Plot stacked bars for each metric (earned + error portions)
-        # First, plot earned portions (colored bars)
-        ax.bar(pos1, earned_qp, width, label="Quote Precision", color=color_qp, alpha=0.8)
-        ax.bar(pos2, earned_qr, width, label="Quote Recall", color=color_qr, alpha=0.8)
-        ax.bar(pos3, earned_qf, width, label="Quote Faithfulness", color=color_qf, alpha=0.8)
-        ax.bar(
-            pos4, earned_ef, width, label="Explanation Faithfulness", color=color_ef, alpha=0.8
-        )
-        ax.bar(pos5, earned_ac, width, label="Answer Correctness", color=color_ac, alpha=0.8)
+        for i, (metric_name, label, color, earned, error) in enumerate(metrics_to_plot):
+            pos = positions[i]
 
-        # Then, plot error portions (grey bars stacked on top)
-        # Only add label once (for the first metric) to avoid duplicate legend entries
-        ax.bar(
-            pos1,
-            error_qp,
-            width,
-            bottom=earned_qp,
-            label="Evaluation Errors",
-            color=color_error,
-            alpha=0.8,
-        )
-        ax.bar(pos2, error_qr, width, bottom=earned_qr, color=color_error, alpha=0.8)
-        ax.bar(pos3, error_qf, width, bottom=earned_qf, color=color_error, alpha=0.8)
-        ax.bar(pos4, error_ef, width, bottom=earned_ef, color=color_error, alpha=0.8)
-        ax.bar(pos5, error_ac, width, bottom=earned_ac, color=color_error, alpha=0.8)
+            # Plot earned portion (colored bar)
+            ax.bar(pos, earned, width, label=label, color=color, alpha=0.8)
+
+            # Plot error portion (grey bar stacked on top)
+            # Only add "Evaluation Errors" label once
+            error_label = "Evaluation Errors" if i == 0 else None
+            ax.bar(pos, error, width, bottom=earned, label=error_label, color=color_error, alpha=0.8)
 
         # Labels and title
         ax.set_xlabel("Model", fontsize=12, fontweight="bold")
@@ -584,7 +580,12 @@ class ChartGenerator:
         ax.legend(loc="upper left", fontsize=10)
         ax.grid(axis="y", alpha=0.3, linestyle="--")
 
-        plt.title("Ragas Metrics Comparison by Model", fontsize=14, fontweight="bold", pad=20)
+        # Add note about LLM-based judging mode
+        title = "Ragas Metrics Comparison by Model"
+        if QUALITY_TEST_JUDGING == "OFF":
+            title += "\n(LLM-based judging: OFF - only local metrics shown)"
+
+        plt.title(title, fontsize=14, fontweight="bold", pad=20)
         plt.tight_layout()
 
         plt.savefig(chart_path, dpi=150, bbox_inches="tight")

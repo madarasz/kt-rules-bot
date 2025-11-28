@@ -15,6 +15,7 @@ from src.lib.config import get_config
 from src.lib.constants import (
     LLM_GENERATION_TIMEOUT,
     QUALITY_TEST_JUDGE_MODEL,
+    QUALITY_TEST_JUDGING,
     QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS,
     RAG_MAX_CHUNKS,
 )
@@ -64,6 +65,13 @@ class QualityTestRunner:
         self.llm_semaphore = asyncio.Semaphore(QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS)
         # Semaphore to serialize Ragas evaluations (Ragas is not thread-safe for parallel execution)
         self.ragas_semaphore = asyncio.Semaphore(1)
+
+        # Log quality test configuration
+        logger.info(
+            "quality_test_config",
+            judging_mode=QUALITY_TEST_JUDGING,
+            judge_model=judge_model if QUALITY_TEST_JUDGING == "RAGAS" else "N/A",
+        )
 
     def load_test_cases(self, test_id: str | None = None) -> list[TestCase]:
         """Load test cases from YAML files."""
@@ -258,10 +266,16 @@ class QualityTestRunner:
         ragas_evaluation_error = False
         # Check if any of the LLM-based Ragas metrics failed
         # (quote_precision and quote_recall are locally calculated and should always succeed)
-        if not no_eval and structured_llm_response is not None and (
-            ragas_metrics.quote_faithfulness is None
-            or ragas_metrics.explanation_faithfulness is None
-            or ragas_metrics.answer_correctness is None
+        # Only flag as error if judging mode is RAGAS (otherwise None is expected)
+        if (
+            not no_eval
+            and structured_llm_response is not None
+            and QUALITY_TEST_JUDGING == "RAGAS"
+            and (
+                ragas_metrics.quote_faithfulness is None
+                or ragas_metrics.explanation_faithfulness is None
+                or ragas_metrics.answer_correctness is None
+            )
         ):
             ragas_evaluation_error = True
             logger.error(
