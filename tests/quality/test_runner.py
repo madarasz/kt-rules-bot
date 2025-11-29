@@ -308,7 +308,7 @@ class QualityTestRunner:
                 ragas_metrics = await self.ragas_evaluator.evaluate(
                     query=test_case.query,
                     llm_response=structured_llm_response,
-                    context_chunks=[chunk.text for chunk in rag_context.document_chunks],
+                    context_chunks=rag_context.document_chunks,  # Pass DocumentChunk objects (not just text)
                     ground_truth_answers=test_case.ground_truth_answers,
                     ground_truth_contexts=test_case.ground_truth_contexts,
                 )
@@ -401,6 +401,9 @@ class QualityTestRunner:
             answer_correctness_feedback=ragas_metrics.answer_correctness_feedback,
             feedback=ragas_metrics.feedback,  # Unified custom judge feedback
             ragas_evaluation_error=ragas_evaluation_error,
+            quote_faithfulness_details=ragas_metrics.quote_faithfulness_details,
+            answer_correctness_details=ragas_metrics.answer_correctness_details,
+            llm_quotes_structured=ragas_metrics.llm_quotes_structured,
             requirements=None,  # Legacy field, no longer used
         )
 

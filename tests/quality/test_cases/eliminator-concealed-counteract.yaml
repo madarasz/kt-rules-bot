@@ -1,15 +1,32 @@
 test_id: eliminator-concealed-counteract
 query: >
   Can the Eliminator Sniper shoot during counteract while having Conceal order?
-ground_truth_answers: 
-  - Yes, the Eliminator Sniper can shoot during counteract regardless of its order.
-  - The Eliminator Sniper's weapon, the Bolt Sniper Rifle, has the Silent weapon rule. 
-  - The Silent weapon rule allows an operative to perform the Shoot action with this weapon while it has a Conceal order. 
-  - The Astartes rule allows the Eliminator Sniper to counteract regardless of its order.
+ground_truth_answers:
+  - key: "Final Answer"
+    text: "Yes, the Eliminator Sniper can shoot during counteract while having Conceal order."
+    priority: critical
+  - key: "Weapon"
+    text: "The Eliminator Sniper's weapon, the Bolt Sniper Rifle, has the Silent weapon rule."
+    priority: supporting
+  - key: "Shoot regardless of order"
+    text: "The Silent weapon rule allows an operative to perform the Shoot action with this weapon while it has a Conceal order."
+    priority: critical
+  - key: "Counteract regardless of order"
+    text: "The Astartes rule allows the Eliminator Sniper to counteract regardless of its order."
+    priority: critical
 ground_truth_contexts:
-  # Astartes rule
-  - Each friendly ANGEL OF DEATH operative can counteract regardless of its order.
-  # Silent weapon rule
-  - An operative can perform the Shoot action with this weapon while it has a Conceal order.
-  # Conceal rule
-  - The operative cannot perform Shoot and Charge actions, and it cannot counteract.
+  - key: "Astartes"
+    text: "Each friendly **ANGEL OF DEATH** operative can **counteract** regardless of its order."
+    priority: critical
+  - key: "Silent"
+    text: "An operative can perform the Shoot action with this weapon while it has a **Conceal** order."
+    priority: critical
+  - key: "Eliminator Sniper"
+    text: "**Keywords:** ANGEL OF DEATH"
+    priority: supporting
+  - key: "Eliminator Sniper"
+    text: "Bolt sniper rifle"
+    priority: supporting
+  - key: "Conceal"
+    text: "The operative cannot perform Shoot and Charge actions, and it cannot counteract."
+    priority: supporting
