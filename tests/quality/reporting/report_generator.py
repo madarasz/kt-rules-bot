@@ -326,7 +326,7 @@ class ReportGenerator:
 
                                 if imperfect_quotes:
                                     content.append("  **Quotes with issues:**")
-                                    for chunk_id, score, quote_text in sorted(imperfect_quotes, key=lambda x: x[1]):
+                                    for _chunk_id, score, quote_text in sorted(imperfect_quotes, key=lambda x: x[1]):
                                         # Truncate long quotes
                                         quote_display = quote_text[:150] + "..." if len(quote_text) > 150 else quote_text
                                         content.append(f"  - Score: {score:.2f} - \"{quote_display}\"")

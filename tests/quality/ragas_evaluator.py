@@ -21,11 +21,7 @@ from ragas import evaluate
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import AnswerCorrectness, Faithfulness
 
-from src.lib.constants import (
-    QUALITY_TEST_JUDGE_MODEL,
-    QUALITY_TEST_JUDGING,
-    RAGAS_METRIC_WEIGHTS,
-)
+from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_JUDGING, RAGAS_METRIC_WEIGHTS
 from src.lib.logging import get_logger
 from src.lib.ragas_adapter import evaluate_retrieval
 from src.lib.text_utils import normalize_text_for_matching
