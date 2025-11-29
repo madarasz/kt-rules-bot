@@ -290,8 +290,6 @@ DEFAULT_GROUND_TRUTH_PRIORITY = "critical"
 # Quality Testing - Judge Configuration
 # QUALITY_TEST_JUDGE_MODEL is used for both Ragas and custom judge
 QUALITY_TEST_JUDGE_MODEL = "gpt-4o"  # Model for judge evaluation
-CUSTOM_JUDGE_MAX_TOKENS = 150  # (Deprecated - hardcoded in custom_judge.py)
-CUSTOM_JUDGE_TEMPERATURE = 0.0  # (Deprecated - hardcoded in custom_judge.py)
 ```
 
 #### 2. `tests/quality/test_case_models.py`
