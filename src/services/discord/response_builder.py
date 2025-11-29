@@ -21,6 +21,7 @@ class ResponseBuilder:
         llm_response: LLMResponse,
         rag_context: RAGContext,
         structured_data: StructuredLLMResponse | None = None,
+        total_latency_ms: int | None = None,
     ) -> BotResponse:
         """Build bot response from LLM and RAG outputs.
 
@@ -29,6 +30,8 @@ class ResponseBuilder:
             llm_response: LLM response
             rag_context: RAG context with chunks
             structured_data: Optional structured response data
+            total_latency_ms: Total processing latency (RAG + hops + LLM + validation).
+                            If None, uses LLM-only latency from llm_response.
 
         Returns:
             BotResponse instance
@@ -47,6 +50,9 @@ class ResponseBuilder:
         if smalltalk:
             citations = []
 
+        # Use total latency if provided, otherwise use LLM-only latency
+        latency_ms = total_latency_ms if total_latency_ms is not None else llm_response.latency_ms
+
         return BotResponse.create(
             query_id=query_id,
             answer_text=llm_response.answer_text,
@@ -55,7 +61,7 @@ class ResponseBuilder:
             rag_score=rag_context.avg_relevance,
             llm_model=llm_response.model_version,
             token_count=llm_response.token_count,
-            latency_ms=llm_response.latency_ms,
+            latency_ms=latency_ms,
             structured_data=structured_data,
         )
 

@@ -225,10 +225,13 @@ class GeminiAdapter(LLMProvider):
                 logger.debug(f"Validated structured JSON with Pydantic: {len(answer_text)} chars")
             except Exception as e:
                 logger.exception("Gemini returned invalid JSON or schema mismatch")
-                raise ValueError(
+                # Include the raw response in the error message for debugging
+                error_msg = (
                     f"Gemini returned invalid JSON or schema validation failed. "
-                    f"Response may be malformed. Error: {e}"
-                ) from e
+                    f"Response may be malformed. Error: {e}\n\n"
+                    f"RAW RESPONSE:\n{answer_text}"
+                )
+                raise ValueError(error_msg) from e
 
             # Validate it's not empty
             if not answer_text or not answer_text.strip():

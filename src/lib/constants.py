@@ -15,7 +15,7 @@ LLM_PROVIDERS_LITERAL = Literal[
     "claude-4.5-sonnet",
     "claude-4.5-opus",
     "claude-4.1-opus",
-    "claude-4.5-haiku",
+    #"claude-4.5-haiku", - does not support JSON output
     "gemini-3-pro-preview",
     "gemini-2.5-pro",
     "gemini-2.5-flash",
@@ -68,10 +68,10 @@ QUALITY_TEST_PROVIDERS = [
     "gpt-4o",
     # "gpt-4.1-mini",
     "claude-4.5-sonnet",
-    "claude-4.5-haiku",
+    "claude-4.5-opus",
     "gemini-3-pro-preview",
     "gemini-2.5-flash",
-    # "gemini-2.5-pro",
+    "gemini-2.5-pro",
     "deepseek-chat",
     "grok-4-fast-reasoning",
     # "grok-3",
@@ -99,12 +99,12 @@ DEFAULT_LLM_PROVIDER = "claude-4.5-sonnet"  # Default model for Discord bot and 
 LLM_MAX_RETRIES = 2  # Number of retry attempts on ContentFilterError
 
 # Default LLM timeouts (in seconds)
-LLM_GENERATION_TIMEOUT = 50  # Standard generation timeout
+LLM_GENERATION_TIMEOUT = 120  # Standard generation timeout
 LLM_EXTRACTION_TIMEOUT = 300  # PDF extraction timeout (5 minutes for large PDFs)
 LLM_JUDGE_TIMEOUT = 30  # Quality test judge evaluation timeout
 
 # Default LLM generation parameters
-LLM_DEFAULT_MAX_TOKENS = 1024  # Maximum response length
+LLM_DEFAULT_MAX_TOKENS = 2048  # Maximum response length
 LLM_DEFAULT_TEMPERATURE = 0.1  # Lower = more deterministic (0.0-1.0)
 
 
@@ -116,12 +116,44 @@ LLM_EXTRACTION_TEMPERATURE = 0  # Low temperature for consistent structure
 # Quality Test Constants
 # ============================================================================
 
-# Default judge model for quality tests
-QUALITY_TEST_JUDGE_MODEL = "gpt-4o"  # Ragas judge model for generation tests
+# Default judge model for quality tests (used by both Ragas and custom judge)
+QUALITY_TEST_JUDGE_MODEL = "gpt-4o"
+
+# Quality test judging mode
+# - "RAGAS": Enable LLM-based metrics (Quote Faithfulness, Explanation Faithfulness, Answer Correctness) using Ragas library
+# - "CUSTOM": Use custom unified LLM judge (single call, Pydantic validated, returns all 3 metrics + feedback)
+# - "OFF": Disable LLM-based metrics (only Quote Precision and Quote Recall)
+# Note: Quote Precision and Quote Recall are always calculated (local, no LLM required)
+QUALITY_TEST_JUDGING: Literal["RAGAS", "CUSTOM", "OFF"] = "CUSTOM"  # Default: CUSTOM for improved evaluation
 
 # Judge evaluation parameters
-QUALITY_TEST_JUDGE_MAX_TOKENS = 150  # Short evaluation responses
-QUALITY_TEST_JUDGE_TEMPERATURE = 0.0  # Deterministic for consistency
+QUALITY_TEST_JUDGE_MAX_TOKENS = 150  # Short evaluation responses (Ragas only)
+QUALITY_TEST_JUDGE_TEMPERATURE = 0.0  # Deterministic for consistency (Ragas only)
+
+# Quality Testing - Metric Weights (Phase 1.1)
+# These weights are used to calculate the aggregate score from individual metrics
+# Higher weight = more important for overall score
+RAGAS_METRIC_WEIGHTS = {
+    "answer_correctness": 0.30,       # Must get answer right (30%)
+    "quote_recall": 0.30,             # Must cite all key rules (30%)
+    "explanation_faithfulness": 0.20, # Explanation must be grounded (20%)
+    "quote_faithfulness": 0.15,       # No hallucinated citations (15%)
+    "quote_precision": 0.05,          # Nice to have - prefer concise (5%)
+}
+
+# Quality Testing - Ground Truth Priority Weights (Phase 1.2)
+# These weights are used to prioritize critical rules over supporting context
+# in quote recall calculations
+GROUND_TRUTH_PRIORITY_WEIGHTS = {
+    "critical": 10,    # Critical rules (exceptions, core mechanics)
+    "important": 5,    # Important details
+    "supporting": 3,   # Supporting context (baseline rules, general info)
+}
+DEFAULT_GROUND_TRUTH_PRIORITY = "critical"
+
+# Custom Judge Configuration (Phase 1.3)
+# Unified LLM judge for quality testing (alternative to Ragas)
+CUSTOM_JUDGE_PROMPT_PATH = "prompts/quality-test-custom-judge.md"  # Prompt template path
 
 # Quality test concurrency and rate limit handling
 QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS = 2  # Max parallel LLM requests

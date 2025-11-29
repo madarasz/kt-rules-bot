@@ -397,7 +397,7 @@ class RAGRetriever:
         return chunks
 
     def rerank_and_limit_final_chunks(
-        self, query: str, chunks: list[DocumentChunk], query_id: UUID, chunk_hop_map: dict[UUID, int]
+        self, _query: str, chunks: list[DocumentChunk], query_id: UUID, chunk_hop_map: dict[UUID, int]
     ) -> tuple[RAGContext, dict[UUID, int]]:
         """Sort accumulated chunks by relevance score and limit to maximum count.
 

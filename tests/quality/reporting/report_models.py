@@ -68,9 +68,15 @@ class IndividualTestResult:
     quote_faithfulness_feedback: str | None = None
     explanation_faithfulness_feedback: str | None = None
     answer_correctness_feedback: str | None = None
+    feedback: str | None = None
 
     # Ragas evaluation error tracking (for grey bar visualization)
     ragas_evaluation_error: bool = False
+
+    # Detailed per-quote/answer breakdowns from custom judge
+    quote_faithfulness_details: dict[str, float] | None = None  # chunk_id -> score
+    answer_correctness_details: dict[str, float] | None = None  # answer_key -> score
+    llm_quotes_structured: list[dict] | None = None  # List of {chunk_id, quote_title, quote_text}
 
     # Legacy support - optional for backward compatibility
     requirements: list[RequirementResult] | None = None
@@ -150,15 +156,17 @@ class ModelSummary:
 
     @property
     def avg_cost(self) -> float:
+        """Average production cost per test (excludes evaluation infrastructure costs like judge, embeddings)."""
         if not self.results:
             return 0.0
-        return np.mean([r.total_cost_usd for r in self.results])
+        return np.mean([r.cost_usd for r in self.results])
 
     @property
     def std_dev_cost(self) -> float:
+        """Standard deviation of production cost (excludes evaluation infrastructure costs)."""
         if len(self.results) < 2:
             return 0.0
-        return np.std([r.total_cost_usd for r in self.results])
+        return np.std([r.cost_usd for r in self.results])
 
 
 @dataclass
