@@ -111,13 +111,7 @@ def _render_reorder_mode(test_runs: list[dict], db: AnalyticsDatabase) -> None:
 def _render_comparison_chart(test_runs: list[dict]) -> None:
     """Render comparison bar chart for favorite RAG test runs.
 
-    Displays a grouped bar chart with 4 Y-axes:
-    - Y-axis 1 (left): Context Recall (%) [0-100] (green)
-    - Y-axis 2 (right): Avg Time (s) (blue)
-    - Y-axis 3 (right, hidden): Avg Cost (¢) with 2× scale (red)
-    - Y-axis 4 (right, hidden): Hops scaled to match Recall [0-100] (purple)
-
-    Note: Cost and Hops use separate hidden Y-axes with custom ranges for visual scaling.
+    Displays a grouped bar chart with 4 Y-axes.
 
     Args:
         test_runs: List of test run dictionaries from database
