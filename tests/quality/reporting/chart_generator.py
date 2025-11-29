@@ -515,7 +515,7 @@ class ChartGenerator:
         if not has_ragas_data:
             return None
 
-        chart_path = os.path.join(self.report_dir, "chart_ragas_metrics.png")
+        chart_path = os.path.join(self.report_dir, "chart_metrics.png")
 
         # Get unique models
         models = sorted({r.model for r in self.report.results})
@@ -581,7 +581,7 @@ class ChartGenerator:
         ax.grid(axis="y", alpha=0.3, linestyle="--")
 
         # Add note about LLM-based judging mode
-        title = "Ragas Metrics Comparison by Model"
+        title = "Metrics Comparison by Model"
         if QUALITY_TEST_JUDGING == "OFF":
             title += "\n(LLM-based judging: OFF - only local metrics shown)"
 

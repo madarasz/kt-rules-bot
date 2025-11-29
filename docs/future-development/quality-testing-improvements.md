@@ -1,7 +1,8 @@
 # Quality Testing Framework Improvements
 
-**Status**: Design Phase
+**Status**: Implementation Phase (Phase 1 in progress)
 **Created**: 2025-11-21
+**Last Updated**: 2025-11-28
 **Goal**: Improve model comparison capabilities through weighted scoring, ground truth prioritization, and custom LLM judge
 
 ---
@@ -286,10 +287,11 @@ GROUND_TRUTH_PRIORITY_WEIGHTS = {
 }
 DEFAULT_GROUND_TRUTH_PRIORITY = "critical"
 
-# Quality Testing - Custom Judge
-CUSTOM_JUDGE_MODEL = "gpt-4.1-mini"  # Model for custom judge
-CUSTOM_JUDGE_MAX_TOKENS = 150
-CUSTOM_JUDGE_TEMPERATURE = 0.0
+# Quality Testing - Judge Configuration
+# QUALITY_TEST_JUDGE_MODEL is used for both Ragas and custom judge
+QUALITY_TEST_JUDGE_MODEL = "gpt-4o"  # Model for judge evaluation
+CUSTOM_JUDGE_MAX_TOKENS = 150  # (Deprecated - hardcoded in custom_judge.py)
+CUSTOM_JUDGE_TEMPERATURE = 0.0  # (Deprecated - hardcoded in custom_judge.py)
 ```
 
 #### 2. `tests/quality/test_case_models.py`
@@ -346,11 +348,7 @@ Provides domain-specific evaluation for Kill Team rules bot:
 """
 
 from dataclasses import dataclass
-from src.lib.constants import (
-    CUSTOM_JUDGE_MODEL,
-    CUSTOM_JUDGE_MAX_TOKENS,
-    CUSTOM_JUDGE_TEMPERATURE,
-)
+from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
 from src.services.llm.base import GenerationConfig, GenerationRequest
 from src.services.llm.factory import LLMProviderFactory
 from src.lib.logging import get_logger
@@ -369,7 +367,7 @@ class JudgeResult:
 class CustomJudge:
     """Custom LLM judge for quality testing."""
 
-    def __init__(self, model: str = CUSTOM_JUDGE_MODEL):
+    def __init__(self, model: str = QUALITY_TEST_JUDGE_MODEL):
         self.model = model
         self._provider = None
 
@@ -477,13 +475,13 @@ Update to use custom judge and weighted scoring:
 ```python
 # Add import
 from tests.quality.custom_judge import CustomJudge
-from src.lib.constants import RAGAS_METRIC_WEIGHTS, CUSTOM_JUDGE_MODEL
+from src.lib.constants import RAGAS_METRIC_WEIGHTS, QUALITY_TEST_JUDGE_MODEL
 
 class RagasEvaluator:
     def __init__(self, llm_model: str | None = None):
         self.llm_model = llm_model or QUALITY_TEST_JUDGE_MODEL
         self._ragas_llm = None
-        self.custom_judge = CustomJudge(model=CUSTOM_JUDGE_MODEL)  # NEW
+        self.custom_judge = CustomJudge(model=QUALITY_TEST_JUDGE_MODEL)  # NEW
 
     async def evaluate(self, ...):
         # ... existing code ...
@@ -805,14 +803,20 @@ significantly hurting their quote recall scores.
 ## Implementation Checklist
 
 ### Phase 1: Core Improvements
-- [ ] Add constants to `src/lib/constants.py`
-- [ ] Update `TestCase` model in `tests/quality/test_case_models.py`
-- [ ] Create `tests/quality/custom_judge.py`
-- [ ] Update `RagasEvaluator` to use custom judge and weighted scoring
-- [ ] Update `evaluate_retrieval()` to use priority weights
-- [ ] Test with existing test cases (backward compatibility)
-- [ ] Update 1-2 test cases to use new priority format
-- [ ] Run baseline comparison (before/after scores)
+- [x] ✅ Add constants to `src/lib/constants.py` (metric weights, priority weights, custom judge config)
+- [x] ✅ Update `TestCase` model in `tests/quality/test_case_models.py` (added GroundTruthAnswer/Context with keys)
+- [x] ✅ Create `tests/quality/custom_judge.py` (unified custom judge with Pydantic structured output)
+- [x] ✅ Create custom judge prompt template `prompts/quality-test-custom-judge.md`
+- [x] ✅ Update `evaluate_retrieval()` to use priority weights in `src/lib/ragas_adapter.py`
+- [x] ✅ Update LLM providers for structured output (chatgpt.py, claude.py support custom_judge schema)
+- [ ] 🚧 Update `RagasEvaluator` to use custom judge and weighted scoring
+- [ ] 🚧 Update `RagasMetrics` model to use single `feedback` field (replace individual feedback fields)
+- [ ] 🚧 Update test runner to pass GroundTruthAnswer/Context objects
+- [ ] 🚧 Update YAML loader to parse new format (key + text + priority)
+- [ ] 🚧 Update report generator to use keys instead of indices in feedback
+- [ ] ⏸️ Test with existing test cases (backward compatibility) - waiting for above
+- [ ] 👤 Update 1-2 test cases to use new priority format (user will do this)
+- [ ] ⏸️ Run baseline comparison (before/after scores) - waiting for completion
 
 ### Phase 2: Reporting
 - [ ] Add dimension calculation methods to report generator
@@ -830,6 +834,78 @@ significantly hurting their quote recall scores.
 - [ ] Compare results to findings.md observations
 - [ ] Validate custom judge decisions align with human judgment
 - [ ] Add human review tracking (optional)
+
+---
+
+## Implementation Notes (2025-11-28)
+
+### What's Been Implemented
+
+**Core Infrastructure:**
+1. **Constants** ([src/lib/constants.py:133-157](src/lib/constants.py#L133-L157))
+   - `RAGAS_METRIC_WEIGHTS`: Configurable weights (answer_correctness=30%, quote_recall=30%, explanation_faithfulness=20%, quote_faithfulness=15%, quote_precision=5%)
+   - `GROUND_TRUTH_PRIORITY_WEIGHTS`: Priority weighting (critical=10, important=5, supporting=3)
+   - `QUALITY_TEST_JUDGE_MODEL`: Model for both Ragas and custom judge evaluation (gpt-4o)
+   - `QUALITY_TEST_JUDGING`: Mode now includes "CUSTOM" option (default)
+
+2. **Data Models** ([tests/quality/test_case_models.py](tests/quality/test_case_models.py))
+   - `GroundTruthAnswer`: With key, text, priority (and weight property)
+   - `GroundTruthContext`: With key, text, priority (and weight property)
+   - `TestCase`: Now expects list[GroundTruthAnswer] and list[GroundTruthContext]
+
+3. **Custom Judge** ([tests/quality/custom_judge.py](tests/quality/custom_judge.py))
+   - Unified LLM judge with single call
+   - Returns all 3 metrics + textual feedback in one evaluation
+   - Uses Pydantic structured output (CustomJudgeResponse)
+   - Prompt template: [prompts/quality-test-custom-judge.md](prompts/quality-test-custom-judge.md)
+
+4. **LLM Provider Updates**
+   - [src/services/llm/schemas.py](src/services/llm/schemas.py): Added CustomJudgeResponse Pydantic model
+   - [src/services/llm/chatgpt.py](src/services/llm/chatgpt.py): Added custom_judge schema support
+   - [src/services/llm/claude.py](src/services/llm/claude.py): Added custom_judge schema support
+   - [src/services/llm/base.py](src/services/llm/base.py): Added structured_output field to LLMResponse
+
+5. **Weighted Recall** ([src/lib/ragas_adapter.py:40-110](src/lib/ragas_adapter.py#L40-L110))
+   - `evaluate_retrieval()` now uses priority-weighted recall calculation
+   - Backward compatible with old dict format (RAG tests)
+
+### What Remains
+
+**Critical Path Items:**
+1. **RagasEvaluator Integration** - Modify `tests/quality/ragas_evaluator.py`:
+   - Import CustomJudge
+   - Add conditional logic for QUALITY_TEST_JUDGING == "CUSTOM"
+   - Call custom judge instead of Ragas for LLM metrics
+   - Update calculate_aggregate_score() to use RAGAS_METRIC_WEIGHTS
+   - Change feedback fields to single `feedback` field
+
+2. **Metrics Model Update** - Modify `tests/quality/reporting/report_models.py`:
+   - Change from individual feedback fields to single `feedback` field
+   - Ensure backward compatibility
+
+3. **Test Runner Update** - Modify `tests/quality/test_runner.py`:
+   - Pass GroundTruthAnswer/Context objects instead of strings to evaluate()
+
+4. **YAML Loader Update** - Modify `tests/quality/test_case_loader.py`:
+   - Parse new YAML format with key, text, priority
+   - Create GroundTruthAnswer/Context objects
+
+5. **Report Generator Update** - Modify `tests/quality/reporting/report_generator.py`:
+   - Use ground truth keys instead of indices in feedback
+   - Display priority icons (⭐ critical, ⚠️ important, ℹ️ supporting)
+
+### Design Modifications from Original Plan
+
+**Key Changes:**
+1. **Unified Custom Judge**: Instead of 3 separate LLM calls (quote faithfulness, explanation faithfulness, answer correctness), we use a SINGLE call that returns all 3 metrics + feedback (more efficient, lower cost)
+
+2. **Keys Required**: Unlike the original plan which supported backward compatibility with list[str], the new implementation requires keys for both answers and contexts (no backward compatibility - user will update YAMLs)
+
+3. **Hardcoded Values**: Custom judge uses hardcoded max_tokens=2048 and temperature=0 (not configurable via constants)
+
+4. **Single Feedback Field**: Instead of separate feedback fields for each metric, we use one generic `feedback` field from the custom judge
+
+5. **Important Priority**: Added "important" priority level (weight=5) between "critical" (10) and "supporting" (3)
 
 ---
 

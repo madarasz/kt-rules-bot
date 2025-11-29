@@ -98,3 +98,28 @@ class HopEvaluation(BaseModel):
         default=None,
         description="If can_answer=false, a focused retrieval query for missing rules. If can_answer=true, null or empty string",
     )
+
+
+class CustomJudgeResponse(BaseModel):
+    """Structured response from custom LLM judge for quality testing.
+
+    Used to evaluate Kill Team rules bot responses on three dimensions:
+    - Quote faithfulness (are quotes verbatim?)
+    - Explanation faithfulness (is reasoning grounded in quotes?)
+    - Answer correctness (does conclusion match ground truth?)
+    """
+
+    quote_faithfulness: float = Field(
+        ge=0.0, le=1.0, description="Score 0.0-1.0: Are quotes verbatim from RAG contexts?"
+    )
+    explanation_faithfulness: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Score 0.0-1.0: Is explanation grounded only in cited quotes?",
+    )
+    answer_correctness: float = Field(
+        ge=0.0, le=1.0, description="Score 0.0-1.0: Does answer match ground truth semantically?"
+    )
+    feedback: str = Field(
+        description="3-5 sentences covering strengths, problems, and suggestions for improvement"
+    )
