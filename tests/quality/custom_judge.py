@@ -12,7 +12,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, CUSTOM_JUDGE_PROMPT_PATH
+from src.lib.constants import CUSTOM_JUDGE_PROMPT_PATH, QUALITY_TEST_JUDGE_MODEL
 from src.lib.logging import get_logger
 from src.models.rag_context import DocumentChunk
 from src.services.llm.base import GenerationConfig, GenerationRequest
@@ -373,7 +373,7 @@ class CustomJudge:
             if isinstance(result_data, dict):
                 logger.debug(f"result_data keys: {list(result_data.keys())}")
                 # Check for malformed keys
-                for key in result_data.keys():
+                for key in result_data:
                     if '\n' in key or '"' in key:
                         logger.error(
                             f"MALFORMED KEY DETECTED: {repr(key)} - "

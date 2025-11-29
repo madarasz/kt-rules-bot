@@ -2,10 +2,7 @@
 
 from dataclasses import dataclass
 
-from src.lib.constants import (
-    GROUND_TRUTH_PRIORITY_WEIGHTS,
-    DEFAULT_GROUND_TRUTH_PRIORITY,
-)
+from src.lib.constants import DEFAULT_GROUND_TRUTH_PRIORITY, GROUND_TRUTH_PRIORITY_WEIGHTS
 
 
 @dataclass

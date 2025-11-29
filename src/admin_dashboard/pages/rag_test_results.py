@@ -196,41 +196,41 @@ def _render_comparison_chart(test_runs: list[dict]) -> None:
     # Update layout with quad y-axes
     fig.update_layout(
         title="Favorite Test Runs Comparison",
-        xaxis=dict(title="Run Name"),
-        yaxis=dict(
-            title=dict(text="Recall (%)", font=dict(color="#4CAF50")),
-            tickfont=dict(color="#4CAF50"),
-            range=[0, 100]
-        ),
-        yaxis2=dict(
-            title=dict(text="Time (s)", font=dict(color="#666666")),
-            tickfont=dict(color="#666666"),
-            overlaying="y",
-            side="right"
-        ),
-        yaxis3=dict(
-            overlaying="y",
-            side="right",
-            range=[0, max_cost],
-            showticklabels=False,
-            showgrid=False
-        ),
-        yaxis4=dict(
-            overlaying="y",
-            side="right",
-            range=[0, max_hops],
-            showticklabels=False,
-            showgrid=False
-        ),
+        xaxis={"title": "Run Name"},
+        yaxis={
+            "title": {"text": "Recall (%)", "font": {"color": "#4CAF50"}},
+            "tickfont": {"color": "#4CAF50"},
+            "range": [0, 100]
+        },
+        yaxis2={
+            "title": {"text": "Time (s)", "font": {"color": "#666666"}},
+            "tickfont": {"color": "#666666"},
+            "overlaying": "y",
+            "side": "right"
+        },
+        yaxis3={
+            "overlaying": "y",
+            "side": "right",
+            "range": [0, max_cost],
+            "showticklabels": False,
+            "showgrid": False
+        },
+        yaxis4={
+            "overlaying": "y",
+            "side": "right",
+            "range": [0, max_hops],
+            "showticklabels": False,
+            "showgrid": False
+        },
         barmode="group",
         height=500,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        )
+        legend={
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 1.02,
+            "xanchor": "right",
+            "x": 1
+        }
     )
 
     st.plotly_chart(fig, use_container_width=True)

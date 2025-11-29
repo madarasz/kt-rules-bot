@@ -560,7 +560,7 @@ class ChartGenerator:
         color_error = "#95a5a6"  # Grey for evaluation errors
 
         # Plot stacked bars for each metric (earned + error portions)
-        for i, (metric_name, label, color, earned, error) in enumerate(metrics_to_plot):
+        for i, (_metric_name, label, color, earned, error) in enumerate(metrics_to_plot):
             pos = positions[i]
 
             # Plot earned portion (colored bar)
