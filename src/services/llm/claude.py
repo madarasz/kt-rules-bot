@@ -24,7 +24,7 @@ from src.services.llm.base import (
     RateLimitError,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
-from src.services.llm.schemas import Answer, HopEvaluation
+from src.services.llm.schemas import Answer, CustomJudgeResponse, HopEvaluation
 
 logger = get_logger(__name__)
 
@@ -77,6 +77,9 @@ class ClaudeAdapter(LLMProvider):
             if schema_type == "hop_evaluation":
                 pydantic_model = HopEvaluation
                 logger.debug("Using hop evaluation schema (Pydantic)")
+            elif schema_type == "custom_judge":
+                pydantic_model = CustomJudgeResponse
+                logger.debug("Using custom judge schema (Pydantic)")
             else:  # "default"
                 pydantic_model = Answer
                 logger.debug("Using default answer schema (Pydantic)")
@@ -153,6 +156,7 @@ class ClaudeAdapter(LLMProvider):
                 citations_included=citations_included,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
+                structured_output=parsed_output.model_dump(),  # Add parsed Pydantic model as dict
             )
 
         except TimeoutError as e:

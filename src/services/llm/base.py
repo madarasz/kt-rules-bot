@@ -206,8 +206,10 @@ class GenerationConfig:
     """Configuration for answer generation.
 
     By default, LLM providers return structured JSON responses conforming to
-    STRUCTURED_OUTPUT_SCHEMA. For multi-hop retrieval evaluation, use
-    structured_output_schema='hop_evaluation'.
+    STRUCTURED_OUTPUT_SCHEMA. Available schema types:
+    - "default": Standard Kill Team rules answer (Answer model)
+    - "hop_evaluation": Multi-hop retrieval context evaluation (HopEvaluation model)
+    - "custom_judge": Quality test evaluation (CustomJudgeResponse model)
     """
 
     max_tokens: int = LLM_DEFAULT_MAX_TOKENS  # Maximum response length
@@ -215,7 +217,7 @@ class GenerationConfig:
     system_prompt: str = field(default_factory=load_system_prompt)
     include_citations: bool = True
     timeout_seconds: int = LLM_GENERATION_TIMEOUT  # Must respond within timeout
-    structured_output_schema: str = "default"  # "default" or "hop_evaluation"
+    structured_output_schema: str = "default"  # "default", "hop_evaluation", or "custom_judge"
 
 
 @dataclass
@@ -233,7 +235,7 @@ class LLMResponse:
     """Response from LLM generation."""
 
     response_id: UUID
-    answer_text: str  # Generated answer
+    answer_text: str  # Generated answer (JSON string)
     confidence_score: float  # 0-1, provider-specific confidence metric
     token_count: int  # Total tokens (prompt + completion)
     latency_ms: int  # Generation time in milliseconds
@@ -242,6 +244,7 @@ class LLMResponse:
     citations_included: bool  # True if answer references context chunks
     prompt_tokens: int = 0  # Input/prompt tokens
     completion_tokens: int = 0  # Output/completion tokens
+    structured_output: dict | None = None  # Parsed Pydantic model as dict (for structured schemas)
 
 
 # Data classes for extraction

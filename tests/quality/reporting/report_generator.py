@@ -335,6 +335,14 @@ class ReportGenerator:
                                     if line.strip():
                                         content.append(f"  {line}")
 
+                        # Custom Judge Unified Feedback (when QUALITY_TEST_JUDGING == "CUSTOM")
+                        if result.feedback and QUALITY_TEST_JUDGING == "CUSTOM":
+                            content.append("\n**Custom Judge Feedback:**")
+                            feedback_lines = result.feedback.split("\n")
+                            for line in feedback_lines:
+                                if line.strip():
+                                    content.append(f"  {line}")
+
                         if result.ragas_error:
                             content.append(f"- **Ragas Error:** {result.ragas_error}")
                         content.append("")  # Blank line after metrics
@@ -350,7 +358,7 @@ class ReportGenerator:
                         if result.multi_hop_cost_usd > 0:
                             content.append(f"  - Multi-hop: ${result.multi_hop_cost_usd:.4f}")
                         if result.ragas_cost_usd > 0:
-                            content.append(f"  - Ragas: ${result.ragas_cost_usd:.4f}")
+                            content.append(f"  - LLM Judge: ${result.ragas_cost_usd:.4f}")
                         if result.embedding_cost_usd > 0:
                             content.append(f"  - Embeddings: ${result.embedding_cost_usd:.4f}")
                     content.append(f"- **Generation Time:** {result.generation_time_seconds:.2f}s")

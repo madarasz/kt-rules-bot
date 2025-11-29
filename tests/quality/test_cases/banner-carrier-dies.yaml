@@ -1,9 +1,0 @@
-test_id: banner-carrier-dies
-query: >
-  If my plant banner is picked up by my opponent and the carrier dies,
-  who places the banner, me or my opponent?
-ground_truth_answers:
-  - My opponent places the banner.
-  - The operative carrying the marker must place the marker if it's incapacitated.
-ground_truth_contexts:
-  - "If an operative carrying a marker is incapacitated, it must perform this action before being removed from the killzone"

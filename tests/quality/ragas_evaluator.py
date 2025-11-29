@@ -21,12 +21,18 @@ from ragas import evaluate
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import AnswerCorrectness, Faithfulness
 
-from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_JUDGING
+from src.lib.constants import (
+    QUALITY_TEST_JUDGE_MODEL,
+    QUALITY_TEST_JUDGING,
+    RAGAS_METRIC_WEIGHTS,
+)
 from src.lib.logging import get_logger
 from src.lib.ragas_adapter import evaluate_retrieval
 from src.lib.text_utils import normalize_text_for_matching
 from src.lib.tokens import estimate_cost
 from src.models.structured_response import StructuredLLMResponse
+from tests.quality.custom_judge import CustomJudge
+from tests.quality.test_case_models import GroundTruthAnswer, GroundTruthContext
 
 # Load environment variables from config/.env
 load_dotenv("config/.env")
@@ -108,8 +114,7 @@ class RagasMetrics:
     explanation_faithfulness: float | None = None
     answer_correctness: float | None = None
     error: str | None = None
-
-    # Detailed feedback for each metric
+    feedback: str = ""
     quote_precision_feedback: str | None = None
     quote_recall_feedback: str | None = None
     quote_faithfulness_feedback: str | None = None
@@ -147,17 +152,17 @@ class RagasEvaluator:
         query: str,
         llm_response: StructuredLLMResponse | None,
         context_chunks: list[str],
-        ground_truth_answers: list[str],
-        ground_truth_contexts: list[str],
+        ground_truth_answers: list[GroundTruthAnswer],
+        ground_truth_contexts: list[GroundTruthContext],
     ) -> RagasMetrics:
-        """Evaluate a single RAG response using Ragas metrics.
+        """Evaluate a single RAG response using Ragas metrics or custom judge.
 
         Args:
             query: The user's question
             llm_response: The structured LLM response object (can be None if LLM call failed)
             context_chunks: The RAG context chunks provided to the LLM
-            ground_truth_answers: List of acceptable ground truth answers
-            ground_truth_contexts: List of expected context snippets
+            ground_truth_answers: List of ground truth answer objects with keys and priorities
+            ground_truth_contexts: List of ground truth context objects with keys and priorities
 
         Returns:
             RagasMetrics with scores (0-1 scale)
@@ -176,24 +181,25 @@ class RagasEvaluator:
 
             logger.debug(f"Extracted {len(quotes_text)} quotes from structured response")
 
+            # Extract text from GroundTruthAnswer/Context objects
+            ground_truth_answer_texts = [ans.text for ans in ground_truth_answers]
+            ground_truth_context_texts = [ctx.text for ctx in ground_truth_contexts]
+
             # Normalize ground truth values for comparison
             normalized_ground_truth_contexts = [
-                self._normalize_text(gt) for gt in ground_truth_contexts
+                self._normalize_text(gt_text) for gt_text in ground_truth_context_texts
             ]
             normalized_ground_truth_answers = [
-                self._normalize_text(gt) for gt in ground_truth_answers
+                self._normalize_text(gt_text) for gt_text in ground_truth_answer_texts
             ]
 
             # For Quote Precision and Quote Recall:
-            # Use evaluate_retrieval from ragas_adapter (substring matching approach)
+            # Use evaluate_retrieval from ragas_adapter (substring matching approach with priority weights)
             # Compare quotes.text (what was cited) against ground_truth_contexts (what should be cited)
-            # Note: evaluate_retrieval expects ground_truth_contexts as list of dicts
-            ground_truth_contexts_dicts = [
-                {"context": gt} for gt in normalized_ground_truth_contexts
-            ]
+            # Pass GroundTruthContext objects directly (they have text and weight properties)
             retrieval_metrics = evaluate_retrieval(
                 retrieved_contexts=quotes_text,
-                ground_truth_contexts=ground_truth_contexts_dicts,
+                ground_truth_contexts=ground_truth_contexts,  # Pass GroundTruthContext objects
             )
 
             # For Quote Faithfulness:
@@ -238,9 +244,48 @@ class RagasEvaluator:
             quote_faithfulness_score = None
             explanation_faithfulness_score = None
             answer_correctness_score = None
+            custom_judge_feedback = None
 
-            # Conditionally run LLM-based Ragas metrics based on QUALITY_TEST_JUDGING
-            if QUALITY_TEST_JUDGING == "RAGAS":
+            # Conditionally run LLM-based metrics based on QUALITY_TEST_JUDGING
+            if QUALITY_TEST_JUDGING == "CUSTOM":
+                logger.debug(f"Running custom LLM judge (QUALITY_TEST_JUDGING=CUSTOM, model={QUALITY_TEST_JUDGE_MODEL})")
+
+                # Call unified custom judge (single LLM call for all 3 metrics + feedback)
+                custom_judge = CustomJudge(model=QUALITY_TEST_JUDGE_MODEL)
+                judge_result = await custom_judge.evaluate(
+                    query=query,
+                    llm_response_text=llm_response.to_json(),  # Full structured response as JSON
+                    llm_quotes=quotes_text,
+                    rag_contexts=context_chunks,
+                    ground_truth_answers=ground_truth_answer_texts,
+                    ground_truth_contexts=ground_truth_context_texts,
+                )
+
+                # Extract metrics from custom judge result
+                if judge_result.error:
+                    logger.error(f"Custom judge evaluation failed: {judge_result.error}")
+                    quote_faithfulness_score = None
+                    explanation_faithfulness_score = None
+                    answer_correctness_score = None
+                    custom_judge_feedback = f"Custom judge error: {judge_result.error}"
+                    # No tokens consumed on error
+                    judge_prompt_tokens = 0
+                    judge_completion_tokens = 0
+                else:
+                    quote_faithfulness_score = judge_result.quote_faithfulness
+                    explanation_faithfulness_score = judge_result.explanation_faithfulness
+                    answer_correctness_score = judge_result.answer_correctness
+                    custom_judge_feedback = judge_result.feedback
+                    # Capture actual token counts from LLM call
+                    judge_prompt_tokens = judge_result.prompt_tokens
+                    judge_completion_tokens = judge_result.completion_tokens
+
+                logger.info(
+                    f"Custom judge completed: qf={quote_faithfulness_score:.2f}, "
+                    f"ef={explanation_faithfulness_score:.2f}, ac={answer_correctness_score:.2f}"
+                )
+
+            elif QUALITY_TEST_JUDGING == "RAGAS":
                 logger.debug("Running LLM-based Ragas metrics (QUALITY_TEST_JUDGING=RAGAS)")
 
                 dataset_quote_faithfulness = Dataset.from_dict(data_quote_faithfulness)
@@ -321,30 +366,65 @@ class RagasEvaluator:
                 answer_correctness=answer_correctness_score,
             )
 
-            # Generate detailed feedback for each metric
-            metrics.quote_precision_feedback = self._generate_quote_precision_feedback(
-                metrics.quote_precision, quotes_text, normalized_ground_truth_contexts
-            )
-            metrics.quote_recall_feedback = self._generate_quote_recall_feedback(
-                metrics.quote_recall,
-                quotes_text,
-                normalized_ground_truth_contexts,
-                ground_truth_contexts,
-            )
-            metrics.quote_faithfulness_feedback = self._generate_quote_faithfulness_feedback(
-                metrics.quote_faithfulness, quotes_combined, context_chunks
-            )
-            metrics.explanation_faithfulness_feedback = (
-                self._generate_explanation_faithfulness_feedback(
-                    metrics.explanation_faithfulness, answer_text, quotes_text
-                )
-            )
-            metrics.answer_correctness_feedback = self._generate_answer_correctness_feedback(
-                metrics.answer_correctness, answer_text, ground_truth_answers
-            )
+            # Generate detailed feedback based on judging mode
+            if QUALITY_TEST_JUDGING == "CUSTOM":
+                # For custom judge: use single unified feedback
+                metrics.feedback = custom_judge_feedback or ""
 
-            # Estimate cost based on judge model usage (only if LLM-based metrics were run)
-            if QUALITY_TEST_JUDGING == "RAGAS":
+                # Still generate local feedback for quote precision/recall
+                metrics.quote_precision_feedback = self._generate_quote_precision_feedback(
+                    metrics.quote_precision, quotes_text, normalized_ground_truth_contexts
+                )
+                metrics.quote_recall_feedback = self._generate_quote_recall_feedback(
+                    metrics.quote_recall,
+                    quotes_text,
+                    normalized_ground_truth_contexts,
+                    ground_truth_context_texts,
+                    ground_truth_contexts,  # Pass objects for keys/priorities
+                )
+            else:
+                # For RAGAS or OFF modes: use individual feedback fields (legacy)
+                metrics.quote_precision_feedback = self._generate_quote_precision_feedback(
+                    metrics.quote_precision, quotes_text, normalized_ground_truth_contexts
+                )
+                metrics.quote_recall_feedback = self._generate_quote_recall_feedback(
+                    metrics.quote_recall,
+                    quotes_text,
+                    normalized_ground_truth_contexts,
+                    ground_truth_context_texts,
+                    ground_truth_contexts,  # Pass objects for keys/priorities
+                )
+                metrics.quote_faithfulness_feedback = self._generate_quote_faithfulness_feedback(
+                    metrics.quote_faithfulness, quotes_combined, context_chunks
+                )
+                metrics.explanation_faithfulness_feedback = (
+                    self._generate_explanation_faithfulness_feedback(
+                        metrics.explanation_faithfulness, answer_text, quotes_text
+                    )
+                )
+                metrics.answer_correctness_feedback = self._generate_answer_correctness_feedback(
+                    metrics.answer_correctness, answer_text, ground_truth_answer_texts
+                )
+
+            # Calculate cost based on judge model usage (only if LLM-based metrics were run)
+            if QUALITY_TEST_JUDGING == "CUSTOM":
+                # Custom judge makes 1 unified LLM call
+                # Use ACTUAL token counts from LLM response
+                metrics.total_cost_usd = estimate_cost(
+                    prompt_tokens=judge_prompt_tokens,
+                    completion_tokens=judge_completion_tokens,
+                    model=QUALITY_TEST_JUDGE_MODEL,
+                )
+
+                logger.debug(
+                    "custom_judge_cost_actual",
+                    input_tokens=judge_prompt_tokens,
+                    output_tokens=judge_completion_tokens,
+                    cost_usd=metrics.total_cost_usd,
+                    judge_model=QUALITY_TEST_JUDGE_MODEL,
+                )
+
+            elif QUALITY_TEST_JUDGING == "RAGAS":
                 # Ragas makes 2 separate evaluations with 3 total metrics (1+2)
                 # Quote Precision/Recall are calculated locally without LLM judge
                 # Estimate token usage: query + context + answer + ground truths for each metric
@@ -400,7 +480,14 @@ class RagasEvaluator:
         return normalize_text_for_matching(text)
 
     def calculate_aggregate_score(self, metrics: RagasMetrics) -> float:
-        """Calculate an aggregate score from Ragas metrics.
+        """Calculate weighted aggregate score from Ragas metrics.
+
+        Uses RAGAS_METRIC_WEIGHTS to prioritize more important metrics:
+        - answer_correctness: 30%
+        - quote_recall: 30%
+        - explanation_faithfulness: 20%
+        - quote_faithfulness: 15%
+        - quote_precision: 5%
 
         Args:
             metrics: RagasMetrics instance
@@ -411,28 +498,31 @@ class RagasEvaluator:
         if metrics.error:
             return 0.0
 
-        scores = []
-        # Check for NaN - should not happen here due to local calculation, but be defensive
-        if metrics.quote_precision is not None and not (isinstance(metrics.quote_precision, float) and math.isnan(metrics.quote_precision)):
-            scores.append(metrics.quote_precision)
-        # Check for NaN - should not happen here due to local calculation, but be defensive
-        if metrics.quote_recall is not None and not (isinstance(metrics.quote_recall, float) and math.isnan(metrics.quote_recall)):
-            scores.append(metrics.quote_recall)
-        # Check for NaN - safe_extract_metric should have filtered these out, but be defensive
-        if metrics.quote_faithfulness is not None and not (isinstance(metrics.quote_faithfulness, float) and math.isnan(metrics.quote_faithfulness)):
-            scores.append(metrics.quote_faithfulness)
-        # Check for NaN - safe_extract_metric should have filtered these out, but be defensive
-        if metrics.explanation_faithfulness is not None and not (isinstance(metrics.explanation_faithfulness, float) and math.isnan(metrics.explanation_faithfulness)):
-            scores.append(metrics.explanation_faithfulness)
-        # Check for NaN - safe_extract_metric should have filtered these out, but be defensive
-        if metrics.answer_correctness is not None and not (isinstance(metrics.answer_correctness, float) and math.isnan(metrics.answer_correctness)):
-            scores.append(metrics.answer_correctness)
+        weighted_sum = 0.0
+        total_weight = 0.0
 
-        if not scores:
+        # Map metric names to values
+        metric_values = {
+            "answer_correctness": metrics.answer_correctness,
+            "quote_recall": metrics.quote_recall,
+            "explanation_faithfulness": metrics.explanation_faithfulness,
+            "quote_faithfulness": metrics.quote_faithfulness,
+            "quote_precision": metrics.quote_precision,
+        }
+
+        # Calculate weighted sum of available metrics
+        for metric_name, value in metric_values.items():
+            # Check if value is valid (not None and not NaN)
+            if value is not None and not (isinstance(value, float) and math.isnan(value)):
+                weight = RAGAS_METRIC_WEIGHTS.get(metric_name, 0.0)
+                weighted_sum += value * weight
+                total_weight += weight
+
+        if total_weight == 0:
             return 0.0
 
-        # Average of all available metrics, scaled to 0-100
-        return (sum(scores) / len(scores)) * 100
+        # Normalize by total weight and scale to 0-100
+        return (weighted_sum / total_weight) * 100
 
     def _generate_quote_precision_feedback(
         self,
@@ -462,35 +552,56 @@ class RagasEvaluator:
         retrieved_contexts: list[str],
         normalized_ground_truth_contexts: list[str],
         original_ground_truth_contexts: list[str],
+        ground_truth_context_objects: list[GroundTruthContext] | None = None,
     ) -> str:
-        """Generate feedback for quote recall with missing ground truths.
+        """Generate feedback for quote recall with missing ground truths (now with keys and priorities).
 
         Quote Recall measures how much of the expected information was cited.
-        Lists which ground truth contexts were not found in the quotes.
+        Lists which ground truth contexts were not found in the quotes, showing keys and priorities.
 
         Args:
-            score: The quote recall score (0-1)
+            score: The quote recall score (0-1, priority-weighted)
             retrieved_contexts: Normalized contexts that were retrieved/cited
             normalized_ground_truth_contexts: Normalized expected contexts
             original_ground_truth_contexts: Original (non-normalized) expected contexts for display
+            ground_truth_context_objects: GroundTruthContext objects with keys and priorities (optional)
 
         Returns:
-            Feedback listing missing ground truths, or None if perfect score
+            Feedback listing missing ground truths with keys and priorities, or None if perfect score
         """
         if score is None or score >= 1.0:
             return None  # Perfect score or unable to calculate
 
         # Find which ground truths are missing
         missing_ground_truths = []
-        for i, (norm_gt, orig_gt) in enumerate(
-            zip(normalized_ground_truth_contexts, original_ground_truth_contexts, strict=False), 1
-        ):
-            # Check if this ground truth appears in any retrieved context
-            found = any(
-                norm_gt in retrieved or retrieved in norm_gt for retrieved in retrieved_contexts
-            )
-            if not found:
-                missing_ground_truths.append((i, orig_gt))
+
+        if ground_truth_context_objects:
+            # New format: use keys and priorities
+            for gt_obj, norm_gt in zip(ground_truth_context_objects, normalized_ground_truth_contexts, strict=False):
+                # Check if this ground truth appears in any retrieved context
+                found = any(
+                    norm_gt in retrieved or retrieved in norm_gt for retrieved in retrieved_contexts
+                )
+                if not found:
+                    # Priority icons
+                    priority_icon = {
+                        "critical": "⭐",
+                        "important": "⚠️",
+                        "supporting": "ℹ️"
+                    }.get(gt_obj.priority, "•")
+
+                    missing_ground_truths.append((gt_obj.key, gt_obj.text, gt_obj.priority, priority_icon, gt_obj.weight))
+        else:
+            # Legacy format: use indices
+            for i, (norm_gt, orig_gt) in enumerate(
+                zip(normalized_ground_truth_contexts, original_ground_truth_contexts, strict=False), 1
+            ):
+                # Check if this ground truth appears in any retrieved context
+                found = any(
+                    norm_gt in retrieved or retrieved in norm_gt for retrieved in retrieved_contexts
+                )
+                if not found:
+                    missing_ground_truths.append((f"context_{i}", orig_gt, "unknown", "•", 1.0))
 
         if not missing_ground_truths:
             return None  # All ground truths found
@@ -498,10 +609,10 @@ class RagasEvaluator:
         # Generate feedback
         feedback_lines = []
         feedback_lines.append("**Missing ground truth contexts:**")
-        for idx, gt in missing_ground_truths:
+        for key, text, priority, icon, weight in missing_ground_truths:
             # Truncate long contexts
-            gt_display = gt[:150] + "..." if len(gt) > 150 else gt
-            feedback_lines.append(f"  {idx}. {gt_display}")
+            text_display = text[:120] + "..." if len(text) > 120 else text
+            feedback_lines.append(f"  {icon} **{key}** ({priority}, weight={weight:.0f}): {text_display}")
 
         return "\n".join(feedback_lines)
 
