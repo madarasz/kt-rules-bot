@@ -5,7 +5,7 @@ using function calling, tool use, or JSON mode.
 """
 
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 
 @dataclass
@@ -57,6 +57,14 @@ class StructuredLLMResponse:
         markdown_parts.extend(["## Explanation", self.explanation, "", self.persona_afterword])
 
         return "\n".join(markdown_parts)
+
+    def to_json(self) -> str:
+        """Convert to JSON string for serialization.
+
+        Returns:
+            JSON string representation of the structured response
+        """
+        return json.dumps(asdict(self), indent=2)
 
     @classmethod
     def from_json(cls, json_str: str) -> "StructuredLLMResponse":

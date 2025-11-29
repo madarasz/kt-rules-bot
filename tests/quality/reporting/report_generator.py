@@ -5,6 +5,7 @@ from collections import defaultdict
 
 import numpy as np
 
+from src.lib.constants import QUALITY_TEST_JUDGING
 from tests.quality.reporting.chart_generator import ChartGenerator
 from tests.quality.reporting.report_models import IndividualTestResult, ModelSummary, QualityReport
 
@@ -277,7 +278,8 @@ class ReportGenerator:
 
                     # Display Ragas metrics if available
                     if result.ragas_metrics_available:
-                        content.append("\n**Ragas Metrics:**")
+                        judging_mode_label = " (LLM-based judging: OFF)" if QUALITY_TEST_JUDGING == "OFF" else ""
+                        content.append(f"\n**Ragas Metrics{judging_mode_label}:**")
 
                         # Quote Precision
                         if result.quote_precision is not None:
@@ -303,6 +305,32 @@ class ReportGenerator:
                             content.append(
                                 f"- **Quote Faithfulness:** {result.quote_faithfulness:.3f}"
                             )
+
+                            # Show quotes with faithfulness < 1.0 if detailed scores available
+                            if (result.quote_faithfulness_details and
+                                result.llm_quotes_structured and
+                                any(score < 1.0 for score in result.quote_faithfulness_details.values())):
+
+                                # Build mapping from chunk_id to quote text
+                                chunk_id_to_quote = {
+                                    q.get("chunk_id"): q.get("quote_text", "")
+                                    for q in result.llm_quotes_structured
+                                }
+
+                                # List quotes with faithfulness < 1.0
+                                imperfect_quotes = [
+                                    (chunk_id, score, chunk_id_to_quote.get(chunk_id, "Unknown quote"))
+                                    for chunk_id, score in result.quote_faithfulness_details.items()
+                                    if score < 1.0
+                                ]
+
+                                if imperfect_quotes:
+                                    content.append("  **Quotes with issues:**")
+                                    for _chunk_id, score, quote_text in sorted(imperfect_quotes, key=lambda x: x[1]):
+                                        # Truncate long quotes
+                                        quote_display = quote_text[:150] + "..." if len(quote_text) > 150 else quote_text
+                                        content.append(f"  - Score: {score:.2f} - \"{quote_display}\"")
+
                             if result.quote_faithfulness_feedback:
                                 feedback_lines = result.quote_faithfulness_feedback.split("\n")
                                 for line in feedback_lines:
@@ -333,6 +361,14 @@ class ReportGenerator:
                                     if line.strip():
                                         content.append(f"  {line}")
 
+                        # Custom Judge Unified Feedback (when QUALITY_TEST_JUDGING == "CUSTOM")
+                        if result.feedback and QUALITY_TEST_JUDGING == "CUSTOM":
+                            content.append("\n**Custom Judge Feedback:**")
+                            feedback_lines = result.feedback.split("\n")
+                            for line in feedback_lines:
+                                if line.strip():
+                                    content.append(f"  {line}")
+
                         if result.ragas_error:
                             content.append(f"- **Ragas Error:** {result.ragas_error}")
                         content.append("")  # Blank line after metrics
@@ -348,7 +384,7 @@ class ReportGenerator:
                         if result.multi_hop_cost_usd > 0:
                             content.append(f"  - Multi-hop: ${result.multi_hop_cost_usd:.4f}")
                         if result.ragas_cost_usd > 0:
-                            content.append(f"  - Ragas: ${result.ragas_cost_usd:.4f}")
+                            content.append(f"  - LLM Judge: ${result.ragas_cost_usd:.4f}")
                         if result.embedding_cost_usd > 0:
                             content.append(f"  - Embeddings: ${result.embedding_cost_usd:.4f}")
                     content.append(f"- **Generation Time:** {result.generation_time_seconds:.2f}s")
@@ -484,7 +520,8 @@ class ReportGenerator:
         results_with_ragas = [r for r in self.report.results if r.ragas_metrics_available]
         if results_with_ragas:
             content.append("")
-            content.append("Average Ragas Metrics:")
+            judging_mode_label = " (LLM-based judging: OFF)" if QUALITY_TEST_JUDGING == "OFF" else ""
+            content.append(f"Average Ragas Metrics{judging_mode_label}:")
 
             quote_precision_vals = [
                 r.quote_precision for r in results_with_ragas if r.quote_precision is not None

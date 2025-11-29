@@ -24,7 +24,7 @@ from src.services.llm.base import (
     RateLimitError,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
-from src.services.llm.schemas import Answer, HopEvaluation
+from src.services.llm.schemas import Answer, CustomJudgeResponse, HopEvaluation
 
 logger = get_logger(__name__)
 
@@ -77,6 +77,9 @@ class ClaudeAdapter(LLMProvider):
             if schema_type == "hop_evaluation":
                 pydantic_model = HopEvaluation
                 logger.debug("Using hop evaluation schema (Pydantic)")
+            elif schema_type == "custom_judge":
+                pydantic_model = CustomJudgeResponse
+                logger.debug("Using custom judge schema (Pydantic)")
             else:  # "default"
                 pydantic_model = Answer
                 logger.debug("Using default answer schema (Pydantic)")
@@ -100,6 +103,17 @@ class ClaudeAdapter(LLMProvider):
             # Extract structured output from parsed response
             # response.parsed_output is a Pydantic model instance
             parsed_output = response.parsed_output
+            if not parsed_output:
+                # Try to get raw content for debugging
+                # Check if response has content blocks
+                raw_content = None
+                if hasattr(response, "content") and response.content:
+                    raw_content = str(response.content)
+                error_msg = "Expected parsed Pydantic output but none returned"
+                if raw_content:
+                    error_msg += f"\n\nRAW RESPONSE:\n{raw_content}"
+                raise Exception(error_msg)
+
             answer_text = parsed_output.model_dump_json()
             logger.debug(
                 f"Extracted structured JSON from Claude (Pydantic): {len(answer_text)} chars"
@@ -142,6 +156,7 @@ class ClaudeAdapter(LLMProvider):
                 citations_included=citations_included,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
+                structured_output=parsed_output.model_dump(),  # Add parsed Pydantic model as dict
             )
 
         except TimeoutError as e:

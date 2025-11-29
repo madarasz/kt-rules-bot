@@ -98,3 +98,51 @@ class HopEvaluation(BaseModel):
         default=None,
         description="If can_answer=false, a focused retrieval query for missing rules. If can_answer=true, null or empty string",
     )
+
+
+class QuoteFaithfulnessScore(BaseModel):
+    """Individual quote faithfulness score."""
+
+    chunk_id: str = Field(description="Chunk ID (last 8 chars of UUID, e.g., 'a1b2c3d4')")
+    score: float = Field(ge=0.0, le=1.0, description="Faithfulness score 0.0-1.0")
+
+
+class AnswerCorrectnessScore(BaseModel):
+    """Individual answer correctness score."""
+
+    answer_key: str = Field(
+        description="Ground truth answer key (e.g., 'Final Answer', 'Weapon')"
+    )
+    score: float = Field(ge=0.0, le=1.0, description="Correctness score 0.0-1.0")
+
+
+class CustomJudgeResponse(BaseModel):
+    """Structured response from custom LLM judge for quality testing.
+
+    Used to evaluate Kill Team rules bot responses on three dimensions:
+    - Quote faithfulness (are quotes verbatim?) - provided as per-quote details, backend calculates aggregate
+    - Explanation faithfulness (is reasoning grounded in quotes?) - single score
+    - Answer correctness (does conclusion match ground truth?) - provided as per-answer details, backend calculates aggregate
+
+    Note: quote_faithfulness and answer_correctness aggregates are calculated by the backend from *_details arrays.
+    """
+
+    explanation_faithfulness: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Score 0.0-1.0: Is explanation grounded only in cited quotes?",
+    )
+    feedback: str = Field(
+        description="3-8 sentences in 3 sections: Problems, Style, Suggestions"
+    )
+
+    # Detailed per-item breakdowns (backend calculates aggregates from these)
+    # Note: Using arrays instead of dicts for OpenAI structured output compatibility
+    quote_faithfulness_details: list[QuoteFaithfulnessScore] = Field(
+        default_factory=list,
+        description="Per-quote faithfulness scores as array of {chunk_id, score} objects",
+    )
+    answer_correctness_details: list[AnswerCorrectnessScore] = Field(
+        default_factory=list,
+        description="Per-answer correctness scores as array of {answer_key, score} objects",
+    )

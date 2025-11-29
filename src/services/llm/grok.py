@@ -154,12 +154,20 @@ class GrokAdapter(LLMProvider):
                 )
             except pydantic.ValidationError as e:
                 logger.error(f"Grok returned JSON that failed Pydantic validation: {e}")
-                raise ValueError(
-                    f"Grok returned JSON that failed schema validation: {e}"
-                ) from e
+                # Include the raw response in the error message for debugging
+                error_msg = (
+                    f"Grok returned JSON that failed schema validation: {e}\n\n"
+                    f"RAW RESPONSE:\n{content}"
+                )
+                raise ValueError(error_msg) from e
             except Exception as e:
                 logger.exception("Unexpected error during Grok response parsing")
-                raise ValueError(f"Unexpected error parsing Grok response: {e}") from e
+                # Include the raw response in the error message for debugging
+                error_msg = (
+                    f"Unexpected error parsing Grok response: {e}\n\n"
+                    f"RAW RESPONSE:\n{content}"
+                )
+                raise ValueError(error_msg) from e
 
             # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations

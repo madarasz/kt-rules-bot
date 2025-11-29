@@ -1,6 +1,7 @@
 """Main bot orchestrator - coordinates all services (Orchestrator Pattern)."""
 
 import json
+import time
 
 import discord
 
@@ -116,6 +117,9 @@ class KillTeamBotOrchestrator:
             # Step 3: Send acknowledgement
             await message.channel.send(get_random_acknowledgement())
 
+            # Start timing for total latency (after acknowledgement)
+            start_time = time.time()
+
             # Step 4: RAG retrieval
             rag_context, hop_evaluations, chunk_hop_map = self._perform_rag_retrieval(user_query)
 
@@ -137,9 +141,12 @@ class KillTeamBotOrchestrator:
             if not validation_result.is_valid:
                 self._log_validation_failure(validation_result, llm_response, rag_context, correlation_id)
 
+            # Calculate total latency (end timing before Discord send)
+            total_latency_ms = int((time.time() - start_time) * 1000)
+
             # Step 9: Build bot response
             bot_response = self.response_builder.build_response(
-                user_query.query_id, llm_response, rag_context, structured_data
+                user_query.query_id, llm_response, rag_context, structured_data, total_latency_ms
             )
 
             # Step 10: Send response to Discord
@@ -174,7 +181,8 @@ class KillTeamBotOrchestrator:
                     "correlation_id": correlation_id,
                     "confidence": llm_response.confidence_score,
                     "rag_score": rag_context.avg_relevance,
-                    "latency_ms": llm_response.latency_ms,
+                    "latency_ms": total_latency_ms,
+                    "llm_latency_ms": llm_response.latency_ms,
                 },
             )
 

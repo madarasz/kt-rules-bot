@@ -15,6 +15,7 @@ from src.lib.config import get_config
 from src.lib.constants import (
     LLM_GENERATION_TIMEOUT,
     QUALITY_TEST_JUDGE_MODEL,
+    QUALITY_TEST_JUDGING,
     QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS,
     RAG_MAX_CHUNKS,
 )
@@ -37,7 +38,7 @@ from src.services.rag.retriever import RAGRetriever
 from src.services.rag.vector_db import VectorDBService
 from tests.quality.ragas_evaluator import RagasEvaluator
 from tests.quality.reporting.report_models import IndividualTestResult
-from tests.quality.test_case_models import TestCase
+from tests.quality.test_case_models import GroundTruthAnswer, GroundTruthContext, TestCase
 
 logger = get_logger(__name__)
 
@@ -65,8 +66,27 @@ class QualityTestRunner:
         # Semaphore to serialize Ragas evaluations (Ragas is not thread-safe for parallel execution)
         self.ragas_semaphore = asyncio.Semaphore(1)
 
+        # Log quality test configuration
+        logger.info(
+            "quality_test_config",
+            judging_mode=QUALITY_TEST_JUDGING,
+            judge_model=judge_model if QUALITY_TEST_JUDGING == "RAGAS" else "N/A",
+        )
+
     def load_test_cases(self, test_id: str | None = None) -> list[TestCase]:
-        """Load test cases from YAML files."""
+        """Load test cases from YAML files with new key-based format.
+
+        Expected YAML format:
+            ground_truth_answers:
+              - key: "answer_1"
+                text: "Answer text"
+                priority: "critical"  # optional, defaults to "critical"
+
+            ground_truth_contexts:
+              - key: "context_1"
+                text: "Context text"
+                priority: "critical"  # optional
+        """
         test_cases = []
         files = (
             [self.test_cases_dir / f"{test_id}.yaml"]
@@ -81,17 +101,56 @@ class QualityTestRunner:
                 with open(file) as f:
                     data = yaml.safe_load(f)
 
-                # Support both new format (ground_truth) and legacy format (requirements)
+                # Parse ground_truth_answers (new format with keys)
+                answers_data = data.get("ground_truth_answers", [])
+                answers = []
+                for ans_data in answers_data:
+                    if isinstance(ans_data, dict) and "key" in ans_data:
+                        # New format: {key, text, priority}
+                        answers.append(
+                            GroundTruthAnswer(
+                                key=ans_data["key"],
+                                text=ans_data["text"],
+                                priority=ans_data.get("priority", "critical"),
+                            )
+                        )
+                    else:
+                        raise ValueError(
+                            f"Invalid ground_truth_answers format in {file.name}. "
+                            f"Expected dict with 'key' and 'text' fields. "
+                            f"Got: {type(ans_data)}"
+                        )
+
+                # Parse ground_truth_contexts (new format with keys)
+                contexts_data = data.get("ground_truth_contexts", [])
+                contexts = []
+                for ctx_data in contexts_data:
+                    if isinstance(ctx_data, dict) and "key" in ctx_data:
+                        # New format: {key, text, priority}
+                        contexts.append(
+                            GroundTruthContext(
+                                key=ctx_data["key"],
+                                text=ctx_data["text"],
+                                priority=ctx_data.get("priority", "critical"),
+                            )
+                        )
+                    else:
+                        raise ValueError(
+                            f"Invalid ground_truth_contexts format in {file.name}. "
+                            f"Expected dict with 'key' and 'text' fields. "
+                            f"Got: {type(ctx_data)}"
+                        )
+
                 test_cases.append(
                     TestCase(
                         test_id=data["test_id"],
                         query=data["query"],
-                        ground_truth_answers=data.get("ground_truth_answers", []),
-                        ground_truth_contexts=data.get("ground_truth_contexts", []),
-                        requirements=data.get("requirements", None),
+                        ground_truth_answers=answers,
+                        ground_truth_contexts=contexts,
+                        requirements=data.get("requirements", None),  # Legacy field
                     )
                 )
-                logger.info(f"Loaded test case: {data['test_id']}")
+                logger.info(f"Loaded test case: {data['test_id']} ({len(answers)} answers, {len(contexts)} contexts)")
             except Exception as e:
                 logger.error(f"Failed to load test case from {file}: {e}")
         return test_cases
@@ -159,6 +218,8 @@ class QualityTestRunner:
         structured_quotes_count = 0
         structured_llm_response = None  # For Ragas evaluation
         generation_time = 0.0  # Initialize to 0 in case of early errors
+        actual_prompt_tokens = 0  # Initialize to 0 in case of errors
+        actual_completion_tokens = 0  # Initialize to 0 in case of errors
 
         try:
             # Use semaphore to limit concurrent requests and prevent rate limits
@@ -178,6 +239,9 @@ class QualityTestRunner:
                 generation_time = (datetime.now(UTC) - llm_start_time).total_seconds()
             llm_response_text = llm_response.answer_text
             token_count = llm_response.token_count
+            # Capture actual token split from LLM response
+            actual_prompt_tokens = llm_response.prompt_tokens
+            actual_completion_tokens = llm_response.completion_tokens
 
             # Keep original JSON for Ragas evaluation
             llm_response_json = llm_response_text
@@ -244,7 +308,7 @@ class QualityTestRunner:
                 ragas_metrics = await self.ragas_evaluator.evaluate(
                     query=test_case.query,
                     llm_response=structured_llm_response,
-                    context_chunks=[chunk.text for chunk in rag_context.document_chunks],
+                    context_chunks=rag_context.document_chunks,  # Pass DocumentChunk objects (not just text)
                     ground_truth_answers=test_case.ground_truth_answers,
                     ground_truth_contexts=test_case.ground_truth_contexts,
                 )
@@ -258,10 +322,16 @@ class QualityTestRunner:
         ragas_evaluation_error = False
         # Check if any of the LLM-based Ragas metrics failed
         # (quote_precision and quote_recall are locally calculated and should always succeed)
-        if not no_eval and structured_llm_response is not None and (
-            ragas_metrics.quote_faithfulness is None
-            or ragas_metrics.explanation_faithfulness is None
-            or ragas_metrics.answer_correctness is None
+        # Only flag as error if judging mode is RAGAS (otherwise None is expected)
+        if (
+            not no_eval
+            and structured_llm_response is not None
+            and QUALITY_TEST_JUDGING == "RAGAS"
+            and (
+                ragas_metrics.quote_faithfulness is None
+                or ragas_metrics.explanation_faithfulness is None
+                or ragas_metrics.answer_correctness is None
+            )
         ):
             ragas_evaluation_error = True
             logger.error(
@@ -269,10 +339,10 @@ class QualityTestRunner:
                 f"some metrics returned None/NaN"
             )
 
-        # Calculate main LLM cost
+        # Calculate main LLM cost using actual token split
         cost = estimate_cost(
-            prompt_tokens=int(token_count * 0.7),
-            completion_tokens=int(token_count * 0.3),
+            prompt_tokens=actual_prompt_tokens,
+            completion_tokens=actual_completion_tokens,
             model=model,
         )
 
@@ -329,7 +399,11 @@ class QualityTestRunner:
             quote_faithfulness_feedback=ragas_metrics.quote_faithfulness_feedback,
             explanation_faithfulness_feedback=ragas_metrics.explanation_faithfulness_feedback,
             answer_correctness_feedback=ragas_metrics.answer_correctness_feedback,
+            feedback=ragas_metrics.feedback,  # Unified custom judge feedback
             ragas_evaluation_error=ragas_evaluation_error,
+            quote_faithfulness_details=ragas_metrics.quote_faithfulness_details,
+            answer_correctness_details=ragas_metrics.answer_correctness_details,
+            llm_quotes_structured=ragas_metrics.llm_quotes_structured,
             requirements=None,  # Legacy field, no longer used
         )
 
