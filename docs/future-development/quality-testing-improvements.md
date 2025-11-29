@@ -907,6 +907,76 @@ significantly hurting their quote recall scores.
 
 5. **Important Priority**: Added "important" priority level (weight=5) between "critical" (10) and "supporting" (3)
 
+### Phase 1.4: Per-Quote and Per-Answer Breakdown (2025-11-29)
+
+**Status**: ✅ Implemented
+
+**Goal**: Provide granular visibility into which specific quotes are problematic and which ground truth answers are missed, while reducing token costs by filtering RAG contexts.
+
+**Changes Implemented:**
+
+1. **CustomJudgeResponse Schema** ([src/services/llm/schemas.py](src/services/llm/schemas.py))
+   - Added `quote_faithfulness_details: dict[str, float]` (chunk_id → score)
+   - Added `answer_correctness_details: dict[str, float]` (answer_key → score)
+   - Judge provides per-item scores, backend calculates weighted aggregates
+
+2. **Custom Judge Enhancements** ([tests/quality/custom_judge.py](tests/quality/custom_judge.py))
+   - **RAG Context Filtering**: Only contexts referenced by quote chunk_ids are passed to judge (reduces tokens)
+   - `_filter_rag_contexts_by_chunk_ids()`: Matches quotes to RAG chunks via last 8 chars of UUID
+   - `_calculate_quote_faithfulness_aggregate()`: Simple average of per-quote scores
+   - `_calculate_answer_correctness_aggregate()`: Priority-weighted average using `GroundTruthAnswer.priority`
+   - Logs errors if quote chunk_ids cannot be matched to RAG contexts
+
+3. **Prompt Template Updates** ([prompts/quality-test-custom-judge.md](prompts/quality-test-custom-judge.md))
+   - Added "Quote to Context Mapping" section showing chunk_id → context mapping
+   - Updated JSON schema to include `quote_faithfulness_details` and `answer_correctness_details`
+   - Added per-item scoring instructions with chunk_id (last 8 chars) as keys
+   - Added examples showing detailed breakdowns
+   - Updated "Retrieved RAG Contexts" to explain filtering
+
+4. **Ragas Evaluator Integration** ([tests/quality/ragas_evaluator.py](tests/quality/ragas_evaluator.py))
+   - Changed signature to accept `list[DocumentChunk]` (backward compatible with `list[str]`)
+   - Extracts structured quote data with chunk_ids from `StructuredLLMResponse`
+   - Passes `GroundTruthAnswer` objects (not strings) to custom judge
+   - Backend recalculates aggregates from judge's `*_details` dicts
+   - Fallback to RAGAS mode if DocumentChunk objects not available
+
+5. **Test Runner Updates** ([tests/quality/test_runner.py](tests/quality/test_runner.py))
+   - Passes full `DocumentChunk` objects to evaluator (not just text)
+   - Enables chunk_id matching for quote filtering
+
+**Benefits Achieved:**
+- ✅ **Granular debugging**: Identify exactly which quotes are hallucinated or paraphrased (by chunk_id)
+- ✅ **Granular analysis**: Identify exactly which ground truth answers are missed (by answer key)
+- ✅ **Lower token costs**: Only referenced RAG contexts sent to judge (typically 2-5 chunks vs 15)
+- ✅ **Priority weighting**: Answer correctness uses priority weights from ground truth
+- ✅ **Better model comparison**: See per-quote and per-answer differences across models
+
+**Example Output:**
+```json
+{
+  "quote_faithfulness": 0.9,
+  "quote_faithfulness_details": {
+    "a1b2c3d4": 1.0,
+    "b2c3d4e5": 0.8,
+    "c3d4e5f6": 0.9
+  },
+  "answer_correctness": 0.88,
+  "answer_correctness_details": {
+    "Final Answer": 1.0,
+    "Weapon": 0.7,
+    "Shoot regardless of order": 1.0,
+    "Counteract regardless of order": 0.9
+  }
+}
+```
+
+**Implementation Details:**
+- **chunk_id Format**: Last 8 characters of UUID (e.g., "a1b2c3d4")
+- **No Fallbacks**: Uses chunk_id ONLY (no quote_title fallback)
+- **Error Handling**: Logs error if chunk_id doesn't match any RAG context
+- **Backward Compatibility**: Ragas evaluator accepts both DocumentChunk objects and strings
+
 ---
 
 ## Open Questions

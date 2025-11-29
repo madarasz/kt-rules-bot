@@ -124,6 +124,11 @@ class RagasMetrics:
     # Cost tracking (estimated based on judge model usage)
     total_cost_usd: float = 0.0
 
+    # Detailed per-quote/answer breakdowns from custom judge
+    quote_faithfulness_details: dict[str, float] | None = None  # chunk_id -> score
+    answer_correctness_details: dict[str, float] | None = None  # answer_key -> score
+    llm_quotes_structured: list[dict] | None = None  # List of {chunk_id, quote_title, quote_text}
+
 
 class RagasEvaluator:
     """Evaluates RAG responses using Ragas metrics."""
@@ -151,7 +156,7 @@ class RagasEvaluator:
         self,
         query: str,
         llm_response: StructuredLLMResponse | None,
-        context_chunks: list[str],
+        context_chunks: list,  # list[DocumentChunk] or list[str] for backward compatibility
         ground_truth_answers: list[GroundTruthAnswer],
         ground_truth_contexts: list[GroundTruthContext],
     ) -> RagasMetrics:
@@ -160,7 +165,7 @@ class RagasEvaluator:
         Args:
             query: The user's question
             llm_response: The structured LLM response object (can be None if LLM call failed)
-            context_chunks: The RAG context chunks provided to the LLM
+            context_chunks: The RAG context chunks (DocumentChunk objects or strings for backward compat)
             ground_truth_answers: List of ground truth answer objects with keys and priorities
             ground_truth_contexts: List of ground truth context objects with keys and priorities
 
@@ -172,6 +177,17 @@ class RagasEvaluator:
             if llm_response is None:
                 logger.warning("LLM response is None, cannot evaluate with Ragas")
                 return RagasMetrics(error="LLM response is None (generation failed)")
+
+            # Handle DocumentChunk objects vs strings (backward compatibility)
+            from src.models.rag_context import DocumentChunk
+
+            if context_chunks and isinstance(context_chunks[0], DocumentChunk):
+                context_chunk_objects = context_chunks
+                context_chunk_texts = [chunk.text for chunk in context_chunks]
+            else:
+                # Legacy: strings only (no DocumentChunk objects available)
+                context_chunk_objects = None
+                context_chunk_texts = context_chunks
 
             # Extract and normalize components from structured response
             quotes_text = [self._normalize_text(q.quote_text) for q in llm_response.quotes]
@@ -203,7 +219,7 @@ class RagasEvaluator:
             )
 
             # For Quote Faithfulness:
-            # Compare quotes.text (what was cited) with context_chunks (what RAG retrieved)
+            # Compare quotes.text (what was cited) with context_chunk_texts (what RAG retrieved)
             # This ensures citations are grounded in retrieved context
             quotes_combined = " ".join(quotes_text) if quotes_text else ""
 
@@ -216,12 +232,12 @@ class RagasEvaluator:
 
             # Prepare datasets for Ragas
             # Dataset 1: Quote Faithfulness
-            # contexts = context_chunks (what RAG retrieved), answer = quotes_combined (what was cited)
+            # contexts = context_chunk_texts (what RAG retrieved), answer = quotes_combined (what was cited)
             data_quote_faithfulness = {
                 "question": [query],
                 "answer": [quotes_combined],  # What was cited (normalized)
                 "contexts": [
-                    context_chunks
+                    context_chunk_texts
                 ],  # What RAG retrieved (not normalized - keep original for RAG faithfulness check)
                 "ground_truth": [
                     " ".join(normalized_ground_truth_contexts)
@@ -247,17 +263,38 @@ class RagasEvaluator:
             custom_judge_feedback = None
 
             # Conditionally run LLM-based metrics based on QUALITY_TEST_JUDGING
-            if QUALITY_TEST_JUDGING == "CUSTOM":
+            use_custom_judge = QUALITY_TEST_JUDGING == "CUSTOM"
+
+            # Check if we can use custom judge (requires DocumentChunk objects)
+            if use_custom_judge and context_chunk_objects is None:
+                logger.warning(
+                    "context_chunks are strings, not DocumentChunk objects. "
+                    "Custom judge requires DocumentChunk objects for chunk_id filtering. "
+                    "Falling back to Ragas mode."
+                )
+                use_custom_judge = False
+
+            if use_custom_judge:
                 logger.debug(f"Running custom LLM judge (QUALITY_TEST_JUDGING=CUSTOM, model={QUALITY_TEST_JUDGE_MODEL})")
+
+                # Extract structured quotes with chunk_ids
+                llm_quotes_structured = [
+                    {
+                        "chunk_id": q.chunk_id,
+                        "quote_title": q.quote_title,
+                        "quote_text": q.quote_text,
+                    }
+                    for q in llm_response.quotes
+                ]
 
                 # Call unified custom judge (single LLM call for all 3 metrics + feedback)
                 custom_judge = CustomJudge(model=QUALITY_TEST_JUDGE_MODEL)
                 judge_result = await custom_judge.evaluate(
                     query=query,
                     llm_response_text=llm_response.to_json(),  # Full structured response as JSON
-                    llm_quotes=quotes_text,
-                    rag_contexts=context_chunks,
-                    ground_truth_answers=ground_truth_answer_texts,
+                    llm_quotes_structured=llm_quotes_structured,
+                    rag_context_chunks=context_chunk_objects,
+                    ground_truth_answers=ground_truth_answers,  # Pass objects, not strings
                     ground_truth_contexts=ground_truth_context_texts,
                 )
 
@@ -268,6 +305,8 @@ class RagasEvaluator:
                     explanation_faithfulness_score = None
                     answer_correctness_score = None
                     custom_judge_feedback = f"Custom judge error: {judge_result.error}"
+                    quote_faithfulness_details = None
+                    answer_correctness_details = None
                     # No tokens consumed on error
                     judge_prompt_tokens = 0
                     judge_completion_tokens = 0
@@ -276,16 +315,21 @@ class RagasEvaluator:
                     explanation_faithfulness_score = judge_result.explanation_faithfulness
                     answer_correctness_score = judge_result.answer_correctness
                     custom_judge_feedback = judge_result.feedback
+                    quote_faithfulness_details = judge_result.quote_faithfulness_details
+                    answer_correctness_details = judge_result.answer_correctness_details
                     # Capture actual token counts from LLM call
                     judge_prompt_tokens = judge_result.prompt_tokens
                     judge_completion_tokens = judge_result.completion_tokens
 
-                logger.info(
-                    f"Custom judge completed: qf={quote_faithfulness_score:.2f}, "
-                    f"ef={explanation_faithfulness_score:.2f}, ac={answer_correctness_score:.2f}"
-                )
+                if quote_faithfulness_score is not None:
+                    logger.info(
+                        f"Custom judge completed: qf={quote_faithfulness_score:.2f}, "
+                        f"ef={explanation_faithfulness_score:.2f}, ac={answer_correctness_score:.2f}"
+                    )
+                else:
+                    logger.info("Custom judge completed with errors (scores are None)")
 
-            elif QUALITY_TEST_JUDGING == "RAGAS":
+            elif not use_custom_judge and QUALITY_TEST_JUDGING == "RAGAS":
                 logger.debug("Running LLM-based Ragas metrics (QUALITY_TEST_JUDGING=RAGAS)")
 
                 dataset_quote_faithfulness = Dataset.from_dict(data_quote_faithfulness)
@@ -364,6 +408,9 @@ class RagasEvaluator:
                 quote_faithfulness=quote_faithfulness_score,
                 explanation_faithfulness=explanation_faithfulness_score,
                 answer_correctness=answer_correctness_score,
+                quote_faithfulness_details=quote_faithfulness_details if use_custom_judge else None,
+                answer_correctness_details=answer_correctness_details if use_custom_judge else None,
+                llm_quotes_structured=llm_quotes_structured if use_custom_judge else None,
             )
 
             # Generate detailed feedback based on judging mode
@@ -395,7 +442,7 @@ class RagasEvaluator:
                     ground_truth_contexts,  # Pass objects for keys/priorities
                 )
                 metrics.quote_faithfulness_feedback = self._generate_quote_faithfulness_feedback(
-                    metrics.quote_faithfulness, quotes_combined, context_chunks
+                    metrics.quote_faithfulness, quotes_combined, context_chunk_texts
                 )
                 metrics.explanation_faithfulness_feedback = (
                     self._generate_explanation_faithfulness_feedback(
@@ -407,7 +454,7 @@ class RagasEvaluator:
                 )
 
             # Calculate cost based on judge model usage (only if LLM-based metrics were run)
-            if QUALITY_TEST_JUDGING == "CUSTOM":
+            if use_custom_judge:
                 # Custom judge makes 1 unified LLM call
                 # Use ACTUAL token counts from LLM response
                 metrics.total_cost_usd = estimate_cost(
@@ -424,16 +471,16 @@ class RagasEvaluator:
                     judge_model=QUALITY_TEST_JUDGE_MODEL,
                 )
 
-            elif QUALITY_TEST_JUDGING == "RAGAS":
+            elif not use_custom_judge and QUALITY_TEST_JUDGING == "RAGAS":
                 # Ragas makes 2 separate evaluations with 3 total metrics (1+2)
                 # Quote Precision/Recall are calculated locally without LLM judge
                 # Estimate token usage: query + context + answer + ground truths for each metric
                 estimated_input_tokens_per_metric = (
                     len(query.split()) * 1.3  # query
-                    + sum(len(chunk.split()) * 1.3 for chunk in context_chunks)
+                    + sum(len(chunk.split()) * 1.3 for chunk in context_chunk_texts)
                     / 3  # context (averaged)
                     + len(answer_text.split()) * 1.3  # answer
-                    + sum(len(gt.split()) * 1.3 for gt in ground_truth_answers)
+                    + sum(len(gt.split()) * 1.3 for gt in ground_truth_answer_texts)
                     / 3  # ground truths (averaged)
                 )
                 estimated_output_tokens_per_metric = 50  # Judge model outputs are typically short

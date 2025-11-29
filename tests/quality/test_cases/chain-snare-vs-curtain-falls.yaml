@@ -3,12 +3,16 @@ query: >
   Would the Curtain Falls firefight ploy still cost CP even after the Nemesis Claw chain snare
   equipment potentially would block the free fall back action?
 ground_truth_answers:
-  - No, the Curtain Falls firefight ploy still cost CP even if the Nemesis Claw chain snare equipment blocks the free fall back action.
+  - key: "Final answer"
+    text: "the Curtain Falls firefight ploy costs CP"
+    priority: critical
 ground_truth_contexts:
-  # Chain Snare rule
-  - Whenever an enemy operative would perform the Fall Back action while within control range of a friendly NEMESIS CLAW operative
-  # Curtain Falls rule
-  - End that sequence (any remaining attack dice are discarded) and immediately perform a free Dash or Fall Back action up to 3" with that operative
-  # FAQ
-  - If a rule would prevent an action from being performed 'during that activation/counteraction' (e.g. NEMESIS CLAW Chain Snares)
-
+  - key: "Chain Snare"
+    text: "Whenever an enemy operative would perform the Fall Back action while within control range of a friendly NEMESIS CLAW operative"
+    priority: important
+  - key: "Curtain Falls"
+    text: "End that sequence (any remaining attack dice are discarded) and immediately perform a free Dash or Fall Back action up to 3\" with that operative"
+    priority: important
+  - key: "FAQ"
+    text: "If a rule would prevent an action from being performed 'during that activation/counteraction' (e.g. NEMESIS CLAW Chain Snares)"
+    priority: supporting

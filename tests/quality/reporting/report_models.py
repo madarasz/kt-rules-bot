@@ -73,6 +73,11 @@ class IndividualTestResult:
     # Ragas evaluation error tracking (for grey bar visualization)
     ragas_evaluation_error: bool = False
 
+    # Detailed per-quote/answer breakdowns from custom judge
+    quote_faithfulness_details: dict[str, float] | None = None  # chunk_id -> score
+    answer_correctness_details: dict[str, float] | None = None  # answer_key -> score
+    llm_quotes_structured: list[dict] | None = None  # List of {chunk_id, quote_title, quote_text}
+
     # Legacy support - optional for backward compatibility
     requirements: list[RequirementResult] | None = None
 

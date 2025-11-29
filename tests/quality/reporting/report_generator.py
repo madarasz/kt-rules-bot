@@ -305,6 +305,32 @@ class ReportGenerator:
                             content.append(
                                 f"- **Quote Faithfulness:** {result.quote_faithfulness:.3f}"
                             )
+
+                            # Show quotes with faithfulness < 1.0 if detailed scores available
+                            if (result.quote_faithfulness_details and
+                                result.llm_quotes_structured and
+                                any(score < 1.0 for score in result.quote_faithfulness_details.values())):
+
+                                # Build mapping from chunk_id to quote text
+                                chunk_id_to_quote = {
+                                    q.get("chunk_id"): q.get("quote_text", "")
+                                    for q in result.llm_quotes_structured
+                                }
+
+                                # List quotes with faithfulness < 1.0
+                                imperfect_quotes = [
+                                    (chunk_id, score, chunk_id_to_quote.get(chunk_id, "Unknown quote"))
+                                    for chunk_id, score in result.quote_faithfulness_details.items()
+                                    if score < 1.0
+                                ]
+
+                                if imperfect_quotes:
+                                    content.append("  **Quotes with issues:**")
+                                    for chunk_id, score, quote_text in sorted(imperfect_quotes, key=lambda x: x[1]):
+                                        # Truncate long quotes
+                                        quote_display = quote_text[:150] + "..." if len(quote_text) > 150 else quote_text
+                                        content.append(f"  - Score: {score:.2f} - \"{quote_display}\"")
+
                             if result.quote_faithfulness_feedback:
                                 feedback_lines = result.quote_faithfulness_feedback.split("\n")
                                 for line in feedback_lines:
