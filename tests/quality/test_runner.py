@@ -218,6 +218,8 @@ class QualityTestRunner:
         structured_quotes_count = 0
         structured_llm_response = None  # For Ragas evaluation
         generation_time = 0.0  # Initialize to 0 in case of early errors
+        actual_prompt_tokens = 0  # Initialize to 0 in case of errors
+        actual_completion_tokens = 0  # Initialize to 0 in case of errors
 
         try:
             # Use semaphore to limit concurrent requests and prevent rate limits
