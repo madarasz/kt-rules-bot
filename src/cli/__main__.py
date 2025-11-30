@@ -1,6 +1,7 @@
 """CLI main entry point - routes commands to appropriate handlers."""
 
 import argparse
+import asyncio
 import sys
 
 from src.cli.download_all_teams import download_all_teams
@@ -285,13 +286,15 @@ def main() -> None:
             ingest_rules(source_dir=args.source_dir, force=args.force)
 
         elif args.command == "query":
-            test_query(
-                query=args.query,
-                model=args.model,
-                max_chunks=args.max_chunks,
-                rag_only=args.rag_only,
-                max_hops=args.max_hops,
-                verbose=args.verbose,
+            asyncio.run(
+                test_query(
+                    query=args.query,
+                    model=args.model,
+                    max_chunks=args.max_chunks,
+                    rag_only=args.rag_only,
+                    max_hops=args.max_hops,
+                    verbose=args.verbose,
+                )
             )
 
         elif args.command == "health":

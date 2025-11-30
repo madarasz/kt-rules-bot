@@ -20,19 +20,18 @@ from src.lib.constants import (
     RAG_MAX_CHUNKS,
 )
 from src.lib.logging import get_logger
-from src.lib.tokens import estimate_cost, estimate_embedding_cost
-from src.models.rag_request import RetrieveRequest
+from src.lib.tokens import estimate_cost
 from src.models.structured_response import StructuredLLMResponse
 from src.services.llm.base import (
     AuthenticationError,
     ContentFilterError,
     GenerationConfig,
-    GenerationRequest,
     RateLimitError,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.retry import retry_with_rate_limit_backoff
+from src.services.orchestrator import QueryOrchestrator
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.retriever import RAGRetriever
 from src.services.rag.vector_db import VectorDBService
@@ -61,6 +60,16 @@ class QualityTestRunner:
         self.rag_retriever = RAGRetriever(
             vector_db_service=self.vector_db, embedding_service=self.embedding_service
         )
+        # Initialize LLM factory
+        self.llm_factory = LLMProviderFactory()
+
+        # Initialize shared orchestrator for consistent RAG + LLM behavior
+        self.orchestrator = QueryOrchestrator(
+            rag_retriever=self.rag_retriever,
+            llm_factory=self.llm_factory,
+            enable_quote_validation=True,  # Enable quote validation for quality tests
+        )
+
         # Semaphore to limit concurrent LLM requests (prevents rate limit errors)
         self.llm_semaphore = asyncio.Semaphore(QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS)
         # Semaphore to serialize Ragas evaluations (Ragas is not thread-safe for parallel execution)
@@ -163,6 +172,8 @@ class QualityTestRunner:
         report_dir: Path,
         rag_context=None,
         hop_evaluations=None,
+        embedding_cost=0.0,
+        query_id=None,
         no_eval: bool = False,
     ) -> IndividualTestResult:
         """Run a single test case.
@@ -174,6 +185,8 @@ class QualityTestRunner:
             report_dir: Directory to save outputs
             rag_context: Pre-retrieved RAG context (optional)
             hop_evaluations: Pre-retrieved hop evaluations (optional)
+            embedding_cost: Pre-calculated embedding cost (optional)
+            query_id: Query UUID for correlation (optional)
             no_eval: If True, skip Ragas evaluation (only generate outputs)
         """
         eval_mode = " (no-eval)" if no_eval else ""
@@ -182,21 +195,20 @@ class QualityTestRunner:
         )
 
         multi_hop_cost = 0.0
-        embedding_cost = 0.0
 
         if rag_context is None:
+            # Fallback: retrieve RAG context if not provided
+            # This path is for backward compatibility when run_test is called directly
             from uuid import uuid4
 
-            rag_context, hop_evaluations_result, _ = self.rag_retriever.retrieve(
-                RetrieveRequest(
-                    query=test_case.query, context_key="quality_test", max_chunks=RAG_MAX_CHUNKS
-                ),
-                query_id=uuid4(),
+            query_id = query_id or uuid4()
+            rag_context, hop_evaluations, _, embedding_cost = await self.orchestrator.retrieve_rag(
+                query=test_case.query,
+                query_id=query_id,
+                max_chunks=RAG_MAX_CHUNKS,
+                context_key="quality_test",
+                use_multi_hop=True,
             )
-            hop_evaluations = hop_evaluations_result
-
-            # Calculate embedding cost for the query
-            embedding_cost = estimate_embedding_cost(test_case.query)
 
         # Calculate multi-hop evaluation costs if any
         if hop_evaluations:
@@ -207,9 +219,15 @@ class QualityTestRunner:
                 total_cost=multi_hop_cost,
             )
 
+        # Create LLM provider for this model
         llm_provider = LLMProviderFactory.create(model)
-        gen_config = GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT)
+        GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT)
         output_filename = report_dir / f"output_{test_case.test_id}_{model}_{run_num}.md"
+
+        # Ensure we have a query_id
+        if query_id is None:
+            from uuid import uuid4
+            query_id = uuid4()
 
         error_str = None
         llm_response_text = ""
@@ -226,17 +244,26 @@ class QualityTestRunner:
             async with self.llm_semaphore:
                 # Start timing right before LLM API call
                 llm_start_time = datetime.now(UTC)
-                llm_response = await retry_with_rate_limit_backoff(
-                    llm_provider.generate,
-                    GenerationRequest(
-                        prompt=test_case.query,
-                        context=[chunk.text for chunk in rag_context.document_chunks],
-                        config=gen_config,
-                    ),
+
+                # Wrap orchestrator call with quality test retry strategy
+                async def generate_with_orchestrator():
+                    return await self.orchestrator.generate_with_context(
+                        query=test_case.query,
+                        query_id=query_id,
+                        model=model,
+                        rag_context=rag_context,
+                        llm_provider=llm_provider,
+                        generation_timeout=LLM_GENERATION_TIMEOUT,
+                    )
+
+                llm_response, _chunk_ids = await retry_with_rate_limit_backoff(
+                    generate_with_orchestrator,
                     timeout_seconds=LLM_GENERATION_TIMEOUT,
                 )
+
                 # Stop timing immediately after LLM response
                 generation_time = (datetime.now(UTC) - llm_start_time).total_seconds()
+
             llm_response_text = llm_response.answer_text
             token_count = llm_response.token_count
             # Capture actual token split from LLM response
@@ -444,14 +471,19 @@ class QualityTestRunner:
         for run_num in range(1, runs + 1):
             for test_case in test_cases:
                 # RAG is done once per test case per run to ensure context is fresh
+                # Use orchestrator for consistent RAG behavior
                 from uuid import uuid4
 
-                rag_context, hop_evaluations, _ = self.rag_retriever.retrieve(
-                    RetrieveRequest(
-                        query=test_case.query, context_key="quality_test", max_chunks=RAG_MAX_CHUNKS
-                    ),
-                    query_id=uuid4(),
+                query_id = uuid4()
+                rag_context, hop_evaluations, _, embedding_cost = await self.orchestrator.retrieve_rag(
+                    query=test_case.query,
+                    query_id=query_id,
+                    max_chunks=RAG_MAX_CHUNKS,
+                    context_key="quality_test",
+                    use_multi_hop=True,
                 )
+
+                # Create tasks for each model using the same RAG context
                 for model in models_to_run:
                     tasks.append(
                         self.run_test(
@@ -461,6 +493,8 @@ class QualityTestRunner:
                             report_dir,
                             rag_context,
                             hop_evaluations,
+                            embedding_cost,
+                            query_id,
                             no_eval,
                         )
                     )
