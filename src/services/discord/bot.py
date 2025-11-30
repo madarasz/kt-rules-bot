@@ -9,7 +9,6 @@ from src.lib.constants import LLM_GENERATION_TIMEOUT, RAG_MAX_HOPS
 from src.lib.database import AnalyticsDatabase
 from src.lib.discord_utils import get_random_acknowledgement
 from src.lib.logging import get_logger
-from src.models.rag_request import RetrieveRequest
 from src.models.structured_response import StructuredLLMResponse
 from src.models.user_query import UserQuery
 from src.services.discord import formatter
@@ -19,12 +18,12 @@ from src.services.discord.error_message_builder import ErrorMessageBuilder
 from src.services.discord.llm_provider_manager import LLMProviderManager
 from src.services.discord.query_cost_calculator import QueryCostCalculator
 from src.services.discord.response_builder import ResponseBuilder
-from src.services.llm.base import GenerationConfig, GenerationRequest
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.quote_validator import QuoteValidator
 from src.services.llm.rate_limiter import RateLimiter
 from src.services.llm.retry import retry_on_content_filter
 from src.services.llm.validator import ResponseValidator
+from src.services.orchestrator import QueryOrchestrator
 from src.services.rag.retriever import RAGRetriever
 
 logger = get_logger(__name__)
@@ -80,6 +79,14 @@ class KillTeamBotOrchestrator:
         self.cost_calculator = QueryCostCalculator()
         self.response_builder = ResponseBuilder()
 
+        # Initialize shared orchestrator for RAG + LLM flow
+        self.orchestrator = QueryOrchestrator(
+            rag_retriever=rag_retriever,
+            llm_factory=self.llm_factory,
+            enable_quote_validation=True,
+            quote_similarity_threshold=0.85,
+        )
+
     async def process_query(self, message: discord.Message, user_query: UserQuery) -> None:
         """Process user query through full orchestration flow.
 
@@ -121,11 +128,11 @@ class KillTeamBotOrchestrator:
             start_time = time.time()
 
             # Step 4: RAG retrieval
-            rag_context, hop_evaluations, chunk_hop_map = self._perform_rag_retrieval(user_query)
+            rag_context, hop_evaluations, chunk_hop_map, embedding_cost = await self._perform_rag_retrieval(user_query)
 
             # Step 5: LLM generation
             llm_response, chunk_ids = await self._perform_llm_generation(
-                user_query, rag_context
+                user_query, rag_context, llm
             )
 
             # Step 6: Parse and validate structured response
@@ -213,62 +220,50 @@ class KillTeamBotOrchestrator:
 
         return True
 
-    def _perform_rag_retrieval(self, user_query: UserQuery) -> tuple:
+    async def _perform_rag_retrieval(self, user_query: UserQuery) -> tuple:
         """Perform RAG retrieval with optional multi-hop.
 
+        Uses shared orchestrator for consistent RAG behavior.
+
         Returns:
-            Tuple of (rag_context, hop_evaluations, chunk_hop_map)
+            Tuple of (rag_context, hop_evaluations, chunk_hop_map, embedding_cost)
         """
-        correlation_id = str(user_query.query_id)
-
-        rag_context, hop_evaluations, chunk_hop_map = self.rag.retrieve(
-            RetrieveRequest(
-                query=user_query.sanitized_text,
-                context_key=user_query.conversation_context_id,
-                use_multi_hop=(RAG_MAX_HOPS > 0),
-            ),
+        rag_context, hop_evaluations, chunk_hop_map, embedding_cost = await self.orchestrator.retrieve_rag(
+            query=user_query.sanitized_text,
             query_id=user_query.query_id,
+            context_key=user_query.conversation_context_id,
+            use_multi_hop=(RAG_MAX_HOPS > 0),
         )
 
-        logger.debug(
-            "RAG retrieval complete",
-            extra={
-                "correlation_id": correlation_id,
-                "chunks_retrieved": rag_context.total_chunks,
-                "avg_relevance": rag_context.avg_relevance,
-                "hops_used": len(hop_evaluations or []),
-            },
-        )
+        return rag_context, hop_evaluations, chunk_hop_map, embedding_cost
 
-        return rag_context, hop_evaluations, chunk_hop_map
-
-    async def _perform_llm_generation(self, user_query: UserQuery, rag_context) -> tuple:
+    async def _perform_llm_generation(self, user_query: UserQuery, rag_context, llm_provider) -> tuple:
         """Perform LLM generation with retry logic.
+
+        Uses shared orchestrator with Discord-specific retry wrapper.
+
+        Args:
+            user_query: User query object
+            rag_context: Pre-retrieved RAG context
+            llm_provider: LLM provider instance (guild-specific)
 
         Returns:
             Tuple of (llm_response, chunk_ids)
         """
-        correlation_id = str(user_query.query_id)
-        chunk_ids = [str(chunk.chunk_id) for chunk in rag_context.document_chunks]
+        # Wrap orchestrator call with Discord-specific retry logic
+        async def generate_with_retry():
+            return await self.orchestrator.generate_with_context(
+                query=user_query.sanitized_text,
+                query_id=user_query.query_id,
+                model=llm_provider.model,
+                rag_context=rag_context,
+                llm_provider=llm_provider,
+                generation_timeout=LLM_GENERATION_TIMEOUT,
+            )
 
-        llm_response = await retry_on_content_filter(
-            self.llm.generate,
-            GenerationRequest(
-                prompt=user_query.sanitized_text,
-                context=[chunk.text for chunk in rag_context.document_chunks],
-                config=GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT),
-                chunk_ids=chunk_ids,
-            ),
+        llm_response, chunk_ids = await retry_on_content_filter(
+            generate_with_retry,
             timeout_seconds=LLM_GENERATION_TIMEOUT,
-        )
-
-        logger.debug(
-            "LLM generation complete",
-            extra={
-                "correlation_id": correlation_id,
-                "confidence": llm_response.confidence_score,
-                "token_count": llm_response.token_count,
-            },
         )
 
         return llm_response, chunk_ids

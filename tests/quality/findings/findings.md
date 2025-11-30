@@ -9,6 +9,18 @@
 - Gemini models often fail with RECITATION error, blocking the response
 
 # Test results
+
+## Gemini File Search - 2025.11.15
+- Implemented it on branch `gemini-file-search`
+- Quality is bad, used default chunking strategy (token lenght based)
+
+## Multihop 2 tests - 2025.11.14.
+### If my plant banner is picked up by my opponent and the carrier dies, who places the banner, me or my opponent?
+- "Place Marker" rule is not retrieved by RAG
+- These models HALLUCINATE non-existing rules: Sonnet, GPT 4.1, 
+- GPT-4o: quotes an unrelated FAQ, but does not hallucinate
+- grok-4-fast-reasoning: admits that there's no such rule, quotes scoring rule additionally
+
 ## New Ragas based quality tests - 2025.10.25.
 ### Can the Eliminator Sniper shoot during counteract while having Conceal order?
 #### Claude-4.5-Haiku

@@ -24,10 +24,10 @@ from src.lib.logging import get_logger
 from src.lib.statistics import format_statistics_summary
 from src.lib.tokens import estimate_cost, estimate_embedding_cost
 from src.models.rag_request import RetrieveRequest
-from src.services.llm.base import GenerationConfig, GenerationRequest
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.retry import retry_on_content_filter
 from src.services.llm.validator import ResponseValidator
+from src.services.orchestrator import QueryOrchestrator
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.retriever import RAGRetriever
 from src.services.rag.vector_db import VectorDBService
@@ -38,17 +38,19 @@ logger = get_logger(__name__)
 class TestQueryServices:
     """Container for initialized services."""
 
-    def __init__(self, rag_retriever, llm_provider=None, validator=None):
+    def __init__(self, orchestrator, llm_provider=None, validator=None):
         """Initialize services container.
 
         Args:
-            rag_retriever: RAG retrieval service
+            orchestrator: Query orchestrator (shared RAG + LLM flow)
             llm_provider: Optional LLM provider (not needed for RAG-only)
             validator: Optional response validator (not needed for RAG-only)
         """
-        self.rag_retriever = rag_retriever
+        self.orchestrator = orchestrator
         self.llm_provider = llm_provider
         self.validator = validator
+        # Keep reference to RAG retriever for backward compatibility
+        self.rag_retriever = orchestrator.rag
 
 
 class CostBreakdown:
@@ -94,6 +96,7 @@ def _initialize_services(model: str | None, rag_only: bool) -> TestQueryServices
         SystemExit: If service initialization fails
     """
     try:
+        # Initialize RAG services
         vector_db = VectorDBService(collection_name="kill_team_rules")
         embedding_service = EmbeddingService()
         rag_retriever = RAGRetriever(
@@ -102,18 +105,27 @@ def _initialize_services(model: str | None, rag_only: bool) -> TestQueryServices
             enable_multi_hop=(RAG_MAX_HOPS > 0),
         )
 
-        # Only initialize LLM services if not rag_only
+        # Initialize LLM factory
+        llm_factory = LLMProviderFactory()
+
+        # Initialize orchestrator (shared RAG + LLM flow)
+        orchestrator = QueryOrchestrator(
+            rag_retriever=rag_retriever,
+            llm_factory=llm_factory,
+            enable_quote_validation=True,  # Enable quote validation for CLI
+        )
+
+        # Only initialize LLM provider and validator if not rag_only
         llm_provider = None
         validator = None
         if not rag_only:
-            llm_factory = LLMProviderFactory()
             llm_provider = llm_factory.create(model)
             validator = ResponseValidator(
                 llm_confidence_threshold=0.7,
                 rag_score_threshold=0.45,
             )
 
-        return TestQueryServices(rag_retriever, llm_provider, validator)
+        return TestQueryServices(orchestrator, llm_provider, validator)
 
     except Exception as e:
         logger.error(f"Failed to initialize services: {e}", exc_info=True)
@@ -121,17 +133,19 @@ def _initialize_services(model: str | None, rag_only: bool) -> TestQueryServices
         sys.exit(1)
 
 
-def _perform_rag_retrieval(
+async def _perform_rag_retrieval(
     services: TestQueryServices, query: str, max_chunks: int, max_hops: int, verbose: bool = False
 ) -> tuple:
     """Perform RAG retrieval and calculate costs.
+
+    Uses shared orchestrator for consistent RAG behavior.
 
     Args:
         services: Test query services
         query: User query
         max_chunks: Maximum chunks to retrieve
         max_hops: Maximum hops for multi-hop retrieval
-        verbose: If True, capture detailed hop evaluation prompts
+        verbose: If True, capture detailed hop evaluation prompts (passed to RAG service directly)
 
     Returns:
         Tuple of (rag_context, hop_evaluations, chunk_hop_map, rag_time, cost_breakdown)
@@ -139,16 +153,31 @@ def _perform_rag_retrieval(
     start_time = datetime.now(UTC)
     query_id = uuid4()
 
-    rag_context, hop_evaluations, chunk_hop_map = services.rag_retriever.retrieve(
-        RetrieveRequest(
+    # Use orchestrator for RAG retrieval
+    # Note: verbose parameter is not supported by orchestrator, so we call RAG service directly
+    if verbose:
+        # For verbose mode, call RAG service directly to capture detailed prompts
+        rag_context, hop_evaluations, chunk_hop_map = services.rag_retriever.retrieve(
+            RetrieveRequest(
+                query=query,
+                context_key="cli:test",
+                max_chunks=max_chunks,
+                use_multi_hop=(max_hops > 0),
+            ),
+            query_id=query_id,
+            verbose=verbose,
+        )
+        # Calculate embedding cost manually
+        initial_embedding_cost = estimate_embedding_cost(query, EMBEDDING_MODEL)
+    else:
+        # Use orchestrator (standard path)
+        rag_context, hop_evaluations, chunk_hop_map, initial_embedding_cost = await services.orchestrator.retrieve_rag(
             query=query,
-            context_key="cli:test",
+            query_id=query_id,
             max_chunks=max_chunks,
+            context_key="cli:test",
             use_multi_hop=(max_hops > 0),
-        ),
-        query_id=query_id,
-        verbose=verbose,
-    )
+        )
 
     rag_time = (datetime.now(UTC) - start_time).total_seconds()
 
@@ -184,26 +213,35 @@ def _calculate_rag_costs(query: str, hop_evaluations: list | None) -> CostBreakd
     return CostBreakdown(initial_embedding_cost, hop_embedding_cost, hop_evaluation_cost)
 
 
-async def _perform_llm_generation(services: TestQueryServices, query: str, rag_context) -> tuple:
+async def _perform_llm_generation(services: TestQueryServices, query: str, rag_context, query_id) -> tuple:
     """Perform LLM generation with retry logic.
+
+    Uses shared orchestrator for consistent LLM generation behavior.
 
     Args:
         services: Test query services
         query: User query
         rag_context: RAG context with chunks
+        query_id: Query UUID for correlation
 
     Returns:
         Tuple of (llm_response, llm_time, llm_cost)
     """
     llm_start = datetime.now(UTC)
 
-    llm_response = await retry_on_content_filter(
-        services.llm_provider.generate,
-        GenerationRequest(
-            prompt=query,
-            context=[chunk.text for chunk in rag_context.document_chunks],
-            config=GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT),
-        ),
+    # Wrap orchestrator call with CLI-specific retry logic
+    async def generate_with_retry():
+        return await services.orchestrator.generate_with_context(
+            query=query,
+            query_id=query_id,
+            model=services.llm_provider.model,
+            rag_context=rag_context,
+            llm_provider=services.llm_provider,
+            generation_timeout=LLM_GENERATION_TIMEOUT,
+        )
+
+    llm_response, _chunk_ids = await retry_on_content_filter(
+        generate_with_retry,
         timeout_seconds=LLM_GENERATION_TIMEOUT,
     )
 
@@ -358,7 +396,7 @@ def _print_validation_results(validation_result) -> None:
     print(f"Reason: {validation_result.reason}")
 
 
-def test_query(
+async def test_query(
     query: str,
     model: str = None,  # type: ignore[assignment]
     max_chunks: int = RAG_MAX_CHUNKS,
@@ -407,7 +445,7 @@ def test_query(
 
     try:
         rag_context, hop_evaluations, chunk_hop_map, rag_time, cost_breakdown = (
-            _perform_rag_retrieval(services, query, max_chunks, current_max_hops, verbose)
+            await _perform_rag_retrieval(services, query, max_chunks, current_max_hops, verbose)
         )
 
         # Calculate initial retrieval time (total minus hop times)
@@ -446,8 +484,9 @@ def test_query(
     print("-" * 60)
 
     try:
-        llm_response, llm_time, llm_cost = asyncio.run(
-            _perform_llm_generation(services, query, rag_context)
+        query_id = uuid4()
+        llm_response, llm_time, llm_cost = await _perform_llm_generation(
+            services, query, rag_context, query_id
         )
         _print_llm_results(llm_response, llm_time)
 
@@ -515,12 +554,14 @@ def main():
     args = parser.parse_args()
 
     try:
-        test_query(
-            args.query,
-            model=args.model,
-            max_chunks=args.max_chunks,
-            rag_only=args.rag_only,
-            max_hops=args.max_hops,
+        asyncio.run(
+            test_query(
+                args.query,
+                model=args.model,
+                max_chunks=args.max_chunks,
+                rag_only=args.rag_only,
+                max_hops=args.max_hops,
+            )
         )
     except Exception as e:
         logger.error(f"Test query failed: {e}", exc_info=True)
