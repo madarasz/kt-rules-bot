@@ -52,6 +52,54 @@ requirements:
 - `contains`: Exact text match (normalized, case-insensitive)
 - `llm`: LLM judge evaluates if description is accurate
 
+## RAG Context Caching
+
+**Use cached RAG context** for faster, cheaper, and deterministic tests:
+
+### Generate Context Cache
+
+```bash
+# Run query with --rag-only to retrieve context, then save to file
+python3 -m src.cli query "Can the Eliminator shoot twice?" \
+  --rag-only \
+  --context-output tests/quality/context_cache/eliminator-shoot-twice.json
+```
+
+### Use Cached Context in Test
+
+Add `context_file` field to test case YAML:
+
+```yaml
+test_id: eliminator-shoot-twice
+context_file: tests/quality/context_cache/eliminator-shoot-twice.json  # Optional
+query: >
+  Can the Eliminator Sniper operative shoot twice in the same turning point?
+
+ground_truth_answers:
+  - key: "Final answer"
+    text: "Yes, if using Suspensor System equipment"
+    priority: critical
+```
+
+### Run Tests with Cached Context
+
+```bash
+# Use cached context (default behavior when context_file is set)
+python -m src.cli quality-test --test eliminator-shoot-twice
+
+# Force RAG retrieval (ignore cached context)
+python -m src.cli quality-test --test eliminator-shoot-twice --force-rag
+```
+
+### Benefits
+
+✅ **Deterministic**: Same RAG chunks every run (eliminates RAG variance)
+✅ **Faster**: Skip RAG retrieval (~1-2s saved per test)
+✅ **Cheaper**: $0 RAG/embedding costs when using cache
+✅ **Flexible**: Can force fresh RAG retrieval with `--force-rag`
+
+**Best for**: Iterative prompt tuning, LLM model comparison, regression testing
+
 ## Structure
 
 ```

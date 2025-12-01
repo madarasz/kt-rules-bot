@@ -27,6 +27,9 @@ python -m src.cli query "Can barricade provide cover?" --max-hops 1
 # Do not run all tests, all models, multiple runs by yourself. Running these tests costs money.
 python -m src.cli quality-test --test eliminator-concealed-counteract
 
+# Generate cached RAG context for quality tests (faster, cheaper, deterministic)
+python3 -m src.cli query "Can the Eliminator shoot twice?" --rag-only --context-output tests/quality/context_cache/eliminator.json
+
 # Start bot
 python -m src.cli run --mode production
 
