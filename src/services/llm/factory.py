@@ -41,6 +41,7 @@ class LLMProviderFactory:
         "o3": (ChatGPTAdapter, "o3", "openai"),
         "o3-mini": (ChatGPTAdapter, "o3-mini", "openai"),
         "o4-mini": (ChatGPTAdapter, "o4-mini", "openai"),
+        "grok-4-1-fast-reasoning": (GrokAdapter, "grok-4-1-fast-reasoning", "x"),
         "grok-4-fast-reasoning": (GrokAdapter, "grok-4-fast-reasoning", "x"),
         "grok-4-0709": (GrokAdapter, "grok-4-0709", "x"),
         "grok-3": (GrokAdapter, "grok-3", "x"),

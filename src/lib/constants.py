@@ -29,6 +29,7 @@ LLM_PROVIDERS_LITERAL = Literal[
     # "o3", --- does not support JSON output
     "o3-mini",
     "o4-mini",
+    "grok-4-1-fast-reasoning",
     "grok-4-fast-reasoning",
     "grok-4-0709",
     "grok-3",
@@ -69,11 +70,11 @@ QUALITY_TEST_PROVIDERS = [
     # "gpt-4.1-mini",
     "claude-4.5-sonnet",
     "claude-4.5-opus",
-    "gemini-3-pro-preview",
+    #"gemini-3-pro-preview",
     "gemini-2.5-flash",
     "gemini-2.5-pro",
     "deepseek-chat",
-    "grok-4-fast-reasoning",
+    "grok-4-1-fast-reasoning",
     # "grok-3",
     # "grok-3-mini",
     # "deepseek-reasoner"
@@ -154,6 +155,10 @@ DEFAULT_GROUND_TRUTH_PRIORITY = "critical"
 # Custom Judge Configuration (Phase 1.3)
 # Unified LLM judge for quality testing (alternative to Ragas)
 CUSTOM_JUDGE_PROMPT_PATH = "prompts/quality-test-custom-judge.md"  # Prompt template path
+
+# Quote Validation Configuration
+# Uses fuzzy string matching (rapidfuzz) to detect quote inaccuracies
+QUOTE_SIMILARITY_THRESHOLD = 0.98
 
 # Quality test concurrency and rate limit handling
 QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS = 2  # Max parallel LLM requests
