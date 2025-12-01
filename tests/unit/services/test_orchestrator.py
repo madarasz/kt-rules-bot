@@ -352,7 +352,7 @@ class TestProcessQuery:
 
     @pytest.mark.asyncio
     async def test_process_query_full_pipeline(
-        self, mock_rag_retriever, mock_llm_provider, mock_llm_factory, _sample_chunks
+        self, mock_rag_retriever, mock_llm_provider, mock_llm_factory,
     ):
         """Test process_query combines retrieve_rag + generate_with_context."""
         orchestrator = QueryOrchestrator(

@@ -10,6 +10,7 @@ import pytest
 from src.cli.gdpr_delete import delete_user_data
 from src.cli.health_check import HealthChecker
 from src.cli.run_bot import BotRunner
+from src.lib.constants import RAG_MAX_CHUNKS
 from src.models.rule_document import RuleDocument
 from src.services.discord.health import HealthStatus
 
@@ -240,10 +241,11 @@ def test_main_routes_query_command():
             mock_query.assert_called_once_with(
                 query="test query",
                 model="claude-4.5-sonnet",
-                max_chunks=5,
+                max_chunks=RAG_MAX_CHUNKS,  # Updated to match RAG_MAX_CHUNKS
                 rag_only=False,
                 max_hops=None,
                 verbose=False,
+                context_output=None,  # New parameter added
             )
 
 

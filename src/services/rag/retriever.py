@@ -319,7 +319,7 @@ class RAGRetriever:
 
             # Apply final reranking and limiting to multi-hop accumulated chunks
             reranked_context, updated_chunk_hop_map = self.rerank_and_limit_final_chunks(
-                query=request.query,
+                _query=request.query,
                 chunks=context.document_chunks,
                 query_id=query_id,
                 chunk_hop_map=chunk_hop_map,

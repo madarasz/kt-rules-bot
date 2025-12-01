@@ -21,6 +21,7 @@ from src.lib.constants import (
 )
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost
+from src.models.rag_context_serializer import RAGContextSerializationError, load_rag_context
 from src.models.structured_response import StructuredLLMResponse
 from src.services.llm.base import (
     AuthenticationError,
@@ -156,6 +157,7 @@ class QualityTestRunner:
                         query=data["query"],
                         ground_truth_answers=answers,
                         ground_truth_contexts=contexts,
+                        context_file=data.get("context_file", None),  # Optional cached context
                         requirements=data.get("requirements", None),  # Legacy field
                     )
                 )
@@ -441,6 +443,7 @@ class QualityTestRunner:
         test_id: str | None = None,
         models: list[str] | None = None,
         no_eval: bool = False,
+        force_rag: bool = False,
     ) -> list[IndividualTestResult]:
         """Run all test combinations in parallel with concurrency control.
 
@@ -454,6 +457,7 @@ class QualityTestRunner:
             test_id: Specific test ID to run (default: all tests)
             models: List of models to test
             no_eval: If True, skip Ragas evaluation (only generate outputs)
+            force_rag: If True, ignore cached context files and run RAG
         """
         test_cases = self.load_test_cases(test_id)
         if not test_cases:
@@ -470,18 +474,50 @@ class QualityTestRunner:
         tasks = []
         for run_num in range(1, runs + 1):
             for test_case in test_cases:
-                # RAG is done once per test case per run to ensure context is fresh
-                # Use orchestrator for consistent RAG behavior
                 from uuid import uuid4
 
                 query_id = uuid4()
-                rag_context, hop_evaluations, _, embedding_cost = await self.orchestrator.retrieve_rag(
-                    query=test_case.query,
-                    query_id=query_id,
-                    max_chunks=RAG_MAX_CHUNKS,
-                    context_key="quality_test",
-                    use_multi_hop=True,
-                )
+
+                # Try to load cached context if available (and not forcing RAG)
+                if test_case.context_file and not force_rag:
+                    try:
+                        # Load cached RAG context from file
+                        rag_context, hop_evaluations, _, embedding_cost = load_rag_context(
+                            test_case.context_file
+                        )
+                        logger.info(
+                            f"Using cached context from {test_case.context_file} "
+                            f"for test '{test_case.test_id}' (Run #{run_num})"
+                        )
+                    except RAGContextSerializationError as e:
+                        # Don't fallback to RAG - raise error to fail fast
+                        raise RAGContextSerializationError(
+                            f"Failed to load cached context for test '{test_case.test_id}': {e}\n"
+                            f"File: {test_case.context_file}\n"
+                            f"Use --force-rag to ignore cached context and run RAG instead."
+                        ) from e
+                elif test_case.context_file and force_rag:
+                    # Ignore cached context - run RAG normally
+                    logger.info(
+                        f"Ignoring cached context (--force-rag enabled) "
+                        f"for test '{test_case.test_id}' (Run #{run_num})"
+                    )
+                    rag_context, hop_evaluations, _, embedding_cost = await self.orchestrator.retrieve_rag(
+                        query=test_case.query,
+                        query_id=query_id,
+                        max_chunks=RAG_MAX_CHUNKS,
+                        context_key="quality_test",
+                        use_multi_hop=True,
+                    )
+                else:
+                    # No cached context - run RAG normally
+                    rag_context, hop_evaluations, _, embedding_cost = await self.orchestrator.retrieve_rag(
+                        query=test_case.query,
+                        query_id=query_id,
+                        max_chunks=RAG_MAX_CHUNKS,
+                        context_key="quality_test",
+                        use_multi_hop=True,
+                    )
 
                 # Create tasks for each model using the same RAG context
                 for model in models_to_run:

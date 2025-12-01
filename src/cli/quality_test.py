@@ -61,6 +61,7 @@ def quality_test(
     runs: int = 1,
     max_hops: int | None = None,
     no_eval: bool = False,
+    force_rag: bool = False,
 ) -> None:
     """Run quality tests for RAG + LLM pipeline.
 
@@ -73,6 +74,7 @@ def quality_test(
         runs: Number of times to run each test
         max_hops: Override RAG_MAX_HOPS constant
         no_eval: Skip Ragas evaluation (only generate outputs)
+        force_rag: Ignore cached context files and run RAG
     """
     # Suppress event loop cleanup errors from Ragas (only if we're running eval)
     if not no_eval:
@@ -133,6 +135,7 @@ def quality_test(
                 test_id=test_id,
                 models=models_to_run,
                 no_eval=no_eval,
+                force_rag=force_rag,
             )
         )
 
