@@ -77,7 +77,7 @@ def create_parser() -> argparse.ArgumentParser:
         "--model", "-m", choices=ALL_LLM_PROVIDERS, help="LLM model to use (default: from config)"
     )
     query_parser.add_argument(
-        "--max-chunks", type=int, default=5, help="Maximum RAG chunks to retrieve (default: 5)"
+        "--max-chunks", type=int, default=RAG_MAX_CHUNKS, help=f"Maximum RAG chunks to retrieve (default: {RAG_MAX_CHUNKS})"
     )
     query_parser.add_argument(
         "--rag-only", action="store_true", help="Stop after RAG retrieval, do not call LLM"
@@ -90,6 +90,12 @@ def create_parser() -> argparse.ArgumentParser:
     )
     query_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Show detailed output (chunks and hop evaluation prompts)"
+    )
+    query_parser.add_argument(
+        "--context-output",
+        type=str,
+        metavar="PATH",
+        help="Save RAG context to JSON file (requires --rag-only)",
     )
 
     # Command: health
@@ -151,6 +157,11 @@ def create_parser() -> argparse.ArgumentParser:
         "--no-eval",
         action="store_true",
         help="Skip Ragas evaluation (only generate outputs, no scoring)",
+    )
+    quality_parser.add_argument(
+        "--force-rag",
+        action="store_true",
+        help="Ignore cached context files and run RAG retrieval",
     )
 
     # Command: rag-test
@@ -294,6 +305,7 @@ def main() -> None:
                     rag_only=args.rag_only,
                     max_hops=args.max_hops,
                     verbose=args.verbose,
+                    context_output=args.context_output,
                 )
             )
 
@@ -313,6 +325,7 @@ def main() -> None:
                 runs=args.runs,
                 max_hops=args.max_hops,
                 no_eval=args.no_eval,
+                force_rag=args.force_rag,
             )
 
         elif args.command == "rag-test":

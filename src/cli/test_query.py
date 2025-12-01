@@ -23,6 +23,7 @@ from src.lib.constants import (
 from src.lib.logging import get_logger
 from src.lib.statistics import format_statistics_summary
 from src.lib.tokens import estimate_cost, estimate_embedding_cost
+from src.models.rag_context_serializer import save_rag_context
 from src.models.rag_request import RetrieveRequest
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.retry import retry_on_content_filter
@@ -403,6 +404,7 @@ async def test_query(
     rag_only: bool = False,
     max_hops: int = None,  # type: ignore[assignment]
     verbose: bool = False,
+    context_output: str | None = None,
 ) -> None:
     """Test RAG + LLM pipeline locally.
 
@@ -413,6 +415,7 @@ async def test_query(
         rag_only: If True, stop after RAG retrieval (no LLM call)
         max_hops: Override RAG_MAX_HOPS constant (None = use constant)
         verbose: If True, show detailed output including chunks and hop evaluation prompts
+        context_output: Path to save RAG context JSON file
     """
     # Override RAG_MAX_HOPS if specified
     current_max_hops = max_hops if max_hops is not None else RAG_MAX_HOPS
@@ -462,6 +465,25 @@ async def test_query(
         logger.error(f"RAG retrieval failed: {e}", exc_info=True)
         print(f"❌ RAG retrieval failed: {e}")
         sys.exit(1)
+
+    # Save context to file if requested
+    if context_output:
+        try:
+            total_embedding_cost = (
+                cost_breakdown.initial_embedding_cost + cost_breakdown.hop_embedding_cost
+            )
+            save_rag_context(
+                file_path=context_output,
+                rag_context=rag_context,
+                hop_evaluations=hop_evaluations,
+                chunk_hop_map=chunk_hop_map,
+                embedding_cost=total_embedding_cost,
+            )
+            print(f"\n✅ RAG context saved to: {context_output}")
+        except Exception as e:
+            logger.error(f"Failed to save RAG context: {e}", exc_info=True)
+            print(f"\n❌ Failed to save RAG context: {e}")
+            sys.exit(1)
 
     # If rag_only mode, stop here with cost breakdown
     if rag_only:
