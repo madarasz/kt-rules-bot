@@ -178,7 +178,6 @@ class CustomJudge:
         query: str,
         llm_response_text: str,
         llm_quotes_structured: list[dict],
-        _rag_context_chunks: list[DocumentChunk],
         ground_truth_answers: list[GroundTruthAnswer],
         ground_truth_contexts: list[str],
     ) -> CustomJudgeResult:

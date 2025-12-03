@@ -281,7 +281,6 @@ class RagasEvaluator:
                     query=query,
                     llm_response_text=llm_response.to_json(),  # Full structured response as JSON
                     llm_quotes_structured=llm_quotes_structured,
-                    rag_context_chunks=context_chunk_objects,
                     ground_truth_answers=ground_truth_answers,  # Pass objects, not strings
                     ground_truth_contexts=ground_truth_context_texts,
                 )
