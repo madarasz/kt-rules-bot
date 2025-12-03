@@ -1,14 +1,22 @@
 # Decisions
 ## LLM models removed from consideration
-- `GPT-5`, `grok-4-0709`: VERY SLOW (often around 2 mins or more)
-- `Claude Opus 4.1`: 5-8x more expensive than other models, and does not preform well either
+- `GPT-5`, `grok-4-0709`, `gemini-3-pro-preview`: VERY SLOW (often around 2 mins or more)
+- `grok-4-1-fast-reasoning` has very good answers, but takes 30-40s to answer, is SLOW
+- `gtp-4o` gives bad answers and is expensive
+- `claude-4.1-opus`: 5-8x more expensive than other models, and does not preform well either (already superseeded by 4.5 Opus)
 
-## To improve
-- flavor text variation
-- Gemini models fail in quality tests, but are working in query, might be a bug.
-- Gemini models often fail with RECITATION error, blocking the response
+## Models for judging
+- `gtp-4o` is unsuitable as a judge, it has a lot of false negative judgements, moved to `claude-4.5-opus` instead.
 
 # Test results
+
+## Compared 3 questions and their answers for different models with Gemini 3 Pro
+- `gtp-5.1-chat-latest`: Elite, best rule hierarchy. Cost: great, Latency: fast (<10s)
+- `grok-4-1-fast-reasoning`: Elite, excellent clarity and structure. Cost: super cheap, Latency: SLOW (~35s)
+- `claude-4.5-opus`: Solid, reliable. Cost: Expensive, Latency: OK (~12s)
+- `gemini-2.5-flash`: Solid, reliable. Cost: cheap, Latency: fast (<10s), MOST VERBOSE - TODO: does it fail with 503 sometimes?
+- `claude-4.5-sonnet`: Failed one question - TODO: Is it unreliable?
+- `gtp-4.1`: Low, robotic, dry. Cost: OK, Latency: very fast (<5s)
 
 ## Gemini File Search - 2025.11.15
 - Implemented it on branch `gemini-file-search`

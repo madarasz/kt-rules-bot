@@ -32,6 +32,10 @@ class ErrorMessageBuilder:
         if ErrorMessageBuilder._is_content_filter_error(error_str):
             return "⚠️ Your query was blocked by content safety filters. Please rephrase your question."
 
+        # Check for overloaded server errors
+        if ErrorMessageBuilder._is_overload_error(error_str):
+            return "🚧 The server is currently overloaded. Please try again later."
+
         # Generic error fallback
         return "❌ An error occurred while processing your request. Please try again in a moment."
 
@@ -59,3 +63,9 @@ class ErrorMessageBuilder:
         return "content" in error_str and any(
             keyword in error_str for keyword in ["filter", "policy", "safety"]
         )
+
+    @staticmethod
+    def _is_overload_error(error_str: str) -> bool:
+        """Check if error is related to overloaded server."""
+        keywords = ["overload", "unavailable", "temporarily down", "503"]
+        return any(keyword in error_str for keyword in keywords)

@@ -355,6 +355,14 @@ class ReportGenerator:
                             content.append(
                                 f"- **Answer Correctness:** {result.answer_correctness:.3f}"
                             )
+
+                            # Show answer details whenever overall score < 1.0 (includes mismatched keys)
+                            if result.answer_correctness_details and result.answer_correctness < 1.0:
+                                # Show all answers when overall score is imperfect
+                                # (helps diagnose key mismatches and scoring issues)
+                                for answer_key, score in sorted(result.answer_correctness_details.items(), key=lambda x: x[1]):
+                                    content.append(f"  - **{answer_key}**: {score:.2f}")
+
                             if result.answer_correctness_feedback:
                                 feedback_lines = result.answer_correctness_feedback.split("\n")
                                 for line in feedback_lines:
@@ -516,12 +524,12 @@ class ReportGenerator:
             avg_quotes = np.mean([r.structured_quotes_count for r in json_results])
             content.append(f"Avg quotes per JSON response: {avg_quotes:.1f}")
 
-        # Display average Ragas metrics if available
+        # Display average metrics if available
         results_with_ragas = [r for r in self.report.results if r.ragas_metrics_available]
         if results_with_ragas:
             content.append("")
             judging_mode_label = " (LLM-based judging: OFF)" if QUALITY_TEST_JUDGING == "OFF" else ""
-            content.append(f"Average Ragas Metrics{judging_mode_label}:")
+            content.append(f"Average Metrics{judging_mode_label}:")
 
             quote_precision_vals = [
                 r.quote_precision for r in results_with_ragas if r.quote_precision is not None
