@@ -1,35 +1,35 @@
 # Kill Team Rules Bot
 
 ## Purpose
-Helps **Warhammer 40k: Kill Team** players quickly find accurate rule information by asking questions in *Discord*. The bot searches through official rule documents and provides AI-generated answers with citations.
+Helps **Warhammer 40k: Kill Team** players quickly find accurate rule information by asking questions on *Discord*. The bot searches through official rule documents and provides AI-generated answers with citations.
 
 ![rulebot](rulebot-screenshot.png)
 
-## Technology, Architecture
+## Technology & Architecture
 
-- **LLM with RAG** using semantic + **BM25** keyword search with **multi-hop**
-- **Structured JSON LLM output wih Pydantic** (for supported models)
-- **20+ LLM models supported** from OpenAI, Claude, Gemini, Grok and Deepseek
-- **Comprehensive testing** with unit tests, RAG tests, LLM model comparision tests, see [Testing Strategy](docs/TESTING-STRATEGY.md)
+- **LLM with RAG** using semantic + **BM25** keyword search with **multi-hop** retrieval
+- **Structured JSON LLM output with Pydantic** (for supported models)
+- **20+ LLM models supported** from OpenAI, Claude, Gemini, Grok, and Deepseek
+- **Comprehensive testing** with unit tests, RAG tests, and LLM model comparison tests - see [Testing Strategy](docs/TESTING-STRATEGY.md)
 - **ChromaDB** vector database
 - **Python 3.12** with discord.py for Discord integration
-- **Orchestrator Pattern**: Centralized coordination of Discord, RAG and LLM services
+- **Orchestrator Pattern**: Centralized coordination of Discord, RAG, and LLM services
 
-## Installation, Requirements
+## Installation & Requirements
 
 ```bash
 # Install dependencies
 pip install -r requirements.txt
 
-# make a copy of .env.template
+# Make a copy of .env.template
 cp config/.env.template config/.env
 ```
 
 Set `DEFAULT_LLM_PROVIDER` (e.g., `claude-4.5-sonnet`, `gemini-2.5-pro`, `gpt-4o`, `o3`) and related `*_API_KEY` values in the `config/.env` file you just created.
 
 ```bash
-# Get the rules descriptions from submodule. Reach out to me for access. 
-# Alternatively you can download team rules only via CLI script
+# Get the rule descriptions from submodule. Reach out to me for access. 
+# Alternatively, you can download team rules only via CLI script
 git submodule update --init --recursive
 ```
 
@@ -38,7 +38,7 @@ git submodule update --init --recursive
 python -m src.cli ingest ./extracted-rules
 ```
 
-## Running the Discord bot
+## Running the Discord Bot
 ```bash
 python -m src.cli run
 ```
@@ -61,9 +61,9 @@ make coverage
 
 **Quality tools**: Automated linting (ruff, mypy, flake8), security scanning (bandit, safety, pip-audit), complexity analysis (radon), coverage tracking, custom import validation, and dead code detection.
 
-**Documentation**: See [docs/CODE_QUALITY.md](docs/CODE_QUALITY.md) for detailed guide.
+**Documentation**: See [docs/CODE_QUALITY.md](docs/CODE_QUALITY.md) for a detailed guide.
 
-## Project structure
+## Project Structure
 
 ```
 ├── src/
@@ -82,9 +82,9 @@ make coverage
 └── docs/                 # Documentation
 ```
 
-## CLI commands
+## CLI Commands
 
-Detailed document about [CLI usage](CLI_USAGE.md)
+Detailed documentation: [CLI Usage](CLI_USAGE.md)
 
 **Quick reference**:
 - `python -m src.cli run` - Start Discord bot
@@ -97,9 +97,9 @@ Detailed document about [CLI usage](CLI_USAGE.md)
 
 This project uses the [Spec Kit](https://github.com/github/spec-kit) workflow for systematic development. See [specs/001-we-are-building/](specs/001-we-are-building/) for detailed specifications, plans, and tasks.
 
-## Licence
+## License
 
-[Apache 2.0 Licence](LICENSE)
+[Apache 2.0 License](LICENSE)
 
 **DISCLAIMER: This is an unofficial fan-made project and is in no way affiliated with, endorsed, or sponsored by Games Workshop Limited. It is a non-commercial project for personal use only.**
 
