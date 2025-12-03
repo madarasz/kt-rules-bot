@@ -3,20 +3,19 @@
 A Discord bot that answers questions about Warhammer 40,000 Kill Team rules using AI and retrieval-augmented generation (RAG).
 
 ## Purpose
-
 Helps Kill Team players quickly find accurate rule information by asking questions in Discord. The bot searches through official rule documents and provides AI-generated answers with citations.
+
+![rulebot](rulebot-screenshot.png)
 
 ## Technology, Architecture
 
 - **LLM with RAG** using semantic + **BM25** keyword search with **multi-hop**
+- **Structured JSON LLM output wih Pydantic** (for supported models)
+- **20+ LLM models supported** from OpenAI, Claude, Gemini, Grok and Deepseek
+- **Comprehensive testing** with unit tests, RAG tests, LLM model comparision tests, see [Testing Strategy](docs/TESTING-STRATEGY.md)
 - **ChromaDB** vector database
 - **Python 3.12** with discord.py for Discord integration
 - **Orchestrator Pattern**: Centralized coordination of Discord, RAG and LLM services
-
-**Supported LLM models:**
-- **Claude**: `claude-4.5-sonnet`, `claude-4.1-opus`, `claude-4.5-haiku`
-- **Gemini**: `gemini-2.5-pro`, `gemini-2.5-flash`
-- **OpenAI**: `gpt-5`, `gpt-5-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4o`, `o3`, `o3-mini`, `o4-mini`
 
 ## Installation, Requirements
 
@@ -61,8 +60,6 @@ make all
 # View HTML coverage report
 make coverage
 ```
-
-**Current status**: 87 tests passing (unit, integration, contract)
 
 **Quality tools**: Automated linting (ruff, mypy, flake8), security scanning (bandit, safety, pip-audit), complexity analysis (radon), coverage tracking, custom import validation, and dead code detection.
 
