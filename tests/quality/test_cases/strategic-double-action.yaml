@@ -1,0 +1,20 @@
+test_id: strategic-double-action
+context_file: tests/quality/test_cases/strategic-double-action.json
+query: >
+  from the second turning point and onwards, can the Technoarcheologist perform a 
+  reposition action in the firefight phase even tho he has repositioned as a strategic gambit 
+  from the Seekers of divine arcana rule?
+ground_truth_answers:
+  - key: "Final Answer"
+    text: "Yes, you can."
+    priority: critical
+  - key: "No restriction"
+    text: "There is no restriction on performing the same action in firefight phase as it was done as a strategic gambit (in Strategy phase)."
+    priority: critical
+ground_truth_contexts:
+  - key: "Seeker of Divine Arcana"
+    text: "You can immediately change this operative's order and/or it can immediately perform a free"
+    priority: critical
+  - key: "COVERT GUISES"
+    text: "Your **TECHNOARCHEOLOGIST** operative cannot perform more than one **Reposition** action in the Strategy phase of the first turning point"
+    priority: important

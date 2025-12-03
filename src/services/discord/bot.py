@@ -75,7 +75,7 @@ class KillTeamBotOrchestrator:
         self.analytics_db = analytics_db or AnalyticsDatabase.from_config()
         self.analytics_recorder = AnalyticsRecorder(self.analytics_db)
         self.llm_provider_manager = LLMProviderManager(self.llm_factory)
-        self.quote_validator = QuoteValidator(similarity_threshold=0.85)
+        self.quote_validator = QuoteValidator()
         self.cost_calculator = QueryCostCalculator()
         self.response_builder = ResponseBuilder()
 
@@ -83,8 +83,7 @@ class KillTeamBotOrchestrator:
         self.orchestrator = QueryOrchestrator(
             rag_retriever=rag_retriever,
             llm_factory=self.llm_factory,
-            enable_quote_validation=True,
-            quote_similarity_threshold=0.85,
+            enable_quote_validation=True
         )
 
     async def process_query(self, message: discord.Message, user_query: UserQuery) -> None:

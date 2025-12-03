@@ -12,6 +12,7 @@ def normalize_text_for_matching(text: str) -> str:
     - Strip whitespace
     - Convert to lowercase
     - Remove markdown asterisks (bold/italic markers)
+    - Remove ellipsis characters (… and ...)
 
     Args:
         text: Text to normalize
@@ -19,7 +20,7 @@ def normalize_text_for_matching(text: str) -> str:
     Returns:
         Normalized text string
     """
-    return text.strip().lower().replace("*", "")
+    return text.strip().lower().replace("*", "").replace("…", "").replace("...", "")
 
 
 def ground_truth_matches_text(ground_truth: str, text: str) -> bool:

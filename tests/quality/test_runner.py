@@ -320,10 +320,8 @@ class QualityTestRunner:
             llm_response_json = f"[LLM Generation Failed: {error_str}]"
             llm_response_markdown = llm_response_json
 
-        # Save markdown output for human reading
-        self._save_output(output_filename, test_case.query, llm_response_markdown)
-
         # Evaluate with Ragas metrics (skip if no_eval is True)
+        # Note: We save output AFTER evaluation to include metrics in the report
         if no_eval:
             # Skip Ragas evaluation - create empty metrics
             from tests.quality.ragas_evaluator import RagasMetrics
@@ -398,6 +396,14 @@ class QualityTestRunner:
             )
             score = 0.0
             ragas_evaluation_error = True
+
+        # Save markdown output for human reading (with metrics if available)
+        self._save_output(
+            output_filename,
+            test_case.query,
+            llm_response_markdown,
+            ragas_metrics=ragas_metrics if not no_eval else None,
+        )
 
         return IndividualTestResult(
             test_id=test_case.test_id,
@@ -538,9 +544,72 @@ class QualityTestRunner:
         results = await asyncio.gather(*tasks)
         return results
 
-    def _save_output(self, filename: Path, query: str, response: str):
-        """Saves the query and response to a file."""
+    def _save_output(
+        self,
+        filename: Path,
+        query: str,
+        response: str,
+        ragas_metrics=None,
+    ):
+        """Saves the query and response to a file with quality metrics."""
         content = f"# Query\n\n{query}\n\n---\n\n# Response\n\n{response}\n\n"
+
+        # Add quote validation issues if available
+        if ragas_metrics and hasattr(ragas_metrics, "quote_faithfulness_details"):
+            if ragas_metrics.quote_faithfulness_details:
+                failed_quotes = [
+                    (chunk_id, similarity)
+                    for chunk_id, similarity in ragas_metrics.quote_faithfulness_details.items()
+                    if similarity < 1.0
+                ]
+
+                if failed_quotes:
+                    content += "---\n\n## ⚠️ Quote Validation Issues\n\n"
+                    content += f"**Quote Faithfulness Score**: {ragas_metrics.quote_faithfulness:.2f}\n\n"
+
+                    # Get the quote scores with full details if available
+                    if hasattr(ragas_metrics, "llm_quotes_structured"):
+                        # Try to match failed quotes with full quote data
+                        quote_map = {}
+                        if ragas_metrics.llm_quotes_structured:
+                            for quote_dict in ragas_metrics.llm_quotes_structured:
+                                chunk_id = quote_dict.get("chunk_id", "")
+                                if chunk_id:
+                                    # Extract last 8 chars if it's a full UUID
+                                    short_id = chunk_id[-8:] if len(chunk_id) > 8 else chunk_id
+                                    quote_map[short_id] = quote_dict
+
+                        for chunk_id, similarity in failed_quotes:
+                            content += f"### Quote `{chunk_id}` (similarity: {similarity:.2f})\n\n"
+
+                            # Show quote details if available
+                            if chunk_id in quote_map:
+                                quote_data = quote_map[chunk_id]
+                                content += f"**Title**: {quote_data.get('quote_title', 'Unknown')}\n\n"
+                                content += f"**Quote Text**:\n```\n{quote_data.get('quote_text', '')}\n```\n\n"
+                    else:
+                        # Fallback: just list chunk IDs and similarities
+                        for chunk_id, similarity in failed_quotes:
+                            content += f"- Chunk `{chunk_id}`: similarity {similarity:.2f}\n"
+                        content += "\n"
+
+        # Add answer correctness issues if available
+        if ragas_metrics and hasattr(ragas_metrics, "answer_correctness_details"):
+            if ragas_metrics.answer_correctness_details:
+                failed_answers = [
+                    (key, score)
+                    for key, score in ragas_metrics.answer_correctness_details.items()
+                    if score < 1.0
+                ]
+
+                if failed_answers:
+                    content += "---\n\n## ⚠️ Answer Correctness Issues\n\n"
+                    content += f"**Answer Correctness Score**: {ragas_metrics.answer_correctness:.2f}\n\n"
+
+                    for answer_key, score in failed_answers:
+                        content += f"- **{answer_key}**: {score:.2f}\n"
+                    content += "\n"
+
         os.makedirs(filename.parent, exist_ok=True)
         with open(filename, "w") as f:
             f.write(content)

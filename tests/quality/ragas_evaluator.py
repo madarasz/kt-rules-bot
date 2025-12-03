@@ -28,6 +28,7 @@ from src.lib.text_utils import normalize_text_for_matching
 from src.lib.tokens import estimate_cost
 from src.models.structured_response import StructuredLLMResponse
 from tests.quality.custom_judge import CustomJudge
+from tests.quality.fuzzy_quote_evaluator import FuzzyQuoteEvaluator
 from tests.quality.test_case_models import GroundTruthAnswer, GroundTruthContext
 
 # Load environment variables from config/.env
@@ -186,7 +187,11 @@ class RagasEvaluator:
                 context_chunk_texts = context_chunks
 
             # Extract and normalize components from structured response
-            quotes_text = [self._normalize_text(q.quote_text) for q in llm_response.quotes]
+            # Concatenate quote_title and quote_text for matching against ground truth
+            quotes_text = [
+                self._normalize_text(f"{q.quote_title} {q.quote_text}")
+                for q in llm_response.quotes
+            ]
             short_answer = self._normalize_text(llm_response.short_answer)
             explanation = self._normalize_text(llm_response.explanation)
             answer_text = f"{short_answer} {explanation}".strip()
@@ -214,11 +219,6 @@ class RagasEvaluator:
                 ground_truth_contexts=ground_truth_contexts,  # Pass GroundTruthContext objects
             )
 
-            # For Quote Faithfulness:
-            # Compare quotes.text (what was cited) with context_chunk_texts (what RAG retrieved)
-            # This ensures citations are grounded in retrieved context
-            quotes_combined = " ".join(quotes_text) if quotes_text else ""
-
             # For Explanation Faithfulness:
             # Compare answer_text (short_answer + explanation) with quotes (what was cited)
             # This ensures the explanation doesn't hallucinate beyond the quotes
@@ -226,21 +226,12 @@ class RagasEvaluator:
             # For Answer Correctness:
             # Compare answer_text (short_answer + explanation) with ground_truth_answers
 
-            # Prepare datasets for Ragas
-            # Dataset 1: Quote Faithfulness
-            # contexts = context_chunk_texts (what RAG retrieved), answer = quotes_combined (what was cited)
-            data_quote_faithfulness = {
-                "question": [query],
-                "answer": [quotes_combined],  # What was cited (normalized)
-                "contexts": [
-                    context_chunk_texts
-                ],  # What RAG retrieved (not normalized - keep original for RAG faithfulness check)
-                "ground_truth": [
-                    " ".join(normalized_ground_truth_contexts)
-                ],  # Not used for faithfulness
-            }
+            # Note: Quote Faithfulness is now evaluated using fuzzy string matching (not Ragas)
 
-            # Dataset 2: For Explanation Faithfulness and Answer Correctness
+            # Combine quotes for feedback generation
+            quotes_combined = " ".join(quotes_text) if quotes_text else ""
+
+            # Prepare dataset for Ragas - Explanation Faithfulness and Answer Correctness
             # Uses full answer (short_answer + explanation) validated against quotes
             # For Answer Correctness: ground_truth should be ground_truth_answers (expected answers)
             data_explanation = {
@@ -283,7 +274,8 @@ class RagasEvaluator:
                     for q in llm_response.quotes
                 ]
 
-                # Call unified custom judge (single LLM call for all 3 metrics + feedback)
+                # Call unified custom judge (single LLM call for explanation faithfulness + answer correctness + feedback)
+                # Note: Quote faithfulness is evaluated separately using fuzzy string matching
                 custom_judge = CustomJudge(model=QUALITY_TEST_JUDGE_MODEL)
                 judge_result = await custom_judge.evaluate(
                     query=query,
@@ -297,45 +289,53 @@ class RagasEvaluator:
                 # Extract metrics from custom judge result
                 if judge_result.error:
                     logger.error(f"Custom judge evaluation failed: {judge_result.error}")
-                    quote_faithfulness_score = None
                     explanation_faithfulness_score = None
                     answer_correctness_score = None
                     custom_judge_feedback = f"Custom judge error: {judge_result.error}"
-                    quote_faithfulness_details = None
                     answer_correctness_details = None
                     # No tokens consumed on error
                     judge_prompt_tokens = 0
                     judge_completion_tokens = 0
                 else:
-                    quote_faithfulness_score = judge_result.quote_faithfulness
                     explanation_faithfulness_score = judge_result.explanation_faithfulness
                     answer_correctness_score = judge_result.answer_correctness
                     custom_judge_feedback = judge_result.feedback
-                    quote_faithfulness_details = judge_result.quote_faithfulness_details
                     answer_correctness_details = judge_result.answer_correctness_details
                     # Capture actual token counts from LLM call
                     judge_prompt_tokens = judge_result.prompt_tokens
                     judge_completion_tokens = judge_result.completion_tokens
 
-                if quote_faithfulness_score is not None:
-                    logger.info(
-                        f"Custom judge completed: qf={quote_faithfulness_score:.2f}, "
-                        f"ef={explanation_faithfulness_score:.2f}, ac={answer_correctness_score:.2f}"
-                    )
-                else:
-                    logger.info("Custom judge completed with errors (scores are None)")
+                # Evaluate quote faithfulness using fuzzy string matching (deterministic, fast, cheap)
+                fuzzy_evaluator = FuzzyQuoteEvaluator()
+                fuzzy_result = fuzzy_evaluator.evaluate(
+                    llm_quotes_structured=llm_quotes_structured,
+                    rag_context_chunks=context_chunk_objects,
+                )
+                quote_faithfulness_score = fuzzy_result.quote_faithfulness
+                quote_faithfulness_details = {
+                    score_dict["chunk_id"]: score_dict["similarity"]
+                    for score_dict in fuzzy_result.quote_scores
+                }
+
+                logger.info(
+                    f"Custom judge completed: ef={explanation_faithfulness_score:.2f}, "
+                    f"ac={answer_correctness_score:.2f}"
+                )
+                logger.info(
+                    f"Fuzzy quote validation completed: qf={quote_faithfulness_score:.2f} "
+                    f"({fuzzy_result.valid_quotes}/{fuzzy_result.total_quotes} quotes valid)"
+                )
 
             elif not use_custom_judge and QUALITY_TEST_JUDGING == "RAGAS":
                 logger.debug("Running LLM-based Ragas metrics (QUALITY_TEST_JUDGING=RAGAS)")
 
-                dataset_quote_faithfulness = Dataset.from_dict(data_quote_faithfulness)
                 dataset_explanation = Dataset.from_dict(data_explanation)
 
                 # Configure RAGAS metrics with LLM
                 ragas_llm = self._get_configured_llm()
 
                 # Create metric instances with configured LLM
-                faithfulness_metric_quote = Faithfulness(llm=ragas_llm)
+                # Note: Quote faithfulness is now evaluated using fuzzy string matching (not Ragas)
                 faithfulness_metric_explanation = Faithfulness(llm=ragas_llm)
                 answer_correctness_metric = AnswerCorrectness(llm=ragas_llm)
 
@@ -346,15 +346,7 @@ class RagasEvaluator:
                 loop = asyncio.get_event_loop()
                 executor = ThreadPoolExecutor(max_workers=1)
 
-                # Run Ragas evaluation - Part 1: Quote Faithfulness
-                result_quote_faithfulness = await loop.run_in_executor(
-                    executor,
-                    _run_ragas_evaluate_sync,
-                    dataset_quote_faithfulness,
-                    [faithfulness_metric_quote],  # This measures quote faithfulness
-                )
-
-                # Run Ragas evaluation - Part 2: Explanation metrics
+                # Run Ragas evaluation - Explanation metrics only
                 result_explanation = await loop.run_in_executor(
                     executor,
                     _run_ragas_evaluate_sync,
@@ -369,7 +361,6 @@ class RagasEvaluator:
                 executor.shutdown(wait=True)
 
                 # Extract scores from EvaluationResult objects
-                result_qf_df = result_quote_faithfulness.to_pandas()
                 result_explanation_df = result_explanation.to_pandas()
 
                 # Helper function to safely extract metric and check for NaN
@@ -386,14 +377,28 @@ class RagasEvaluator:
                         return None
                     return value
 
-                quote_faithfulness_score = safe_extract_metric(
-                    result_qf_df, "faithfulness", "quote_faithfulness"
-                )
                 explanation_faithfulness_score = safe_extract_metric(
                     result_explanation_df, "faithfulness", "explanation_faithfulness"
                 )
                 answer_correctness_score = safe_extract_metric(
                     result_explanation_df, "answer_correctness", "answer_correctness"
+                )
+
+                # Evaluate quote faithfulness using fuzzy string matching (deterministic, fast, cheap)
+                fuzzy_evaluator = FuzzyQuoteEvaluator()
+                fuzzy_result = fuzzy_evaluator.evaluate(
+                    llm_quotes_structured=llm_quotes_structured,
+                    rag_context_chunks=context_chunk_objects,
+                )
+                quote_faithfulness_score = fuzzy_result.quote_faithfulness
+                quote_faithfulness_details = {
+                    score_dict["chunk_id"]: score_dict["similarity"]
+                    for score_dict in fuzzy_result.quote_scores
+                }
+
+                logger.info(
+                    f"Fuzzy quote validation completed: qf={quote_faithfulness_score:.2f} "
+                    f"({fuzzy_result.valid_quotes}/{fuzzy_result.total_quotes} quotes valid)"
                 )
             else:
                 logger.debug(f"Skipping LLM-based Ragas metrics (QUALITY_TEST_JUDGING={QUALITY_TEST_JUDGING})")
@@ -655,9 +660,9 @@ class RagasEvaluator:
         for key, text, priority, icon, weight in missing_ground_truths:
             # Truncate long contexts
             text_display = text[:120] + "..." if len(text) > 120 else text
-            feedback_lines.append(f"  {icon} **{key}** ({priority}, weight={weight:.0f}): {text_display}")
+            feedback_lines.append(f"  - {icon} **{key}** ({priority}, weight={weight:.0f}): {text_display}")
 
-        return "\n".join(feedback_lines)
+        return "  \n".join(feedback_lines)
 
     def _generate_quote_faithfulness_feedback(
         self, score: float | None, quotes_combined: str, context_chunks: list[str]

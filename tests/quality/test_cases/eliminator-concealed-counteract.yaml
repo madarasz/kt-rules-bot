@@ -1,5 +1,5 @@
 test_id: eliminator-concealed-counteract
-context_file: tests/quality/test_cases/context-eliminator-concealed-counteract.json
+context_file: tests/quality/test_cases/eliminator-concealed-counteract-context.json
 query: >
   Can the Eliminator Sniper shoot during counteract while having Conceal order?
 ground_truth_answers:
@@ -9,7 +9,7 @@ ground_truth_answers:
   - key: "Weapon"
     text: "The Eliminator Sniper's weapon, the Bolt Sniper Rifle, has the Silent weapon rule."
     priority: supporting
-  - key: "Shoot regardless of order"
+  - key: "Shoot while Concealed"
     text: "The Silent weapon rule allows an operative to perform the Shoot action with this weapon while it has a Conceal order."
     priority: critical
   - key: "Counteract regardless of order"

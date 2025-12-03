@@ -1,10 +1,10 @@
 """Unified custom LLM judge for quality testing.
 
 Provides domain-specific evaluation for Kill Team rules bot:
-- Quote Faithfulness: Are quotes verbatim from RAG contexts?
 - Explanation Faithfulness: Is explanation grounded in quotes?
 - Answer Correctness: Does answer match ground truth?
 
+Note: Quote Faithfulness is evaluated separately using fuzzy string matching.
 Uses a single LLM call with structured output (Pydantic validation).
 """
 
@@ -65,16 +65,17 @@ def strip_markdown(text: str) -> str:
 
 @dataclass
 class CustomJudgeResult:
-    """Result from unified custom judge evaluation."""
+    """Result from unified custom judge evaluation.
 
-    quote_faithfulness: float  # 0.0-1.0 (aggregate)
+    Note: quote_faithfulness is evaluated separately using fuzzy string matching (not by LLM judge).
+    """
+
     explanation_faithfulness: float  # 0.0-1.0
     answer_correctness: float  # 0.0-1.0 (aggregate)
     feedback: str  # Overall textual evaluation (strengths, problems, suggestions)
     error: str | None = None
 
     # Detailed per-item breakdowns
-    quote_faithfulness_details: dict[str, float] | None = None  # chunk_id -> score
     answer_correctness_details: dict[str, float] | None = None  # answer_key -> score
 
     # Actual token usage from LLM call
@@ -128,90 +129,8 @@ class CustomJudge:
 
         return self._prompt_template
 
-    def _filter_rag_contexts_by_chunk_ids(
-        self,
-        llm_quotes_structured: list[dict],
-        rag_context_chunks: list[DocumentChunk],
-    ) -> tuple[list[str], dict[str, str]]:
-        """Filter RAG contexts to only those referenced by quotes via chunk_id.
-
-        Args:
-            llm_quotes_structured: List of dicts with chunk_id, quote_title, quote_text
-                Note: chunk_id can be either "Context N" (numbered reference) or last 8 chars of UUID
-            rag_context_chunks: Full list of DocumentChunk objects from RAG
-
-        Returns:
-            Tuple of:
-            - filtered_contexts: List of matched context texts for judge
-            - chunk_id_to_context: Mapping from chunk_id (last 8 chars) to full context text
-        """
-        chunk_id_to_context = {}
-        filtered_contexts = []
-
-        # Build mapping from position to chunk UUID (for "Context N" style references)
-        position_to_uuid = {}
-        for i, chunk in enumerate(rag_context_chunks):
-            chunk_uuid_str = str(chunk.chunk_id)
-            last_8_chars = chunk_uuid_str[-8:]
-            position_to_uuid[f"Context {i+1}"] = last_8_chars
-
-        # Extract chunk_ids from quotes
-        quote_chunk_ids = set()
-        for quote in llm_quotes_structured:
-            chunk_id = quote.get("chunk_id", "").strip()
-            if chunk_id:
-                # If it's a numbered context reference like "Context 11", map it to actual UUID
-                if chunk_id.startswith("Context "):
-                    mapped_id = position_to_uuid.get(chunk_id)
-                    if mapped_id:
-                        quote_chunk_ids.add(mapped_id)
-                        logger.debug(f"Mapped {chunk_id} → {mapped_id}")
-                    else:
-                        logger.warning(f"Could not map numbered context: {chunk_id}")
-                        quote_chunk_ids.add(chunk_id)  # Keep original for error reporting
-                else:
-                    quote_chunk_ids.add(chunk_id)
-            else:
-                logger.warning(
-                    f"Quote missing chunk_id: '{quote.get('quote_title', 'unknown')[:50]}...'"
-                )
-
-        # Match chunk_ids to RAG contexts (last 8 chars of UUID)
-        for chunk in rag_context_chunks:
-            chunk_uuid_str = str(chunk.chunk_id)
-            last_8_chars = chunk_uuid_str[-8:]
-
-            if last_8_chars in quote_chunk_ids:
-                chunk_id_to_context[last_8_chars] = chunk.text
-                filtered_contexts.append(chunk.text)
-                logger.debug(f"Matched chunk_id {last_8_chars} to context: {chunk.header}")
-
-        # Check for unmatched quote chunk_ids
-        matched_chunk_ids = set(chunk_id_to_context.keys())
-        unmatched = quote_chunk_ids - matched_chunk_ids
-        if unmatched:
-            logger.warning(
-                f"Could not match {len(unmatched)} quote chunk_ids to RAG contexts: {unmatched}"
-            )
-
-        logger.info(
-            f"Filtered RAG contexts: {len(filtered_contexts)}/{len(rag_context_chunks)} chunks referenced by quotes"
-        )
-
-        return filtered_contexts, chunk_id_to_context
-
-    def _calculate_quote_faithfulness_aggregate(self, details: dict[str, float]) -> float:
-        """Calculate simple average of per-quote faithfulness scores.
-
-        Args:
-            details: Dict mapping chunk_id to faithfulness score (0.0-1.0)
-
-        Returns:
-            Average faithfulness score (0.0-1.0)
-        """
-        if not details:
-            return 0.0
-        return sum(details.values()) / len(details)
+    # Note: RAG context filtering removed - not needed since quote faithfulness
+    # is evaluated separately using fuzzy string matching
 
     def _calculate_answer_correctness_aggregate(
         self,
@@ -230,20 +149,23 @@ class CustomJudge:
         if not details or not ground_truth_answers:
             return 0.0
 
-        # Create mapping from key to GroundTruthAnswer for weight lookup
-        answer_by_key = {ans.key: ans for ans in ground_truth_answers}
+        # Create case-insensitive mapping from key to GroundTruthAnswer for weight lookup
+        answer_by_key = {ans.key.lower(): ans for ans in ground_truth_answers}
 
         total_weight = 0.0
         weighted_sum = 0.0
 
         for answer_key, score in details.items():
-            if answer_key in answer_by_key:
-                weight = answer_by_key[answer_key].weight
+            # Case-insensitive lookup to handle LLM key variations
+            answer_key_lower = answer_key.lower()
+            if answer_key_lower in answer_by_key:
+                weight = answer_by_key[answer_key_lower].weight
                 weighted_sum += score * weight
                 total_weight += weight
             else:
                 logger.warning(
-                    f"Answer key '{answer_key}' from judge not found in ground_truth_answers"
+                    f"Answer key '{answer_key}' from judge not found in ground_truth_answers "
+                    f"(case-insensitive). Available keys: {[ans.key for ans in ground_truth_answers]}"
                 )
 
         if total_weight == 0:
@@ -277,29 +199,6 @@ class CustomJudge:
             Exception: If LLM call fails or response parsing fails
         """
         try:
-            # Filter RAG contexts to only those referenced by quotes
-            filtered_contexts, chunk_id_to_context = self._filter_rag_contexts_by_chunk_ids(
-                llm_quotes_structured, rag_context_chunks
-            )
-
-            # Format quote-to-context mapping for prompt
-            quote_chunk_mapping_lines = []
-            for quote in llm_quotes_structured:
-                chunk_id = quote.get("chunk_id", "").strip()
-                quote_title = quote.get("quote_title", "Unknown")
-                if chunk_id and chunk_id in chunk_id_to_context:
-                    quote_chunk_mapping_lines.append(
-                        f"- Quote '{quote_title}' (chunk_id: {chunk_id}) → RAG context {chunk_id}"
-                    )
-                elif chunk_id:
-                    quote_chunk_mapping_lines.append(
-                        f"- Quote '{quote_title}' (chunk_id: {chunk_id}) → ⚠️ NOT MATCHED"
-                    )
-
-            quote_chunk_mapping = (
-                "\n".join(quote_chunk_mapping_lines) if quote_chunk_mapping_lines else "(none)"
-            )
-
             # Format llm_quotes for display (strip markdown BEFORE formatting to avoid breaking markdown syntax)
             llm_quotes_display = "\n".join(
                 f"{i+1}. [{q.get('chunk_id', 'no-id')}] {q.get('quote_title', 'Unknown')}: {strip_markdown(q.get('quote_text', ''))}"
@@ -311,11 +210,6 @@ class CustomJudge:
                 f"Key: '{ans.key}' (priority: {ans.priority})\nText: {ans.text}"
                 for ans in ground_truth_answers
             )
-
-            # Format RAG contexts (strip markdown, no truncation for verbatim matching)
-            rag_contexts_formatted = "\n".join(
-                f"[{i+1}] {strip_markdown(ctx)}" for i, ctx in enumerate(filtered_contexts)
-            ) if filtered_contexts else "(none - no quotes referenced any contexts)"
 
             # Strip markdown from LLM response text
             llm_response_text_stripped = strip_markdown(llm_response_text)
@@ -331,10 +225,8 @@ class CustomJudge:
                 query=query,
                 ground_truth_answers=ground_truth_answers_formatted,
                 ground_truth_contexts=ground_truth_contexts_formatted,
-                rag_contexts=rag_contexts_formatted,
                 llm_response_text=llm_response_text_stripped,
                 llm_quotes=llm_quotes_display,
-                quote_chunk_mapping=quote_chunk_mapping,
             )
 
             # Configure for structured output
@@ -348,7 +240,7 @@ class CustomJudge:
             )
 
             logger.debug(
-                f"Custom judge: Evaluating with {self.model} (query: '{query[:50]}...', {len(filtered_contexts)} filtered contexts)"
+                f"Custom judge: Evaluating with {self.model} (query: '{query[:50]}...')"
             )
 
             # Generate response
@@ -385,21 +277,8 @@ class CustomJudge:
             logger.debug(f"result_data content (first 500 chars): {str(result_data)[:500]}")
 
             # Extract detailed scores from judge response with explicit error handling
-            # Note: The LLM returns arrays of {chunk_id, score} and {answer_key, score}
+            # Note: The LLM returns arrays of {answer_key, score}
             # Convert these to dicts for the backend
-            try:
-                quote_faithfulness_list = result_data.get("quote_faithfulness_details", [])
-                # Convert from [{chunk_id: "abc", score: 1.0}] to {"abc": 1.0}
-                quote_faithfulness_details = {
-                    item["chunk_id"]: item["score"] for item in quote_faithfulness_list
-                }
-            except (KeyError, AttributeError, TypeError) as e:
-                logger.error(
-                    f"Failed to convert quote_faithfulness_details: {e}. "
-                    f"Data: {result_data.get('quote_faithfulness_details', 'N/A')}"
-                )
-                raise
-
             try:
                 answer_correctness_list = result_data.get("answer_correctness_details", [])
                 # Convert from [{answer_key: "Final Answer", score: 1.0}] to {"Final Answer": 1.0}
@@ -413,10 +292,7 @@ class CustomJudge:
                 )
                 raise
 
-            # Calculate aggregates (override judge's values with backend calculation)
-            quote_faithfulness_agg = self._calculate_quote_faithfulness_aggregate(
-                quote_faithfulness_details
-            )
+            # Calculate aggregate (override judge's value with backend calculation)
             answer_correctness_agg = self._calculate_answer_correctness_aggregate(
                 answer_correctness_details, ground_truth_answers
             )
@@ -442,17 +318,14 @@ class CustomJudge:
 
             logger.info(
                 f"Custom judge evaluation completed: "
-                f"quote_faithfulness={quote_faithfulness_agg:.2f} (from {len(quote_faithfulness_details)} quotes), "
                 f"explanation_faithfulness={explanation_faithfulness:.2f}, "
                 f"answer_correctness={answer_correctness_agg:.2f} (from {len(answer_correctness_details)} answers)"
             )
 
             return CustomJudgeResult(
-                quote_faithfulness=quote_faithfulness_agg,
                 explanation_faithfulness=explanation_faithfulness,
                 answer_correctness=answer_correctness_agg,
                 feedback=feedback,
-                quote_faithfulness_details=quote_faithfulness_details,
                 answer_correctness_details=answer_correctness_details,
                 prompt_tokens=response.prompt_tokens,
                 completion_tokens=response.completion_tokens,
@@ -462,7 +335,6 @@ class CustomJudge:
         except Exception as e:
             logger.error(f"Custom judge evaluation failed: {e}", exc_info=True)
             return CustomJudgeResult(
-                quote_faithfulness=0.0,
                 explanation_faithfulness=0.0,
                 answer_correctness=0.0,
                 feedback="",
