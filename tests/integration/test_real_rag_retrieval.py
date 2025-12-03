@@ -92,6 +92,7 @@ def _ingest_test_document(temp_chroma_db: str, temp_rules_dir: str) -> RAGIngest
 
 @pytest.mark.slow
 @pytest.mark.integration
+@pytest.mark.embedding
 def test_real_rag_retrieval_basic(temp_chroma_db, temp_rules_dir):
     """Test real RAG retrieval with ChromaDB."""
     # Ingest test documents
@@ -121,6 +122,7 @@ def test_real_rag_retrieval_basic(temp_chroma_db, temp_rules_dir):
 
 @pytest.mark.slow
 @pytest.mark.integration
+@pytest.mark.embedding
 def test_real_rag_retrieval_no_results(temp_chroma_db, temp_rules_dir):
     """Test RAG retrieval with query that has no good matches."""
     # Ingest test documents
@@ -148,6 +150,7 @@ def test_real_rag_retrieval_no_results(temp_chroma_db, temp_rules_dir):
 
 @pytest.mark.slow
 @pytest.mark.integration
+@pytest.mark.embedding
 def test_real_rag_keyword_normalization(temp_chroma_db, temp_rules_dir):
     """Test that keyword normalization works with real retrieval."""
     # Ingest test documents

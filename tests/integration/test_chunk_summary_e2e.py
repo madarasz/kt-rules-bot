@@ -62,6 +62,7 @@ Overwatch is a powerful action that allows an operative to interrupt enemy movem
 @pytest.mark.llm_api
 @pytest.mark.integration
 @pytest.mark.slow
+@pytest.mark.embedding
 def test_chunk_summary_ingestion_to_retrieval_e2e(temp_chroma_db, temp_rules_dir):
     """E2E test: Ingest with summaries → verify storage → test retrieval quality.
 

@@ -54,6 +54,7 @@ Models can shoot during the shooting phase.
 
 @pytest.mark.integration
 @pytest.mark.fast
+@pytest.mark.embedding
 @patch("src.services.rag.summarizer.SUMMARY_ENABLED", False)
 def test_ingestion_with_summaries_disabled(temp_chroma_db, temp_rules_dir):
     """Test ingestion when SUMMARY_ENABLED is False.
@@ -92,6 +93,7 @@ def test_ingestion_with_summaries_disabled(temp_chroma_db, temp_rules_dir):
 
 @pytest.mark.integration
 @pytest.mark.fast
+@pytest.mark.embedding
 def test_ingestion_multiple_documents_cost_aggregation(temp_chroma_db):
     """Test that summary costs are aggregated across multiple documents."""
     # Create temp directory with multiple test files
@@ -160,6 +162,7 @@ Content for section 2.
 
 @pytest.mark.integration
 @pytest.mark.fast
+@pytest.mark.embedding
 def test_ingestion_continues_after_summary_failure(temp_chroma_db, temp_rules_dir):
     """Test that ingestion continues even if summary generation fails.
 
