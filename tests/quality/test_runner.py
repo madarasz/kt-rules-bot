@@ -568,7 +568,8 @@ class QualityTestRunner:
 
             if failed_quotes:
                 content += "---\n\n## ⚠️ Quote Validation Issues\n\n"
-                content += f"**Quote Faithfulness Score**: {ragas_metrics.quote_faithfulness:.2f}\n\n"
+                if ragas_metrics.quote_faithfulness is not None:
+                    content += f"**Quote Faithfulness Score**: {ragas_metrics.quote_faithfulness:.2f}\n\n"
 
                 # Get the quote scores with full details if available
                 if hasattr(ragas_metrics, "llm_quotes_structured"):
@@ -610,7 +611,8 @@ class QualityTestRunner:
 
             if failed_answers:
                 content += "---\n\n## ⚠️ Answer Correctness Issues\n\n"
-                content += f"**Answer Correctness Score**: {ragas_metrics.answer_correctness:.2f}\n\n"
+                if ragas_metrics.answer_correctness is not None:
+                    content += f"**Answer Correctness Score**: {ragas_metrics.answer_correctness:.2f}\n\n"
 
                 for answer_key, score in failed_answers:
                     content += f"- **{answer_key}**: {score:.2f}\n"

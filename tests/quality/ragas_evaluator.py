@@ -245,9 +245,19 @@ class RagasEvaluator:
 
             # Initialize LLM-based metrics as None (may be calculated below)
             quote_faithfulness_score = None
+            quote_faithfulness_details = None
             explanation_faithfulness_score = None
             answer_correctness_score = None
+            answer_correctness_details = None
             custom_judge_feedback = None
+            llm_quotes_structured = [
+                {
+                    "chunk_id": q.chunk_id,
+                    "quote_title": q.quote_title,
+                    "quote_text": q.quote_text,
+                }
+                for q in llm_response.quotes
+            ]
 
             # Conditionally run LLM-based metrics based on QUALITY_TEST_JUDGING
             use_custom_judge = QUALITY_TEST_JUDGING == "CUSTOM"
@@ -263,16 +273,6 @@ class RagasEvaluator:
 
             if use_custom_judge:
                 logger.debug(f"Running custom LLM judge (QUALITY_TEST_JUDGING=CUSTOM, model={QUALITY_TEST_JUDGE_MODEL})")
-
-                # Extract structured quotes with chunk_ids
-                llm_quotes_structured = [
-                    {
-                        "chunk_id": q.chunk_id,
-                        "quote_title": q.quote_title,
-                        "quote_text": q.quote_text,
-                    }
-                    for q in llm_response.quotes
-                ]
 
                 # Call unified custom judge (single LLM call for explanation faithfulness + answer correctness + feedback)
                 # Note: Quote faithfulness is evaluated separately using fuzzy string matching
@@ -408,9 +408,9 @@ class RagasEvaluator:
                 quote_faithfulness=quote_faithfulness_score,
                 explanation_faithfulness=explanation_faithfulness_score,
                 answer_correctness=answer_correctness_score,
-                quote_faithfulness_details=quote_faithfulness_details if use_custom_judge else None,
-                answer_correctness_details=answer_correctness_details if use_custom_judge else None,
-                llm_quotes_structured=llm_quotes_structured if use_custom_judge else None,
+                quote_faithfulness_details=quote_faithfulness_details,
+                answer_correctness_details=answer_correctness_details,
+                llm_quotes_structured=llm_quotes_structured,
             )
 
             # Generate detailed feedback based on judging mode

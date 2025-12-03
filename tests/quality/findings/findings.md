@@ -2,7 +2,11 @@
 ## LLM models removed from consideration
 - `GPT-5`, `grok-4-0709`, `gemini-3-pro-preview`: VERY SLOW (often around 2 mins or more)
 - `grok-4-1-fast-reasoning` has very good answers, but takes 30-40s to answer, is SLOW
-- `Claude Opus 4.1`: 5-8x more expensive than other models, and does not preform well either
+- `gtp-4o` gives bad answers and is expensive
+- `claude-4.1-opus`: 5-8x more expensive than other models, and does not preform well either (already superseeded by 4.5 Opus)
+
+## Models for judging
+- `gtp-4o` is unsuitable as a judge, it has a lot of false negative judgements, moved to `claude-4.5-opus` instead.
 
 # Test results
 

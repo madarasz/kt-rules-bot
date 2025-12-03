@@ -188,14 +188,9 @@ class QuoteValidator:
 
         # Exact match (fast path)
         if quote_norm in chunk_norm:
-            # Find the matching portion in original chunk for reporting
-            # Search for normalized quote in normalized chunk, then extract from original
-            start_idx = chunk_norm.find(quote_norm)
-            if start_idx >= 0:
-                # Approximate position in original chunk (may differ due to whitespace normalization)
-                matched_text = chunk[start_idx : start_idx + len(quote_norm) + 100]  # Extra buffer
-            else:
-                matched_text = chunk[:500]  # Fallback to chunk preview
+            # Find the matching portion in original chunk by searching for a substring
+            # that normalizes to quote_norm
+            matched_text = self._find_original_text_match(quote_norm, chunk)
             return True, 1.0, matched_text
 
         # Fuzzy match (allows for minor LLM formatting differences)
@@ -205,23 +200,78 @@ class QuoteValidator:
             return False, 0.0, ""
 
         best_similarity = 0.0
-        best_window_idx = 0
+        best_matched_text = ""
 
-        # Sliding window with step size for performance
-        step_size = max(1, quote_len // 4)
-        for i in range(0, max(1, len(chunk_norm) - quote_len + 1), step_size):
-            window = chunk_norm[i : i + quote_len]
-            # rapidfuzz returns 0-100, normalize to 0-1
-            similarity = fuzz.ratio(quote_norm, window) / 100.0
-            if similarity > best_similarity:
-                best_similarity = similarity
-                best_window_idx = i
+        # Sliding window in ORIGINAL chunk to find best match
+        # We need to try different window sizes since normalization changes length
+        # Use a range around the quote length
+        min_window_len = max(1, quote_len)
+        max_window_len = quote_len * 3  # Allow for markdown/whitespace expansion
+        step_size = max(1, len(chunk) // 20)  # Coarser step for performance
 
-        # Extract matched text from original chunk (approximate position)
-        matched_text = chunk[best_window_idx : best_window_idx + quote_len + 100]  # Extra buffer
+        for start_pos in range(0, len(chunk), step_size):
+            # Try windows of varying lengths around the expected size
+            for window_len in [min_window_len, quote_len * 2, max_window_len]:
+                end_pos = min(start_pos + window_len, len(chunk))
+                if end_pos <= start_pos:
+                    continue
+
+                window_original = chunk[start_pos:end_pos]
+                window_norm = self._normalize_text(window_original)
+
+                # rapidfuzz returns 0-100, normalize to 0-1
+                similarity = fuzz.ratio(quote_norm, window_norm) / 100.0
+                if similarity > best_similarity:
+                    best_similarity = similarity
+                    best_matched_text = window_original
+
+        # If no good match found, fall back to chunk preview
+        if not best_matched_text:
+            best_matched_text = chunk[:500]
+
         is_valid = best_similarity >= self.similarity_threshold
 
-        return is_valid, best_similarity, matched_text
+        return is_valid, best_similarity, best_matched_text
+
+    def _find_original_text_match(self, quote_norm: str, chunk: str) -> str:
+        """Find the original text in chunk that normalizes to quote_norm.
+
+        Args:
+            quote_norm: Normalized quote text to find
+            chunk: Original chunk text to search
+
+        Returns:
+            Original text from chunk that normalizes to quote_norm, or chunk preview if not found
+        """
+        quote_norm_len = len(quote_norm)
+        if quote_norm_len == 0:
+            return chunk[:500]
+
+        # Try windows of varying lengths (normalization can significantly reduce length)
+        # Start with small windows and expand
+        min_window_len = quote_norm_len
+        max_window_len = quote_norm_len * 3  # Account for markdown, whitespace, etc.
+
+        for start_pos in range(len(chunk)):
+            # Try different window lengths for this start position
+            for window_len in range(min_window_len, min(max_window_len, len(chunk) - start_pos + 1)):
+                candidate = chunk[start_pos : start_pos + window_len]
+                candidate_norm = self._normalize_text(candidate)
+
+                # Check for exact match
+                if candidate_norm == quote_norm:
+                    # Add some context after the match for better readability
+                    context_end = min(start_pos + window_len + 100, len(chunk))
+                    return chunk[start_pos:context_end]
+
+                # Early termination: if normalized candidate is much longer than quote_norm,
+                # no need to try even longer windows
+                if len(candidate_norm) > quote_norm_len * 1.5:
+                    break
+
+        # Fallback: return chunk preview if no exact match found
+        # (This shouldn't happen if quote_norm is actually in chunk_norm, but safety net)
+        return chunk[:500]
 
     @staticmethod
     def _normalize_text(text: str) -> str:
