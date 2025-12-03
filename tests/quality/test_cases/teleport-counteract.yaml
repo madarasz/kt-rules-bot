@@ -1,12 +1,24 @@
 test_id: teleport-counteract
+context_file: tests/quality/test_cases/teleport-counteract-context.json
 query: >
   Can I use the Teleport Pad during counteract?
 ground_truth_answers:
-  - No, you cannot use the Teleport Pad during counteract.
-  - While counteracting, the operative must be set up wholly within 2" if it's removed and set up again.
-  - Using the teleport pad requires the operative to be set up on the other teleport pad, which is not wholly within 2" of the first one.
+  - key: "Final Answer"
+    text: "No, you cannot use the Teleport Pad during counteract."
+    priority: critical
+  - key: "Counteract distance requirement"
+    text: "While counteracting, the operative must be set up wholly within 2\" if it's removed and set up again."
+    priority: critical
+  - key: "How teleportation works"
+    text: "Using the teleport pad requires the operative to be set up on the other teleport pad"
+    priority: important
+  - key: "Distance"
+    text: "The two teleport pads are not wholly within 2\" of each other."
+    priority: important
 ground_truth_contexts:
-  # Teleport Pad rule
-  - whenever a friendly operative on a teleport pad performs the Charge, Fall Back or Reposition action, you can teleport it.
-  # Counteract rule
-  - That operative cannot move more than 2", or must be set up wholly within 2" if it's removed and set up again, while counteracting
+  - key: "Teleport Pad"
+    text: "Instead, remove it from the killzone and set it back up on the other teleport pad."
+    priority: critical
+  - key: "Counteract"
+    text: "That operative cannot move more than 2\", or must be set up wholly within 2\" if it's removed and set up again, while counteracting"
+    priority: critical

@@ -34,7 +34,7 @@ Each chunk contains numbered sentences with `[S1]`, `[S2]`, `[S3]`, etc. markers
 
 1. **LEAVE `quote_text` EMPTY** - always use an empty string: `""`
 2. **Provide `sentence_numbers`** - array of sentence numbers containing the relevant rule (e.g., `[2, 3]`)
-3. **Include `quote_title`** - the rule name (e.g., "Core Rules: Actions", "Silent")
+3. **Include `quote_title`** - the full chunk name in verbatim, word-for-word (e.g., "Core Rules: Actions", "Silent", "[FAQ] *Question*: For the **Dominate** tac op, when does it count as a friendly operative incapacitating an enemy operative if it's not immediately clear?")
 4. **Include `chunk_id`** - from the chunk header (e.g., "abc12345")
 
 ### Correct Example (Gemini)
@@ -94,7 +94,7 @@ You will respond using a structured JSON format with the following fields:
 
 4. **quotes** (array of objects)
    - An array of rule quotations, each with:
-     - **quote_title** (string): The rule name (e.g., "Core Rules: Actions", "Silent", "ORDERS: Conceal")
+     - **quote_title** (string): The rule name (e.g., "Core Rules: Actions", "Silent", "ORDERS: Conceal", "[FAQ] *Question*: For the **Dominate** tac op, when does it count as a friendly operative incapacitating an enemy operative if it's not immediately clear?")
      - **quote_text** (string): **MUST BE EMPTY** - always use `""` to avoid RECITATION errors
      - **sentence_numbers** (array of integers): Sentence numbers containing relevant rule text (e.g., `[2]` or `[2, 3]`)
      - **chunk_id** (string): Chunk ID from context (last 8 chars of UUID, e.g., 'a1b2c3d4')
