@@ -256,8 +256,8 @@ class ReportGenerator:
                     else:
                         content.append(f"\n#### {model_name}")
 
-                    # Status with emoji - skull for errors, warning for partial scores
-                    if result.error:
+                    # Status with emoji - skull for errors (generation or evaluation), warning for partial scores
+                    if result.error or result.ragas_evaluation_error:
                         status_emoji = "💀"
                         status_text = "Error"
                     elif result.passed:
@@ -401,7 +401,11 @@ class ReportGenerator:
                     )
 
                     if result.error:
-                        content.append(f"- **Error:** {result.error}")
+                        content.append(f"- **Generation Error:** {result.error}")
+
+                    # Show evaluation errors prominently if they occurred outside the metrics block
+                    if result.ragas_error and not result.ragas_metrics_available:
+                        content.append(f"- **Evaluation Error:** {result.ragas_error}")
 
                     # Legacy requirements (for backward compatibility during migration)
                     if result.requirements:

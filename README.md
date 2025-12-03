@@ -1,9 +1,7 @@
 # Kill Team Rules Bot
 
-A Discord bot that answers questions about Warhammer 40,000 Kill Team rules using AI and retrieval-augmented generation (RAG).
-
 ## Purpose
-Helps Kill Team players quickly find accurate rule information by asking questions in Discord. The bot searches through official rule documents and provides AI-generated answers with citations.
+Helps **Warhammer 40k: Kill Team** players quickly find accurate rule information by asking questions in *Discord*. The bot searches through official rule documents and provides AI-generated answers with citations.
 
 ![rulebot](rulebot-screenshot.png)
 
@@ -40,12 +38,12 @@ git submodule update --init --recursive
 python -m src.cli ingest ./extracted-rules
 ```
 
-## Running the bot
+## Running the Discord bot
 ```bash
 python -m src.cli run
 ```
 
-## Tests & Code Quality
+## Unit Tests & Code Quality
 
 ```bash
 # Run all tests with coverage
