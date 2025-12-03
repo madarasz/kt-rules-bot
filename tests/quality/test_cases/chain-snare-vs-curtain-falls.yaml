@@ -1,4 +1,5 @@
 test_id: chain-snare-vs-curtain-falls
+context_file: tests/quality/test_cases/chain-snare-vs-curtain-falls-context.json
 query: >
   Would the Curtain Falls firefight ploy still cost CP even after the Nemesis Claw chain snare
   equipment potentially would block the free fall back action?
@@ -8,11 +9,15 @@ ground_truth_answers:
     priority: critical
 ground_truth_contexts:
   - key: "Chain Snare"
-    text: "Whenever an enemy operative would perform the Fall Back action while within control range of a friendly NEMESIS CLAW operative"
+    text: "Whenever an enemy operative would perform the **Fall Back** action while within **control range** of a friendly **NEMESIS CLAW** operative"
     priority: important
   - key: "Curtain Falls"
-    text: "End that sequence (any remaining attack dice are discarded) and immediately perform a free Dash or Fall Back action up to 3\" with that operative"
+    text: "immediately perform a free **Dash** or **Fall Back** action up to 3\" with that operative"
     priority: important
-  - key: "FAQ"
-    text: "If a rule would prevent an action from being performed 'during that activation/counteraction' (e.g. NEMESIS CLAW Chain Snares)"
-    priority: supporting
+  # There are two FAQs relevant to this case, any is fine, although score will be lost
+  - key: "FAQ 1"
+    text: "If a rule would prevent an action from being performed"
+    priority: critical
+  - key: "FAQ 2"
+    text: "is the CP refunded?"
+    priority: critical

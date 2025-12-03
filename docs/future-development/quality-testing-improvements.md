@@ -158,8 +158,10 @@ Quoted by LLM:
 {quote}
 
 Is this quote a verbatim substring of the RAG context? Ignore markdown formatting.
-Answer: YES or NO
-Reason: [one sentence explaining why]
+
+Score: 0.0-1.0 per quote (1.0 = verbatim, 0.0 = hallucinated)
+
+Feedback: Brief bullets identifying which quotes are paraphrased or hallucinated
 ```
 
 **Explanation Faithfulness Judge**:
@@ -175,8 +177,18 @@ Explanation given:
 Does the explanation only make claims supported by the quotes? Check if all
 statements are directly supported without adding unsupported facts.
 
-Answer: YES or NO
-Reason: [one sentence]
+Score: 0.0-1.0 (1.0 = perfect, 0.0 = major issues)
+
+Feedback (markdown with two sections):
+
+### Explanation Problems
+- List ALL ungrounded claims, hallucinations, or logic errors (one bullet per issue)
+- If score = 1.0, this section can be empty or state "None"
+- Be specific about what claim is unsupported and which quote was expected to support it
+
+### Style
+- Brief bullets about clarity, logical flow, conciseness, specificity
+- 1-3 bullets maximum
 ```
 
 **Answer Correctness Judge**:
@@ -194,8 +206,9 @@ LLM answer:
 Is the LLM answer semantically correct compared to ground truth? The exact
 wording does not need to match, but the conclusion must be the same.
 
-Answer: CORRECT or INCORRECT
-Reason: [one sentence]
+Score: 0.0-1.0 per ground truth answer
+
+Feedback: Brief bullet points explaining any mismatches or errors
 ```
 
 **Keep local calculations**:
@@ -264,6 +277,8 @@ human_review: dict | None = None  # Optional human scores
 ---
 
 ## Implementation Details
+
+> **Note**: This section describes the original proposed design. The actual implementation uses a unified custom judge with structured output (Pydantic). See [Implementation Notes (2025-11-28)](#implementation-notes-2025-11-28) for current implementation details, including the bullet-point feedback format.
 
 ### File Changes
 
@@ -356,9 +371,13 @@ logger = get_logger(__name__)
 
 @dataclass
 class JudgeResult:
-    """Result from custom judge evaluation."""
+    """Result from custom judge evaluation.
+
+    NOTE: This is the OLD design. Current implementation uses CustomJudgeResponse
+    with structured Pydantic output and bullet-point feedback format.
+    """
     score: float  # 0.0 or 1.0
-    reason: str
+    reason: str  # Now: bullet-point markdown with "Explanation Problems" and "Style" sections
     error: str | None = None
 
 
@@ -398,6 +417,7 @@ Reason: [one sentence explaining why]"""
         self, explanation: str, quotes: list[str]
     ) -> JudgeResult:
         """Evaluate if explanation is grounded in quotes."""
+        # NOTE: OLD DESIGN - current implementation uses unified judge with bullet-point feedback
         prompt = f"""You are evaluating if an explanation is grounded in the cited quotes.
 
 Quotes cited:
@@ -408,8 +428,8 @@ Explanation given:
 
 Does the explanation only make claims supported by the quotes? Check if all statements are directly supported without adding unsupported facts or conclusions.
 
-Answer: YES or NO
-Reason: [one sentence]"""
+Score: 0.0-1.0
+Feedback: Bullet-point list of ALL ungrounded claims (see current implementation)"""
 
         return await self._evaluate(prompt, "YES")
 
@@ -901,7 +921,9 @@ significantly hurting their quote recall scores.
 
 3. **Hardcoded Values**: Custom judge uses hardcoded max_tokens=2048 and temperature=0 (not configurable via constants)
 
-4. **Single Feedback Field**: Instead of separate feedback fields for each metric, we use one generic `feedback` field from the custom judge
+4. **Single Feedback Field**: Instead of separate feedback fields for each metric, we use one generic `feedback` field from the custom judge containing markdown with two sections:
+   - **Explanation Problems**: Bullet-point list of ALL ungrounded claims when explanation_faithfulness < 1.0 (empty if perfect)
+   - **Style**: 1-3 bullets about clarity, logical flow, conciseness
 
 5. **Important Priority**: Added "important" priority level (weight=5) between "critical" (10) and "supporting" (3)
 
@@ -917,6 +939,7 @@ significantly hurting their quote recall scores.
    - Added `quote_faithfulness_details: dict[str, float]` (chunk_id → score)
    - Added `answer_correctness_details: dict[str, float]` (answer_key → score)
    - Judge provides per-item scores, backend calculates weighted aggregates
+   - `feedback` field contains markdown with bullet-point format (see "Single Feedback Field" above)
 
 2. **Custom Judge Enhancements** ([tests/quality/custom_judge.py](tests/quality/custom_judge.py))
    - **RAG Context Filtering**: Only contexts referenced by quote chunk_ids are passed to judge (reduces tokens)
@@ -931,6 +954,7 @@ significantly hurting their quote recall scores.
    - Added per-item scoring instructions with chunk_id (last 8 chars) as keys
    - Added examples showing detailed breakdowns
    - Updated "Retrieved RAG Contexts" to explain filtering
+   - Feedback format: bullet-point lists with "Explanation Problems" listing ALL issues when score < 1.0
 
 4. **Ragas Evaluator Integration** ([tests/quality/ragas_evaluator.py](tests/quality/ragas_evaluator.py))
    - Changed signature to accept `list[DocumentChunk]` (backward compatible with `list[str]`)
@@ -967,6 +991,44 @@ significantly hurting their quote recall scores.
     "Counteract regardless of order": 0.9
   }
 }
+```
+
+**Example Feedback Formats:**
+
+**Perfect Score (explanation_faithfulness = 1.0):**
+```markdown
+### Explanation Problems
+None
+
+### Style
+- Clear and logically structured
+- Effectively connects rules to conclusion
+```
+
+**Partial Score (explanation_faithfulness = 0.6):**
+```markdown
+### Explanation Problems
+- Claims "Silent rule allows shooting while concealed" but quote doesn't explicitly mention Conceal order
+- States "counteract is always available" without grounding in cited Astartes rule
+- Assumes interaction between two rules without explaining the connection
+
+### Style
+- Logical flow is good
+- Could be more concise (removes unnecessary persona comments)
+```
+
+**Low Score (explanation_faithfulness = 0.2):**
+```markdown
+### Explanation Problems
+- Incorrectly concludes "cannot shoot during counteract" - contradicts cited rules
+- Fails to mention Silent weapon rule that allows shooting while concealed
+- Makes unsupported claim about "Conceal order restrictions" not in any quote
+- Missing connection between Astartes rule and counteract ability
+- Hallucinated restriction about "range limitations" not present in context
+
+### Style
+- Structure is clear but conclusion is wrong
+- Uses unnecessary filler phrases
 ```
 
 **Implementation Details:**
