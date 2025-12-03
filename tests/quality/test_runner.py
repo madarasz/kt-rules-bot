@@ -366,6 +366,20 @@ class QualityTestRunner:
                 f"some metrics returned None/NaN"
             )
 
+        # Check if custom judge evaluation failed (for CUSTOM judging mode)
+        # The error is stored in ragas_metrics.error by the evaluator
+        if (
+            not no_eval
+            and structured_llm_response is not None
+            and QUALITY_TEST_JUDGING == "CUSTOM"
+            and ragas_metrics.error
+        ):
+            ragas_evaluation_error = True
+            logger.error(
+                f"Custom judge evaluation failed for test {test_case.test_id} on model {model} - "
+                f"Error: {ragas_metrics.error}"
+            )
+
         # Calculate main LLM cost using actual token split
         cost = estimate_cost(
             prompt_tokens=actual_prompt_tokens,

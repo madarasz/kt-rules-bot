@@ -12,10 +12,11 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from src.lib.constants import CUSTOM_JUDGE_PROMPT_PATH, QUALITY_TEST_JUDGE_MODEL
+from src.lib.constants import CUSTOM_JUDGE_PROMPT_PATH, LLM_GENERATION_TIMEOUT, QUALITY_TEST_JUDGE_MODEL
 from src.lib.logging import get_logger
 from src.services.llm.base import GenerationConfig, GenerationRequest
 from src.services.llm.factory import LLMProviderFactory
+from src.services.llm.retry import retry_with_rate_limit_backoff
 from tests.quality.test_case_models import GroundTruthAnswer
 
 logger = get_logger(__name__)
@@ -241,9 +242,15 @@ class CustomJudge:
                 f"Custom judge: Evaluating with {self.model} (query: '{query[:50]}...')"
             )
 
-            # Generate response
-            response = await provider.generate(
-                GenerationRequest(prompt=prompt, context=[], config=config)
+            # Generate response with retry logic for 429/529 errors
+            async def generate_judge_evaluation():
+                return await provider.generate(
+                    GenerationRequest(prompt=prompt, context=[], config=config)
+                )
+
+            response = await retry_with_rate_limit_backoff(
+                generate_judge_evaluation,
+                timeout_seconds=LLM_GENERATION_TIMEOUT,
             )
 
             # Debug: Log raw response
