@@ -29,6 +29,7 @@ LLM_PROVIDERS_LITERAL = Literal[
     # "o3", --- does not support JSON output
     "o3-mini",
     "o4-mini",
+    "grok-4-1-fast-reasoning",
     "grok-4-fast-reasoning",
     "grok-4-0709",
     "grok-3",
@@ -65,15 +66,15 @@ PDF_EXTRACTION_PROVIDERS = [
 QUALITY_TEST_PROVIDERS = [
     "gpt-5.1-chat-latest",
     "gpt-4.1",
-    "gpt-4o",
+    #"gpt-4o",
     # "gpt-4.1-mini",
     "claude-4.5-sonnet",
     "claude-4.5-opus",
-    "gemini-3-pro-preview",
+    #"gemini-3-pro-preview",
     "gemini-2.5-flash",
     "gemini-2.5-pro",
     "deepseek-chat",
-    "grok-4-fast-reasoning",
+    "grok-4-1-fast-reasoning",
     # "grok-3",
     # "grok-3-mini",
     # "deepseek-reasoner"
@@ -117,7 +118,7 @@ LLM_EXTRACTION_TEMPERATURE = 0  # Low temperature for consistent structure
 # ============================================================================
 
 # Default judge model for quality tests (used by both Ragas and custom judge)
-QUALITY_TEST_JUDGE_MODEL = "gpt-4o"
+QUALITY_TEST_JUDGE_MODEL = "claude-4.5-opus"
 
 # Quality test judging mode
 # - "RAGAS": Enable LLM-based metrics (Quote Faithfulness, Explanation Faithfulness, Answer Correctness) using Ragas library
@@ -134,10 +135,10 @@ QUALITY_TEST_JUDGE_TEMPERATURE = 0.0  # Deterministic for consistency (Ragas onl
 # These weights are used to calculate the aggregate score from individual metrics
 # Higher weight = more important for overall score
 RAGAS_METRIC_WEIGHTS = {
-    "answer_correctness": 0.30,       # Must get answer right (30%)
-    "quote_recall": 0.30,             # Must cite all key rules (30%)
-    "explanation_faithfulness": 0.20, # Explanation must be grounded (20%)
-    "quote_faithfulness": 0.15,       # No hallucinated citations (15%)
+    "answer_correctness": 0.50,       # Must get answer right (50%)
+    "quote_recall": 0.20,             # Must cite all key rules (20%)
+    "explanation_faithfulness": 0.15, # Explanation must be grounded (15%)
+    "quote_faithfulness": 0.10,       # No hallucinated citations (10%)
     "quote_precision": 0.05,          # Nice to have - prefer concise (5%)
 }
 
@@ -154,6 +155,10 @@ DEFAULT_GROUND_TRUTH_PRIORITY = "critical"
 # Custom Judge Configuration (Phase 1.3)
 # Unified LLM judge for quality testing (alternative to Ragas)
 CUSTOM_JUDGE_PROMPT_PATH = "prompts/quality-test-custom-judge.md"  # Prompt template path
+
+# Quote Validation Configuration
+# Uses fuzzy string matching (rapidfuzz) to detect quote inaccuracies
+QUOTE_SIMILARITY_THRESHOLD = 0.98
 
 # Quality test concurrency and rate limit handling
 QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS = 2  # Max parallel LLM requests

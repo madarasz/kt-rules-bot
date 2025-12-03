@@ -83,28 +83,36 @@ class TestQuoteValidator:
         quote = "This is a test quote."
         chunk = "Some text before. This is a test quote. Some text after."
 
-        assert validator._is_quote_in_chunk(quote, chunk) is True
+        is_valid, similarity, matched_text = validator._is_quote_in_chunk(quote, chunk)
+        assert is_valid is True
+        assert similarity == 1.0
 
     def test_is_quote_in_chunk_case_insensitive(self, validator):
         """Test case-insensitive matching."""
         quote = "This Is A Test Quote."
         chunk = "Some text before. this is a test quote. Some text after."
 
-        assert validator._is_quote_in_chunk(quote, chunk) is True
+        is_valid, similarity, matched_text = validator._is_quote_in_chunk(quote, chunk)
+        assert is_valid is True
+        assert similarity == 1.0
 
     def test_is_quote_in_chunk_whitespace_normalization(self, validator):
         """Test whitespace normalization."""
         quote = "This   is    a    test   quote."
         chunk = "Some text before. This is a test quote. Some text after."
 
-        assert validator._is_quote_in_chunk(quote, chunk) is True
+        is_valid, similarity, matched_text = validator._is_quote_in_chunk(quote, chunk)
+        assert is_valid is True
+        assert similarity == 1.0
 
     def test_is_quote_in_chunk_not_found(self, validator):
         """Test quote not found in chunk."""
         quote = "This quote does not exist."
         chunk = "Some completely different text."
 
-        assert validator._is_quote_in_chunk(quote, chunk) is False
+        is_valid, similarity, matched_text = validator._is_quote_in_chunk(quote, chunk)
+        assert is_valid is False
+        assert similarity < 0.85  # Below threshold
 
     def test_similarity_threshold_strict(self):
         """Test with strict similarity threshold."""
@@ -115,10 +123,12 @@ class TestQuoteValidator:
 
         # With strict threshold, this might not match
         # (depends on actual similarity score)
-        result = validator._is_quote_in_chunk(quote, chunk)
+        is_valid, similarity, matched_text = validator._is_quote_in_chunk(quote, chunk)
 
-        # Just verify it runs without error
-        assert isinstance(result, bool)
+        # Just verify it runs without error and returns correct types
+        assert isinstance(is_valid, bool)
+        assert isinstance(similarity, float)
+        assert isinstance(matched_text, str)
 
     def test_validate_real_world_counteract_quote(self, validator):
         """Test with real Kill Team rule content."""
@@ -146,5 +156,14 @@ class TestQuoteValidator:
             "(excluding **Guard**) for free."
         )
 
-        assert validator._is_quote_in_chunk(quote_plain, context_chunk) is True
-        assert validator._is_quote_in_chunk(quote_markdown, context_chunk) is True
+        is_valid_plain, similarity_plain, matched_text_plain = validator._is_quote_in_chunk(
+            quote_plain, context_chunk
+        )
+        is_valid_markdown, similarity_markdown, matched_text_markdown = validator._is_quote_in_chunk(
+            quote_markdown, context_chunk
+        )
+
+        assert is_valid_plain is True
+        assert similarity_plain == 1.0
+        assert is_valid_markdown is True
+        assert similarity_markdown == 1.0

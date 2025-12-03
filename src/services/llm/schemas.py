@@ -119,12 +119,12 @@ class AnswerCorrectnessScore(BaseModel):
 class CustomJudgeResponse(BaseModel):
     """Structured response from custom LLM judge for quality testing.
 
-    Used to evaluate Kill Team rules bot responses on three dimensions:
-    - Quote faithfulness (are quotes verbatim?) - provided as per-quote details, backend calculates aggregate
+    Used to evaluate Kill Team rules bot responses on two dimensions:
     - Explanation faithfulness (is reasoning grounded in quotes?) - single score
     - Answer correctness (does conclusion match ground truth?) - provided as per-answer details, backend calculates aggregate
 
-    Note: quote_faithfulness and answer_correctness aggregates are calculated by the backend from *_details arrays.
+    Note: Quote faithfulness is evaluated separately using fuzzy string matching (not LLM-based).
+    Note: answer_correctness aggregate is calculated by the backend from answer_correctness_details array.
     """
 
     explanation_faithfulness: float = Field(
@@ -138,10 +138,6 @@ class CustomJudgeResponse(BaseModel):
 
     # Detailed per-item breakdowns (backend calculates aggregates from these)
     # Note: Using arrays instead of dicts for OpenAI structured output compatibility
-    quote_faithfulness_details: list[QuoteFaithfulnessScore] = Field(
-        default_factory=list,
-        description="Per-quote faithfulness scores as array of {chunk_id, score} objects",
-    )
     answer_correctness_details: list[AnswerCorrectnessScore] = Field(
         default_factory=list,
         description="Per-answer correctness scores as array of {answer_key, score} objects",
