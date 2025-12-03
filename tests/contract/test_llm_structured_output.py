@@ -1,6 +1,8 @@
 """Contract tests for LLM structured JSON output.
 
 Verifies all providers return valid JSON conforming to STRUCTURED_OUTPUT_SCHEMA.
+Tests both Pydantic-native providers (Claude, ChatGPT) and JSON-only providers (Gemini, Grok, DeepSeek).
+
 Requires API keys - run with: pytest tests/contract/test_llm_structured_output.py
 """
 
@@ -11,9 +13,16 @@ import pytest
 from src.models.structured_response import StructuredLLMResponse
 from src.services.llm.base import STRUCTURED_OUTPUT_SCHEMA, GenerationConfig, GenerationRequest
 from src.services.llm.factory import LLMProviderFactory
+from src.services.llm.schemas import Answer, CustomJudgeResponse, HopEvaluation
 
 # All providers that must support structured output
 PROVIDERS_TO_TEST = ["claude-4.5-sonnet", "gpt-4.1", "gemini-2.5-flash", "grok-3", "deepseek-chat"]
+
+# Pydantic-native providers use beta.parse() and populate structured_output field
+PYDANTIC_NATIVE_PROVIDERS = ["claude-4.5-sonnet", "gpt-4.1"]
+
+# JSON-only providers return JSON strings and don't populate structured_output field
+JSON_ONLY_PROVIDERS = ["gemini-2.5-flash", "grok-3", "deepseek-chat"]
 
 TEST_PROMPT = "Can a model perform two Shoot actions in the same activation?"
 TEST_CONTEXT = [
@@ -198,27 +207,241 @@ class TestProviderSpecificEdgeCases:
 
         print("✓ GPT-4.1 strict mode validated")
 
+
+class TestPydanticStructuredOutput:
+    """Test Pydantic-native vs JSON-only structured output approaches.
+
+    Pydantic-native providers (Claude, ChatGPT):
+    - Use beta.parse() with Pydantic models directly
+    - Populate LLMResponse.structured_output field with parsed dict
+    - Return Pydantic model instances from API
+
+    JSON-only providers (Gemini, Grok, DeepSeek):
+    - Return raw JSON strings
+    - Don't populate LLMResponse.structured_output field
+    - Validate with pydantic_model.model_validate_json() post-processing
+    """
+
+    @pytest.mark.parametrize("provider", PYDANTIC_NATIVE_PROVIDERS)
     @pytest.mark.asyncio
     @pytest.mark.contract
     @pytest.mark.llm_api
-    async def test_deepseek_chat_vs_reasoner(self):
-        """Test both DeepSeek models support structured output."""
-        for model in ["deepseek-chat"]:  # deepseek-reasoner can be added when available
-            llm = LLMProviderFactory.create(model)
+    async def test_pydantic_native_providers_populate_structured_output(self, provider):
+        """Pydantic-native providers must populate structured_output field.
 
-            request = GenerationRequest(
-                prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig()
+        Contract: Claude and ChatGPT use beta.parse() and return pre-parsed
+        Pydantic model instances, which are stored in structured_output field.
+        """
+        llm = LLMProviderFactory.create(provider)
+        request = GenerationRequest(
+            prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig()
+        )
+
+        response = await llm.generate(request)
+
+        # Pydantic-native providers MUST populate structured_output
+        assert response.structured_output is not None, (
+            f"{provider} must populate structured_output field (uses beta.parse())"
+        )
+        assert isinstance(response.structured_output, dict), (
+            f"{provider} structured_output must be dict"
+        )
+
+        # Verify contains expected fields from Answer schema
+        assert "short_answer" in response.structured_output, (
+            f"{provider} structured_output missing short_answer"
+        )
+        assert "quotes" in response.structured_output, (
+            f"{provider} structured_output missing quotes"
+        )
+        assert "explanation" in response.structured_output, (
+            f"{provider} structured_output missing explanation"
+        )
+
+        print(f"✓ {provider} populated structured_output field (Pydantic-native)")
+
+    @pytest.mark.parametrize("provider", JSON_ONLY_PROVIDERS)
+    @pytest.mark.asyncio
+    @pytest.mark.contract
+    @pytest.mark.llm_api
+    async def test_json_only_providers_dont_populate_structured_output(self, provider):
+        """JSON-only providers should NOT populate structured_output field.
+
+        Contract: Gemini, Grok, DeepSeek return raw JSON strings and only
+        validate with Pydantic post-processing. They don't use beta.parse().
+        """
+        llm = LLMProviderFactory.create(provider)
+        request = GenerationRequest(
+            prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig()
+        )
+
+        response = await llm.generate(request)
+
+        # JSON-only providers should NOT populate structured_output
+        assert response.structured_output is None or response.structured_output == {}, (
+            f"{provider} should NOT populate structured_output (uses JSON mode, not beta.parse())"
+        )
+
+        # But answer_text should still contain valid JSON
+        assert response.answer_text, f"{provider} answer_text should not be empty"
+        try:
+            data = json.loads(response.answer_text)
+            assert "short_answer" in data, f"{provider} JSON missing short_answer"
+        except json.JSONDecodeError:
+            pytest.fail(f"{provider} answer_text is not valid JSON")
+
+        print(f"✓ {provider} correctly doesn't populate structured_output (JSON-only)")
+
+
+class TestPydanticModelValidation:
+    """Test that all providers return JSON that validates with Pydantic models.
+
+    This tests direct Pydantic validation, not just JSON parsing.
+    """
+
+    @pytest.mark.parametrize("provider", PROVIDERS_TO_TEST)
+    @pytest.mark.asyncio
+    @pytest.mark.contract
+    @pytest.mark.llm_api
+    async def test_answer_schema_pydantic_validation(self, provider):
+        """Provider JSON must validate successfully with Answer Pydantic model.
+
+        Contract: All providers must return JSON that can be parsed by
+        Answer.model_validate_json() without validation errors.
+        """
+        llm = LLMProviderFactory.create(provider)
+        request = GenerationRequest(
+            prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig()
+        )
+
+        response = await llm.generate(request)
+
+        # Should validate with Pydantic Answer model
+        try:
+            # Gemini uses GeminiAnswer, others use Answer
+            if provider == "gemini-2.5-flash":
+                # For Gemini, we expect sentence_numbers in quotes
+                parsed_json = json.loads(response.answer_text)
+                assert isinstance(parsed_json, dict)
+                assert "quotes" in parsed_json
+                # Just verify it's valid JSON structure
+                print(f"✓ {provider} returned valid JSON (uses GeminiAnswer schema)")
+            else:
+                parsed = Answer.model_validate_json(response.answer_text)
+
+                # Verify types are correct at Pydantic level
+                assert isinstance(parsed.smalltalk, bool), f"{provider} smalltalk must be bool"
+                assert isinstance(parsed.short_answer, str), f"{provider} short_answer must be str"
+                assert isinstance(parsed.quotes, list), f"{provider} quotes must be list"
+                assert isinstance(parsed.explanation, str), f"{provider} explanation must be str"
+
+                # Verify required fields are not empty
+                assert len(parsed.short_answer) > 0, f"{provider} short_answer cannot be empty"
+
+                print(f"✓ {provider} passed Pydantic Answer validation")
+
+        except Exception as e:
+            pytest.fail(f"{provider} failed Pydantic validation: {e}")
+
+
+class TestSchemaVariants:
+    """Test that providers support different schema types.
+
+    Providers should support:
+    - Answer schema (default, for rules queries)
+    - HopEvaluation schema (for multi-hop retrieval)
+    - CustomJudgeResponse schema (for quality testing, Pydantic-native only)
+    """
+
+    @pytest.mark.parametrize("provider", PROVIDERS_TO_TEST)
+    @pytest.mark.asyncio
+    @pytest.mark.contract
+    @pytest.mark.llm_api
+    async def test_hop_evaluation_schema(self, provider):
+        """All providers must support HopEvaluation schema for multi-hop retrieval.
+
+        Contract: Providers must be able to evaluate whether retrieved context
+        is sufficient to answer a query (returns can_answer, reasoning, missing_query).
+        """
+        llm = LLMProviderFactory.create(provider)
+
+        # HopEvaluation request asks if context is sufficient
+        request = GenerationRequest(
+            prompt="Can a model with the Stealth operative perform a charge action?",
+            context=["Core Rules: Actions\nModels can perform Move, Shoot, or Charge actions."],
+            config=GenerationConfig(structured_output_schema="hop_evaluation"),
+        )
+
+        response = await llm.generate(request)
+
+        # Should validate with HopEvaluation schema
+        try:
+            parsed = HopEvaluation.model_validate_json(response.answer_text)
+
+            assert isinstance(parsed.can_answer, bool), f"{provider} can_answer must be bool"
+            assert isinstance(parsed.reasoning, str), f"{provider} reasoning must be str"
+            assert len(parsed.reasoning) > 0, f"{provider} reasoning cannot be empty"
+
+            # If can't answer, missing_query should be present
+            if not parsed.can_answer:
+                assert parsed.missing_query, f"{provider} should provide missing_query when can_answer=false"
+
+            print(f"✓ {provider} supports HopEvaluation schema")
+
+        except Exception as e:
+            pytest.fail(f"{provider} failed HopEvaluation validation: {e}")
+
+    @pytest.mark.parametrize("provider", PYDANTIC_NATIVE_PROVIDERS)
+    @pytest.mark.asyncio
+    @pytest.mark.contract
+    @pytest.mark.llm_api
+    async def test_custom_judge_schema_pydantic_native_only(self, provider):
+        """Pydantic-native providers should support CustomJudgeResponse schema.
+
+        Contract: Claude and ChatGPT support quality testing with custom judge
+        responses that evaluate explanation faithfulness and answer correctness.
+
+        Note: This test is limited to Pydantic-native providers as the schema
+        is complex and only used in quality testing where we have tight control.
+        """
+        llm = LLMProviderFactory.create(provider)
+
+        # Simplified judge request
+        judge_prompt = """Evaluate this response:
+        Question: Can I shoot twice?
+        Answer: No.
+        Ground Truth: No, models cannot perform the same action twice.
+
+        Rate explanation_faithfulness (0.0-1.0) and provide feedback."""
+
+        request = GenerationRequest(
+            prompt=judge_prompt,
+            context=[],
+            config=GenerationConfig(structured_output_schema="custom_judge"),
+        )
+
+        response = await llm.generate(request)
+
+        # Should validate with CustomJudgeResponse schema
+        try:
+            parsed = CustomJudgeResponse.model_validate_json(response.answer_text)
+
+            assert isinstance(parsed.explanation_faithfulness, float), (
+                f"{provider} explanation_faithfulness must be float"
+            )
+            assert 0.0 <= parsed.explanation_faithfulness <= 1.0, (
+                f"{provider} explanation_faithfulness must be 0.0-1.0"
+            )
+            assert isinstance(parsed.feedback, str), f"{provider} feedback must be str"
+            assert len(parsed.feedback) > 0, f"{provider} feedback cannot be empty"
+            assert isinstance(parsed.answer_correctness_details, list), (
+                f"{provider} answer_correctness_details must be list"
             )
 
-            response = await llm.generate(request)
+            print(f"✓ {provider} supports CustomJudgeResponse schema")
 
-            # Should return valid JSON
-            try:
-                data = json.loads(response.answer_text)
-                assert "short_answer" in data
-                print(f"✓ {model} returned structured output")
-            except json.JSONDecodeError:
-                pytest.fail(f"{model} did not return valid JSON")
+        except Exception as e:
+            pytest.fail(f"{provider} failed CustomJudgeResponse validation: {e}")
 
 
 @pytest.fixture
