@@ -20,6 +20,7 @@ from uuid import uuid4
 
 import pytest
 
+from src.lib.constants import RAG_MAX_HOPS
 from src.models.rag_context import RAGContext
 from src.models.rag_request import RetrieveRequest
 from src.services.llm.base import GenerationRequest, LLMProvider
@@ -106,7 +107,7 @@ class TestRetrieveRag:
         rag_context, hop_evals, chunk_map, cost = await orchestrator.retrieve_rag(
             query="Complex query",
             query_id=uuid4(),
-            use_multi_hop=True,
+            use_multi_hop=RAG_MAX_HOPS > 0,
         )
 
         # Verify multi-hop results
@@ -619,7 +620,7 @@ class TestIntegrationPatterns:
             query="Test",
             query_id=query_id,
             context_key="987654321:123456789",  # guild:user
-            use_multi_hop=True,
+            use_multi_hop=RAG_MAX_HOPS > 0,
         )
 
         # Step 2: LLM generation with custom provider (guild-specific)

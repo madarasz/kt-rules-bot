@@ -31,7 +31,7 @@ from src.services.llm.gemini_quote_extractor import (
     number_sentences_in_chunk,
     post_process_gemini_response,
 )
-from src.services.llm.schemas import GeminiAnswer, HopEvaluation
+from src.services.llm.schemas import CustomJudgeResponse, GeminiAnswer, HopEvaluation
 
 logger = get_logger(__name__)
 
@@ -119,6 +119,9 @@ class GeminiAdapter(LLMProvider):
             if schema_type == "hop_evaluation":
                 pydantic_model = HopEvaluation
                 logger.debug("Using hop evaluation schema (Pydantic)")
+            elif schema_type == "custom_judge":
+                pydantic_model = CustomJudgeResponse
+                logger.debug("Using custom judge schema (Pydantic)")
             else:  # "default"
                 pydantic_model = GeminiAnswer
                 logger.debug("Using default answer schema (Pydantic)")
@@ -238,7 +241,7 @@ class GeminiAdapter(LLMProvider):
                 raise Exception("Gemini returned empty JSON")
 
             # POST-PROCESSING: Extract verbatim quotes using sentence numbers
-            # Only for default schema (not hop_evaluation)
+            # Only for default schema (not hop_evaluation or custom_judge)
             if schema_type == "default":
                 # Convert Pydantic model to dict for post-processing
                 response_dict = pydantic_response.model_dump()
@@ -252,12 +255,16 @@ class GeminiAdapter(LLMProvider):
 
                 # Re-serialize to JSON string
                 answer_text = json.dumps(response_dict)
+                # Use post-processed dict for structured_output
+                structured_output_dict = response_dict
                 logger.debug(
                     f"Post-processed quotes: {len(response_dict.get('quotes', []))} quotes extracted"
                 )
             else:
-                # For hop_evaluation, just use the Pydantic response as-is
+                # For hop_evaluation and custom_judge, just use the Pydantic response as-is
                 answer_text = pydantic_response.model_dump_json()
+                # Use Pydantic model dump for structured_output
+                structured_output_dict = pydantic_response.model_dump()
 
             # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations
@@ -302,6 +309,7 @@ class GeminiAdapter(LLMProvider):
                 citations_included=citations_included,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
+                structured_output=structured_output_dict,  # Add parsed Pydantic model as dict
             )
 
         except TimeoutError as e:

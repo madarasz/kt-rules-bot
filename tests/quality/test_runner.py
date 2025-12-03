@@ -18,6 +18,7 @@ from src.lib.constants import (
     QUALITY_TEST_JUDGING,
     QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS,
     RAG_MAX_CHUNKS,
+    RAG_MAX_HOPS,
 )
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost
@@ -209,7 +210,7 @@ class QualityTestRunner:
                 query_id=query_id,
                 max_chunks=RAG_MAX_CHUNKS,
                 context_key="quality_test",
-                use_multi_hop=True,
+                use_multi_hop=RAG_MAX_HOPS > 0,
             )
 
         # Calculate multi-hop evaluation costs if any
@@ -527,7 +528,7 @@ class QualityTestRunner:
                         query_id=query_id,
                         max_chunks=RAG_MAX_CHUNKS,
                         context_key="quality_test",
-                        use_multi_hop=True,
+                        use_multi_hop=RAG_MAX_HOPS > 0,
                     )
                 else:
                     # No cached context - run RAG normally
@@ -536,7 +537,7 @@ class QualityTestRunner:
                         query_id=query_id,
                         max_chunks=RAG_MAX_CHUNKS,
                         context_key="quality_test",
-                        use_multi_hop=True,
+                        use_multi_hop=RAG_MAX_HOPS > 0,
                     )
 
                 # Create tasks for each model using the same RAG context

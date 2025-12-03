@@ -659,7 +659,8 @@ class RagasEvaluator:
         for key, text, priority, icon, weight in missing_ground_truths:
             # Truncate long contexts
             text_display = text[:120] + "..." if len(text) > 120 else text
-            feedback_lines.append(f"  - {icon} **{key}** ({priority}, weight={weight:.0f}): {text_display}")
+            weight_str = f"{weight:.0f}" if weight is not None else "N/A"
+            feedback_lines.append(f"  - {icon} **{key}** ({priority}, weight={weight_str}): {text_display}")
 
         return "  \n".join(feedback_lines)
 
