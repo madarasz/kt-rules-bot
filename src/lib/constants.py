@@ -66,7 +66,7 @@ PDF_EXTRACTION_PROVIDERS = [
 QUALITY_TEST_PROVIDERS = [
     "gpt-5.1-chat-latest",
     "gpt-4.1",
-    "gpt-4o",
+    #"gpt-4o",
     # "gpt-4.1-mini",
     "claude-4.5-sonnet",
     "claude-4.5-opus",
@@ -118,7 +118,7 @@ LLM_EXTRACTION_TEMPERATURE = 0  # Low temperature for consistent structure
 # ============================================================================
 
 # Default judge model for quality tests (used by both Ragas and custom judge)
-QUALITY_TEST_JUDGE_MODEL = "gpt-4o"
+QUALITY_TEST_JUDGE_MODEL = "claude-4.5-opus"
 
 # Quality test judging mode
 # - "RAGAS": Enable LLM-based metrics (Quote Faithfulness, Explanation Faithfulness, Answer Correctness) using Ragas library
@@ -135,10 +135,10 @@ QUALITY_TEST_JUDGE_TEMPERATURE = 0.0  # Deterministic for consistency (Ragas onl
 # These weights are used to calculate the aggregate score from individual metrics
 # Higher weight = more important for overall score
 RAGAS_METRIC_WEIGHTS = {
-    "answer_correctness": 0.30,       # Must get answer right (30%)
-    "quote_recall": 0.30,             # Must cite all key rules (30%)
-    "explanation_faithfulness": 0.20, # Explanation must be grounded (20%)
-    "quote_faithfulness": 0.15,       # No hallucinated citations (15%)
+    "answer_correctness": 0.50,       # Must get answer right (50%)
+    "quote_recall": 0.20,             # Must cite all key rules (20%)
+    "explanation_faithfulness": 0.15, # Explanation must be grounded (15%)
+    "quote_faithfulness": 0.10,       # No hallucinated citations (10%)
     "quote_precision": 0.05,          # Nice to have - prefer concise (5%)
 }
 

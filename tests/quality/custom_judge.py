@@ -178,7 +178,7 @@ class CustomJudge:
         query: str,
         llm_response_text: str,
         llm_quotes_structured: list[dict],
-        rag_context_chunks: list[DocumentChunk],
+        _rag_context_chunks: list[DocumentChunk],
         ground_truth_answers: list[GroundTruthAnswer],
         ground_truth_contexts: list[str],
     ) -> CustomJudgeResult:
@@ -188,7 +188,7 @@ class CustomJudge:
             query: User's question
             llm_response_text: Full LLM response (structured JSON string)
             llm_quotes_structured: List of dicts with chunk_id, quote_title, quote_text
-            rag_context_chunks: Full list of DocumentChunk objects from RAG
+            _rag_context_chunks: Full list of DocumentChunk objects from RAG (unused but kept for interface)
             ground_truth_answers: List of GroundTruthAnswer objects with keys and priorities
             ground_truth_contexts: Rules that should be cited (text only)
 
