@@ -122,7 +122,7 @@ QUALITY_TEST_JUDGE_MODEL = "claude-4.5-opus"
 
 # Quality test judging mode
 # - "RAGAS": Enable LLM-based metrics (Quote Faithfulness, Explanation Faithfulness, Answer Correctness) using Ragas library
-# - "CUSTOM": Use custom unified LLM judge (single call, Pydantic validated, returns all 3 metrics + feedback)
+# - "CUSTOM": Use custom unified LLM judge (single call, Pydantic validated, returns 2 metrics + feedback)
 # - "OFF": Disable LLM-based metrics (only Quote Precision and Quote Recall)
 # Note: Quote Precision and Quote Recall are always calculated (local, no LLM required)
 QUALITY_TEST_JUDGING: Literal["RAGAS", "CUSTOM", "OFF"] = "CUSTOM"  # Default: CUSTOM for improved evaluation
@@ -223,11 +223,9 @@ MARKDOWN_CHUNK_HEADER_LEVEL = 2  # Max header level to chunk at: chunks at ## up
 # LLM Prompt Constants
 # ============================================================================
 
-# System prompt file path for LLM providers (base template)
-LLM_SYSTEM_PROMPT_FILE_PATH = "prompts/rule-helper-prompt.md"
-
-# Gemini-specific prompt (leaves quote_text empty to avoid RECITATION errors)
-LLM_SYSTEM_PROMPT_FILE_PATH_GEMINI = "prompts/rule-helper-prompt-gemini.md"
+# Prompt template system (modular approach with provider-specific overrides)
+PROMPT_TEMPLATE_PATH = "prompts/base-prompt-template.md"
+PROMPT_OVERRIDES_DIR = "prompts/overrides"
 
 # Note: Personality-specific files (acknowledgements, disclaimers) are now
 # loaded via src.lib.personality based on PERSONALITY env variable

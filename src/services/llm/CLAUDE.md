@@ -258,7 +258,7 @@ LLM_EXTRACTION_TEMPERATURE = 0.0
 LLM_EXTRACTION_TIMEOUT = 120  # seconds
 
 # System prompt
-LLM_SYSTEM_PROMPT_FILE_PATH = "prompts/rule-helper-prompt.md"
+PROMPT_TEMPLATE_PATH = "prompts/base-prompt-template.md"
 
 # Quality test judge
 QUALITY_TEST_JUDGE_MODEL = "gpt-4o"

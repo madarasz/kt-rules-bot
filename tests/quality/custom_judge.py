@@ -12,7 +12,11 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from src.lib.constants import CUSTOM_JUDGE_PROMPT_PATH, LLM_GENERATION_TIMEOUT, QUALITY_TEST_JUDGE_MODEL
+from src.lib.constants import (
+    CUSTOM_JUDGE_PROMPT_PATH,
+    LLM_GENERATION_TIMEOUT,
+    QUALITY_TEST_JUDGE_MODEL,
+)
 from src.lib.logging import get_logger
 from src.services.llm.base import GenerationConfig, GenerationRequest
 from src.services.llm.factory import LLMProviderFactory

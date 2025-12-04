@@ -6,7 +6,6 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import BinaryIO
 from uuid import UUID
 
@@ -17,7 +16,6 @@ from src.lib.constants import (
     LLM_EXTRACTION_TEMPERATURE,
     LLM_EXTRACTION_TIMEOUT,
     LLM_GENERATION_TIMEOUT,
-    LLM_SYSTEM_PROMPT_FILE_PATH,
 )
 from src.lib.personality import (
     get_afterword_example,
@@ -25,49 +23,47 @@ from src.lib.personality import (
     get_short_answer_example,
 )
 
-# Cached system prompts (loaded once from file, keyed by file path)
+# Cached system prompts (loaded once, keyed by provider type)
 _SYSTEM_PROMPT_CACHE: dict[str, str] = {}
 
 
-def load_system_prompt(prompt_file_path: str | None = None) -> str:
-    """Load system prompt from specified file or default prompt file.
+def load_system_prompt(provider_type: str = "default") -> str:
+    """Load system prompt using template + provider-specific overrides.
 
-    Loads the prompt file once, replaces personality placeholders, and caches it.
+    Builds prompt from base template and provider overrides, replaces personality
+    placeholders, and caches the result.
 
     Args:
-        prompt_file_path: Optional path to prompt file. If None, uses LLM_SYSTEM_PROMPT_FILE_PATH.
-                         Use LLM_SYSTEM_PROMPT_FILE_PATH_GEMINI for Gemini models.
+        provider_type: Provider type ("default" or "gemini"). Defaults to "default".
 
     Returns:
         System prompt text with personality injected
 
     Raises:
-        FileNotFoundError: If prompt file does not exist
+        FileNotFoundError: If template or override files are missing
+        ValueError: If override file is invalid or missing required placeholders
     """
     global _SYSTEM_PROMPT_CACHE
 
-    # Use default prompt file if not specified
-    if prompt_file_path is None:
-        prompt_file_path = LLM_SYSTEM_PROMPT_FILE_PATH
-
     # Check cache
-    if prompt_file_path in _SYSTEM_PROMPT_CACHE:
-        return _SYSTEM_PROMPT_CACHE[prompt_file_path]
+    if provider_type in _SYSTEM_PROMPT_CACHE:
+        return _SYSTEM_PROMPT_CACHE[provider_type]
 
-    # Locate prompt file relative to project root
-    # Assuming this file is at src/services/llm/base.py
-    current_file = Path(__file__)
-    project_root = current_file.parent.parent.parent.parent
-    prompt_file = project_root / prompt_file_path
+    # Build prompt using PromptBuilder
+    from src.services.llm.prompt_builder import build_prompt_for_provider
 
-    if not prompt_file.exists():
-        raise FileNotFoundError(
-            f"System prompt file not found: {prompt_file}\n"
-            f"Expected location: {prompt_file_path}"
+    try:
+        template = build_prompt_for_provider(provider_type)
+    except FileNotFoundError as e:
+        # Log error and re-raise with clear message
+        from src.lib.logging import get_logger
+
+        logger = get_logger(__name__)
+        logger.error(
+            f"Failed to load prompt template for provider_type={provider_type}: {e}\n"
+            f"Ensure PROMPT_TEMPLATE_PATH and PROMPT_OVERRIDES_DIR are correctly configured."
         )
-
-    # Read the base template
-    template = prompt_file.read_text(encoding="utf-8")
+        raise
 
     # Replace personality placeholders
     template = template.replace("[PERSONALITY DESCRIPTION]", get_personality_description())
@@ -75,8 +71,8 @@ def load_system_prompt(prompt_file_path: str | None = None) -> str:
     template = template.replace("[PERSONALITY AFTERWORD]", get_afterword_example())
 
     # Cache and return
-    _SYSTEM_PROMPT_CACHE[prompt_file_path] = template
-    return _SYSTEM_PROMPT_CACHE[prompt_file_path]
+    _SYSTEM_PROMPT_CACHE[provider_type] = template
+    return _SYSTEM_PROMPT_CACHE[provider_type]
 
 
 # Exception classes
