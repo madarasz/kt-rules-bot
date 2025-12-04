@@ -12,7 +12,6 @@ from uuid import uuid4
 from google import genai
 from google.genai import types
 
-from src.lib.constants import LLM_SYSTEM_PROMPT_FILE_PATH_GEMINI
 from src.lib.logging import get_logger
 from src.services.llm.base import (
     AuthenticationError,
@@ -80,7 +79,7 @@ class GeminiAdapter(LLMProvider):
         start_time = time.time()
 
         # Use Gemini-specific prompt (uses sentence numbers to avoid RECITATION errors)
-        gemini_system_prompt = load_system_prompt(LLM_SYSTEM_PROMPT_FILE_PATH_GEMINI)
+        gemini_system_prompt = load_system_prompt("gemini")
 
         # PRE-PROCESSING: Number sentences in chunks to enable quote extraction
         numbered_chunks = []
