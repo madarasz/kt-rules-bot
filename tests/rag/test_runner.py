@@ -187,6 +187,9 @@ class RAGTestRunner:
             use_multi_hop=(RAG_MAX_HOPS > 0),  # Explicitly set based on current constant value
         )
 
+        total_cost = 0.0
+        ragas_metrics = None
+
         # Retrieve chunks (returns tuple: context, hop_evaluations, chunk_hop_map)
         start_time = time.time()
         try:
@@ -289,6 +292,8 @@ class RAGTestRunner:
             # Set error information
             result.error_type = error_type
             result.error_message = error_message
+            total_cost = initial_embedding_cost  # Cost for failed test
+            ragas_metrics = None
 
         except Exception as e:
             # Handle other exceptions gracefully
@@ -328,7 +333,7 @@ class RAGTestRunner:
         }
 
         # Add Ragas metrics to log
-        if ragas_metrics:
+        if ragas_metrics is not None:
             if ragas_metrics.context_precision is not None:
                 log_data["ragas_context_precision"] = f"{ragas_metrics.context_precision:.3f}"
             if ragas_metrics.context_recall is not None:
