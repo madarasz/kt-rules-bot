@@ -91,54 +91,198 @@ Creates LLM provider instances:
 "deepseek-reasoner" → deepseek-reasoner
 ```
 
+## Provider Output Differences
+
+All LLM providers return structured JSON conforming to the same schema, but they differ in **how** they generate and return that JSON.
+
+### Structured Output Generation Methods
+
+| Provider | API Method | Pydantic Usage | `structured_output` Field |
+|----------|-----------|----------------|--------------------------|
+| **Claude** | `beta.messages.parse()` | Native parse (Pydantic instance returned) | ✅ Populated |
+| **ChatGPT** | `beta.chat.completions.parse()` | Native parse (Pydantic instance returned) | ✅ Populated |
+| **Gemini** | JSON mode with schema | Post-response validation | ✅ Populated |
+| **Grok** | OpenAI-style JSON schema | Post-response validation | ❌ Not populated |
+| **DeepSeek** | Function calling | Post-response validation | ❌ Not populated |
+
+### Native Parse Methods
+
+**Claude and ChatGPT** use their providers' native Pydantic structured output methods:
+- Pass Pydantic model directly to API via `output_format` or `response_format` parameter
+- API returns fully validated Pydantic model instance
+- No manual validation needed
+- Both populate `structured_output` field with `parsed_output.model_dump()`
+
+**Implementation:**
+```python
+# Claude: beta.messages.parse()
+response = await client.beta.messages.parse(
+    output_format=pydantic_model,  # Pydantic model class
+    ...
+)
+parsed_output = response.parsed_output  # Pydantic instance
+
+# ChatGPT: beta.chat.completions.parse()
+response = await client.beta.chat.completions.parse(
+    response_format=pydantic_model,  # Pydantic model class
+    ...
+)
+parsed_output = choice.message.parsed  # Pydantic instance
+```
+
+### Post-Response Validation
+
+**Gemini, Grok, and DeepSeek** receive raw JSON strings and validate them manually:
+- Configure API to return JSON using schema, but receive raw string
+- Manually call `pydantic_model.model_validate_json(json_string)`
+- More flexible but requires explicit validation step
+
+**Implementation:**
+```python
+# Gemini: JSON mode
+response = await client.models.generate_content(
+    response_mime_type="application/json",
+    response_schema=pydantic_model,  # Schema configuration
+    ...
+)
+answer_text = response.text  # Raw JSON string
+pydantic_response = pydantic_model.model_validate_json(answer_text)
+
+# Grok: OpenAI-compatible JSON schema
+response = await client.post(
+    response_format={
+        "type": "json_schema",
+        "json_schema": pydantic_model.model_json_schema()
+    },
+    ...
+)
+content = response["choices"][0]["message"]["content"]  # Raw JSON
+parsed_output = pydantic_model.model_validate_json(content)
+
+# DeepSeek: Function calling
+response = await client.chat.completions.create(
+    tools=[{
+        "function": {
+            "parameters": pydantic_model.model_json_schema()
+        }
+    }],
+    ...
+)
+function_args = response.choices[0].message.tool_calls[0].function.arguments
+parsed_output = pydantic_model.model_validate_json(function_args)
+```
+
+### structured_output Field Population
+
+The `LLMResponse.structured_output` field is **optional** and only populated by some providers:
+
+**✅ Populated (Claude, ChatGPT, Gemini):**
+- Contains the parsed Pydantic model as a dictionary
+- Allows consumers to access structured data without re-parsing JSON
+- Source: `parsed_output.model_dump()` or post-processed dict
+
+**❌ Not Populated (Grok, DeepSeek):**
+- Field remains `None`
+- Consumers must parse `answer_text` JSON string themselves
+- Keeps response minimal
+
+**Usage Example:**
+```python
+response = await llm.generate(request)
+
+# Option 1: Use structured_output if available
+if response.structured_output:
+    short_answer = response.structured_output["short_answer"]
+    quotes = response.structured_output["quotes"]
+
+# Option 2: Always parse answer_text JSON
+import json
+parsed = json.loads(response.answer_text)
+short_answer = parsed["short_answer"]
+```
+
+### Confidence Score Calculation
+
+| Provider | Method | Value Range |
+|----------|--------|-------------|
+| **Claude** | Hardcoded | 0.8 (no logprobs with structured outputs) |
+| **ChatGPT** | Hardcoded | 0.8 (no logprobs with structured outputs) |
+| **Gemini** | Safety ratings | 0.5-0.9 (NEGLIGIBLE→0.9, LOW→0.8, MEDIUM→0.7, HIGH→0.5) |
+| **Grok** | Hardcoded | 0.8 (no logprobs support yet) |
+| **DeepSeek** | Hardcoded | 0.8 (0.85 for deepseek-reasoner) |
+
+**Gemini is unique**: Derives confidence from content safety ratings rather than using a static value.
+
+### Token Limits for Reasoning Models
+
+Some models use internal reasoning tokens that don't appear in the final output. These providers multiply `max_tokens` by 3:
+
+- **ChatGPT**: GPT-5, o-series (o3, o4-mini, etc.) - use `max_completion_tokens` instead of `max_tokens`
+- **Gemini**: Gemini 2.5 Pro, Gemini 2.5 Flash (2.5+)
+- **DeepSeek**: deepseek-reasoner
+
+Standard models use `max_tokens` directly without multiplication.
+
 ### Provider Implementations
 
 #### Claude Adapter ([claude.py](claude.py))
 Anthropic Claude integration:
 - Uses `anthropic` Python SDK
-- **Structured output**: Tool use with `format_kill_team_answer` tool
+- **Structured output**: `beta.messages.parse()` with Pydantic (Structured Outputs beta API)
+- **Pydantic usage**: Native parse - API returns Pydantic instance directly via `response.parsed_output`
+- **Output fields**: Populates both `answer_text` (JSON string) and `structured_output` (dict) in LLMResponse
 - Supports vision for PDF extraction
-- Returns JSON via `tool_use_block.input` dict
-- Default confidence: 0.8 (no logprobs available)
+- Default confidence: 0.8 (no logprobs available with structured outputs)
 
 #### ChatGPT Adapter ([chatgpt.py](chatgpt.py))
 OpenAI ChatGPT integration:
 - Uses `openai` Python SDK
-- **Structured output**: Function calling with `strict: true` mode
+- **Structured output**: `beta.chat.completions.parse()` with Pydantic
+- **Pydantic usage**: Native parse - API returns Pydantic instance directly via `choice.message.parsed`
+- **Output fields**: Populates both `answer_text` (JSON string) and `structured_output` (dict) in LLMResponse
 - Supports GPT-4, GPT-5, o-series models
-- GPT-5/o-series: Uses `max_completion_tokens` (includes reasoning tokens)
-- Returns JSON via `tool_calls[0].function.arguments`
-- Default confidence: 0.8 (logprobs not available with function calling)
+- GPT-5/o-series: Uses `max_completion_tokens` instead of `max_tokens` (includes reasoning tokens)
+- Default confidence: 0.8 (logprobs not available with structured outputs)
 - PDF extraction via vision API (not yet implemented)
 
 #### Gemini Adapter ([gemini.py](gemini.py))
 Google Gemini integration:
 - Uses `google-genai` SDK (new API)
-- **Structured output**: JSON mode with `response_mime_type: "application/json"`
+- **Structured output**: JSON mode with `response_mime_type: "application/json"` and `response_schema`
+- **Pydantic usage**: Post-response validation - manually validates JSON string with `model_validate_json()`
+- **Output fields**: Populates both `answer_text` (JSON string) and `structured_output` (dict) in LLMResponse
+- **Special feature**: Sentence numbering for quote extraction (see Gemini Quote Extraction below)
+- Uses different Pydantic schema (`GeminiAnswer` with sentence numbers) to avoid RECITATION errors
 - Best for PDF extraction (native multimodal)
 - Supports Gemini 2.5 Pro and Flash
-- Returns JSON via `response.text`
-- Confidence from safety ratings (0.5-0.9)
+- Gemini 2.5+ models: Multiply max_tokens by 3 (internal reasoning tokens)
+- Confidence from safety ratings (0.5-0.9): NEGLIGIBLE→0.9, LOW→0.8, MEDIUM→0.7, HIGH→0.5
 - Content filter detection via `finish_reason`
 
 #### Grok Adapter ([grok.py](grok.py))
 X/Grok integration:
 - Uses `httpx` with OpenAI-compatible API
-- **Structured output**: Function calling with tool choice
+- **Structured output**: OpenAI-style JSON schema via `response_format`
+- **Pydantic usage**: Post-response validation - manually validates JSON string with `model_validate_json()`
+- **Output fields**: Only populates `answer_text` (JSON string), `structured_output` field is **NOT populated**
+- Converts Pydantic model to JSON schema via `model_json_schema()`
 - Supports Grok 3 and Grok 4 models
 - Fast reasoning capabilities
-- Returns JSON via `tool_calls[0].function.arguments`
 - Default confidence: 0.8
 - PDF extraction not yet supported
 
 #### DeepSeek Adapter ([deepseek.py](deepseek.py))
 DeepSeek integration:
 - Uses OpenAI SDK with custom base URL (`https://api.deepseek.com`)
-- **Structured output**: Function calling (OpenAI-compatible)
+- **Structured output**: Function calling with `tools` parameter (OpenAI-compatible)
+- **Pydantic usage**: Post-response validation - manually validates JSON string with `model_validate_json()`
+- **Output fields**: Only populates `answer_text` (JSON string), `structured_output` field is **NOT populated**
+- Converts Pydantic model to JSON schema for function parameters
 - Supports deepseek-chat (standard) and deepseek-reasoner (with chain-of-thought)
-- deepseek-reasoner uses Chain of Thought (CoT) reasoning before final answer
+- deepseek-reasoner: Uses Chain of Thought (CoT) reasoning before final answer, exposes `reasoning_content` field (logged but not returned)
+- deepseek-reasoner: Multiplies max_tokens by 3 (internal reasoning tokens), uses confidence 0.85
 - Context window up to 128K tokens
-- Default confidence: 0.8
+- Default confidence: 0.8 (0.85 for reasoner)
 - No PDF extraction support
 
 ### Supporting Services
@@ -218,7 +362,14 @@ class LLMResponse:
     provider: str                  # "claude", "chatgpt", "gemini", etc.
     model_version: str             # Actual model ID
     citations_included: bool       # Whether citations are in response
+    structured_output: Optional[Dict[str, Any]]  # Parsed Pydantic model as dict (optional)
 ```
+
+**Note on `structured_output` field:**
+- **Populated by**: Claude, ChatGPT, Gemini - contains parsed Pydantic model as dictionary
+- **Not populated by**: Grok, DeepSeek - field is `None`
+- **Usage**: Allows consumers to access structured data without re-parsing `answer_text` JSON
+- **Format**: Dictionary matching the Pydantic schema (Answer, GeminiAnswer, HopEvaluation, or CustomJudgeResponse)
 
 ### Structured JSON Output Schema
 All LLM providers return JSON matching this schema:
@@ -238,7 +389,92 @@ All LLM providers return JSON matching this schema:
 }
 ```
 
+**Provider-Specific Schema Notes:**
+
+- **Standard providers (Claude, ChatGPT, Grok, DeepSeek)**: Use `Answer` model with `Quote(quote_title, quote_text)`
+- **Gemini**: Uses `GeminiAnswer` model with `GeminiQuote(quote_title, sentence_numbers, quote_text="")` - see [Gemini Quote Extraction](#gemini-quote-extraction) for details
+
+**Output Field Population:**
+
+All providers return this JSON in the `LLMResponse.answer_text` field as a JSON string. Additionally:
+
+- **Claude, ChatGPT, Gemini**: Also populate `LLMResponse.structured_output` with the parsed dict
+- **Grok, DeepSeek**: Leave `structured_output` as `None`
+
 This JSON is parsed by [StructuredLLMResponse](../../../src/models/structured_response.py) and converted to Discord embeds.
+
+## Gemini Quote Extraction
+
+Gemini has a unique approach to quote extraction due to its **RECITATION filter**, which blocks verbatim text from the training data.
+
+### The Problem
+
+When asked to return exact quotes from rules, Gemini's content filter may block the response as "RECITATION" (verbatim reproduction of source material). This prevents normal quote extraction.
+
+### The Solution: Sentence Numbering
+
+Instead of asking Gemini to return quote text directly, we:
+
+1. **Pre-process RAG chunks**: Number each sentence in the context
+   ```
+   Original: "The operative can move. It can also shoot."
+   Numbered: "[S1] The operative can move. [S2] It can also shoot."
+   ```
+
+2. **LLM returns sentence numbers**: Gemini responds with which sentences to quote, not the text itself
+   ```json
+   {
+     "quotes": [
+       {
+         "quote_title": "Movement Rules",
+         "sentence_numbers": [1, 2],
+         "quote_text": ""  // Empty - filled by post-processor
+       }
+     ]
+   }
+   ```
+
+3. **Post-process response**: Extract actual quote text using sentence numbers
+   ```python
+   # Map sentence numbers back to actual text
+   sentence_1 = "The operative can move."
+   sentence_2 = "It can also shoot."
+   quote_text = "The operative can move. It can also shoot."
+   ```
+
+### Implementation Details
+
+**Pydantic Schema Difference:**
+- **Standard providers**: Use `Answer` model with `Quote(quote_title, quote_text)`
+- **Gemini**: Uses `GeminiAnswer` model with `GeminiQuote(quote_title, sentence_numbers, quote_text="")`
+
+**Pre-processing** (`number_sentences_in_chunk()`):
+- Splits chunk text into sentences
+- Adds `[S1]`, `[S2]`, etc. markers
+- Stores mapping: `chunk_id → list of original sentences`
+
+**Post-processing** (`post_process_gemini_response()`):
+- Receives response with sentence numbers
+- Looks up original sentences using stored mapping
+- Reconstructs verbatim quotes
+- Updates `quote_text` field in response dict
+
+**Why this works:**
+- Gemini doesn't see itself as "reciting" - just returning numbers
+- We reconstruct exact quotes on our side
+- No content filter triggered
+
+**Trade-offs:**
+- More complex implementation
+- Requires sentence parsing/numbering
+- Extra pre/post-processing overhead
+- Only needed for Gemini
+
+### Code References
+
+- Pre-processing: `src/services/llm/gemini.py:84-112` (`number_sentences_in_chunk()`)
+- Post-processing: `src/services/llm/gemini.py:244-266` (`post_process_gemini_response()`)
+- Pydantic schemas: `src/models/structured_response.py` (GeminiAnswer, GeminiQuote)
 
 ## Configuration
 

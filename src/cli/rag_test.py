@@ -104,6 +104,21 @@ def rag_test(
 
         print("")
         print("=" * 80)
+        print("ERROR SUMMARY")
+        print("=" * 80)
+        errors_found = False
+        for result in results:
+            if result.error_type:
+                errors_found = True
+                print(f"❌ {result.test_id} (run {result.run_number}): {result.error_type}")
+                print(f"   {result.error_message}")
+                print("")
+
+        if not errors_found:
+            print("No errors - all tests completed successfully!")
+
+        print("")
+        print("=" * 80)
         print("PERFORMANCE METRICS")
         print("=" * 80)
         print(f"Total Time: {summary.total_time_seconds:.2f}s")

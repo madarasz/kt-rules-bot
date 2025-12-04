@@ -15,6 +15,7 @@ from src.lib.constants import (
     MAXIMUM_FINAL_CHUNK_COUNT,
     RAG_ENABLE_QUERY_EXPANSION,
     RAG_ENABLE_QUERY_NORMALIZATION,
+    RAG_HOP_EVALUATION_TIMEOUT,
     RAG_MAX_HOPS,
     RAG_SYNONYM_DICT_PATH,
     RRF_K,
@@ -303,7 +304,7 @@ class RAGRetriever:
         # Run in separate thread
         thread = threading.Thread(target=run_in_thread, daemon=True)
         thread.start()
-        thread.join(timeout=120)  # Wait up to 2 minutes
+        thread.join(timeout=RAG_HOP_EVALUATION_TIMEOUT)
 
         # Check for errors
         if exception_container:
@@ -311,7 +312,7 @@ class RAGRetriever:
 
         # Check if thread finished
         if thread.is_alive():
-            raise TimeoutError("Multi-hop retrieval timed out after 120 seconds")
+            raise TimeoutError(f"Multi-hop retrieval timed out after {RAG_HOP_EVALUATION_TIMEOUT} seconds")
 
         # Return result
         if result_container:
