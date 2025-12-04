@@ -9,14 +9,13 @@ Tests verify that feedback buttons work correctly for:
 - Multiple vote changes
 """
 
-import pytest
 from unittest.mock import AsyncMock, Mock
 
 import discord
+import pytest
 
-from src.services.discord.feedback_buttons import FeedbackView
 from src.lib.database import AnalyticsDatabase
-
+from src.services.discord.feedback_buttons import FeedbackView
 
 # ==================== FIXTURES ====================
 
