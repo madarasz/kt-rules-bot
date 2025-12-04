@@ -15,18 +15,18 @@ from src.lib.constants import CLAUDE_MODELS_WITH_STRUCTURED_OUTPUTS
 from src.lib.logging import get_logger
 from src.lib.pdf_utils import decompress_pdf_with_cleanup
 from src.services.llm.base import (
+    CUSTOM_JUDGE_SCHEMA,
+    HOP_EVALUATION_SCHEMA,
+    STRUCTURED_OUTPUT_SCHEMA,
     AuthenticationError,
     ContentFilterError,
-    CUSTOM_JUDGE_SCHEMA,
     ExtractionRequest,
     ExtractionResponse,
     GenerationRequest,
-    HOP_EVALUATION_SCHEMA,
     LLMProvider,
     LLMResponse,
     PDFParseError,
     RateLimitError,
-    STRUCTURED_OUTPUT_SCHEMA,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
 from src.services.llm.schemas import Answer, CustomJudgeResponse, HopEvaluation
