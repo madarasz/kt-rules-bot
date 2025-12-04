@@ -323,6 +323,8 @@ class RAGTestRunner:
             # Set error information
             result.error_type = error_type
             result.error_message = error_message
+            total_cost = initial_embedding_cost  # Cost for failed test
+            ragas_metrics = None
 
         # Log results
         log_data = {
