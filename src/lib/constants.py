@@ -15,7 +15,7 @@ LLM_PROVIDERS_LITERAL = Literal[
     "claude-4.5-sonnet",
     "claude-4.5-opus",
     "claude-4.1-opus",
-    #"claude-4.5-haiku", - does not support JSON output
+    "claude-4.5-haiku",
     "gemini-3-pro-preview",
     "gemini-2.5-pro",
     "gemini-2.5-flash",
@@ -62,6 +62,14 @@ PDF_EXTRACTION_PROVIDERS = [
     "claude-4.1-opus",
 ]
 
+# Claude models that support structured outputs (beta.messages.parse)
+# Models not in this list use tool use fallback
+CLAUDE_MODELS_WITH_STRUCTURED_OUTPUTS = [
+    "claude-sonnet-4-5-20250929",
+    "claude-opus-4-1-20250805",
+    # claude-haiku-4-5-20251001 not yet supported
+]
+
 # Quality test providers (curated list for --all-models testing)
 QUALITY_TEST_PROVIDERS = [
     "gpt-5.1-chat-latest",
@@ -105,7 +113,7 @@ LLM_EXTRACTION_TIMEOUT = 300  # PDF extraction timeout (5 minutes for large PDFs
 LLM_JUDGE_TIMEOUT = 30  # Quality test judge evaluation timeout
 
 # Default LLM generation parameters
-LLM_DEFAULT_MAX_TOKENS = 2048  # Maximum response length
+LLM_DEFAULT_MAX_TOKENS = 1024  # Maximum response length
 LLM_DEFAULT_TEMPERATURE = 0.1  # Lower = more deterministic (0.0-1.0)
 
 

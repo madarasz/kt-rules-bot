@@ -115,6 +115,10 @@ class RAGTestResult:
     ground_truth_values: dict[str, str] | None = None  # Mapping of key -> value (for matching in reports)
     run_number: int = 1  # For multi-run tests
 
+    # Error tracking (for graceful failure handling)
+    error_type: str | None = None  # Type of error that occurred (e.g., "TimeoutError", "ValueError")
+    error_message: str | None = None  # Error message if test failed
+
     # Ragas Metrics (optional, calculated if ground_truth_contexts provided)
     ragas_context_precision: float | None = None  # Ragas context precision (0-1)
     ragas_context_recall: float | None = None  # Ragas context recall (0-1)

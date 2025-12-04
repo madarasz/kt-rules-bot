@@ -5,23 +5,28 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
 import asyncio
+import json
 import time
 from uuid import uuid4
 
 from anthropic import Anthropic, AsyncAnthropic
 
+from src.lib.constants import CLAUDE_MODELS_WITH_STRUCTURED_OUTPUTS
 from src.lib.logging import get_logger
 from src.lib.pdf_utils import decompress_pdf_with_cleanup
 from src.services.llm.base import (
     AuthenticationError,
     ContentFilterError,
+    CUSTOM_JUDGE_SCHEMA,
     ExtractionRequest,
     ExtractionResponse,
     GenerationRequest,
+    HOP_EVALUATION_SCHEMA,
     LLMProvider,
     LLMResponse,
     PDFParseError,
     RateLimitError,
+    STRUCTURED_OUTPUT_SCHEMA,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
 from src.services.llm.schemas import Answer, CustomJudgeResponse, HopEvaluation
@@ -71,57 +76,105 @@ class ClaudeAdapter(LLMProvider):
         full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
 
         try:
-            # Select Pydantic model based on configuration
+            # Select schema based on configuration
             schema_type = request.config.structured_output_schema
 
             if schema_type == "hop_evaluation":
                 pydantic_model = HopEvaluation
-                logger.debug("Using hop evaluation schema (Pydantic)")
+                json_schema = HOP_EVALUATION_SCHEMA
+                tool_name = "evaluate_context_sufficiency"
+                tool_description = "Evaluate if retrieved context is sufficient to answer the question"
             elif schema_type == "custom_judge":
                 pydantic_model = CustomJudgeResponse
-                logger.debug("Using custom judge schema (Pydantic)")
+                json_schema = CUSTOM_JUDGE_SCHEMA
+                tool_name = "evaluate_answer_quality"
+                tool_description = "Evaluate Kill Team rules answer quality and correctness"
             else:  # "default"
                 pydantic_model = Answer
-                logger.debug("Using default answer schema (Pydantic)")
+                json_schema = STRUCTURED_OUTPUT_SCHEMA
+                tool_name = "format_kill_team_answer"
+                tool_description = "Format Kill Team rules answer with quotes and explanation"
 
-            # Use Pydantic structured output with beta.messages.parse()
-            response = await asyncio.wait_for(
-                self.client.beta.messages.parse(
-                    model=self.model,
-                    max_tokens=request.config.max_tokens,
-                    temperature=request.config.temperature,
-                    system=request.config.system_prompt,
-                    messages=[{"role": "user", "content": full_prompt}],
-                    betas=["structured-outputs-2025-11-13"],
-                    output_format=pydantic_model,
-                ),
-                timeout=request.config.timeout_seconds,
-            )
+            # Check if model supports structured outputs
+            supports_structured_outputs = self.model in CLAUDE_MODELS_WITH_STRUCTURED_OUTPUTS
+
+            if supports_structured_outputs:
+                # NEW API: Use Pydantic structured output with beta.messages.parse()
+                logger.debug(f"Using structured outputs API for {self.model}")
+                response = await asyncio.wait_for(
+                    self.client.beta.messages.parse(
+                        model=self.model,
+                        max_tokens=request.config.max_tokens,
+                        temperature=request.config.temperature,
+                        system=request.config.system_prompt,
+                        messages=[{"role": "user", "content": full_prompt}],
+                        betas=["structured-outputs-2025-11-13"],
+                        output_format=pydantic_model,
+                    ),
+                    timeout=request.config.timeout_seconds,
+                )
+
+                # Extract structured output from parsed response
+                parsed_output = response.parsed_output
+                if not parsed_output:
+                    # Try to get raw content for debugging
+                    raw_content = None
+                    if hasattr(response, "content") and response.content:
+                        raw_content = str(response.content)
+                    error_msg = "Expected parsed Pydantic output but none returned"
+                    if raw_content:
+                        error_msg += f"\n\nRAW RESPONSE:\n{raw_content}"
+                    raise Exception(error_msg)
+
+                answer_text = parsed_output.model_dump_json()
+                logger.debug(
+                    f"Extracted structured JSON from Claude (Pydantic): {len(answer_text)} chars"
+                )
+
+            else:
+                # FALLBACK: Use tool use for models without structured outputs support
+                logger.debug(f"Using tool use fallback for {self.model}")
+                response = await asyncio.wait_for(
+                    self.client.messages.create(
+                        model=self.model,
+                        max_tokens=request.config.max_tokens,
+                        temperature=request.config.temperature,
+                        system=request.config.system_prompt,
+                        messages=[{"role": "user", "content": full_prompt}],
+                        tools=[{
+                            "name": tool_name,
+                            "description": tool_description,
+                            "input_schema": json_schema
+                        }],
+                        tool_choice={
+                            "type": "tool",
+                            "name": tool_name
+                        }
+                    ),
+                    timeout=request.config.timeout_seconds,
+                )
+
+                # Extract JSON from tool use block
+                tool_use_block = None
+                for block in response.content:
+                    if hasattr(block, 'type') and block.type == 'tool_use':
+                        tool_use_block = block
+                        break
+
+                if not tool_use_block:
+                    raise Exception("Expected tool_use block but none returned")
+
+                tool_input = tool_use_block.input
+                answer_text = json.dumps(tool_input)
+                logger.debug(
+                    f"Extracted structured JSON from Claude (tool use): {len(answer_text)} chars"
+                )
 
             latency_ms = int((time.time() - start_time) * 1000)
 
-            # Extract structured output from parsed response
-            # response.parsed_output is a Pydantic model instance
-            parsed_output = response.parsed_output
-            if not parsed_output:
-                # Try to get raw content for debugging
-                # Check if response has content blocks
-                raw_content = None
-                if hasattr(response, "content") and response.content:
-                    raw_content = str(response.content)
-                error_msg = "Expected parsed Pydantic output but none returned"
-                if raw_content:
-                    error_msg += f"\n\nRAW RESPONSE:\n{raw_content}"
-                raise Exception(error_msg)
-
-            answer_text = parsed_output.model_dump_json()
-            logger.debug(
-                f"Extracted structured JSON from Claude (Pydantic): {len(answer_text)} chars"
-            )
-
             # Validate it's not empty
             if not answer_text or not answer_text.strip():
-                raise Exception("Claude returned empty JSON in parsed output")
+                raise Exception("Claude returned empty JSON")
 
             # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations
@@ -133,6 +186,12 @@ class ClaudeAdapter(LLMProvider):
             prompt_tokens = response.usage.input_tokens
             completion_tokens = response.usage.output_tokens
             token_count = prompt_tokens + completion_tokens
+
+            # Get structured output as dict (same structure for both API paths)
+            if supports_structured_outputs:
+                structured_output_dict = parsed_output.model_dump()
+            else:
+                structured_output_dict = tool_input
 
             logger.info(
                 "Claude generation completed",
@@ -156,7 +215,7 @@ class ClaudeAdapter(LLMProvider):
                 citations_included=citations_included,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
-                structured_output=parsed_output.model_dump(),  # Add parsed Pydantic model as dict
+                structured_output=structured_output_dict,
             )
 
         except TimeoutError as e:

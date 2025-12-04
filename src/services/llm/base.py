@@ -195,6 +195,46 @@ HOP_EVALUATION_SCHEMA = {
     "additionalProperties": False,
 }
 
+# Schema for custom LLM judge in quality testing
+CUSTOM_JUDGE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "explanation_faithfulness": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "description": "Score 0.0-1.0: Is explanation grounded only in cited quotes?",
+        },
+        "feedback": {
+            "type": "string",
+            "description": "3-8 sentences in 3 sections: Problems, Style, Suggestions",
+        },
+        "answer_correctness_details": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "answer_key": {
+                        "type": "string",
+                        "description": "Ground truth answer key (e.g., 'Final Answer', 'Weapon')",
+                    },
+                    "score": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                        "description": "Correctness score 0.0-1.0",
+                    },
+                },
+                "required": ["answer_key", "score"],
+                "additionalProperties": False,
+            },
+            "description": "Per-answer correctness scores as array of {answer_key, score} objects",
+        },
+    },
+    "required": ["explanation_faithfulness", "feedback", "answer_correctness_details"],
+    "additionalProperties": False,
+}
+
 
 # Data classes for generation
 @dataclass
