@@ -1,3 +1,7 @@
+# Hop judge test 2025.12.04.
+- `gpt-5-nano` and `gpt-5-mini` need a lot of max tokens (1024), then they time out on 20s, VERY SLOW
+- `gpt-4-nano` is a bit worse than (-3% Recall, always hops) `gpt-4.1-mini`, but dirt cheep (0.3¢)
+- `claude-4.5-haiku` has better results (+6% Recall with half the hops) than `gpt-4.1-mini`, but +1¢ in cost. Rag-tests struggle with its rate limiting, timeout and delay has to be raised tremendously. probably OK for production though. It could be great if hop evaulation prompt can be shortened.
 # Test set update 2025.11.19.
 - new RAG est set codename: `THANKS-GIVING`
 - commented out couple of trivial tests
@@ -5,7 +9,7 @@
 - total ground truths: 36
 - based on forumals, 3 runs is good for a quick check, 10 runs is enough if my "Minimum Detectable Difference you care about" is 3% for Recall@k metric
 # Hop judge test 2025.10.26.
-`Claude-4.5-Haiku` is worse than `GTP-4.1-mini` as a hop judge. +1s execution time, GTP finds occasionally more chunks and uses less hops
+`claude-4.5-haiku` is worse than `gpt-4.1-mini` as a hop judge. +1s execution time, GTP finds occasionally more chunks and uses less hops
 # Multi-hop improvement 2025.11.16
 Measurements:
 - Baseline hopping, hops 1: `BL1`
