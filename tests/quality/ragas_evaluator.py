@@ -29,6 +29,7 @@ from src.lib.tokens import estimate_cost
 from src.models.structured_response import StructuredLLMResponse
 from tests.quality.custom_judge import CustomJudge
 from tests.quality.fuzzy_quote_evaluator import FuzzyQuoteEvaluator
+from tests.quality.metadata_generator import MetadataGenerator
 from tests.quality.test_case_models import GroundTruthAnswer, GroundTruthContext
 
 # Load environment variables from config/.env
@@ -603,8 +604,7 @@ class RagasEvaluator:
     ) -> str:
         """Generate feedback for quote recall with missing ground truths (now with keys and priorities).
 
-        Quote Recall measures how much of the expected information was cited.
-        Lists which ground truth contexts were not found in the quotes, showing keys and priorities.
+        Delegates to shared MetadataGenerator.generate_quote_recall_feedback() for reusability.
 
         Args:
             score: The quote recall score (0-1, priority-weighted)
@@ -616,53 +616,13 @@ class RagasEvaluator:
         Returns:
             Feedback listing missing ground truths with keys and priorities, or None if perfect score
         """
-        if score is None or score >= 1.0:
-            return None  # Perfect score or unable to calculate
-
-        # Find which ground truths are missing
-        missing_ground_truths = []
-
-        if ground_truth_context_objects:
-            # New format: use keys and priorities
-            for gt_obj, norm_gt in zip(ground_truth_context_objects, normalized_ground_truth_contexts, strict=False):
-                # Check if this ground truth appears in any retrieved context
-                found = any(
-                    norm_gt in retrieved or retrieved in norm_gt for retrieved in retrieved_contexts
-                )
-                if not found:
-                    # Priority icons
-                    priority_icon = {
-                        "critical": "⭐",
-                        "important": "⚠️",
-                        "supporting": "ℹ️"
-                    }.get(gt_obj.priority, "•")
-
-                    missing_ground_truths.append((gt_obj.key, gt_obj.text, gt_obj.priority, priority_icon, gt_obj.weight))
-        else:
-            # Legacy format: use indices
-            for i, (norm_gt, orig_gt) in enumerate(
-                zip(normalized_ground_truth_contexts, original_ground_truth_contexts, strict=False), 1
-            ):
-                # Check if this ground truth appears in any retrieved context
-                found = any(
-                    norm_gt in retrieved or retrieved in norm_gt for retrieved in retrieved_contexts
-                )
-                if not found:
-                    missing_ground_truths.append((f"context_{i}", orig_gt, "unknown", "•", 1.0))
-
-        if not missing_ground_truths:
-            return None  # All ground truths found
-
-        # Generate feedback
-        feedback_lines = []
-        feedback_lines.append("**Missing ground truth contexts:**")
-        for key, text, priority, icon, weight in missing_ground_truths:
-            # Truncate long contexts
-            text_display = text[:120] + "..." if len(text) > 120 else text
-            weight_str = f"{weight:.0f}" if weight is not None else "N/A"
-            feedback_lines.append(f"  - {icon} **{key}** ({priority}, weight={weight_str}): {text_display}")
-
-        return "  \n".join(feedback_lines)
+        return MetadataGenerator.generate_quote_recall_feedback(
+            score=score,
+            retrieved_contexts=retrieved_contexts,
+            normalized_ground_truth_contexts=normalized_ground_truth_contexts,
+            original_ground_truth_contexts=original_ground_truth_contexts,
+            ground_truth_context_objects=ground_truth_context_objects,
+        )
 
     def _generate_quote_faithfulness_feedback(
         self, score: float | None, quotes_combined: str, context_chunks: list[str]

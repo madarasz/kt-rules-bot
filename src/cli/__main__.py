@@ -163,6 +163,12 @@ def create_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Ignore cached context files and run RAG retrieval",
     )
+    quality_parser.add_argument(
+        "--from-output",
+        type=str,
+        metavar="PATH",
+        help="Replay from existing output folder (skips RAG + LLM generation, re-runs judge only)",
+    )
 
     # Command: rag-test
     rag_parser = subparsers.add_parser(
@@ -326,6 +332,7 @@ def main() -> None:
                 max_hops=args.max_hops,
                 no_eval=args.no_eval,
                 force_rag=args.force_rag,
+                from_output=args.from_output,
             )
 
         elif args.command == "rag-test":
