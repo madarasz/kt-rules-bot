@@ -173,6 +173,24 @@ class RAGReportGenerator:
         )
         content.append("")
 
+        # Error summary
+        content.append("## Error Summary")
+        content.append("")
+
+        # Collect all errors
+        errors = [(r.test_id, r.run_number, r.error_type, r.error_message) for r in results if r.error_type]
+
+        if errors:
+            content.append("The following tests failed with errors:")
+            content.append("")
+            for test_id, run_number, error_type, error_message in errors:
+                content.append(f"- **{test_id}** (run {run_number}): `{error_type}`")
+                content.append(f"  - {error_message}")
+        else:
+            content.append("✅ No errors - all tests completed successfully!")
+
+        content.append("")
+
         # Missing chunks analysis
         content.append("## Missing Chunks")
         content.append("")
@@ -269,6 +287,12 @@ class RAGReportGenerator:
             content.append("")
             content.append(f"**Query**: {first_result.query}")
             content.append("")
+
+            # Error information (if any)
+            if first_result.error_type:
+                content.append(f"⚠️ **Error**: {first_result.error_type}")
+                content.append(f"- {first_result.error_message}")
+                content.append("")
 
             # Metrics (averaged if multiple runs)
             if len(test_results) > 1:

@@ -187,79 +187,144 @@ class RAGTestRunner:
             use_multi_hop=(RAG_MAX_HOPS > 0),  # Explicitly set based on current constant value
         )
 
+        total_cost = 0.0
+        ragas_metrics = None
+
         # Retrieve chunks (returns tuple: context, hop_evaluations, chunk_hop_map)
         start_time = time.time()
-        rag_context, hop_evaluations, chunk_hop_map = self.retriever.retrieve(request, query_id)
-        retrieval_time = time.time() - start_time
+        try:
+            rag_context, hop_evaluations, chunk_hop_map = self.retriever.retrieve(request, query_id)
+            retrieval_time = time.time() - start_time
 
-        # Calculate costs following Discord bot pattern
-        # 1. Initial embedding cost
-        initial_embedding_cost = estimate_embedding_cost(test_case.query, model=EMBEDDING_MODEL)
+            # Calculate costs following Discord bot pattern
+            # 1. Initial embedding cost
+            initial_embedding_cost = estimate_embedding_cost(test_case.query, model=EMBEDDING_MODEL)
 
-        # 2. Hop embedding costs
-        hop_embedding_cost = 0.0
-        if hop_evaluations:
-            for hop_eval in hop_evaluations:
-                if hop_eval.missing_query:
-                    hop_embedding_cost += estimate_embedding_cost(
-                        hop_eval.missing_query, EMBEDDING_MODEL
-                    )
-
-        # 3. Hop evaluation LLM costs
-        hop_evaluation_cost = (
-            sum(hop_eval.cost_usd for hop_eval in hop_evaluations) if hop_evaluations else 0.0
-        )
-
-        # Total embedding cost (for backwards compatibility)
-        total_embedding_cost = initial_embedding_cost + hop_embedding_cost
-
-        # Total cost (RAG only - no main LLM generation)
-        total_cost = total_embedding_cost + hop_evaluation_cost
-
-        # Evaluate with custom metrics
-        result = self.evaluator.evaluate(
-            test_case=test_case,
-            retrieved_chunks=rag_context.document_chunks,
-            retrieval_time_seconds=retrieval_time,
-            embedding_cost_usd=total_cost,  # Now includes hop costs
-            run_number=run_number,
-        )
-
-        # Add multi-hop data to result
-        result.hops_used = 0
-        if hop_evaluations:
-            # Convert HopEvaluation objects to dicts (include cost_usd for summary calculation)
-            result.hop_evaluations = [
-                {
-                    "hop_number": i + 1,
-                    "can_answer": eval.can_answer,
-                    "reasoning": eval.reasoning,
-                    "missing_query": eval.missing_query,
-                    "cost_usd": eval.cost_usd,
-                    "filtered_teams_count": eval.filtered_teams_count,
-                }
-                for i, eval in enumerate(hop_evaluations)
-            ]
-            for eval in hop_evaluations:
-                if eval.can_answer is False:
-                    result.hops_used += 1
-
-            # Store filtered_teams_count from first hop evaluation (deterministic for the query)
+            # 2. Hop embedding costs
+            hop_embedding_cost = 0.0
             if hop_evaluations:
-                result.filtered_teams_count = hop_evaluations[0].filtered_teams_count
+                for hop_eval in hop_evaluations:
+                    if hop_eval.missing_query:
+                        hop_embedding_cost += estimate_embedding_cost(
+                            hop_eval.missing_query, EMBEDDING_MODEL
+                        )
 
-        # Map chunk IDs to hop numbers
-        if chunk_hop_map:
-            result.chunk_hop_numbers = [
-                chunk_hop_map.get(chunk.chunk_id, 0) for chunk in rag_context.document_chunks
-            ]
+            # 3. Hop evaluation LLM costs
+            hop_evaluation_cost = (
+                sum(hop_eval.cost_usd for hop_eval in hop_evaluations) if hop_evaluations else 0.0
+            )
 
-        # Evaluate with Ragas metrics
-        ragas_metrics = self.ragas_evaluator.evaluate(
-            test_case=test_case, retrieved_chunks=rag_context.document_chunks
-        )
-        # Add Ragas metrics to result
-        result = add_ragas_metrics_to_result(result, ragas_metrics)
+            # Total embedding cost (for backwards compatibility)
+            total_embedding_cost = initial_embedding_cost + hop_embedding_cost
+
+            # Total cost (RAG only - no main LLM generation)
+            total_cost = total_embedding_cost + hop_evaluation_cost
+
+            # Evaluate with custom metrics
+            result = self.evaluator.evaluate(
+                test_case=test_case,
+                retrieved_chunks=rag_context.document_chunks,
+                retrieval_time_seconds=retrieval_time,
+                embedding_cost_usd=total_cost,  # Now includes hop costs
+                run_number=run_number,
+            )
+
+            # Add multi-hop data to result
+            result.hops_used = 0
+            if hop_evaluations:
+                # Convert HopEvaluation objects to dicts (include cost_usd for summary calculation)
+                result.hop_evaluations = [
+                    {
+                        "hop_number": i + 1,
+                        "can_answer": eval.can_answer,
+                        "reasoning": eval.reasoning,
+                        "missing_query": eval.missing_query,
+                        "cost_usd": eval.cost_usd,
+                        "filtered_teams_count": eval.filtered_teams_count,
+                    }
+                    for i, eval in enumerate(hop_evaluations)
+                ]
+                for eval in hop_evaluations:
+                    if eval.can_answer is False:
+                        result.hops_used += 1
+
+                # Store filtered_teams_count from first hop evaluation (deterministic for the query)
+                if hop_evaluations:
+                    result.filtered_teams_count = hop_evaluations[0].filtered_teams_count
+
+            # Map chunk IDs to hop numbers
+            if chunk_hop_map:
+                result.chunk_hop_numbers = [
+                    chunk_hop_map.get(chunk.chunk_id, 0) for chunk in rag_context.document_chunks
+                ]
+
+            # Evaluate with Ragas metrics
+            ragas_metrics = self.ragas_evaluator.evaluate(
+                test_case=test_case, retrieved_chunks=rag_context.document_chunks
+            )
+            # Add Ragas metrics to result
+            result = add_ragas_metrics_to_result(result, ragas_metrics)
+
+        except TimeoutError as e:
+            # Handle timeout gracefully - create failed result and continue
+            retrieval_time = time.time() - start_time
+            error_type = "TimeoutError"
+            error_message = str(e)
+
+            logger.error(
+                "rag_test_timeout",
+                test_id=test_case.test_id,
+                run=run_number,
+                error=error_message,
+                duration=f"{retrieval_time:.2f}s",
+            )
+
+            # Create failed result with empty chunks
+            initial_embedding_cost = estimate_embedding_cost(test_case.query, model=EMBEDDING_MODEL)
+            result = self.evaluator.evaluate(
+                test_case=test_case,
+                retrieved_chunks=[],  # Empty chunks for failed test
+                retrieval_time_seconds=retrieval_time,
+                embedding_cost_usd=initial_embedding_cost,
+                run_number=run_number,
+            )
+
+            # Set error information
+            result.error_type = error_type
+            result.error_message = error_message
+            total_cost = initial_embedding_cost  # Cost for failed test
+            ragas_metrics = None
+
+        except Exception as e:
+            # Handle other exceptions gracefully
+            retrieval_time = time.time() - start_time
+            error_type = type(e).__name__
+            error_message = str(e)
+
+            logger.error(
+                "rag_test_failed",
+                test_id=test_case.test_id,
+                run=run_number,
+                error_type=error_type,
+                error=error_message,
+                duration=f"{retrieval_time:.2f}s",
+            )
+
+            # Create failed result with empty chunks
+            initial_embedding_cost = estimate_embedding_cost(test_case.query, model=EMBEDDING_MODEL)
+            result = self.evaluator.evaluate(
+                test_case=test_case,
+                retrieved_chunks=[],  # Empty chunks for failed test
+                retrieval_time_seconds=retrieval_time,
+                embedding_cost_usd=initial_embedding_cost,
+                run_number=run_number,
+            )
+
+            # Set error information
+            result.error_type = error_type
+            result.error_message = error_message
+            total_cost = initial_embedding_cost  # Cost for failed test
+            ragas_metrics = None
 
         # Log results
         log_data = {
@@ -270,7 +335,7 @@ class RAGTestRunner:
         }
 
         # Add Ragas metrics to log
-        if ragas_metrics:
+        if ragas_metrics is not None:
             if ragas_metrics.context_precision is not None:
                 log_data["ragas_context_precision"] = f"{ragas_metrics.context_precision:.3f}"
             if ragas_metrics.context_recall is not None:
@@ -305,13 +370,26 @@ class RAGTestRunner:
 
         for test_case in test_cases:
             for run_num in range(1, runs + 1):
-                result = self.run_test(
-                    test_case=test_case,
-                    max_chunks=max_chunks,
-                    min_relevance=min_relevance,
-                    run_number=run_num,
-                )
-                all_results.append(result)
+                try:
+                    result = self.run_test(
+                        test_case=test_case,
+                        max_chunks=max_chunks,
+                        min_relevance=min_relevance,
+                        run_number=run_num,
+                    )
+                    all_results.append(result)
+                except Exception as e:
+                    # Defense-in-depth: Catch any unexpected errors in test execution
+                    # (run_test should handle most errors internally, but this ensures robustness)
+                    logger.error(
+                        "rag_test_runner_error",
+                        test_id=test_case.test_id,
+                        run=run_num,
+                        error_type=type(e).__name__,
+                        error=str(e),
+                    )
+                    # Continue with next test despite error
+                    continue
 
         total_time = time.time() - total_start_time
 
