@@ -241,6 +241,7 @@ class QualityTestRunner:
         generation_time = 0.0  # Initialize to 0 in case of early errors
         actual_prompt_tokens = 0  # Initialize to 0 in case of errors
         actual_completion_tokens = 0  # Initialize to 0 in case of errors
+        actual_model_id = model  # Initialize to friendly name, update from response if successful
 
         try:
             # Use semaphore to limit concurrent requests and prevent rate limits
@@ -269,9 +270,10 @@ class QualityTestRunner:
 
             llm_response_text = llm_response.answer_text
             token_count = llm_response.token_count
-            # Capture actual token split from LLM response
+            # Capture actual token split and model version from LLM response
             actual_prompt_tokens = llm_response.prompt_tokens
             actual_completion_tokens = llm_response.completion_tokens
+            actual_model_id = llm_response.model_version  # Use actual model ID for accurate cost calculation
 
             # Keep original JSON for Ragas evaluation
             llm_response_json = llm_response_text
@@ -381,11 +383,11 @@ class QualityTestRunner:
                 f"Error: {ragas_metrics.error}"
             )
 
-        # Calculate main LLM cost using actual token split
+        # Calculate main LLM cost using actual token split and model ID
         cost = estimate_cost(
             prompt_tokens=actual_prompt_tokens,
             completion_tokens=actual_completion_tokens,
-            model=model,
+            model=actual_model_id,
         )
 
         # Log comprehensive cost breakdown
