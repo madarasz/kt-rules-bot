@@ -5,7 +5,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from src.lib.constants import QUALITY_TEST_JUDGING, QUALITY_TEST_JUDGE_MODEL
+from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_JUDGING
 from tests.quality.reporting.chart_generator import ChartGenerator
 from tests.quality.reporting.report_models import IndividualTestResult, ModelSummary, QualityReport
 
