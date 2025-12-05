@@ -313,7 +313,7 @@ def generate_multi_run_visualization(
     ax1.legend(
         lines1 + lines2 + lines3 + lines4,
         labels1 + labels2 + labels3 + labels4,
-        loc="upper left",
+        loc="best",
         fontsize=9,
     )
 

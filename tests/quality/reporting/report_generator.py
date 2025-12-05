@@ -5,7 +5,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from src.lib.constants import QUALITY_TEST_JUDGING
+from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_JUDGING
 from tests.quality.reporting.chart_generator import ChartGenerator
 from tests.quality.reporting.report_models import IndividualTestResult, ModelSummary, QualityReport
 
@@ -152,12 +152,28 @@ class ReportGenerator:
 
     def _get_overall_report_header(self) -> str:
         """Builds the overall report header string."""
+        # Calculate cost breakdown from all results
+        total_main = sum(r.cost_usd for r in self.report.results)
+        total_multi_hop = sum(r.multi_hop_cost_usd for r in self.report.results)
+        total_judge = sum(r.ragas_cost_usd for r in self.report.results)
+        total_embedding = sum(r.embedding_cost_usd for r in self.report.results)
+
         header = [
             "# Quality Test Report",
             f"- **Total time**: {self.report.total_time_seconds // 60:.0f}m {self.report.total_time_seconds % 60:.2f}s",
             f"- **Total cost**: ${self.report.total_cost_usd:.4f}",
-            f"- **Total queries**: {self.report.total_queries}",
         ]
+
+        # Add cost breakdown with percentages
+        if self.report.total_cost_usd > 0:
+            header.extend([
+                f"  - Main LLM: ${total_main:.4f} ({total_main/self.report.total_cost_usd*100:.1f}%)",
+                f"  - Multi-hop: ${total_multi_hop:.4f} ({total_multi_hop/self.report.total_cost_usd*100:.1f}%)",
+                f"  - Judge: ${total_judge:.4f} ({total_judge/self.report.total_cost_usd*100:.1f}%)",
+                f"  - Embeddings: ${total_embedding:.4f} ({total_embedding/self.report.total_cost_usd*100:.1f}%)",
+            ])
+
+        header.append(f"- **Total queries**: {self.report.total_queries}")
         if self.report.is_multi_model or self.report.is_multi_run:
             best_model = max(
                 self.report.per_model_summaries.values(), key=lambda s: s.avg_score_pct
@@ -167,6 +183,7 @@ class ReportGenerator:
             )
 
         header.append(f"- **Test cases**: {', '.join(self.report.test_cases)}")
+        header.append(f"- **Judge model**: {QUALITY_TEST_JUDGE_MODEL} ({QUALITY_TEST_JUDGING} mode)")
 
         if self.report.chart_path:
             chart_name = os.path.basename(self.report.chart_path)
@@ -479,7 +496,7 @@ class ReportGenerator:
         if result.multi_hop_cost_usd > 0:
             content.append(f"- Multi-hop evaluation: ${result.multi_hop_cost_usd:.4f}")
         if result.ragas_cost_usd > 0:
-            content.append(f"- Ragas evaluation: ${result.ragas_cost_usd:.4f}")
+            content.append(f"- Judge evaluation: ${result.ragas_cost_usd:.4f}")
         if result.embedding_cost_usd > 0:
             content.append(f"- Embeddings: ${result.embedding_cost_usd:.4f}")
         content.append(f"- **Total: ${result.total_cost_usd:.4f}**")
@@ -502,6 +519,12 @@ class ReportGenerator:
 
     def get_console_output(self) -> str:
         """Generates a concise summary for printing to the console."""
+        # Calculate cost breakdown from all results
+        total_main = sum(r.cost_usd for r in self.report.results)
+        total_multi_hop = sum(r.multi_hop_cost_usd for r in self.report.results)
+        total_judge = sum(r.ragas_cost_usd for r in self.report.results)
+        total_embedding = sum(r.embedding_cost_usd for r in self.report.results)
+
         content = []
         content.append("\n" + "=" * 60)
         content.append("Test Results Summary")
@@ -510,6 +533,13 @@ class ReportGenerator:
         content.append(f"Total queries: {self.report.total_queries}")
         content.append(f"Total time: {self.report.total_time_seconds:.2f}s")
         content.append(f"Total cost: ${self.report.total_cost_usd:.4f}")
+
+        # Add cost breakdown
+        if self.report.total_cost_usd > 0:
+            content.append(f"  Main LLM: ${total_main:.4f}")
+            content.append(f"  Multi-hop: ${total_multi_hop:.4f}")
+            content.append(f"  Judge: ${total_judge:.4f}")
+            content.append(f"  Embeddings: ${total_embedding:.4f}")
 
         # Calculate JSON formatting statistics
         json_formatted_count = sum(1 for r in self.report.results if r.json_formatted)
