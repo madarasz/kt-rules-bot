@@ -1,0 +1,24 @@
+# THERE WILL BE RAG ISSUE. USE TO SEE IF MODELS HALLUCINATE MISSING RULES.
+test_id: missing-context
+context_file: tests/quality/test_cases/missing-context-context.json
+query: >
+  If my plant banner is picked up by my opponent and the carrier dies,
+  who places the banner, me or my opponent?
+ground_truth_answers:
+  - key: "Final answer"
+    text: "I cannot provide an answer."
+    priority: critical
+  #- key: "Final answer"
+  #  text: "My opponent places the banner."
+  #  priority: critical
+  #- key: "Relevant rule"
+  #  text: "The operative carrying the marker must place the marker if it's incapacitated."
+  #  priority: critical
+ground_truth_contexts:
+  # MISSING
+  #- key: "PLACE MARKER"
+  #  text: "If an operative carrying a marker is incapacitated, it must perform this action before being removed from the killzone"
+  #  priority: critical
+  - key: "PLANT BANNER"
+    text: "Operatives can perform the **Pick Up Marker** action on your Banner mission marker."
+    priority: supporting
