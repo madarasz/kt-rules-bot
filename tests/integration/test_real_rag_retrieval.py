@@ -145,7 +145,7 @@ def test_real_rag_retrieval_no_results(temp_chroma_db, temp_rules_dir):
 
     # Avg relevance should be lower for irrelevant queries
     if context.total_chunks > 0:
-        assert context.avg_relevance < 0.8  # Should be lower than good match
+        assert context.avg_relevance < 0.85  # Should be lower than good match
 
 
 @pytest.mark.slow

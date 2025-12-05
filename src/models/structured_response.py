@@ -135,11 +135,10 @@ class StructuredLLMResponse:
         if not self.persona_afterword.strip():
             raise ValueError("persona_afterword cannot be empty")
 
-        # For rules questions (not smalltalk), check at least one quote
-        if not self.smalltalk and not self.quotes:
-            raise ValueError("quotes list cannot be empty for rules questions")
+        # Allow empty quotes list - system may not have relevant context to provide
+        # Previously enforced: if not self.smalltalk and not self.quotes
 
-        # Validate each quote
+        # Validate each quote (if any provided)
         for i, quote in enumerate(self.quotes):
             if not quote.quote_title.strip():
                 raise ValueError(f"quote[{i}].quote_title cannot be empty")
