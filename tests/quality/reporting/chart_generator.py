@@ -374,7 +374,7 @@ class ChartGenerator:
         ax1.legend(
             lines1 + lines2 + lines3 + lines4,
             labels1 + labels2 + labels3 + labels4,
-            loc="upper left",
+            loc="best",
         )
 
         ax1.grid(axis="y", alpha=0.3, linestyle="--")
@@ -617,7 +617,7 @@ class ChartGenerator:
         ax.set_ylim(0, 1.0)
         ax.set_xticks(x)
         ax.set_xticklabels(models, rotation=45, ha="right")
-        ax.legend(loc="upper left", fontsize=10)
+        ax.legend(loc="best", fontsize=10)
         ax.grid(axis="y", alpha=0.3, linestyle="--")
 
         # Add note about LLM-based judging mode

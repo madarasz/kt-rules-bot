@@ -62,8 +62,9 @@ def quality_test(
     max_hops: int | None = None,
     no_eval: bool = False,
     force_rag: bool = False,
+    from_output: str | None = None,
 ) -> None:
-    """Run quality tests for RAG + LLM pipeline.
+    """Run quality tests for RAG + LLM pipeline, or replay from saved outputs.
 
     Args:
         test_id: Specific test ID to run (default: all tests)
@@ -75,6 +76,7 @@ def quality_test(
         max_hops: Override RAG_MAX_HOPS constant
         no_eval: Skip Ragas evaluation (only generate outputs)
         force_rag: Ignore cached context files and run RAG
+        from_output: Path to existing output folder for replay mode (skips RAG + LLM generation)
     """
     # Suppress event loop cleanup errors from Ragas (only if we're running eval)
     if not no_eval:
@@ -98,6 +100,93 @@ def quality_test(
 
     runner = QualityTestRunner(judge_model=judge_model)
 
+    # REPLAY MODE: Load from existing outputs
+    if from_output:
+        output_dir = Path(from_output)
+        if not output_dir.exists():
+            print(f"❌ Output directory does not exist: {output_dir}")
+            sys.exit(1)
+
+        print("\n" + "=" * 60)
+        print("Quality Test Replay Mode")
+        print("=" * 60)
+        print(f"Source: {output_dir}")
+        print(f"Judge model: {judge_model}")
+        if model:
+            print(f"Filter by model: {model}")
+            models_to_run = [model]
+        elif all_models:
+            print(f"Models: {', '.join(models_to_run)} (all available)")
+        else:
+            models_to_run = None  # All models in output directory
+            print("Models: All found in output directory")
+        print("=" * 60)
+
+        if not skip_confirm:
+            response = input("\nProceed with replay? (y/N): ")
+            if response.lower() not in ["y", "yes"]:
+                print("Cancelled.")
+                sys.exit(0)
+
+        print("\n🔄 Replaying tests from saved outputs...")
+        print("  (Skipping RAG retrieval and LLM generation)")
+        start_time = time.time()
+
+        try:
+            # Run replay
+            results, replay_dir = asyncio.run(
+                runner.replay_tests_from_outputs(
+                    output_dir=output_dir,
+                    models=models_to_run,
+                )
+            )
+
+            total_time = time.time() - start_time
+            total_cost = sum(r.total_cost_usd for r in results)
+
+            # Infer test cases and models from results
+            test_cases_inferred = list({r.test_id for r in results})
+            models_inferred = list({r.model for r in results})
+
+            # Create the main report object
+            report = QualityReport(
+                results=results,
+                total_time_seconds=total_time,
+                total_cost_usd=total_cost,
+                runs=1,  # Replay doesn't support multi-run detection yet
+                models=models_inferred,
+                test_cases=test_cases_inferred,
+                report_dir=str(replay_dir),
+                prompt_path=str(output_dir / "prompt.md"),
+            )
+
+            # Aggregate results
+            aggregate_results(report)
+
+            # Generate reports (includes chart generation)
+            report_generator = ReportGenerator(report)
+            report_generator.generate_all_reports()
+
+            # Print console summary
+            console_output = report_generator.get_console_output()
+            print(console_output)
+
+            print(f"\n✅ Replay completed in {total_time:.1f}s")
+            print(f"   Original LLM costs: ${total_cost - sum(r.ragas_cost_usd for r in results):.4f}")
+            print(f"   New judge costs: ${sum(r.ragas_cost_usd for r in results):.4f}")
+            print(f"   Total costs (original + judge): ${total_cost:.4f}")
+
+        except Exception as e:
+            logger.error(f"Replay failed: {e}", exc_info=True)
+            print(f"\n❌ Replay failed: {e}")
+            sys.exit(1)
+        finally:
+            # Restore original RAG_MAX_HOPS if overridden
+            if original_max_hops is not None:
+                constants.RAG_MAX_HOPS = original_max_hops
+
+        return  # Exit after replay
+
     try:
         test_cases_to_run = runner.load_test_cases(test_id)
     except Exception as e:
@@ -119,7 +208,7 @@ def quality_test(
 
     # Setup report directory
     timestamp_str = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
-    report_dir = Path(f"tests/quality/results/{timestamp_str}")
+    report_dir = Path(f"tests/quality/results/{timestamp_str}").absolute()
     report_dir.mkdir(parents=True, exist_ok=True)
 
     mode_str = " (no evaluation)" if no_eval else ""
