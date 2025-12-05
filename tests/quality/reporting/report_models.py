@@ -168,6 +168,39 @@ class ModelSummary:
             return 0.0
         return np.std([r.cost_usd for r in self.results])
 
+    @property
+    def avg_multi_hop(self) -> float:
+        """Average multi-hop evaluation cost per test."""
+        if not self.results:
+            return 0.0
+        return np.mean([r.multi_hop_cost_usd for r in self.results])
+
+    @property
+    def avg_judge(self) -> float:
+        """Average judge evaluation cost per test."""
+        if not self.results:
+            return 0.0
+        return np.mean([r.ragas_cost_usd for r in self.results])
+
+    @property
+    def avg_embedding(self) -> float:
+        """Average embedding cost per test."""
+        if not self.results:
+            return 0.0
+        return np.mean([r.embedding_cost_usd for r in self.results])
+
+    @property
+    def avg_infrastructure(self) -> float:
+        """Average total infrastructure cost per test (multi-hop + judge + embeddings)."""
+        return self.avg_multi_hop + self.avg_judge + self.avg_embedding
+
+    @property
+    def avg_total_cost(self) -> float:
+        """Average total cost per test including production and infrastructure costs."""
+        if not self.results:
+            return 0.0
+        return np.mean([r.total_cost_usd for r in self.results])
+
 
 @dataclass
 class QualityReport:

@@ -37,7 +37,7 @@ from src.services.orchestrator import QueryOrchestrator
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.retriever import RAGRetriever
 from src.services.rag.vector_db import VectorDBService
-from tests.quality.metadata_generator import MetadataFormatter, MetadataGenerator
+from tests.quality.metadata_generator import MetadataFormatter, MetadataGenerator, OutputMetadata
 from tests.quality.ragas_evaluator import RagasEvaluator
 from tests.quality.reporting.report_models import IndividualTestResult
 from tests.quality.test_case_models import GroundTruthAnswer, GroundTruthContext, TestCase
@@ -575,7 +575,7 @@ class QualityTestRunner:
         self,
         output_dir: Path,
         models: list[str] | None = None,
-    ) -> list[IndividualTestResult]:
+    ) -> tuple[list[IndividualTestResult], Path]:
         """
         Replay quality tests from saved outputs (skip RAG + LLM, re-run judge only).
 
@@ -587,7 +587,7 @@ class QualityTestRunner:
             models: Optional filter for specific models
 
         Returns:
-            list[IndividualTestResult] with new judge evaluations
+            Tuple of (list[IndividualTestResult] with new judge evaluations, Path to replay results directory)
 
         Raises:
             ValueError: If output directory doesn't exist or contains no valid outputs
@@ -595,7 +595,6 @@ class QualityTestRunner:
         import shutil
 
         from tests.quality.output_parser import parse_output_directory
-        from tests.quality.ragas_evaluator import RagasMetrics
 
         logger.info(f"🔄 Replaying tests from: {output_dir}")
 
@@ -613,7 +612,7 @@ class QualityTestRunner:
         # 2. Create new results folder
         original_name = output_dir.name
         timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
-        new_results_dir = Path("tests/quality/results") / f"{original_name}_replay_{timestamp}"
+        new_results_dir = (Path("tests/quality/results") / f"{timestamp}_REPLAYS_{original_name}").absolute()
         new_results_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Created replay results folder: {new_results_dir}")
 
@@ -659,7 +658,7 @@ class QualityTestRunner:
         logger.info(f"✅ Replay complete: {len(valid_results)}/{len(results)} successful")
         logger.info(f"Results saved to: {new_results_dir}")
 
-        return valid_results
+        return valid_results, new_results_dir
 
     def _load_test_cases_for_outputs(
         self, parsed_outputs: list

@@ -8,7 +8,7 @@ import json
 import re
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from src.lib.logging import get_logger
 from src.services.llm.base import LLMResponse
@@ -267,7 +267,7 @@ class MetadataFormatter:
 """
 
     @staticmethod
-    def extract_metadata_from_markdown(content: str) -> Optional[OutputMetadata]:
+    def extract_metadata_from_markdown(content: str) -> OutputMetadata | None:
         """
         Extract metadata from markdown file.
 
@@ -277,7 +277,7 @@ class MetadataFormatter:
         Returns:
             OutputMetadata if found, None otherwise
         """
-        pattern = r"<!-- METADATA:START -->\s*```json\s*(\{.*?\})\s*```\s*<!-- METADATA:END -->"
+        pattern = r"<!-- METADATA:START -->\s*```json\s*(.+?)\s*```\s*<!-- METADATA:END -->"
         match = re.search(pattern, content, re.DOTALL)
 
         if not match:

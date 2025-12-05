@@ -134,7 +134,7 @@ def quality_test(
 
         try:
             # Run replay
-            results = asyncio.run(
+            results, replay_dir = asyncio.run(
                 runner.replay_tests_from_outputs(
                     output_dir=output_dir,
                     models=models_to_run,
@@ -145,8 +145,8 @@ def quality_test(
             total_cost = sum(r.total_cost_usd for r in results)
 
             # Infer test cases and models from results
-            test_cases_inferred = list(set(r.test_id for r in results))
-            models_inferred = list(set(r.model for r in results))
+            test_cases_inferred = list({r.test_id for r in results})
+            models_inferred = list({r.model for r in results})
 
             # Create the main report object
             report = QualityReport(
@@ -156,7 +156,7 @@ def quality_test(
                 runs=1,  # Replay doesn't support multi-run detection yet
                 models=models_inferred,
                 test_cases=test_cases_inferred,
-                report_dir=str(Path(results[0].output_filename).parent) if results else "",
+                report_dir=str(replay_dir),
                 prompt_path=str(output_dir / "prompt.md"),
             )
 
@@ -208,7 +208,7 @@ def quality_test(
 
     # Setup report directory
     timestamp_str = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
-    report_dir = Path(f"tests/quality/results/{timestamp_str}")
+    report_dir = Path(f"tests/quality/results/{timestamp_str}").absolute()
     report_dir.mkdir(parents=True, exist_ok=True)
 
     mode_str = " (no evaluation)" if no_eval else ""
