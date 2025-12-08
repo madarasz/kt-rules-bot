@@ -29,6 +29,7 @@ servers:
     # google_api_key: "AIza..."
     # x_api_key: "xai-..."
     # deepseek_api_key: "sk-..."
+    # mistral_api_key: "..."
     # dial_api_key: "dial-..."
 
     # RAG hop evaluation model (optional override)
@@ -59,6 +60,7 @@ servers:
 #   GPT: gpt-5, gpt-5-mini, gpt-4.1, gpt-4.1-mini, gpt-4o, o3, o3-mini, o4-mini
 #   Grok: grok-4-fast-reasoning, grok-4-0709, grok-3, grok-3-mini
 #   DeepSeek: deepseek-chat, deepseek-reasoner
+#   Mistral: mistral-large, mistral-medium, mistral-small
 #   DIAL: dial-gpt-4o, dial-gpt-4.1, dial-gpt-5, dial-sonet-4.5, dial-opus-4.1, etc.
 
 # How to find your Discord Guild ID:

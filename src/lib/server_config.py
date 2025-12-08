@@ -33,6 +33,7 @@ class ServerConfig:
     x_api_key: str | None = None
     dial_api_key: str | None = None
     deepseek_api_key: str | None = None
+    mistral_api_key: str | None = None
 
     # RAG Configuration (optional override)
     rag_hop_evaluation_model: LLM_PROVIDERS_LITERAL | None = (
@@ -112,6 +113,7 @@ class MultiServerConfig:
                         x_api_key=server_data.get("x_api_key"),
                         dial_api_key=server_data.get("dial_api_key"),
                         deepseek_api_key=server_data.get("deepseek_api_key"),
+                        mistral_api_key=server_data.get("mistral_api_key"),
                         rag_hop_evaluation_model=server_data.get("rag_hop_evaluation_model"),
                     )
 
