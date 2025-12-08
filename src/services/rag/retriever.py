@@ -273,6 +273,11 @@ class RAGRetriever:
         Returns:
             Tuple of (RAGContext, hop_evaluations, chunk_hop_map)
         """
+        # Normalize query for hop evaluation (same as initial retrieval)
+        # This ensures the hop evaluation LLM sees properly capitalized keywords
+        # matching the Available Rules Reference (e.g., "accurate 1" → "Accurate 1")
+        normalized_query, _ = self._normalize_and_expand_query(request.query)
+
         # Multi-hop retrieval is async, so we need to run it in a way that works
         # both from sync contexts (CLI) and async contexts (Discord bot)
         # Always use thread-based approach to avoid event loop conflicts
@@ -288,7 +293,7 @@ class RAGRetriever:
                 try:
                     result = new_loop.run_until_complete(
                         self.multi_hop_retriever.retrieve_multi_hop(
-                            query=request.query,
+                            query=normalized_query,
                             context_key=request.context_key,
                             query_id=query_id,
                             initial_chunks=initial_chunks,
