@@ -23,7 +23,6 @@ from src.lib.constants import (
     RAG_HOP_RATE_LIMIT_DELAY,
     RAG_MAX_HOPS,
     RULES_STRUCTURE_PATH,
-    SUMMARY_ENABLED,
     TEAMS_STRUCTURE_PATH,
 )
 from src.lib.logging import get_logger
@@ -207,11 +206,9 @@ class MultiHopRetriever:
         for hop_num in range(1, self.max_hops + 1):
             # Evaluate context: can we answer?
             try:
-                eval_start = time.time()
                 evaluation = await self._evaluate_context(
                     user_query=query, retrieved_chunks=accumulated_chunks, verbose=verbose
                 )
-                evaluation.evaluation_time_s = time.time() - eval_start
 
                 hop_evaluations.append(evaluation)
 
@@ -384,6 +381,9 @@ class MultiHopRetriever:
         last_error = None
         for attempt in range(LLM_MAX_RETRIES + 1):
             try:
+                # Start timer for this attempt (restart on each retry)
+                eval_start = time.time()
+
                 response = await asyncio.wait_for(
                     self.evaluation_llm.generate(request), timeout=self.evaluation_timeout
                 )
@@ -416,11 +416,15 @@ class MultiHopRetriever:
                 # Calculate cost using actual token counts (single source of truth)
                 cost_usd = calculate_hop_evaluation_cost(response, RAG_HOP_EVALUATION_MODEL)
 
+                # Calculate evaluation time (only the successful attempt)
+                evaluation_time_s = time.time() - eval_start
+
                 return HopEvaluation(
                     can_answer=data["can_answer"],
                     reasoning=data["reasoning"],
                     missing_query=data.get("missing_query"),
                     cost_usd=cost_usd,
+                    evaluation_time_s=evaluation_time_s,
                     filled_prompt=prompt if verbose else None,
                     filtered_teams_count=len(relevant_teams),
                 )
@@ -478,8 +482,6 @@ class MultiHopRetriever:
 
         formatted_chunks = []
         for i, chunk in enumerate(chunks, 1):
-            header = chunk.header or "Unknown Section"
-
             # Check if truncation is needed
             if len(chunk.text) > MAX_CHUNK_LENGTH_FOR_EVALUATION:
                 truncated_text = chunk.text[:MAX_CHUNK_LENGTH_FOR_EVALUATION]
@@ -501,9 +503,17 @@ class MultiHopRetriever:
             else:
                 text = chunk.text
 
-            if SUMMARY_ENABLED:
-                formatted_chunks.append(f"{i}. ## {text}\n")
+            # Get summary from metadata
+            summary = chunk.metadata.get("summary", "")
+
+            # Extract first line (header) from text
+            header_line = text.split('\n')[0] if text else ""
+
+            if summary:
+                # Show header + summary only (concise view for hop evaluation)
+                formatted_chunks.append(f"{i}. {header_line}\n{summary}\n")
             else:
-                formatted_chunks.append(f"{i}. **{header}**\n{text}\n")
+                # Fallback to full text if no summary available
+                formatted_chunks.append(f"{i}. {text}\n")
 
         return "\n".join(formatted_chunks)

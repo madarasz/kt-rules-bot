@@ -1027,7 +1027,7 @@ class AnalyticsDatabase:
             if favorite_only:
                 query += " AND favorite = 1"
 
-            query += " ORDER BY COALESCE(sort_order, 999999) ASC, timestamp DESC LIMIT ? OFFSET ?"
+            query += " ORDER BY sort_order IS NULL DESC, sort_order ASC, timestamp DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
 
             with self._get_connection() as conn:
