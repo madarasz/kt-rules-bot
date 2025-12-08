@@ -297,7 +297,7 @@ RAG_MAX_HOPS = 1
 RAG_HOP_CHUNK_LIMIT = 5
 
 # LLM model for hop context evaluation (default: gpt-4.1-mini for speed)
-RAG_HOP_EVALUATION_MODEL = "gpt-4.1-mini"
+RAG_HOP_EVALUATION_MODEL = "mistral-medium"
 
 # Hop evaluation timeout in seconds
 RAG_HOP_EVALUATION_TIMEOUT = 20
