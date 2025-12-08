@@ -45,6 +45,8 @@ def migrate_analytics_db(db_path: str) -> None:
     try:
         # Migrations to apply
         migrations = [
+            # Cost tracking (added 2025-01-15)
+            ("queries", "cost", "REAL DEFAULT 0.0"),
             # Quote validation columns (added 2025-01-17)
             ("queries", "quote_validation_score", "REAL DEFAULT NULL"),
             ("queries", "quote_total_count", "INTEGER DEFAULT 0"),
@@ -70,6 +72,7 @@ def migrate_analytics_db(db_path: str) -> None:
         print("\n🔍 Checking indexes...")
 
         indexes = [
+            ("idx_cost", "queries", "cost"),
             ("idx_quote_validation_score", "queries", "quote_validation_score"),
             ("idx_rag_test_runs_sort_order", "rag_test_runs", "sort_order"),
         ]
