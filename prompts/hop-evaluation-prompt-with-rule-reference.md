@@ -23,6 +23,7 @@ Before deciding you can answer, actively scan BOTH rules lists for:
 - **Related mechanics**: If the question involves an effect (damage reduction, movement penalty), look for rules governing that mechanic's limits or interactions (e.g., movement reduction → "Minimum move stat")
 - **Rule definitions for named items**: Weapon rules on operative cards are not RULE definitions. You should request the weapon rule separately.
 - **Faction-specific capabilities**: If the user asks whether a SPECIFIC faction/team can do something (fly, counteract, etc.), look for the FACTION RULE that grants that capability, not just the generic core rule. The faction rule explains IF and HOW they get the ability.
+- **Mentions ≠ Definitions**: A rule that USES or REFERENCES a term is not the same as the rule that DEFINES that term. If a rule says "can shoot while concealed" or "may charge after dashing", you have REFERENCES to shoot/charge/dash — not their definitions. Always verify you have the DEFINING rule for each question term.
 
 # User Question
 {user_query}
@@ -46,6 +47,7 @@ Signs a rule is MISSING (may need to request):
 - Only a NAME appears (e.g., weapon rule "Saturate" on a datacard) but not the RULE definition (e.g., "Saturate" weapon rule)
 - A mechanic is referenced but its governing rule isn't present (e.g., movement penalties discussed but no "Minimum move" rule)
 - The term exists in Available Rules Reference but not in Retrieved Context
+- A rule MENTIONS or REFERENCES a term from the question, but no rule DEFINES that term (e.g., a rule says "can go on guard" but the GUARD action rule isn't present)
 
 # Evaluation Steps
 
@@ -61,9 +63,11 @@ Signs a rule is MISSING (may need to request):
 
 4. **Cross-reference Retrieved Context**: Scan the Retrieved Context for references to other game terms (especially CAPITALIZED terms, bolded terms, or terms in quotes). Check if these referenced terms exist in Available Rules Reference. If they do and aren't already retrieved, they may be needed.
 
-5. **Bias toward retrieval**: If a core mechanic mentioned in the question (counteract, shooting, orders, movement) lacks its rule definition in Retrieved Context, request it. When uncertain whether context is sufficient, retrieve more.
+5. **Verify definitions, not just mentions**: For each key term in the question, confirm you have the rule that DEFINES it — not just rules that reference it. A rule saying "can fight twice" doesn't define FIGHT. A weapon with "Blast 2" doesn't define Blast. If you only have references, request the defining rule.
 
-6. **Decide**: Only return `can_answer: true` if you have DEFINITIONS for all terms AND all governing mechanics.
+6. **Bias toward retrieval**: When uncertain whether context is sufficient, retrieve more. It's better to over-retrieve than to leave gaps.
+
+7. **Decide**: Only return `can_answer: true` if you have DEFINITIONS for all terms AND all governing mechanics.
 
 # Constraints
 
@@ -88,6 +92,7 @@ Signs a rule is MISSING (may need to request):
 - Requesting only mechanics (COVER) when user asks about a specific entity (HEAVY BARRICADES)
 - Missing rules referenced WITHIN the Retrieved Context itself
 - Saying "can answer" when a mechanic from the question has no rule definition retrieved
+- Treating rules that MENTION a term as the term's definition (e.g., seeing "ignores cover when shooting" and assuming SHOOT or COVER is defined — they're not; those are references, not definitions)
 
 # Output Format
 ```json
@@ -143,3 +148,14 @@ Response:
 }}
 
 Now evaluate the user question against the retrieved context and respond in JSON only.
+
+**Example 5 – Mentions ≠ Definitions**
+User: "Can operative X perform action Y while in state Z?"
+Retrieved Context: [Operative X with ability that says "can perform Y regardless of Z", State Z rules]
+Available Rules Reference: [Action Y listed under Core Rules > Actions]
+Response:
+{{
+  "can_answer": false,
+  "reasoning": "Operative X's ability MENTIONS action Y but doesn't DEFINE it. State Z rules are present. However, the rule defining what action Y actually IS and how it works is missing. The ability tells us WHEN Y can be used, not WHAT Y is.",
+  "missing_query": "Action Y"
+}}
