@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
-from src.lib.constants import SUMMARY_ENABLED
+from src.lib.constants import RAG_DETERMINISTIC_KEYWORD_MAX_MATCH, SUMMARY_ENABLED
 from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost
 from src.models.rule_document import RuleDocument
@@ -243,6 +243,27 @@ class RAGIngestor:
                 job_id=str(job_id),
                 new_keywords=added_count,
                 total_keywords=self.keyword_extractor.get_keyword_count(),
+            )
+
+            # Extract keyword-to-headers mapping for deterministic hop
+            keyword_headers = self.keyword_extractor.extract_keyword_headers_from_chunks(
+                all_chunks
+            )
+            headers_added = self.keyword_extractor.add_keyword_headers(keyword_headers)
+
+            # Filter out keywords that match too many headers (too generic)
+            filtered_count = self.keyword_extractor.filter_overmatched_keywords(
+                RAG_DETERMINISTIC_KEYWORD_MAX_MATCH
+            )
+
+            self.keyword_extractor.save_keyword_headers()
+
+            logger.info(
+                "keyword_headers_updated",
+                job_id=str(job_id),
+                new_mappings=headers_added,
+                filtered_keywords=filtered_count,
+                total_mappings=self.keyword_extractor.get_keyword_headers_count(),
             )
 
         result = IngestionResult(

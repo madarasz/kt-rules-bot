@@ -189,7 +189,7 @@ class MultiHopRetriever:
                 use_multi_hop=False,  # Prevent infinite recursion
             )
 
-            initial_context, _, _ = self.base_retriever.retrieve(initial_request, query_id)
+            initial_context, _, _, _ = self.base_retriever.retrieve(initial_request, query_id)
             accumulated_chunks.extend(initial_context.document_chunks)
 
             # Track hop 0 chunks
@@ -247,7 +247,7 @@ class MultiHopRetriever:
                 )
 
                 retrieval_start = time.time()
-                hop_context, _, _ = self.base_retriever.retrieve(hop_request, query_id)
+                hop_context, _, _, _ = self.base_retriever.retrieve(hop_request, query_id)
                 evaluation.retrieval_time_s = time.time() - retrieval_start
 
                 # Deduplicate by chunk_id

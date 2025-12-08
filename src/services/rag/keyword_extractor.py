@@ -8,7 +8,7 @@ import json
 import re
 from pathlib import Path
 
-from src.lib.constants import RAG_KEYWORD_CACHE_PATH
+from src.lib.constants import RAG_KEYWORD_CACHE_PATH, RAG_KEYWORD_HEADERS_PATH
 from src.lib.logging import get_logger
 from src.services.rag.chunker import MarkdownChunk
 
@@ -18,20 +18,33 @@ logger = get_logger(__name__)
 class KeywordExtractor:
     """Extracts and manages game-specific keywords for query normalization."""
 
-    def __init__(self, cache_path: str = RAG_KEYWORD_CACHE_PATH):
+    def __init__(
+        self,
+        cache_path: str = RAG_KEYWORD_CACHE_PATH,
+        headers_cache_path: str = RAG_KEYWORD_HEADERS_PATH,
+    ):
         """Initialize keyword extractor.
 
         Args:
             cache_path: Path to keyword cache file
+            headers_cache_path: Path to keyword-headers mapping cache file
         """
         self.cache_path = Path(cache_path)
+        self.headers_cache_path = Path(headers_cache_path)
         self.keywords: set[str] = set()
+        self.keyword_headers: dict[str, set[str]] = {}  # keyword (lowercase) -> set of headers
 
         # Load existing keywords if cache exists
         if self.cache_path.exists():
             self._load_keywords()
         else:
             logger.info("keyword_cache_not_found", path=str(self.cache_path))
+
+        # Load existing keyword-headers mapping if cache exists
+        if self.headers_cache_path.exists():
+            self._load_keyword_headers()
+        else:
+            logger.info("keyword_headers_cache_not_found", path=str(self.headers_cache_path))
 
     def extract_from_chunks(self, chunks: list[MarkdownChunk]) -> set[str]:
         """Extract keywords from document chunks.
@@ -209,3 +222,182 @@ class KeywordExtractor:
             logger.debug("query_normalized", original=query, normalized=normalized_query)
 
         return normalized_query
+
+    # =========================================================================
+    # Keyword-Headers Mapping Methods (for Deterministic Hop)
+    # =========================================================================
+
+    def _load_keyword_headers(self) -> None:
+        """Load keyword-headers mapping from cache file."""
+        try:
+            with open(self.headers_cache_path) as f:
+                data = json.load(f)
+                # Convert lists back to sets
+                self.keyword_headers = {k: set(v) for k, v in data.items()}
+
+            logger.info(
+                "keyword_headers_loaded",
+                path=str(self.headers_cache_path),
+                keyword_count=len(self.keyword_headers),
+            )
+
+        except Exception as e:
+            logger.error(
+                "keyword_headers_load_failed",
+                error=str(e),
+                path=str(self.headers_cache_path),
+            )
+            self.keyword_headers = {}
+
+    def _keyword_matches_header(self, keyword: str, header: str) -> bool:
+        """Check if keyword appears as whole word in header (case-insensitive).
+
+        Uses word boundary matching: "Accurate" matches " Accurate " but not "Inaccurate"
+
+        Args:
+            keyword: Keyword to search for
+            header: Header text to search in
+
+        Returns:
+            True if keyword found as whole word
+        """
+        pattern = r"\b" + re.escape(keyword) + r"\b"
+        return bool(re.search(pattern, header, re.IGNORECASE))
+
+    def extract_keyword_headers_from_chunks(
+        self, chunks: list[MarkdownChunk]
+    ) -> dict[str, set[str]]:
+        """Extract mapping of keywords to headers they appear in.
+
+        Uses word boundary matching: "Accurate" matches " Accurate " but not "Inaccurate"
+
+        Args:
+            chunks: List of MarkdownChunk objects
+
+        Returns:
+            Dict mapping keyword (lowercase) to set of header names
+        """
+        keyword_headers: dict[str, set[str]] = {}
+
+        for chunk in chunks:
+            if not chunk.header:
+                continue
+
+            header_text = chunk.header
+
+            # For each known keyword, check if it appears in header with word boundary
+            for keyword in self.keywords:
+                if self._keyword_matches_header(keyword, header_text):
+                    key = keyword.lower()
+                    if key not in keyword_headers:
+                        keyword_headers[key] = set()
+                    keyword_headers[key].add(header_text)
+
+        logger.debug(
+            "keyword_headers_extracted_from_chunks",
+            unique_keywords=len(keyword_headers),
+            total_mappings=sum(len(v) for v in keyword_headers.values()),
+        )
+
+        return keyword_headers
+
+    def add_keyword_headers(self, new_mappings: dict[str, set[str]]) -> int:
+        """Add new keyword-header mappings to the library.
+
+        Args:
+            new_mappings: Dict mapping keyword (lowercase) to set of headers
+
+        Returns:
+            Number of new keyword-header pairs added
+        """
+        added_count = 0
+
+        for keyword, headers in new_mappings.items():
+            key = keyword.lower()
+            if key not in self.keyword_headers:
+                self.keyword_headers[key] = set()
+
+            initial_count = len(self.keyword_headers[key])
+            self.keyword_headers[key].update(headers)
+            added_count += len(self.keyword_headers[key]) - initial_count
+
+        if added_count > 0:
+            logger.info(
+                "keyword_headers_added",
+                new_mappings=added_count,
+                total_keywords=len(self.keyword_headers),
+            )
+
+        return added_count
+
+    def save_keyword_headers(self) -> None:
+        """Save keyword-headers mapping to cache file."""
+        # Ensure parent directory exists
+        self.headers_cache_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Convert sets to sorted lists for JSON serialization
+        serializable = {k: sorted(v) for k, v in self.keyword_headers.items()}
+
+        with open(self.headers_cache_path, "w") as f:
+            json.dump(serializable, f, indent=2)
+
+        logger.info(
+            "keyword_headers_saved",
+            path=str(self.headers_cache_path),
+            keyword_count=len(self.keyword_headers),
+            total_mappings=sum(len(v) for v in self.keyword_headers.values()),
+        )
+
+    def get_headers_for_keywords(self, keywords: list[str]) -> list[str]:
+        """Get all unique headers containing any of the specified keywords.
+
+        Args:
+            keywords: List of keywords to lookup (case-insensitive)
+
+        Returns:
+            Deduplicated list of header names
+        """
+        all_headers: set[str] = set()
+
+        for keyword in keywords:
+            headers = self.keyword_headers.get(keyword.lower(), set())
+            all_headers.update(headers)
+
+        return list(all_headers)
+
+    def get_keyword_headers_count(self) -> int:
+        """Get total number of keyword-header mappings.
+
+        Returns:
+            Total count of keyword-header pairs
+        """
+        return sum(len(v) for v in self.keyword_headers.values())
+
+    def filter_overmatched_keywords(self, max_match: int) -> int:
+        """Remove keywords that match too many headers (too generic).
+
+        Args:
+            max_match: Maximum number of headers a keyword can match
+
+        Returns:
+            Number of keywords removed
+        """
+        keywords_to_remove = []
+
+        for keyword, headers in self.keyword_headers.items():
+            if len(headers) > max_match:
+                keywords_to_remove.append(keyword)
+
+        # Remove overmatched keywords
+        for keyword in keywords_to_remove:
+            del self.keyword_headers[keyword]
+
+        if keywords_to_remove:
+            logger.info(
+                "overmatched_keywords_filtered",
+                removed_count=len(keywords_to_remove),
+                max_match=max_match,
+                remaining_keywords=len(self.keyword_headers),
+            )
+
+        return len(keywords_to_remove)

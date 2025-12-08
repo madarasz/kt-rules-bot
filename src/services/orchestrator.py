@@ -93,7 +93,7 @@ class QueryOrchestrator:
         start_time = time.time()
 
         # Delegate to RAG service (all features enabled via config)
-        rag_context, hop_evaluations, chunk_hop_map = self.rag.retrieve(
+        rag_context, hop_evaluations, chunk_hop_map, deterministic_result = self.rag.retrieve(
             RetrieveRequest(
                 query=query,
                 context_key=context_key,

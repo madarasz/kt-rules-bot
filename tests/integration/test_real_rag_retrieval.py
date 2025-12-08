@@ -106,7 +106,7 @@ def test_real_rag_retrieval_basic(temp_chroma_db, temp_rules_dir):
         query="Can I shoot through barricades?", context_key="test:123", max_chunks=5
     )
 
-    context, _, _ = retriever.retrieve(request, query_id=uuid4())
+    context, _, _, _ = retriever.retrieve(request, query_id=uuid4())
 
     # Should find relevant chunks
     assert context.total_chunks > 0
@@ -138,7 +138,7 @@ def test_real_rag_retrieval_no_results(temp_chroma_db, temp_rules_dir):
         max_chunks=5,
     )
 
-    context, _, _ = retriever.retrieve(request, query_id=uuid4())
+    context, _, _, _ = retriever.retrieve(request, query_id=uuid4())
 
     # Should return something (might be low relevance)
     assert context.total_chunks >= 0
@@ -168,8 +168,8 @@ def test_real_rag_keyword_normalization(temp_chroma_db, temp_rules_dir):
         query="Can I shoot during the shooting phase?", context_key="test:789", max_chunks=5
     )
 
-    context1, _, _ = retriever.retrieve(request1, query_id=uuid4())
-    context2, _, _ = retriever.retrieve(request2, query_id=uuid4())
+    context1, _, _, _ = retriever.retrieve(request1, query_id=uuid4())
+    context2, _, _, _ = retriever.retrieve(request2, query_id=uuid4())
 
     # Both should find relevant content
     assert context1.total_chunks > 0

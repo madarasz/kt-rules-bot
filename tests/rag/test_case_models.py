@@ -16,6 +16,9 @@ from src.lib.constants import (
     MARKDOWN_CHUNK_HEADER_LEVEL,
     MAX_CHUNK_LENGTH_FOR_EVALUATION,
     MAXIMUM_FINAL_CHUNK_COUNT,
+    RAG_DETERMINISTIC_HOP_CHUNK_LIMIT,
+    RAG_DETERMINISTIC_KEYWORD_MAX_MATCH,
+    RAG_ENABLE_DETERMINISTIC_HOP,
     RAG_ENABLE_QUERY_EXPANSION,
     RAG_ENABLE_QUERY_NORMALIZATION,
     RAG_HOP_CHUNK_LIMIT,
@@ -136,6 +139,12 @@ class RAGTestResult:
     # Ground truth rank analysis (for MAXIMUM_FINAL_CHUNK_COUNT tuning)
     max_ground_truth_rank: int = 0  # Highest rank position where a ground truth was found
 
+    # Deterministic hop data (if enabled)
+    deterministic_hop_triggered: bool = False  # Whether deterministic hop was performed
+    deterministic_hop_keywords: list[str] = None  # All keywords extracted from query
+    deterministic_hop_unmatched: list[str] = None  # Keywords that required additional retrieval
+    deterministic_hop_chunk_count: int = 0  # Number of chunks retrieved via deterministic hop
+
 
 @dataclass
 class RAGTestSummary:
@@ -213,3 +222,13 @@ class RAGTestSummary:
     # Ground truth rank analysis (for MAXIMUM_FINAL_CHUNK_COUNT tuning)
     max_ground_truth_rank_found: int = 0  # Highest rank where any ground truth was found across all tests
     avg_max_ground_truth_rank: float = 0.0  # Average max rank per test
+
+    # Deterministic hop configuration
+    deterministic_hop_enabled: bool = RAG_ENABLE_DETERMINISTIC_HOP
+    deterministic_hop_chunk_limit: int = RAG_DETERMINISTIC_HOP_CHUNK_LIMIT
+    deterministic_hop_keyword_max_match: int = RAG_DETERMINISTIC_KEYWORD_MAX_MATCH
+
+    # Deterministic hop statistics
+    deterministic_hop_trigger_rate: float = 0.0  # Percentage of tests where deterministic hop triggered
+    deterministic_hop_avg_chunks: float = 0.0  # Average chunks retrieved via deterministic hop
+    deterministic_hop_ground_truth_found: int = 0  # Total ground truth chunks found via deterministic hop

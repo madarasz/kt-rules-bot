@@ -13,6 +13,7 @@ from src.lib.constants import (
     BM25_K1,
     BM25_WEIGHT,
     MAXIMUM_FINAL_CHUNK_COUNT,
+    RAG_ENABLE_DETERMINISTIC_HOP,
     RAG_ENABLE_QUERY_EXPANSION,
     RAG_ENABLE_QUERY_NORMALIZATION,
     RAG_HOP_EVALUATION_TIMEOUT,
@@ -23,6 +24,10 @@ from src.lib.constants import (
 from src.lib.logging import get_logger
 from src.models.rag_context import DocumentChunk, RAGContext
 from src.models.rag_request import RetrieveRequest
+from src.services.rag.deterministic_hop_retriever import (
+    DeterministicHopResult,
+    DeterministicHopRetriever,
+)
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.hybrid_retriever import HybridRetriever
 from src.services.rag.keyword_extractor import KeywordExtractor
@@ -99,10 +104,22 @@ class RAGRetriever:
             self.multi_hop_retriever = MultiHopRetriever(base_retriever=self)
             logger.info("multi_hop_enabled", max_hops=RAG_MAX_HOPS)
 
+        # Initialize deterministic hop retriever if enabled
+        self.deterministic_hop_retriever: DeterministicHopRetriever | None = None
+        if RAG_ENABLE_DETERMINISTIC_HOP:
+            self.deterministic_hop_retriever = DeterministicHopRetriever(
+                keyword_extractor=self.keyword_extractor,
+            )
+            logger.info(
+                "deterministic_hop_enabled",
+                keyword_headers_count=self.keyword_extractor.get_keyword_headers_count(),
+            )
+
         logger.info(
             "rag_retriever_initialized",
             hybrid_enabled=enable_hybrid,
             multi_hop_enabled=enable_multi_hop,
+            deterministic_hop_enabled=RAG_ENABLE_DETERMINISTIC_HOP,
             rrf_k=rrf_k,
             bm25_k1=bm25_k1,
             bm25_b=bm25_b,
@@ -113,7 +130,7 @@ class RAGRetriever:
 
     def retrieve(
         self, request: RetrieveRequest, query_id: UUID, verbose: bool = False
-    ) -> tuple[RAGContext, list[Any], dict[UUID, int]]:
+    ) -> tuple[RAGContext, list[Any], dict[UUID, int | str], DeterministicHopResult | None]:
         """Retrieve relevant rule documents for a user query.
 
         Implements the RAG pipeline contract from contracts/rag-pipeline.md.
@@ -127,7 +144,8 @@ class RAGRetriever:
             Tuple of:
             - RAGContext with retrieved chunks
             - List of HopEvaluation objects (empty if single-hop)
-            - Dict mapping chunk_id to hop number (all 0 if single-hop)
+            - Dict mapping chunk_id to hop number (0=initial, "D"=deterministic, 1+=multi-hop)
+            - DeterministicHopResult (None if not triggered)
 
         Raises:
             InvalidQueryError: If query is invalid
@@ -136,16 +154,33 @@ class RAGRetriever:
         # Validate query
         self._validate_query(request.query)
 
-        # Perform initial retrieval
+        # Perform initial retrieval (Hop 0)
         try:
             initial_chunks = self._perform_initial_retrieval(request)
         except Exception as e:
             logger.error("retrieval_failed", query_id=str(query_id), error=str(e))
             raise VectorDBUnavailableError(f"Vector DB query failed: {e}") from e
 
-        # If multi-hop enabled, continue with additional retrieval hops
+        # Initialize chunk_hop_map with Hop 0
+        chunk_hop_map: dict[UUID, int | str] = {c.chunk_id: 0 for c in initial_chunks}
+        deterministic_result: DeterministicHopResult | None = None
+
+        # Perform deterministic hop (Hop D) if enabled
+        if self.deterministic_hop_retriever:
+            initial_chunks, deterministic_result, chunk_hop_map = (
+                self._perform_deterministic_hop(
+                    query=request.query,
+                    existing_chunks=initial_chunks,
+                    query_id=query_id,
+                    chunk_hop_map=chunk_hop_map,
+                )
+            )
+
+        # If multi-hop enabled, continue with additional retrieval hops (Hop 1+)
         if request.use_multi_hop and self.multi_hop_retriever:
-            return self._perform_multi_hop_retrieval(request, query_id, initial_chunks, verbose)
+            return self._perform_multi_hop_retrieval(
+                request, query_id, initial_chunks, verbose, chunk_hop_map, deterministic_result
+            )
 
         # Single-hop: create context and return
         context = self._create_rag_context(query_id, initial_chunks, request.min_relevance)
@@ -154,12 +189,15 @@ class RAGRetriever:
             "retrieval_completed",
             query_id=str(query_id),
             chunks_found=len(initial_chunks),
+            deterministic_hop_triggered=deterministic_result.triggered
+            if deterministic_result
+            else False,
             avg_relevance=context.avg_relevance,
             meets_threshold=context.meets_threshold,
         )
 
-        # Return tuple for single-hop: context, empty hop_evaluations, empty chunk_hop_map
-        return context, [], {}
+        # Return tuple: context, hop_evaluations, chunk_hop_map, deterministic_result
+        return context, [], chunk_hop_map, deterministic_result
 
     def _perform_initial_retrieval(self, request: RetrieveRequest) -> list[DocumentChunk]:
         """Perform initial retrieval: normalize, embed, search, and apply hybrid if enabled.
@@ -225,6 +263,55 @@ class RAGRetriever:
 
         return normalized_query, expanded_query
 
+    def _perform_deterministic_hop(
+        self,
+        query: str,
+        existing_chunks: list[DocumentChunk],
+        query_id: UUID,
+        chunk_hop_map: dict[UUID, int | str],
+    ) -> tuple[list[DocumentChunk], DeterministicHopResult | None, dict[UUID, int | str]]:
+        """Perform deterministic hop retrieval for unmatched keywords.
+
+        Args:
+            query: User query
+            existing_chunks: Chunks from initial retrieval (Hop 0)
+            query_id: Query UUID
+            chunk_hop_map: Current chunk-hop mapping
+
+        Returns:
+            Tuple of (merged chunks, deterministic hop result, updated chunk_hop_map)
+        """
+        if not self.deterministic_hop_retriever:
+            return existing_chunks, None, chunk_hop_map
+
+        result = self.deterministic_hop_retriever.retrieve_deterministic(
+            query=query,
+            existing_chunks=existing_chunks,
+            vector_db_service=self.vector_db,
+            embedding_service=self.embedding_service,
+            query_id=query_id,
+        )
+
+        if not result.triggered or not result.chunks:
+            return existing_chunks, result, chunk_hop_map
+
+        # Mark deterministic hop chunks with "D" marker
+        for chunk in result.chunks:
+            chunk_hop_map[chunk.chunk_id] = "D"
+
+        # Merge chunks: existing + deterministic hop
+        merged = list(existing_chunks) + result.chunks
+
+        logger.info(
+            "deterministic_hop_merged",
+            initial_chunks=len(existing_chunks),
+            deterministic_chunks=len(result.chunks),
+            total_chunks=len(merged),
+            unmatched_keywords=result.unmatched_keywords,
+        )
+
+        return merged, result, chunk_hop_map
+
     def _create_rag_context(
         self, query_id: UUID, chunks: list[DocumentChunk], min_relevance: float
     ) -> RAGContext:
@@ -260,18 +347,26 @@ class RAGRetriever:
         )
 
     def _perform_multi_hop_retrieval(
-        self, request: RetrieveRequest, query_id: UUID, initial_chunks: list[DocumentChunk], verbose: bool = False
-    ) -> tuple[RAGContext, list[Any], dict[UUID, int]]:
+        self,
+        request: RetrieveRequest,
+        query_id: UUID,
+        initial_chunks: list[DocumentChunk],
+        verbose: bool = False,
+        initial_chunk_hop_map: dict[UUID, int | str] | None = None,
+        deterministic_result: DeterministicHopResult | None = None,
+    ) -> tuple[RAGContext, list[Any], dict[UUID, int | str], DeterministicHopResult | None]:
         """Perform multi-hop retrieval starting from initial chunks.
 
         Args:
             request: Retrieval request parameters
             query_id: Query UUID
-            initial_chunks: Initial retrieved chunks from Hop 0
+            initial_chunks: Initial retrieved chunks (from Hop 0 + Hop D)
             verbose: If True, capture filled prompts in HopEvaluation objects
+            initial_chunk_hop_map: Pre-existing chunk-hop mapping (from Hop 0 and Hop D)
+            deterministic_result: Result from deterministic hop (to pass through)
 
         Returns:
-            Tuple of (RAGContext, hop_evaluations, chunk_hop_map)
+            Tuple of (RAGContext, hop_evaluations, chunk_hop_map, deterministic_result)
         """
         # Normalize query for hop evaluation (same as initial retrieval)
         # This ensures the hop evaluation LLM sees properly capitalized keywords
@@ -321,17 +416,27 @@ class RAGRetriever:
 
         # Return result
         if result_container:
-            context, hop_evaluations, chunk_hop_map = result_container[0]
+            context, hop_evaluations, multi_hop_chunk_map = result_container[0]
+
+            # Merge chunk_hop_maps: initial (including "D") + multi-hop
+            # Multi-hop only adds new chunks with numbered hops (1, 2, ...)
+            merged_chunk_hop_map: dict[UUID, int | str] = {}
+            if initial_chunk_hop_map:
+                merged_chunk_hop_map.update(initial_chunk_hop_map)
+            # Add multi-hop chunks (won't overwrite existing 0 or "D" markers)
+            for chunk_id, hop_num in multi_hop_chunk_map.items():
+                if chunk_id not in merged_chunk_hop_map:
+                    merged_chunk_hop_map[chunk_id] = hop_num
 
             # Apply final reranking and limiting to multi-hop accumulated chunks
             reranked_context, updated_chunk_hop_map = self.rerank_and_limit_final_chunks(
                 _query=request.query,
                 chunks=context.document_chunks,
                 query_id=query_id,
-                chunk_hop_map=chunk_hop_map,
+                chunk_hop_map=merged_chunk_hop_map,
             )
 
-            return reranked_context, hop_evaluations, updated_chunk_hop_map
+            return reranked_context, hop_evaluations, updated_chunk_hop_map, deterministic_result
 
         raise RuntimeError("Multi-hop retrieval completed but produced no result")
 
@@ -403,8 +508,8 @@ class RAGRetriever:
         return chunks
 
     def rerank_and_limit_final_chunks(
-        self, _query: str, chunks: list[DocumentChunk], query_id: UUID, chunk_hop_map: dict[UUID, int]
-    ) -> tuple[RAGContext, dict[UUID, int]]:
+        self, _query: str, chunks: list[DocumentChunk], query_id: UUID, chunk_hop_map: dict[UUID, int | str]
+    ) -> tuple[RAGContext, dict[UUID, int | str]]:
         """Sort accumulated chunks by relevance score and limit to maximum count.
 
         This method is used by multi-hop retrieval to finalize all accumulated chunks

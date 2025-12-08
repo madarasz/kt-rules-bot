@@ -190,10 +190,10 @@ class RAGTestRunner:
         total_cost = 0.0
         ragas_metrics = None
 
-        # Retrieve chunks (returns tuple: context, hop_evaluations, chunk_hop_map)
+        # Retrieve chunks (returns tuple: context, hop_evaluations, chunk_hop_map, deterministic_result)
         start_time = time.time()
         try:
-            rag_context, hop_evaluations, chunk_hop_map = self.retriever.retrieve(request, query_id)
+            rag_context, hop_evaluations, chunk_hop_map, deterministic_result = self.retriever.retrieve(request, query_id)
             retrieval_time = time.time() - start_time
 
             # Calculate costs following Discord bot pattern
@@ -257,6 +257,13 @@ class RAGTestRunner:
                 result.chunk_hop_numbers = [
                     chunk_hop_map.get(chunk.chunk_id, 0) for chunk in rag_context.document_chunks
                 ]
+
+            # Add deterministic hop data to result
+            if deterministic_result is not None:
+                result.deterministic_hop_triggered = deterministic_result.triggered
+                result.deterministic_hop_keywords = deterministic_result.query_keywords
+                result.deterministic_hop_unmatched = deterministic_result.unmatched_keywords
+                result.deterministic_hop_chunk_count = len(deterministic_result.chunks)
 
             # Evaluate with Ragas metrics
             ragas_metrics = self.ragas_evaluator.evaluate(
@@ -743,6 +750,29 @@ class RAGTestRunner:
             sum(max_ground_truth_ranks) / len(max_ground_truth_ranks) if max_ground_truth_ranks else 0.0
         )
 
+        # Calculate deterministic hop statistics
+        results_with_det_hop = [r for r in results if r.deterministic_hop_triggered]
+        deterministic_hop_trigger_rate = len(results_with_det_hop) / len(results) if results else 0.0
+        deterministic_hop_avg_chunks = (
+            sum(r.deterministic_hop_chunk_count for r in results_with_det_hop) / len(results_with_det_hop)
+            if results_with_det_hop
+            else 0.0
+        )
+
+        # Calculate ground truth chunks found via deterministic hop
+        deterministic_hop_ground_truth_found = 0
+        for result in results:
+            if result.chunk_hop_numbers and result.ground_truth_contexts:
+                for i, chunk_text in enumerate(result.retrieved_chunk_texts):
+                    hop_marker = result.chunk_hop_numbers[i]
+                    # Check for "D" marker (deterministic hop)
+                    if hop_marker == "D":
+                        gt_values = result.ground_truth_values.values() if result.ground_truth_values else result.ground_truth_contexts
+                        for gt_value in gt_values:
+                            if ground_truth_matches_text(gt_value, chunk_text):
+                                deterministic_hop_ground_truth_found += 1
+                                break
+
         # Calculate test metadata
         # Determine runs per test by checking how many results share the same test_id
         runs_per_test = 1
@@ -803,4 +833,7 @@ class RAGTestRunner:
             hop_can_answer_precision=hop_can_answer_precision,
             max_ground_truth_rank_found=max_ground_truth_rank_found,
             avg_max_ground_truth_rank=avg_max_ground_truth_rank,
+            deterministic_hop_trigger_rate=deterministic_hop_trigger_rate,
+            deterministic_hop_avg_chunks=deterministic_hop_avg_chunks,
+            deterministic_hop_ground_truth_found=deterministic_hop_ground_truth_found,
         )

@@ -121,7 +121,7 @@ LLM_EXTRACTION_TIMEOUT = 300  # PDF extraction timeout (5 minutes for large PDFs
 LLM_JUDGE_TIMEOUT = 30  # Quality test judge evaluation timeout
 
 # Default LLM generation parameters
-LLM_DEFAULT_MAX_TOKENS = 1024  # Maximum response length
+LLM_DEFAULT_MAX_TOKENS = 2048  # Maximum response length
 LLM_DEFAULT_TEMPERATURE = 0.1  # Lower = more deterministic (0.0-1.0)
 
 
@@ -282,6 +282,26 @@ RAG_ENABLE_QUERY_EXPANSION = True
 
 # Path to synonym dictionary mapping user terms to official terminology
 RAG_SYNONYM_DICT_PATH = "data/rag_synonyms.json"
+
+# ============================================================================
+# Deterministic Hop Constants
+# ============================================================================
+
+# Enable/disable deterministic hop retrieval (default: True)
+# When enabled, keywords from the query are matched to chunk headers
+# to retrieve potentially relevant chunks before LLM-guided multi-hop
+RAG_ENABLE_DETERMINISTIC_HOP = True
+
+# Maximum chunks to retrieve via deterministic hop (default: 5)
+# These chunks are added to initial retrieval before multi-hop evaluation
+RAG_DETERMINISTIC_HOP_CHUNK_LIMIT = 5
+
+# Maximum number of headers a keyword can match before being filtered out (default: 5)
+# Keywords that match too many headers are too generic and not useful for retrieval
+RAG_DETERMINISTIC_KEYWORD_MAX_MATCH = 5
+
+# Path to keyword-to-headers mapping (built during ingestion)
+RAG_KEYWORD_HEADERS_PATH = "extracted-rules/rag_keyword_headers.json"
 
 # ============================================================================
 # Multi-Hop RAG Constants

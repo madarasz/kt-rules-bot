@@ -159,6 +159,24 @@ class RAGReportGenerator:
 
             content.append("")
 
+        # Deterministic hop metrics (if enabled)
+        if summary.deterministic_hop_enabled:
+            content.append("### Deterministic Hop")
+            content.append("")
+            content.append("| Metric | Value | Description |")
+            content.append("|--------|-------|-------------|")
+            content.append(
+                f"| **Trigger Rate** | {summary.deterministic_hop_trigger_rate * 100:.1f}% | Percentage of tests where deterministic hop triggered |"
+            )
+            content.append(
+                f"| **Avg Chunks Retrieved** | {summary.deterministic_hop_avg_chunks:.2f} | Average chunks retrieved via deterministic hop |"
+            )
+            content.append(
+                f"| **Ground Truth Found** | {summary.deterministic_hop_ground_truth_found} | Total ground truth chunks found via deterministic hop |"
+            )
+            content.append(f"| **Chunk Limit** | {summary.deterministic_hop_chunk_limit} | Maximum chunks retrievable via deterministic hop |")
+            content.append("")
+
         # Max ground truth rank metrics (for MAXIMUM_FINAL_CHUNK_COUNT tuning)
         # Always show this section, even if 0, to help diagnose retrieval issues
         content.append("### Ground Truth Rank Analysis")
@@ -256,6 +274,13 @@ class RAGReportGenerator:
             content.append(f"| RAG_HOP_CHUNK_LIMIT | {summary.rag_hop_chunk_limit} |")
             content.append(f"| RAG_HOP_EVALUATION_MODEL | {summary.rag_hop_evaluation_model} |")
             content.append(f"| MAXIMUM_FINAL_CHUNK_COUNT | {summary.maximum_final_chunk_count} |")
+
+        # Add deterministic hop configuration
+        content.append("| **Deterministic Hop Settings** | |")
+        content.append(f"| RAG_ENABLE_DETERMINISTIC_HOP | {'Enabled' if summary.deterministic_hop_enabled else 'Disabled'} |")
+        if summary.deterministic_hop_enabled:
+            content.append(f"| RAG_DETERMINISTIC_HOP_CHUNK_LIMIT | {summary.deterministic_hop_chunk_limit} |")
+            content.append(f"| RAG_DETERMINISTIC_KEYWORD_MAX_MATCH | {summary.deterministic_hop_keyword_max_match} |")
 
         content.append("")
 
@@ -416,6 +441,14 @@ class RAGReportGenerator:
                     content.append(f"- {chunk}")
                 content.append("")
 
+            # Deterministic hop info (if triggered)
+            if first_result.deterministic_hop_triggered:
+                content.append("**Deterministic Hop**: ✅ Triggered")
+                content.append(f"- **Keywords Found**: {', '.join(first_result.deterministic_hop_keywords or [])}")
+                content.append(f"- **Unmatched Keywords**: {', '.join(first_result.deterministic_hop_unmatched or [])}")
+                content.append(f"- **Chunks Retrieved**: {first_result.deterministic_hop_chunk_count}")
+                content.append("")
+
             # Hop evaluations (if multi-hop retrieval was attempted)
             if first_result.hop_evaluations:
                 content.append("**Hop Evaluations**:")
@@ -438,8 +471,9 @@ class RAGReportGenerator:
             content.append("**Retrieved Chunks**:")
             content.append("")
 
-            # Table header - add hop column if multi-hop retrieval was attempted
-            if first_result.hop_evaluations:
+            # Table header - add hop column if multi-hop or deterministic hop was used
+            show_hop_column = first_result.hop_evaluations or first_result.deterministic_hop_triggered
+            if show_hop_column:
                 content.append("| Rank | Hop | Chunk | Final | Vector | BM25 | RRF |")
                 content.append("|------|-----|-------|-------|--------|------|-----|")
             else:
@@ -492,8 +526,8 @@ class RAGReportGenerator:
                 # RRF score should always be present
                 rrf_score = metadata.get("rrf_score", 0.0)
 
-                # Format as table row - include hop number if multi-hop retrieval was attempted
-                if first_result.hop_evaluations:
+                # Format as table row - include hop number if multi-hop or deterministic hop was used
+                if show_hop_column:
                     content.append(
                         f"| {i} | {hop_num} | {chunk_header}{marker} | {relevance:.4f} | {vector_display} | {bm25_display} | {rrf_score:.4f} |"
                     )

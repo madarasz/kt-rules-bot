@@ -158,7 +158,7 @@ async def _perform_rag_retrieval(
     # Note: verbose parameter is not supported by orchestrator, so we call RAG service directly
     if verbose:
         # For verbose mode, call RAG service directly to capture detailed prompts
-        rag_context, hop_evaluations, chunk_hop_map = services.rag_retriever.retrieve(
+        rag_context, hop_evaluations, chunk_hop_map, _deterministic_result = services.rag_retriever.retrieve(
             RetrieveRequest(
                 query=query,
                 context_key="cli:test",

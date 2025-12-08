@@ -110,7 +110,7 @@ def test_chunk_summary_ingestion_to_retrieval_e2e(temp_chroma_db, temp_rules_dir
         max_chunks=5
     )
 
-    context, _, _ = retriever.retrieve(request, query_id=uuid4())
+    context, _, _, _ = retriever.retrieve(request, query_id=uuid4())
 
     # Should find relevant chunks
     assert context.total_chunks > 0, "Should retrieve chunks about movement"
@@ -138,7 +138,7 @@ def test_chunk_summary_ingestion_to_retrieval_e2e(temp_chroma_db, temp_rules_dir
         max_chunks=3
     )
 
-    context2, _, _ = retriever.retrieve(request2, query_id=uuid4())
+    context2, _, _, _ = retriever.retrieve(request2, query_id=uuid4())
 
     # Should find Overwatch content (summaries help with semantic understanding)
     assert context2.total_chunks > 0
