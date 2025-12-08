@@ -27,6 +27,7 @@ class Config:
     x_api_key: str | None = None
     dial_api_key: str | None = None
     deepseek_api_key: str | None = None
+    mistral_api_key: str | None = None
 
     # LLM Selection
     default_llm_provider: LLM_PROVIDERS_LITERAL = os.getenv(
@@ -147,6 +148,7 @@ class Config:
             x_api_key=os.getenv("X_API_KEY"),
             dial_api_key=os.getenv("DIAL_API_KEY"),
             deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
+            mistral_api_key=os.getenv("MISTRAL_API_KEY"),
             # LLM Selection
             default_llm_provider=os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER),  # type: ignore
             # RAG

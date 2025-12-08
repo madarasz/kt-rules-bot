@@ -115,6 +115,14 @@ def estimate_cost(prompt_tokens: int, completion_tokens: int, model: str) -> flo
         "deepseek-reasoner": {"prompt": 0.00028, "completion": 0.00042},
         # https://docs.x.ai/docs/models
         "grok-4-1-fast-reasoning": {"prompt": 0.0002, "completion": 0.0005},
+        # https://mistral.ai/pricing#api-pricing
+        "mistral-large": {"prompt": 0.0005, "completion": 0.0015},
+        "mistral-medium": {"prompt": 0.0004, "completion": 0.002},
+        "mistral-small": {"prompt": 0.0001, "completion": 0.0003},
+        "mistral-large-latest": {"prompt": 0.0005, "completion": 0.0015},
+        "mistral-medium-2505": {"prompt": 0.0004, "completion": 0.002},
+        "mistral-small-latest": {"prompt": 0.0001, "completion": 0.0003},
+        "magistral-medium-latest": {"prompt": 0.002, "completion": 0.005},
     }
 
     # Default pricing if model not found

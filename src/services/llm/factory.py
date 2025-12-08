@@ -15,6 +15,7 @@ from src.services.llm.deepseek import DeepSeekAdapter
 from src.services.llm.dial import DialAdapter
 from src.services.llm.gemini import GeminiAdapter
 from src.services.llm.grok import GrokAdapter
+from src.services.llm.mistral import MistralAdapter
 
 logger = get_logger(__name__)
 
@@ -50,6 +51,10 @@ class LLMProviderFactory:
         "grok-3-mini": (GrokAdapter, "grok-3-mini", "x"),
         "deepseek-chat": (DeepSeekAdapter, "deepseek-chat", "deepseek"),
         "deepseek-reasoner": (DeepSeekAdapter, "deepseek-reasoner", "deepseek"),
+        "mistral-large": (MistralAdapter, "mistral-large-latest", "mistral"),
+        "mistral-medium": (MistralAdapter, "mistral-medium-2505", "mistral"),
+        "mistral-small": (MistralAdapter, "mistral-small-latest", "mistral"),
+        "magistral-medium-latest": (MistralAdapter, "magistral-medium-latest", "mistral"),
         "dial-gpt-4o": (DialAdapter, "gpt-4o", "dial"),
         "dial-gpt-4.1": (DialAdapter, "gpt-4.1-2025-04-14", "dial"),
         "dial-gpt-5": (DialAdapter, "gpt-5-2025-08-07", "dial"),
@@ -137,6 +142,7 @@ class LLMProviderFactory:
                 "x": server_config.x_api_key,
                 "dial": server_config.dial_api_key,
                 "deepseek": server_config.deepseek_api_key,
+                "mistral": server_config.mistral_api_key,
             }
             api_key = server_api_key_map.get(api_key_type)
         else:
@@ -148,6 +154,7 @@ class LLMProviderFactory:
                 "x": config.x_api_key,
                 "dial": config.dial_api_key,
                 "deepseek": config.deepseek_api_key,
+                "mistral": config.mistral_api_key,
             }
             api_key = global_api_key_map.get(api_key_type)
 
@@ -161,6 +168,7 @@ class LLMProviderFactory:
                 "x": "X_API_KEY",
                 "dial": "DIAL_API_KEY",
                 "deepseek": "DEEPSEEK_API_KEY",
+                "mistral": "MISTRAL_API_KEY",
             }
 
             missing_key = api_key_env_map[api_key_type]
