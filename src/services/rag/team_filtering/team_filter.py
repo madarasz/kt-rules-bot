@@ -124,11 +124,11 @@ class TeamFilter:
             relevant_teams: List of team names to include
 
         Returns:
-            Filtered teams structure (or full structure if empty list)
+            Filtered teams structure (empty dict if no teams detected)
         """
         if not relevant_teams:
-            # No teams detected - return full structure
-            return self.teams_structure
+            # No teams detected - return empty structure
+            return {}
 
         filtered = {
             team: self.teams_structure[team]
@@ -147,7 +147,7 @@ def filter_teams_for_query(query: str, teams_structure: dict[str, Any]) -> dict[
         teams_structure: Full teams structure dictionary
 
     Returns:
-        Filtered teams structure (or full structure if no teams detected)
+        Filtered teams structure (empty dict if no teams detected)
     """
     team_filter = TeamFilter(teams_structure)
     relevant_teams = team_filter.extract_relevant_teams(query)

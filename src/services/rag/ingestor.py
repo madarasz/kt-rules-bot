@@ -162,11 +162,8 @@ class RAGIngestor:
                         )
 
                 # Generate embeddings for chunks
-                # Include summary in embedding text for better semantic search
-                chunk_texts = [
-                    f"{chunk.header}\n{chunk.summary}\n{chunk.text}" if chunk.summary else chunk.text
-                    for chunk in chunks
-                ]
+                # Use original chunk text only (summary stored in metadata)
+                chunk_texts = [chunk.text for chunk in chunks]
                 embeddings = self._generate_embeddings_with_retry(chunk_texts, document.filename)
 
                 # Prepare data for vector DB
