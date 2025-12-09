@@ -9,6 +9,7 @@ from src.cli.download_team import download_team
 from src.cli.gdpr_delete import delete_user_data
 from src.cli.health_check import health_check
 from src.cli.ingest_rules import ingest_rules
+from src.cli.maintenance import maintenance
 from src.cli.quality_test import quality_test
 from src.cli.rag_test import rag_test
 from src.cli.rag_test_sweep import rag_test_sweep
@@ -121,6 +122,18 @@ def create_parser() -> argparse.ArgumentParser:
     )
     gdpr_parser.add_argument("user_id", help="Discord user ID or hashed user ID")
     gdpr_parser.add_argument("--confirm", action="store_true", help="Skip confirmation prompt")
+
+    # Command: maintenance
+    maintenance_parser = subparsers.add_parser(
+        "maintenance",
+        help="Enable/disable maintenance mode",
+        description="Control bot maintenance mode (bot responds with maintenance message)",
+    )
+    maintenance_parser.add_argument(
+        "action",
+        choices=["on", "off", "status"],
+        help="Action: on (enable), off (disable), status (check current state)",
+    )
 
     # Command: quality-test
     quality_parser = subparsers.add_parser(
@@ -320,6 +333,9 @@ def main() -> None:
 
         elif args.command == "gdpr-delete":
             delete_user_data(user_id=args.user_id, confirm=args.confirm)
+
+        elif args.command == "maintenance":
+            maintenance(action=args.action)
 
         elif args.command == "quality-test":
             quality_test(

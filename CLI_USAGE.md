@@ -195,6 +195,21 @@ python -m src.cli health --wait-for-discord
 
 ---
 
+### `maintenance` - Maintenance mode
+
+```bash
+# Enable maintenance mode
+python3 -m src.cli maintenance on
+
+# Disable maintenance mode
+python3 -m src.cli maintenance off
+
+# Check current status
+python3 -m src.cli maintenance status
+```
+
+---
+
 ### `gdpr-delete` - Delete User Data (GDPR Compliance)
 
 Delete all data for a user to comply with GDPR right to erasure.

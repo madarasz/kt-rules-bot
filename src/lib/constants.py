@@ -82,15 +82,15 @@ QUALITY_TEST_PROVIDERS = [
     "gpt-4.1",
     #"gpt-4o",
     # "gpt-4.1-mini",
-    #"claude-4.5-sonnet",
-   # "claude-4.5-opus",
+    "claude-4.5-sonnet",
+    #"claude-4.5-opus",
     #"gemini-3-pro-preview",
-    #"gemini-2.5-flash",
-    #"gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
     #"deepseek-chat",
-    #"grok-4-1-fast-reasoning",
+    "grok-4-1-fast-reasoning",
     "mistral-large",
-    "mistral-medium",
+    #"mistral-medium",
     # "grok-3",
     # "grok-3-mini",
     # "deepseek-reasoner"
@@ -134,7 +134,7 @@ LLM_EXTRACTION_TEMPERATURE = 0  # Low temperature for consistent structure
 # ============================================================================
 
 # Default judge model for quality tests (used by both Ragas and custom judge)
-QUALITY_TEST_JUDGE_MODEL = "claude-4.5-opus"
+QUALITY_TEST_JUDGE_MODEL = "gemini-2.5-pro"
 
 # Quality test judging mode
 # - "RAGAS": Enable LLM-based metrics (Quote Faithfulness, Explanation Faithfulness, Answer Correctness) using Ragas library
@@ -315,6 +315,18 @@ TEAMS_STRUCTURE_PATH = "extracted-rules/teams-structure.yml"
 
 # Max length of chunk text for hop evaluation formatting
 MAX_CHUNK_LENGTH_FOR_EVALUATION = 500
+
+# ============================================================================
+# Maintenance Mode Constants
+# ============================================================================
+
+# Path to maintenance mode flag file
+# Create this file to enable maintenance mode: touch data/maintenance.flag
+# Delete this file to disable maintenance mode: rm data/maintenance.flag
+MAINTENANCE_FLAG_PATH = "data/maintenance.flag"
+
+# Message shown to users during maintenance
+MAINTENANCE_MESSAGE = "🚧 The Oracle enters a mandatory recalibration cycle. Your primitive queries must wait while systems older than your species realign. Return when the stars permit. 🚧"
 
 # ============================================================================
 # Notes

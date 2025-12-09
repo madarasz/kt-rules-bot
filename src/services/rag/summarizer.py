@@ -124,7 +124,7 @@ class ChunkSummarizer:
                 ],
                 response_format=ChunkSummaries,
                 temperature=0.3,
-                max_tokens=LLM_DEFAULT_MAX_TOKENS * 2,
+                max_tokens=LLM_DEFAULT_MAX_TOKENS * 3,
             )
 
             latency_ms = int((time.time() - start_time) * 1000)

@@ -1,10 +1,12 @@
 """Discord message handlers for @ mentions."""
 
+import os
 from datetime import UTC, datetime
 from uuid import uuid4
 
 import discord
 
+from src.lib.constants import MAINTENANCE_FLAG_PATH, MAINTENANCE_MESSAGE
 from src.lib.logging import get_logger
 from src.lib.validation import sanitize_discord_message
 from src.models.user_query import UserQuery
@@ -27,6 +29,11 @@ async def handle_message(bot, message: discord.Message, orchestrator) -> None:
 
     # Check if bot is mentioned
     if bot.user not in message.mentions:
+        return
+
+    # Check maintenance mode
+    if os.path.exists(MAINTENANCE_FLAG_PATH):
+        await message.channel.send(MAINTENANCE_MESSAGE)
         return
 
     # Extract query text (remove @ mention)
