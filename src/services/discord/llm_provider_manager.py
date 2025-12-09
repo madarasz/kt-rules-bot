@@ -20,6 +20,7 @@ class LLMProviderManager:
         "grok": "X_API_KEY",
         "deepseek": "DEEPSEEK_API_KEY",
         "dial": "DIAL_API_KEY",
+        "mistral": "MISTRAL_API_KEY",
     }
 
     def __init__(self, llm_factory: LLMProviderFactory):
