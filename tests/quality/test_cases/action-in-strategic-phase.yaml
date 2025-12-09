@@ -1,0 +1,24 @@
+test_id: action-in-strategic-phase
+context_file: tests/quality/test_cases/action-in-strategic-phase-context.json
+query: >
+  Can a nemesis claw operative do a reposition/charge if the return to darkness ploy was used to move it?
+ground_truth_answers:
+  - key: "Final Answer"
+    text: "Yes, it can do a Reposition or Charge action."
+    priority: critical
+  - key: "Outside activation"
+    text: "The Return to Darkness occurs during the Strategic Phase, outside of an operative's activation."
+    priority: important
+  - key: "Activation restriction"
+    text: "Restrictions on performing the actions again only apply during the same activation."
+    priority: critical
+ground_truth_contexts:
+  - key: "RETURN TO DARKNESS"
+    text: "One friendly **NEMESIS CLAW** operative can immediately perform a free **Fall Back** or **Reposition** action"
+    priority: critical
+  - key: "REPOSITION"
+    text: "An operative cannot perform this action while within control range of an enemy operative, or during the same activation in which it performed the **Fall Back** or **Charge** action"
+    priority: important
+  - key: "CHARGE"
+    text: "An operative cannot perform this action while it has a Conceal order, if it's already within control range of an enemy operative, or during the same activation in which it performed the **Reposition**, **Dash** or **Fall Back** action"
+    priority: important
