@@ -1,7 +1,9 @@
+# Hop judge test 2025.12.08.
+- `mistral-medium` is slightly better, slightly faster, but with almost half the hops.
 # Hop judge test 2025.12.04.
 - `gpt-5-nano` and `gpt-5-mini` need a lot of max tokens (1024), then they time out on 20s, VERY SLOW
 - `gpt-4-nano` is a bit worse than (-3% Recall, always hops) `gpt-4.1-mini`, but dirt cheap (0.3¢)
-- `claude-4.5-haiku` has better results (+6% Recall with half the hops) than `gpt-4.1-mini`, but +1¢ in cost. Rag-tests struggle with its rate limiting, timeout and delay has to be raised tremendously. probably OK for production though. It could be great if hop evaulation prompt can be shortened.
+- `claude-4.5-haiku` has better results (+6% Recall with half the hops) than `gpt-4.1-mini`, but +1¢ in cost. Rag-tests struggle with its rate limiting, timeout and delay has to be raised tremendously. probably OK for production though. It could be great if hop evaulation prompt can be shortened. UPDATE: It often fails to answer within 20s, so it's very slow as a hop eveulator.
 # Test set update 2025.11.19.
 - new RAG est set codename: `THANKS-GIVING`
 - commented out couple of trivial tests

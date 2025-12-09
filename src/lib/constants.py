@@ -86,10 +86,10 @@ QUALITY_TEST_PROVIDERS = [
     #"claude-4.5-opus",
     #"gemini-3-pro-preview",
     "gemini-2.5-flash",
-    "gemini-2.5-pro",
+    #"gemini-2.5-pro",
     #"deepseek-chat",
     "grok-4-1-fast-reasoning",
-    "mistral-large",
+    #"mistral-large",
     #"mistral-medium",
     # "grok-3",
     # "grok-3-mini",
@@ -134,7 +134,7 @@ LLM_EXTRACTION_TEMPERATURE = 0  # Low temperature for consistent structure
 # ============================================================================
 
 # Default judge model for quality tests (used by both Ragas and custom judge)
-QUALITY_TEST_JUDGE_MODEL = "gemini-2.5-pro"
+QUALITY_TEST_JUDGE_MODEL = "claude-4.5-haiku"
 
 # Quality test judging mode
 # - "RAGAS": Enable LLM-based metrics (Quote Faithfulness, Explanation Faithfulness, Answer Correctness) using Ragas library

@@ -1,14 +1,37 @@
 # Decisions
 ## LLM models removed from consideration
-- `GPT-5`, `grok-4-0709`, `gemini-3-pro-preview`: VERY SLOW (often around 2 mins or more)
-- `grok-4-1-fast-reasoning` has very good answers, but takes 30-40s to answer, is SLOW
+- `gpt-5`, `grok-4-0709`, `gemini-3-pro-preview`: VERY SLOW (often around 2 mins or more)
+- `gpt-5.1-chat-latest` is not that impressive, `gpt-4.1` is slightly better, slightly faster, only a little bit more expensive
 - `gtp-4o` gives bad answers and is expensive
+- `claude-4.5-opus`: expensive (6¢+), slow, does not support Pydantic JSON output, sometimes break
 - `claude-4.1-opus`: 5-8x more expensive than other models, and does not preform well either (already superseeded by 4.5 Opus)
+- `gemini-2.5-pro`: on par with `gemini-2.5-flash`, but slower and more expensive
+- `mistral-medium` and `magistral-medium-latest` give bad answers
+- `deepseek-chat` is OK, cheap, but slow. `grok-4.1-fast-reasoning` is similar, but with better results.
 
 ## Models for judging
-- `gtp-4o` is unsuitable as a judge, it has a lot of false negative judgements, moved to `claude-4.5-opus` instead.
+- `gtp-4o` is unsuitable as a judge, it has a lot of false negative judgements,`claude-4.5-opus` is great, but it is very expensive. `claude-4.5-sonnet` is too permissive. `claude-4.5-haiku` is promising as a judge.
 
 # Test results
+
+## Big model test - 2025.12.09
+![chart](quality_test_2025-12-09_multirun_3x.png)
+|Model                   | Avg Score % | Avg Time/Query | Avg Cost/Query|
+|------------------------|-------------|----------------|---------------|
+|claude-4.5-sonnet       | 85.7%       | 12.30s         | $0.0273       | 
+|grok-4-1-fast-reasoning | 81.7%       | 22.06s         | $0.0016       |
+|gemini-2.5-flash        | 80.2%       | 9.36s          | $0.0035       |
+|gpt-4.1                 | 78.8%       | 7.70s          | $0.0169       |
+|mistral-large           | 73.2%       | 12.83s         | $0.0042       |
+|deepseek-chat           | 71.3%       | 18.84s         | $0.0023       |
+These models have decent scores:
+- BEST ANSWERS: `claude-4.5-sonnet`
+- CHEAPEST, BUT SLOW: `grok-4-1-fast-reasoning`
+- CHEAP, BUT FAST: `gemini-2.5-flash`
+- FASTEST, MOST COMPACT ANSWERS: `gpt-4.1`
+
+## Comprehensive quality tests - 2025.12.03
+- Improved quality tests: Fuzzy search for **quotes faithfullness**, custom judge LLM for **explanation faithfullness** and **answer correctness**. Validates test results and test case data.
 
 ## Compared 3 questions and their answers for different models with Gemini 3 Pro
 - `gtp-5.1-chat-latest`: Elite, best rule hierarchy. Cost: great, Latency: fast (<10s)
@@ -20,7 +43,7 @@
 
 ## Gemini File Search - 2025.11.15
 - Implemented it on branch `gemini-file-search`
-- Quality is bad, used default chunking strategy (token lenght based)
+- Results are bad, used default chunking strategy (token lenght based)
 
 ## Multihop 2 tests - 2025.11.14.
 ### If my plant banner is picked up by my opponent and the carrier dies, who places the banner, me or my opponent?
