@@ -1,6 +1,5 @@
 """Maintenance mode CLI command."""
 
-import os
 import sys
 from pathlib import Path
 
@@ -20,7 +19,7 @@ def maintenance(action: str) -> None:
         try:
             flag_path.parent.mkdir(parents=True, exist_ok=True)
             flag_path.touch()
-            print(f"✅ Maintenance mode enabled")
+            print("✅ Maintenance mode enabled")
             print(f"   Users will see: {MAINTENANCE_MESSAGE}")
             print(f"   Flag file created: {flag_path}")
         except Exception as e:
@@ -43,11 +42,11 @@ def maintenance(action: str) -> None:
     elif action == "status":
         # Check current status
         if flag_path.exists():
-            print(f"🔧 Maintenance mode is ENABLED")
+            print("🔧 Maintenance mode is ENABLED")
             print(f"   Flag file: {flag_path}")
             print(f"   Users see: {MAINTENANCE_MESSAGE}")
         else:
-            print(f"✅ Maintenance mode is DISABLED")
+            print("✅ Maintenance mode is DISABLED")
             print(f"   Flag file: {flag_path} (does not exist)")
 
     else:
