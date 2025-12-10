@@ -222,10 +222,10 @@ class TestFilterStructure:
         assert "Death Korps" not in filtered
 
     def test_filter_with_empty_list(self, sample_teams_structure):
-        """Test filtering with empty list returns full structure."""
+        """Test filtering with empty list returns empty structure (no teams detected)."""
         team_filter = TeamFilter(sample_teams_structure)
         filtered = team_filter.filter_structure([])
-        assert filtered == sample_teams_structure
+        assert filtered == {}
 
     def test_filter_with_nonexistent_team(self, sample_teams_structure):
         """Test filtering with non-existent team name."""
@@ -258,9 +258,9 @@ class TestFilterTeamsForQuery:
         assert len(filtered) <= len(sample_teams_structure)
 
     def test_convenience_function_no_match(self, sample_teams_structure):
-        """Test convenience function with no matches returns full structure."""
+        """Test convenience function with no matches returns empty structure."""
         filtered = filter_teams_for_query("completely unrelated xyz", sample_teams_structure)
-        assert filtered == sample_teams_structure
+        assert filtered == {}
 
     def test_convenience_function_multiple_matches(self, sample_teams_structure):
         """Test convenience function with multiple team matches."""

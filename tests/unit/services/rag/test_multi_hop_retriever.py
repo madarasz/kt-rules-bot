@@ -167,8 +167,8 @@ class TestFormatChunksForPrompt:
         retriever = MultiHopRetriever(Mock())
         result = retriever._format_chunks_for_prompt([sample_chunks[0]])
 
-        # With SUMMARY_ENABLED=True, format is "1. ## {text}"
-        assert "1. ## Content about overwatch" in result
+        # Without summary metadata, format is "{i}. {text}\n"
+        assert "1. Content about overwatch" in result
 
     @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
     @patch("builtins.open", create=True)
@@ -182,9 +182,9 @@ class TestFormatChunksForPrompt:
         retriever = MultiHopRetriever(Mock())
         result = retriever._format_chunks_for_prompt(sample_chunks)
 
-        # With SUMMARY_ENABLED=True, format is "{i}. ## {text}"
-        assert "1. ## Content about overwatch" in result
-        assert "2. ## Content about charges" in result
+        # Without summary metadata, format is "{i}. {text}\n"
+        assert "1. Content about overwatch" in result
+        assert "2. Content about charges" in result
 
     @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
     @patch("builtins.open", create=True)
@@ -219,30 +219,45 @@ class TestFormatChunksForPrompt:
     @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
     @patch("builtins.open", create=True)
     @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
-    @patch("src.services.rag.multi_hop_retriever.SUMMARY_ENABLED", True)
-    def test_format_with_summary_enabled(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
-        """Test chunk formatting when SUMMARY_ENABLED is True."""
+    def test_format_with_summary_metadata(self, mock_yaml_load, mock_open, mock_create):
+        """Test chunk formatting when summary metadata is present."""
         mock_create.return_value = Mock()
         mock_yaml_load.return_value = {}
         mock_open.return_value.__enter__.return_value.read.return_value = "prompt"
 
-        retriever = MultiHopRetriever(Mock())
-        result = retriever._format_chunks_for_prompt(sample_chunks)
+        # Create chunks with summary metadata
+        chunks_with_summary = [
+            DocumentChunk(
+                chunk_id=uuid4(),
+                document_id=uuid4(),
+                text="## Overwatch Rules\nDetailed overwatch content here",
+                header="Overwatch Rules",
+                header_level=2,
+                metadata={
+                    "source": "core-rules.md",
+                    "doc_type": "core-rules",
+                    "publication_date": "2024-01-01",
+                    "summary": "Rules for using overwatch action",
+                },
+                relevance_score=0.9,
+                position_in_doc=1,
+            ),
+        ]
 
-        # With SUMMARY_ENABLED=True, format is "{i}. ## {text}"
-        # Headers should NOT be shown separately (only text)
-        assert "1. ## Content about overwatch" in result
-        assert "2. ## Content about charges" in result
-        # Headers should not appear as **Header** format
-        assert "**Overwatch Rules**" not in result
-        assert "**Charge Rules**" not in result
+        retriever = MultiHopRetriever(Mock())
+        result = retriever._format_chunks_for_prompt(chunks_with_summary)
+
+        # With summary metadata, format is "{i}. {header_line}\n{summary}\n"
+        assert "1. ## Overwatch Rules" in result
+        assert "Rules for using overwatch action" in result
+        # Full text content should NOT appear (only header + summary)
+        assert "Detailed overwatch content here" not in result
 
     @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
     @patch("builtins.open", create=True)
     @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
-    @patch("src.services.rag.multi_hop_retriever.SUMMARY_ENABLED", False)
-    def test_format_with_summary_disabled(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
-        """Test chunk formatting when SUMMARY_ENABLED is False."""
+    def test_format_without_summary_metadata(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
+        """Test chunk formatting when summary metadata is not present."""
         mock_create.return_value = Mock()
         mock_yaml_load.return_value = {}
         mock_open.return_value.__enter__.return_value.read.return_value = "prompt"
@@ -250,12 +265,10 @@ class TestFormatChunksForPrompt:
         retriever = MultiHopRetriever(Mock())
         result = retriever._format_chunks_for_prompt(sample_chunks)
 
-        # With SUMMARY_ENABLED=False, format is "{i}. **{header}**\n{text}"
-        # Headers should be shown as bold markdown
-        assert "1. **Overwatch Rules**" in result
-        assert "2. **Charge Rules**" in result
-        assert "Content about overwatch" in result
-        assert "Content about charges" in result
+        # Without summary metadata, format is "{i}. {text}\n"
+        # Full text should appear
+        assert "1. Content about overwatch" in result
+        assert "2. Content about charges" in result
 
 
 class TestEvaluateContext:
