@@ -109,7 +109,6 @@ def _render_metadata(query: dict) -> None:
     st.write(f"**Model:** {query['llm_model']}")
     st.write(f"**Confidence:** {query['confidence_score']:.2f}")
     st.write(f"**RAG Score:** {query['rag_score']:.2f}")
-    st.write(f"**Latency:** {query['latency_ms']}ms")
     st.write(f"**Validation:** {'✅ Passed' if query['validation_passed'] else '❌ Failed'}")
 
     # Feedback
@@ -119,9 +118,23 @@ def _render_metadata(query: dict) -> None:
     # Multi-hop info
     _render_multi_hop_info(query)
 
-    # Cost
-    cost = query.get("cost", 0.0)
-    st.write(f"**Cost:** ${cost:.5f}")
+    # Cost breakdown (display in cents)
+    hop_eval_cost = query.get("hop_evaluation_cost", 0.0) * 100
+    main_llm_cost = query.get("main_llm_cost", 0.0) * 100
+    total_cost = query.get("cost", 0.0) * 100
+    st.write(f"**Total Cost:** {total_cost:.3f}¢")
+    st.write(f"  - Hop Evaluation: {hop_eval_cost:.3f}¢")
+    st.write(f"  - Main LLM: {main_llm_cost:.3f}¢")
+
+    # Latency breakdown (display in seconds)
+    retrieval_s = query.get("retrieval_latency_ms", 0) / 1000
+    hop_eval_s = query.get("hop_evaluation_latency_ms", 0) / 1000
+    main_llm_s = query.get("latency_ms", 0) / 1000
+    total_s = retrieval_s + hop_eval_s + main_llm_s
+    st.write(f"**Total Latency:** {total_s:.2f}s")
+    st.write(f"  - Retrieval: {retrieval_s:.2f}s")
+    st.write(f"  - Hop Evaluation: {hop_eval_s:.2f}s")
+    st.write(f"  - Main LLM: {main_llm_s:.2f}s")
 
     # Quote validation
     _render_quote_validation_metadata(query)

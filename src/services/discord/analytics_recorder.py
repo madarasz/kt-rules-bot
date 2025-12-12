@@ -35,7 +35,8 @@ class AnalyticsRecorder:
         llm_response: LLMResponse,
         rag_context: RAGContext,
         validation_result: ValidationResult,
-        total_cost: float,
+        cost_breakdown: dict[str, float],
+        latency_breakdown: dict[str, int],
         hop_evaluations: list | None = None,
         chunk_hop_map: dict | None = None,
         quote_validation_result: QuoteValidationResult | None = None,
@@ -49,7 +50,8 @@ class AnalyticsRecorder:
             llm_response: LLM response
             rag_context: RAG context with chunks
             validation_result: Validation result
-            total_cost: Total cost in USD
+            cost_breakdown: Dict with cost breakdown (total_cost, hop_evaluation_cost, main_llm_cost)
+            latency_breakdown: Dict with latency breakdown (retrieval, hop_evaluation, main_llm)
             hop_evaluations: Optional hop evaluations
             chunk_hop_map: Optional chunk-to-hop mapping
             quote_validation_result: Optional quote validation result
@@ -87,11 +89,15 @@ class AnalyticsRecorder:
                     "confidence_score": llm_response.confidence_score,
                     "rag_score": rag_context.avg_relevance,
                     "validation_passed": validation_result.is_valid,
-                    "latency_ms": llm_response.latency_ms,
+                    "latency_ms": latency_breakdown["main_llm_latency_ms"],
                     "timestamp": datetime.now(UTC).isoformat(),
                     "multi_hop_enabled": 1 if RAG_MAX_HOPS > 0 else 0,
                     "hops_used": len(hop_evaluations or []),
-                    "cost": total_cost,
+                    "cost": cost_breakdown["total_cost"],
+                    "hop_evaluation_cost": cost_breakdown["hop_evaluation_cost"],
+                    "main_llm_cost": cost_breakdown["main_llm_cost"],
+                    "retrieval_latency_ms": latency_breakdown["retrieval_latency_ms"],
+                    "hop_evaluation_latency_ms": latency_breakdown["hop_evaluation_latency_ms"],
                     "quote_validation_score": (
                         quote_validation_result.validation_score if quote_validation_result else None
                     ),

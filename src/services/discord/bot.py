@@ -127,7 +127,7 @@ class KillTeamBotOrchestrator:
             start_time = time.time()
 
             # Step 4: RAG retrieval
-            rag_context, hop_evaluations, chunk_hop_map, embedding_cost = await self._perform_rag_retrieval(user_query)
+            rag_context, hop_evaluations, chunk_hop_map, embedding_cost, retrieval_latency_ms = await self._perform_rag_retrieval(user_query)
 
             # Step 5: LLM generation
             llm_response, chunk_ids = await self._perform_llm_generation(
@@ -158,9 +158,12 @@ class KillTeamBotOrchestrator:
             # Step 10: Send response to Discord
             await self._send_response(message, bot_response, validation_result, user_query)
 
-            # Step 11: Calculate and log costs
+            # Step 11: Calculate and log costs and latency breakdowns
             costs = self.cost_calculator.calculate_total_cost(
                 user_query.sanitized_text, llm_response, hop_evaluations
+            )
+            latency_breakdown = QueryCostCalculator.calculate_latency_breakdown(
+                retrieval_latency_ms, hop_evaluations, llm_response.latency_ms
             )
             self._log_costs(costs, correlation_id)
 
@@ -172,7 +175,8 @@ class KillTeamBotOrchestrator:
                 llm_response,
                 rag_context,
                 validation_result,
-                costs["total_cost"],
+                costs,
+                latency_breakdown,
                 hop_evaluations,
                 chunk_hop_map,
                 quote_validation_result,
@@ -225,16 +229,16 @@ class KillTeamBotOrchestrator:
         Uses shared orchestrator for consistent RAG behavior.
 
         Returns:
-            Tuple of (rag_context, hop_evaluations, chunk_hop_map, embedding_cost)
+            Tuple of (rag_context, hop_evaluations, chunk_hop_map, embedding_cost, retrieval_latency_ms)
         """
-        rag_context, hop_evaluations, chunk_hop_map, embedding_cost = await self.orchestrator.retrieve_rag(
+        rag_context, hop_evaluations, chunk_hop_map, embedding_cost, retrieval_latency_ms = await self.orchestrator.retrieve_rag(
             query=user_query.sanitized_text,
             query_id=user_query.query_id,
             context_key=user_query.conversation_context_id,
             use_multi_hop=(RAG_MAX_HOPS > 0),
         )
 
-        return rag_context, hop_evaluations, chunk_hop_map, embedding_cost
+        return rag_context, hop_evaluations, chunk_hop_map, embedding_cost, retrieval_latency_ms
 
     async def _perform_llm_generation(self, user_query: UserQuery, rag_context, llm_provider) -> tuple:
         """Perform LLM generation with retry logic.
