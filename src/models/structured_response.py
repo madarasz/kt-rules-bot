@@ -130,8 +130,6 @@ class StructuredLLMResponse:
             raise ValueError("short_answer cannot be empty")
         if not self.persona_short_answer.strip():
             raise ValueError("persona_short_answer cannot be empty")
-        if not self.explanation.strip():
-            raise ValueError("explanation cannot be empty")
         if not self.persona_afterword.strip():
             raise ValueError("persona_afterword cannot be empty")
 
