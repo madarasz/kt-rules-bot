@@ -64,3 +64,38 @@ class QueryCostCalculator:
             "main_llm_cost": main_llm_cost,
             "total_cost": total_cost,
         }
+
+    @staticmethod
+    def calculate_latency_breakdown(
+        retrieval_latency_ms: int,
+        hop_evaluations: list | None,
+        main_llm_latency_ms: int,
+    ) -> dict[str, int]:
+        """Calculate latency breakdown for a query.
+
+        Args:
+            retrieval_latency_ms: Total RAG time (includes initial + hop retrieval + hop evaluation)
+            hop_evaluations: Optional list of hop evaluations
+            main_llm_latency_ms: Main LLM generation latency
+
+        Returns:
+            Dict with latency breakdown: {
+                'retrieval_latency_ms': int (pure retrieval without hop LLM calls),
+                'hop_evaluation_latency_ms': int (hop LLM evaluation time),
+                'main_llm_latency_ms': int (main LLM generation time),
+            }
+        """
+        # Calculate hop evaluation latency (sum of evaluation time for all hops)
+        hop_eval_latency_ms = int(
+            sum(hop_eval.evaluation_time_s for hop_eval in hop_evaluations or []) * 1000
+        )
+
+        # Subtract hop evaluation time from total to get pure retrieval time
+        # This prevents double-counting since the input retrieval_latency_ms includes hop evaluation
+        pure_retrieval_latency_ms = retrieval_latency_ms - hop_eval_latency_ms
+
+        return {
+            "retrieval_latency_ms": pure_retrieval_latency_ms,
+            "hop_evaluation_latency_ms": hop_eval_latency_ms,
+            "main_llm_latency_ms": main_llm_latency_ms,
+        }

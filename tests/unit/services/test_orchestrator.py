@@ -67,7 +67,7 @@ class TestRetrieveRag:
         )
 
         query_id = uuid4()
-        rag_context, hop_evals, chunk_map, cost = await orchestrator.retrieve_rag(
+        rag_context, hop_evals, chunk_map, cost, retrieval_time_ms = await orchestrator.retrieve_rag(
             query="Test query",
             query_id=query_id,
             max_chunks=5,
@@ -104,7 +104,7 @@ class TestRetrieveRag:
             llm_factory=mock_llm_factory,
         )
 
-        rag_context, hop_evals, chunk_map, cost = await orchestrator.retrieve_rag(
+        rag_context, hop_evals, chunk_map, cost, retrieval_time_ms = await orchestrator.retrieve_rag(
             query="Complex query",
             query_id=uuid4(),
             use_multi_hop=RAG_MAX_HOPS > 0,
@@ -128,7 +128,7 @@ class TestRetrieveRag:
             llm_factory=mock_llm_factory,
         )
 
-        _, _, _, cost = await orchestrator.retrieve_rag(
+        _, _, _, cost, _ = await orchestrator.retrieve_rag(
             query="Test query",
             query_id=uuid4(),
         )
@@ -164,7 +164,7 @@ class TestRetrieveRag:
         )
 
         # Should not raise and should complete successfully
-        rag_context, _, _, cost = await orchestrator.retrieve_rag(
+        rag_context, _, _, cost, _ = await orchestrator.retrieve_rag(
             query="Test query",
             query_id=uuid4(),
         )
@@ -184,7 +184,7 @@ class TestRetrieveRag:
         )
 
         # Should not raise error
-        rag_context, _, _, cost = await orchestrator.retrieve_rag(
+        rag_context, _, _, cost, _ = await orchestrator.retrieve_rag(
             query=long_query,
             query_id=uuid4(),
         )
@@ -361,7 +361,7 @@ class TestProcessQuery:
             llm_factory=mock_llm_factory,
         )
 
-        llm_response, rag_context, hop_evals, chunk_map, cost = await orchestrator.process_query(
+        llm_response, rag_context, hop_evals, chunk_map, cost, retrieval_time_ms = await orchestrator.process_query(
             query="Test query",
             query_id=uuid4(),
             model="test-model",
@@ -391,7 +391,7 @@ class TestProcessQuery:
             # Mock returns
             rag_context = RAGContext.empty(query_id)
             llm_response = Mock()
-            mock_retrieve.return_value = (rag_context, [], {}, 0.001)
+            mock_retrieve.return_value = (rag_context, [], {}, 0.001, 100)  # Added retrieval_time_ms
             mock_generate.return_value = (llm_response, ["chunk1"])
 
             await orchestrator.process_query(
@@ -616,7 +616,7 @@ class TestIntegrationPatterns:
         query_id = uuid4()
 
         # Step 1: RAG retrieval
-        rag_context, hop_evals, chunk_map, cost = await orchestrator.retrieve_rag(
+        rag_context, hop_evals, chunk_map, cost, retrieval_time_ms = await orchestrator.retrieve_rag(
             query="Test",
             query_id=query_id,
             context_key="987654321:123456789",  # guild:user
@@ -647,7 +647,7 @@ class TestIntegrationPatterns:
 
         # Retrieve once
         query_id = uuid4()
-        rag_context, hop_evals, chunk_map, cost = await orchestrator.retrieve_rag(
+        rag_context, hop_evals, chunk_map, cost, retrieval_time_ms = await orchestrator.retrieve_rag(
             query="Test query",
             query_id=query_id,
         )
@@ -680,7 +680,7 @@ class TestIntegrationPatterns:
         )
 
         # Only retrieve RAG
-        rag_context, hop_evals, chunk_map, cost = await orchestrator.retrieve_rag(
+        rag_context, hop_evals, chunk_map, cost, retrieval_time_ms = await orchestrator.retrieve_rag(
             query="Test",
             query_id=uuid4(),
         )

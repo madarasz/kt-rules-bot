@@ -54,6 +54,11 @@ def migrate_analytics_db(db_path: str) -> None:
             ("queries", "quote_invalid_count", "INTEGER DEFAULT 0"),
             # RAG test runs sort order (added 2025-01-27)
             ("rag_test_runs", "sort_order", "INTEGER DEFAULT NULL"),
+            # Cost and latency breakdown (added 2025-12-12)
+            ("queries", "hop_evaluation_cost", "REAL DEFAULT 0.0"),
+            ("queries", "main_llm_cost", "REAL DEFAULT 0.0"),
+            ("queries", "retrieval_latency_ms", "INTEGER DEFAULT 0"),
+            ("queries", "hop_evaluation_latency_ms", "INTEGER DEFAULT 0"),
         ]
 
         applied_count = 0

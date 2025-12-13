@@ -172,7 +172,7 @@ async def _perform_rag_retrieval(
         initial_embedding_cost = estimate_embedding_cost(query, EMBEDDING_MODEL)
     else:
         # Use orchestrator (standard path)
-        rag_context, hop_evaluations, chunk_hop_map, initial_embedding_cost = await services.orchestrator.retrieve_rag(
+        rag_context, hop_evaluations, chunk_hop_map, initial_embedding_cost, _retrieval_time_ms = await services.orchestrator.retrieve_rag(
             query=query,
             query_id=query_id,
             max_chunks=max_chunks,

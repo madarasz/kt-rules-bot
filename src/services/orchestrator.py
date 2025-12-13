@@ -64,7 +64,7 @@ class QueryOrchestrator:
         max_chunks: int = RAG_MAX_CHUNKS,
         context_key: str = "default",
         use_multi_hop: bool = True,
-    ) -> tuple[RAGContext, list, dict, float]:
+    ) -> tuple[RAGContext, list, dict, float, int]:
         """Step 1: RAG retrieval only.
 
         Delegates to RAGRetriever which handles ALL RAG features:
@@ -87,6 +87,7 @@ class QueryOrchestrator:
             - Multi-hop evaluations (list, empty if not used)
             - Chunk-hop map (dict, empty if not used)
             - Embedding cost estimate (float)
+            - Retrieval time in milliseconds (int)
 
         Use case: Quality tests retrieve once, then generate_with_context() N times
         """
@@ -119,7 +120,7 @@ class QueryOrchestrator:
             },
         )
 
-        return rag_context, hop_evaluations, chunk_hop_map, embedding_cost
+        return rag_context, hop_evaluations, chunk_hop_map, embedding_cost, retrieval_time_ms
 
     async def generate_with_context(
         self,
@@ -208,7 +209,7 @@ class QueryOrchestrator:
         use_multi_hop: bool = True,
         llm_provider=None,
         generation_timeout: int = LLM_GENERATION_TIMEOUT,
-    ) -> tuple[object, RAGContext, list, dict, float]:
+    ) -> tuple[object, RAGContext, list, dict, float, int]:
         """Full flow: retrieve + generate (convenience method).
 
         Flow:
@@ -233,11 +234,12 @@ class QueryOrchestrator:
             - Multi-hop evaluations
             - Chunk-hop map
             - Embedding cost
+            - Retrieval time in milliseconds
 
         Use case: Discord bot, CLI query (one-shot queries)
         """
         # Step 1: RAG retrieval
-        rag_context, hop_evaluations, chunk_hop_map, embedding_cost = await self.retrieve_rag(
+        rag_context, hop_evaluations, chunk_hop_map, embedding_cost, retrieval_time_ms = await self.retrieve_rag(
             query=query,
             query_id=query_id,
             max_chunks=max_chunks,
@@ -255,7 +257,7 @@ class QueryOrchestrator:
             generation_timeout=generation_timeout,
         )
 
-        return llm_response, rag_context, hop_evaluations, chunk_hop_map, embedding_cost
+        return llm_response, rag_context, hop_evaluations, chunk_hop_map, embedding_cost, retrieval_time_ms
 
     def _validate_quotes(
         self,
