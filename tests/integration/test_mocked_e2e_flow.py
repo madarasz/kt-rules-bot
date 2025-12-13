@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 import discord
 import pytest
 
+from src.lib.database import AnalyticsDatabase
 from src.models.rag_context import DocumentChunk, RAGContext
 from src.models.rag_request import RetrieveRequest
 from src.models.user_query import UserQuery
@@ -19,6 +20,12 @@ from src.services.discord.context_manager import ConversationContextManager
 from src.services.llm.base import GenerationRequest, LLMResponse
 from src.services.llm.validator import ResponseValidator
 from src.services.rag.retriever import RAGRetriever
+
+
+@pytest.fixture
+def mock_analytics_db():
+    """Mock analytics database - disabled to prevent test data pollution."""
+    return AnalyticsDatabase(db_path=":memory:", enabled=False)
 
 
 @pytest.fixture
@@ -103,7 +110,7 @@ def mock_llm_provider():
 @pytest.mark.asyncio
 @pytest.mark.integration
 @pytest.mark.fast
-async def test_basic_query_flow_end_to_end(mock_rag_retriever, mock_llm_provider):
+async def test_basic_query_flow_end_to_end(mock_rag_retriever, mock_llm_provider, mock_analytics_db):
     """Test basic query: 'What actions can I take during the movement phase?'
 
     Expected:
@@ -122,6 +129,7 @@ async def test_basic_query_flow_end_to_end(mock_rag_retriever, mock_llm_provider
         llm_provider_factory=mock_factory,
         response_validator=ResponseValidator(),
         context_manager=ConversationContextManager(),
+        analytics_db=mock_analytics_db,
     )
 
     # Create mock Discord message
@@ -205,7 +213,7 @@ async def test_basic_query_flow_end_to_end(mock_rag_retriever, mock_llm_provider
 @pytest.mark.asyncio
 @pytest.mark.integration
 @pytest.mark.fast
-async def test_basic_query_with_context_tracking(mock_rag_retriever, mock_llm_provider):
+async def test_basic_query_with_context_tracking(mock_rag_retriever, mock_llm_provider, mock_analytics_db):
     """Test that conversation context is tracked correctly."""
     mock_factory = Mock()
     mock_factory.create = Mock(return_value=mock_llm_provider)
@@ -215,6 +223,7 @@ async def test_basic_query_with_context_tracking(mock_rag_retriever, mock_llm_pr
         llm_provider_factory=mock_factory,
         response_validator=ResponseValidator(),
         context_manager=ConversationContextManager(),
+        analytics_db=mock_analytics_db,
     )
 
     # Create mock message
@@ -261,7 +270,7 @@ async def test_basic_query_with_context_tracking(mock_rag_retriever, mock_llm_pr
 @pytest.mark.asyncio
 @pytest.mark.integration
 @pytest.mark.fast
-async def test_basic_query_feedback_buttons_added(mock_rag_retriever, mock_llm_provider):
+async def test_basic_query_feedback_buttons_added(mock_rag_retriever, mock_llm_provider, mock_analytics_db):
     """Test that feedback buttons view is added to response."""
     from src.services.discord.feedback_logger import FeedbackLogger
 
@@ -273,6 +282,7 @@ async def test_basic_query_feedback_buttons_added(mock_rag_retriever, mock_llm_p
         llm_provider_factory=mock_factory,
         response_validator=ResponseValidator(),
         context_manager=ConversationContextManager(),
+        analytics_db=mock_analytics_db,
         feedback_logger=FeedbackLogger(),  # Add feedback logger
     )
 

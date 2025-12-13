@@ -252,7 +252,7 @@ async def test_create_feedback_view():
 
 @pytest.mark.asyncio
 async def test_feedback_view_helpful_button():
-    """Test 'Helpful' button click records feedback and adds reaction."""
+    """Test 'Helpful' button click records feedback and updates message."""
     from src.services.discord.feedback_buttons import FeedbackView
 
     # Setup
@@ -270,13 +270,11 @@ async def test_feedback_view_helpful_button():
     interaction = Mock(spec=discord.Interaction)
     interaction.user = Mock()
     interaction.user.id = 123456789
-    interaction.message = AsyncMock()
-    interaction.message.add_reaction = AsyncMock()
     interaction.response = Mock()
-    interaction.response.defer = AsyncMock()
+    interaction.response.edit_message = AsyncMock()
 
     # Trigger button click (call the callback directly)
-    # Discord.py passes only (interaction) to the callback
+    # When testing, we only pass interaction (discord.py handles the button parameter internally)
     await view.helpful_button.callback(interaction)
 
     # Verify feedback logged
@@ -288,16 +286,17 @@ async def test_feedback_view_helpful_button():
         previous_feedback_type=None,
     )
 
-    # Verify reaction added
-    interaction.message.add_reaction.assert_called_once_with("👍")
+    # Verify message was edited with updated view
+    interaction.response.edit_message.assert_called_once_with(view=view)
 
-    # Verify interaction deferred (no message sent)
-    interaction.response.defer.assert_called_once()
+    # Verify vote count updated
+    assert view.helpful_count == 1
+    assert view.not_helpful_count == 0
 
 
 @pytest.mark.asyncio
 async def test_feedback_view_not_helpful_button():
-    """Test 'Not Helpful' button click records feedback and adds reaction."""
+    """Test 'Not Helpful' button click records feedback and updates message."""
     from src.services.discord.feedback_buttons import FeedbackView
 
     # Setup
@@ -315,13 +314,11 @@ async def test_feedback_view_not_helpful_button():
     interaction = Mock(spec=discord.Interaction)
     interaction.user = Mock()
     interaction.user.id = 123456789
-    interaction.message = AsyncMock()
-    interaction.message.add_reaction = AsyncMock()
     interaction.response = Mock()
-    interaction.response.defer = AsyncMock()
+    interaction.response.edit_message = AsyncMock()
 
     # Trigger button click (call the callback directly)
-    # Discord.py passes only (interaction) to the callback
+    # When testing, we only pass interaction (discord.py handles the button parameter internally)
     await view.not_helpful_button.callback(interaction)
 
     # Verify feedback logged
@@ -333,8 +330,12 @@ async def test_feedback_view_not_helpful_button():
         previous_feedback_type=None,
     )
 
-    # Verify reaction added
-    interaction.message.add_reaction.assert_called_once_with("👎")
+    # Verify message was edited with updated view
+    interaction.response.edit_message.assert_called_once_with(view=view)
+
+    # Verify vote count updated
+    assert view.helpful_count == 0
+    assert view.not_helpful_count == 1
 
 
 @pytest.mark.asyncio
@@ -357,14 +358,11 @@ async def test_feedback_view_allows_vote_changes():
     interaction = Mock(spec=discord.Interaction)
     interaction.user = Mock()
     interaction.user.id = 123456789
-    interaction.message = AsyncMock()
-    interaction.message.add_reaction = AsyncMock()
-    interaction.message.remove_reaction = AsyncMock()
     interaction.response = Mock()
-    interaction.response.defer = AsyncMock()
+    interaction.response.edit_message = AsyncMock()
 
     # First vote: helpful (call the callback directly)
-    # Discord.py passes only (interaction) to the callback
+    # When testing, we only pass interaction (discord.py handles the button parameter internally)
     await view.helpful_button.callback(interaction)
 
     # Second vote: not helpful (changing vote)
@@ -383,13 +381,12 @@ async def test_feedback_view_allows_vote_changes():
     assert second_call[1]["feedback_type"] == "not_helpful"
     assert second_call[1]["previous_feedback_type"] == "helpful"
 
-    # Verify old reaction was removed
-    interaction.message.remove_reaction.assert_called_once_with("👍", interaction.user)
+    # Verify message was edited twice (once per vote)
+    assert interaction.response.edit_message.call_count == 2
 
-    # Verify both reactions were added
-    assert interaction.message.add_reaction.call_count == 2
-    interaction.message.add_reaction.assert_any_call("👍")
-    interaction.message.add_reaction.assert_any_call("👎")
+    # Verify vote counts updated correctly
+    assert view.helpful_count == 0
+    assert view.not_helpful_count == 1
 
 
 @pytest.mark.asyncio

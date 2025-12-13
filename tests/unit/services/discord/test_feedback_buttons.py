@@ -150,11 +150,11 @@ class TestFeedbackButtonBasicOperations:
                 break
 
         assert helpful_button is not None
-        assert helpful_button.label == "Helpful 👍 (1)"
+        assert helpful_button.label == "Helpful 👍 [1]"
 
     @pytest.mark.asyncio
     async def test_button_label_no_count_when_zero(
-        self, mock_feedback_logger, create_mock_interaction
+        self, mock_feedback_logger
     ):
         """Test that button labels don't show (0) count."""
         view = FeedbackView(
@@ -624,4 +624,4 @@ class TestFeedbackButtonMultipleUsers:
                 break
 
         assert helpful_button is not None
-        assert helpful_button.label == "Helpful 👍 (3)"
+        assert helpful_button.label == "Helpful 👍 [3]"
