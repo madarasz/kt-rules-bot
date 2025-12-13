@@ -6,7 +6,6 @@ from src.lib.database import AnalyticsDatabase
 
 from ..utils.constants import ADMIN_STATUS_COLORS
 from ..utils.formatters import (
-    format_confidence_score,
     format_feedback,
     format_timestamp,
     truncate_text,
@@ -32,18 +31,17 @@ class QueryCard:
     def render(self) -> None:
         """Render the query card."""
         with st.container():
-            cols = st.columns([2, 3, 1, 1, 1, 1, 0.7, 0.7, 1, 0.5])
+            cols = st.columns([2, 3, 1, 1, 1, 0.7, 0.7, 1, 0.5])
 
             self._render_timestamp(cols[0])
             self._render_query_preview(cols[1])
             self._render_status(cols[2])
             self._render_feedback(cols[3])
             self._render_model(cols[4])
-            self._render_confidence(cols[5])
-            self._render_hops(cols[6])
-            self._render_quote_validation(cols[7])
-            self._render_view_button(cols[8])
-            self._render_delete_button(cols[9])
+            self._render_hops(cols[5])
+            self._render_quote_validation(cols[6])
+            self._render_view_button(cols[7])
+            self._render_delete_button(cols[8])
 
             st.divider()
 
@@ -76,12 +74,6 @@ class QueryCard:
         """Render LLM model column."""
         with col:
             st.write(self.query["llm_model"])
-
-    def _render_confidence(self, col) -> None:
-        """Render confidence score column."""
-        with col:
-            score = format_confidence_score(self.query.get("confidence_score"))
-            st.write(score)
 
     def _render_hops(self, col) -> None:
         """Render hop count column."""
