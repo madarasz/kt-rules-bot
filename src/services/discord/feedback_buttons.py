@@ -24,57 +24,55 @@ class FeedbackView(discord.ui.View):
         self.query_id = query_id
         self.response_id = response_id
         self.voters = {}  # Track votes: {user_id: feedback_type}
+        self.helpful_count = 0
+        self.not_helpful_count = 0
 
     @discord.ui.button(label="Helpful 👍", style=discord.ButtonStyle.success, custom_id="helpful")
     async def helpful_button(self, interaction: discord.Interaction, _: discord.ui.Button):
         """Handle 'Helpful' button click."""
-        await self._handle_feedback(interaction, "helpful", "👍")
+        await self._handle_feedback(interaction, "helpful")
 
     @discord.ui.button(
         label="Not Helpful 👎", style=discord.ButtonStyle.secondary, custom_id="not_helpful"
     )
     async def not_helpful_button(self, interaction: discord.Interaction, _: discord.ui.Button):
         """Handle 'Not Helpful' button click."""
-        await self._handle_feedback(interaction, "not_helpful", "👎")
+        await self._handle_feedback(interaction, "not_helpful")
 
-    async def _handle_feedback(
-        self, interaction: discord.Interaction, feedback_type: str, emoji: str
-    ):
+    async def _handle_feedback(self, interaction: discord.Interaction, feedback_type: str):
         """Process feedback from button interaction.
 
         Args:
             interaction: Discord interaction from button click
             feedback_type: 'helpful' or 'not_helpful'
-            emoji: Emoji for user confirmation
         """
         user_id = str(interaction.user.id)
-
-        # Check if user already voted
         previous_feedback = self.voters.get(user_id)
 
-        # If user is changing their vote, remove the old reaction
-        if previous_feedback and previous_feedback != feedback_type:
-            old_emoji = "👍" if previous_feedback == "helpful" else "👎"
-            try:
-                await interaction.message.remove_reaction(old_emoji, interaction.user)
-                logger.debug(
-                    f"Removed previous reaction: {old_emoji}",
-                    extra={"query_id": self.query_id, "user_id": user_id[:16]},
-                )
-            except Exception as e:
-                logger.warning(f"Failed to remove old reaction {old_emoji}: {e}")
+        # Same button clicked again - silently ignore
+        if previous_feedback == feedback_type:
+            await interaction.response.defer()
+            return
+
+        # Changing vote - decrement old count
+        if previous_feedback:
+            if previous_feedback == "helpful":
+                self.helpful_count = max(0, self.helpful_count - 1)
+            else:
+                self.not_helpful_count = max(0, self.not_helpful_count - 1)
+
+        # Increment new vote count
+        if feedback_type == "helpful":
+            self.helpful_count += 1
+        else:
+            self.not_helpful_count += 1
 
         # Update vote tracking
         self.voters[user_id] = feedback_type
 
-        # Add emoji reaction to the bot's message
-        try:
-            await interaction.message.add_reaction(emoji)
-        except Exception as e:
-            logger.warning(f"Failed to add reaction: {e}")
-
-        # Acknowledge the interaction without sending a message
-        await interaction.response.defer()
+        # Update button labels with new counts and edit message
+        self._update_button_labels()
+        await interaction.response.edit_message(view=self)
 
         # Log to feedback logger
         if self.feedback_logger:
@@ -94,8 +92,20 @@ class FeedbackView(discord.ui.View):
                 "feedback_type": feedback_type,
                 "previous_feedback": previous_feedback,
                 "user_id": user_id[:16],  # Partial for privacy
+                "helpful_count": self.helpful_count,
+                "not_helpful_count": self.not_helpful_count,
             },
         )
+
+    def _update_button_labels(self):
+        """Update button labels with current vote counts."""
+        for child in self.children:
+            if child.custom_id == "helpful":
+                count_str = f" [{self.helpful_count}]" if self.helpful_count > 0 else ""
+                child.label = f"Helpful 👍{count_str}"
+            elif child.custom_id == "not_helpful":
+                count_str = f" [{self.not_helpful_count}]" if self.not_helpful_count > 0 else ""
+                child.label = f"Not Helpful 👎{count_str}"
 
     async def on_timeout(self):
         """Disable buttons when view times out."""

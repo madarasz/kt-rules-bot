@@ -1,11 +1,11 @@
 """Unit tests for Discord feedback buttons.
 
 Tests verify that feedback buttons work correctly for:
-- Single user voting
+- Single user voting (button labels update with counts)
 - Vote changes (changing opinion)
 - Multiple users with different opinions
 - Multiple users with same opinion
-- Same user clicking same button twice
+- Same user clicking same button twice (silently ignored)
 - Multiple vote changes
 """
 
@@ -48,10 +48,9 @@ def create_mock_interaction():
         interaction.user = Mock()
         interaction.user.id = user_id
         interaction.message = AsyncMock()
-        interaction.message.add_reaction = AsyncMock()
-        interaction.message.remove_reaction = AsyncMock()
         interaction.response = Mock()
         interaction.response.defer = AsyncMock()
+        interaction.response.edit_message = AsyncMock()
         return interaction
 
     return _create_interaction
@@ -79,15 +78,16 @@ class TestFeedbackButtonBasicOperations:
         # User clicks helpful button
         await view.helpful_button.callback(interaction)
 
-        # Verify reaction added
-        interaction.message.add_reaction.assert_called_once_with("👍")
-
-        # Verify no reaction removed
-        interaction.message.remove_reaction.assert_not_called()
+        # Verify message edited with updated view
+        interaction.response.edit_message.assert_called_once_with(view=view)
 
         # Verify user tracked
         assert "111111" in view.voters
         assert view.voters["111111"] == "helpful"
+
+        # Verify vote count incremented
+        assert view.helpful_count == 1
+        assert view.not_helpful_count == 0
 
         # Verify DB incremented
         mock_feedback_logger.analytics_db.increment_vote.assert_called_once_with(
@@ -110,15 +110,16 @@ class TestFeedbackButtonBasicOperations:
         # User clicks not helpful button
         await view.not_helpful_button.callback(interaction)
 
-        # Verify reaction added
-        interaction.message.add_reaction.assert_called_once_with("👎")
-
-        # Verify no reaction removed
-        interaction.message.remove_reaction.assert_not_called()
+        # Verify message edited with updated view
+        interaction.response.edit_message.assert_called_once_with(view=view)
 
         # Verify user tracked
         assert "111111" in view.voters
         assert view.voters["111111"] == "not_helpful"
+
+        # Verify vote count incremented
+        assert view.helpful_count == 0
+        assert view.not_helpful_count == 1
 
         # Verify DB incremented
         mock_feedback_logger.analytics_db.increment_vote.assert_called_once_with(
@@ -126,10 +127,10 @@ class TestFeedbackButtonBasicOperations:
         )
 
     @pytest.mark.asyncio
-    async def test_no_reply_sent_on_button_click(
+    async def test_button_label_updated_with_count(
         self, mock_feedback_logger, create_mock_interaction
     ):
-        """Test that no reply message is sent when button is clicked."""
+        """Test that button labels are updated with vote counts."""
         view = FeedbackView(
             feedback_logger=mock_feedback_logger,
             query_id="query-123",
@@ -141,32 +142,39 @@ class TestFeedbackButtonBasicOperations:
         # User clicks helpful button
         await view.helpful_button.callback(interaction)
 
-        # Verify interaction deferred (no message sent)
-        interaction.response.defer.assert_called_once()
+        # Find the helpful button and verify label
+        helpful_button = None
+        for child in view.children:
+            if child.custom_id == "helpful":
+                helpful_button = child
+                break
 
-        # Verify no send methods called
-        assert not hasattr(interaction.response, "send_message") or not getattr(
-            interaction.response, "send_message", Mock()
-        ).called
+        assert helpful_button is not None
+        assert helpful_button.label == "Helpful 👍 (1)"
 
     @pytest.mark.asyncio
-    async def test_reaction_added_to_message(
+    async def test_button_label_no_count_when_zero(
         self, mock_feedback_logger, create_mock_interaction
     ):
-        """Test that reaction is properly added to the bot's message."""
+        """Test that button labels don't show (0) count."""
         view = FeedbackView(
             feedback_logger=mock_feedback_logger,
             query_id="query-123",
             response_id="response-456",
         )
 
-        interaction = create_mock_interaction(user_id=111111)
+        # Find buttons before any votes
+        helpful_button = None
+        not_helpful_button = None
+        for child in view.children:
+            if child.custom_id == "helpful":
+                helpful_button = child
+            elif child.custom_id == "not_helpful":
+                not_helpful_button = child
 
-        # User clicks helpful button
-        await view.helpful_button.callback(interaction)
-
-        # Verify reaction added to message
-        interaction.message.add_reaction.assert_called_once_with("👍")
+        # Initial labels should not have count
+        assert helpful_button.label == "Helpful 👍"
+        assert not_helpful_button.label == "Not Helpful 👎"
 
 
 # ==================== VOTE CHANGES ====================
@@ -197,13 +205,12 @@ class TestFeedbackButtonVoteChanges:
         # Verify final state
         assert view.voters["111111"] == "not_helpful"
 
-        # Verify reactions
-        assert interaction.message.add_reaction.call_count == 2
-        interaction.message.add_reaction.assert_any_call("👍")
-        interaction.message.add_reaction.assert_any_call("👎")
+        # Verify counts updated correctly
+        assert view.helpful_count == 0
+        assert view.not_helpful_count == 1
 
-        # Verify old reaction removed
-        interaction.message.remove_reaction.assert_called_once_with("👍", interaction.user)
+        # Verify message edited twice
+        assert interaction.response.edit_message.call_count == 2
 
     @pytest.mark.asyncio
     async def test_user_changes_vote_not_helpful_to_helpful(
@@ -227,8 +234,9 @@ class TestFeedbackButtonVoteChanges:
         # Verify final state
         assert view.voters["111111"] == "helpful"
 
-        # Verify old reaction removed
-        interaction.message.remove_reaction.assert_called_once_with("👎", interaction.user)
+        # Verify counts updated correctly
+        assert view.helpful_count == 1
+        assert view.not_helpful_count == 0
 
     @pytest.mark.asyncio
     async def test_user_multiple_vote_changes(
@@ -245,47 +253,24 @@ class TestFeedbackButtonVoteChanges:
 
         # Vote 1: helpful
         await view.helpful_button.callback(interaction)
+        assert view.helpful_count == 1
+        assert view.not_helpful_count == 0
 
         # Vote 2: not helpful
         await view.not_helpful_button.callback(interaction)
+        assert view.helpful_count == 0
+        assert view.not_helpful_count == 1
 
         # Vote 3: helpful again
         await view.helpful_button.callback(interaction)
+        assert view.helpful_count == 1
+        assert view.not_helpful_count == 0
 
         # Verify final state
         assert view.voters["111111"] == "helpful"
 
-        # Verify all reactions added
-        assert interaction.message.add_reaction.call_count == 3
-        interaction.message.add_reaction.assert_any_call("👍")
-        interaction.message.add_reaction.assert_any_call("👎")
-
-        # Verify both old reactions removed
-        assert interaction.message.remove_reaction.call_count == 2
-        interaction.message.remove_reaction.assert_any_call("👍", interaction.user)
-        interaction.message.remove_reaction.assert_any_call("👎", interaction.user)
-
-    @pytest.mark.asyncio
-    async def test_old_reaction_removed_on_vote_change(
-        self, mock_feedback_logger, create_mock_interaction
-    ):
-        """Test that old reaction is properly removed when user changes vote."""
-        view = FeedbackView(
-            feedback_logger=mock_feedback_logger,
-            query_id="query-123",
-            response_id="response-456",
-        )
-
-        interaction = create_mock_interaction(user_id=111111)
-
-        # First vote: helpful
-        await view.helpful_button.callback(interaction)
-
-        # Change vote: not helpful
-        await view.not_helpful_button.callback(interaction)
-
-        # Verify old reaction removal was attempted
-        interaction.message.remove_reaction.assert_called_once_with("👍", interaction.user)
+        # Verify message edited 3 times
+        assert interaction.response.edit_message.call_count == 3
 
     @pytest.mark.asyncio
     async def test_db_updated_correctly_on_vote_change(
@@ -328,7 +313,7 @@ class TestFeedbackButtonSameVoteClick:
     async def test_user_clicks_same_button_twice_helpful(
         self, mock_feedback_logger, create_mock_interaction
     ):
-        """Test user clicking 'Helpful' button twice."""
+        """Test user clicking 'Helpful' button twice - second click ignored."""
         view = FeedbackView(
             feedback_logger=mock_feedback_logger,
             query_id="query-123",
@@ -341,8 +326,8 @@ class TestFeedbackButtonSameVoteClick:
         await view.helpful_button.callback(interaction)
 
         # Reset mocks to track second click separately
-        interaction.message.add_reaction.reset_mock()
-        interaction.message.remove_reaction.reset_mock()
+        interaction.response.edit_message.reset_mock()
+        interaction.response.defer.reset_mock()
         db = mock_feedback_logger.analytics_db
         db.increment_vote.reset_mock()
         db.decrement_vote.reset_mock()
@@ -350,20 +335,21 @@ class TestFeedbackButtonSameVoteClick:
         # Second click: helpful again
         await view.helpful_button.callback(interaction)
 
-        # Verify no reaction removed (no vote change)
-        interaction.message.remove_reaction.assert_not_called()
-
-        # Verify reaction still added (may be redundant in Discord)
-        interaction.message.add_reaction.assert_called_once_with("👍")
+        # Verify interaction deferred (no edit, no visible change)
+        interaction.response.defer.assert_called_once()
+        interaction.response.edit_message.assert_not_called()
 
         # Verify voter state unchanged
         assert view.voters["111111"] == "helpful"
+
+        # Verify count unchanged
+        assert view.helpful_count == 1
 
     @pytest.mark.asyncio
     async def test_user_clicks_same_button_twice_not_helpful(
         self, mock_feedback_logger, create_mock_interaction
     ):
-        """Test user clicking 'Not Helpful' button twice."""
+        """Test user clicking 'Not Helpful' button twice - second click ignored."""
         view = FeedbackView(
             feedback_logger=mock_feedback_logger,
             query_id="query-123",
@@ -376,17 +362,21 @@ class TestFeedbackButtonSameVoteClick:
         await view.not_helpful_button.callback(interaction)
 
         # Reset mocks
-        interaction.message.add_reaction.reset_mock()
-        interaction.message.remove_reaction.reset_mock()
+        interaction.response.edit_message.reset_mock()
+        interaction.response.defer.reset_mock()
 
         # Second click: not helpful again
         await view.not_helpful_button.callback(interaction)
 
-        # Verify no reaction removed
-        interaction.message.remove_reaction.assert_not_called()
+        # Verify deferred (no edit)
+        interaction.response.defer.assert_called_once()
+        interaction.response.edit_message.assert_not_called()
 
         # Verify voter state unchanged
         assert view.voters["111111"] == "not_helpful"
+
+        # Verify count unchanged
+        assert view.not_helpful_count == 1
 
     @pytest.mark.asyncio
     async def test_db_not_updated_on_duplicate_click(
@@ -448,6 +438,10 @@ class TestFeedbackButtonMultipleUsers:
         assert view.voters["111111"] == "helpful"
         assert view.voters["222222"] == "helpful"
 
+        # Verify count reflects both votes
+        assert view.helpful_count == 2
+        assert view.not_helpful_count == 0
+
         # Verify DB incremented twice
         db = mock_feedback_logger.analytics_db
         assert db.increment_vote.call_count == 2
@@ -455,9 +449,9 @@ class TestFeedbackButtonMultipleUsers:
             call[0] == ("query-123", "upvote") for call in db.increment_vote.call_args_list
         )
 
-        # Verify both reactions added
-        interaction1.message.add_reaction.assert_called_once_with("👍")
-        interaction2.message.add_reaction.assert_called_once_with("👍")
+        # Verify both messages edited
+        interaction1.response.edit_message.assert_called_once_with(view=view)
+        interaction2.response.edit_message.assert_called_once_with(view=view)
 
     @pytest.mark.asyncio
     async def test_two_users_same_opinion_not_helpful(
@@ -481,6 +475,10 @@ class TestFeedbackButtonMultipleUsers:
         # Verify both users tracked
         assert view.voters["111111"] == "not_helpful"
         assert view.voters["222222"] == "not_helpful"
+
+        # Verify count reflects both votes
+        assert view.helpful_count == 0
+        assert view.not_helpful_count == 2
 
         # Verify DB incremented twice
         db = mock_feedback_logger.analytics_db
@@ -512,15 +510,15 @@ class TestFeedbackButtonMultipleUsers:
         assert view.voters["111111"] == "helpful"
         assert view.voters["222222"] == "not_helpful"
 
+        # Verify counts
+        assert view.helpful_count == 1
+        assert view.not_helpful_count == 1
+
         # Verify DB has both votes
         db = mock_feedback_logger.analytics_db
         assert db.increment_vote.call_count == 2
         db.increment_vote.assert_any_call("query-123", "upvote")
         db.increment_vote.assert_any_call("query-123", "downvote")
-
-        # Verify both reactions added to message
-        interaction1.message.add_reaction.assert_called_once_with("👍")
-        interaction2.message.add_reaction.assert_called_once_with("👎")
 
     @pytest.mark.asyncio
     async def test_three_users_mixed_opinions(
@@ -550,6 +548,10 @@ class TestFeedbackButtonMultipleUsers:
         assert view.voters["111111"] == "helpful"
         assert view.voters["222222"] == "not_helpful"
         assert view.voters["333333"] == "helpful"
+
+        # Verify counts
+        assert view.helpful_count == 2
+        assert view.not_helpful_count == 1
 
         # Verify DB has correct counts (2 upvotes, 1 downvote)
         db = mock_feedback_logger.analytics_db
@@ -594,32 +596,32 @@ class TestFeedbackButtonMultipleUsers:
         # Verify both users still tracked
         assert len(view.voters) == 2
 
+        # Verify counts
+        assert view.helpful_count == 0
+        assert view.not_helpful_count == 2
+
     @pytest.mark.asyncio
-    async def test_multiple_reactions_visible_on_message(
+    async def test_button_labels_reflect_multiple_users(
         self, mock_feedback_logger, create_mock_interaction
     ):
-        """Test that multiple reactions from different users are added to message."""
+        """Test that button labels show accurate count from multiple users."""
         view = FeedbackView(
             feedback_logger=mock_feedback_logger,
             query_id="query-123",
             response_id="response-456",
         )
 
-        # Create 3 different interactions (same message, different users)
-        interactions = [
-            create_mock_interaction(user_id=111111),
-            create_mock_interaction(user_id=222222),
-            create_mock_interaction(user_id=333333),
-        ]
-
-        # All users click helpful
-        for interaction in interactions:
+        # 3 users click helpful
+        for user_id in [111111, 222222, 333333]:
+            interaction = create_mock_interaction(user_id=user_id)
             await view.helpful_button.callback(interaction)
 
-        # Verify each user's reaction was added
-        for interaction in interactions:
-            interaction.message.add_reaction.assert_called_with("👍")
+        # Find the helpful button and verify label
+        helpful_button = None
+        for child in view.children:
+            if child.custom_id == "helpful":
+                helpful_button = child
+                break
 
-        # Verify no reactions removed
-        for interaction in interactions:
-            interaction.message.remove_reaction.assert_not_called()
+        assert helpful_button is not None
+        assert helpful_button.label == "Helpful 👍 (3)"
