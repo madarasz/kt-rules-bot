@@ -376,9 +376,9 @@ class KillTeamBotOrchestrator:
         # Format response
         embeds = formatter.format_response(bot_response, validation_result, smalltalk=smalltalk)
 
-        # Create feedback buttons
+        # Create feedback buttons (skip for smalltalk responses)
         feedback_view = None
-        if self.feedback_logger:
+        if self.feedback_logger and not smalltalk:
             feedback_view = formatter.create_feedback_view(
                 feedback_logger=self.feedback_logger,
                 query_id=str(user_query.query_id),

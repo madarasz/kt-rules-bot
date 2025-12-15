@@ -101,10 +101,20 @@ def _format_structured(bot_response: BotResponse, smalltalk: bool = False) -> li
     # Add quotes as embed fields (max 25 fields per embed)
     # Discord field name limit: 256 chars
     for _i, quote in enumerate(data.quotes[:25]):
-        field_name = f"**{quote.quote_title}**"
+        quote_title = quote.quote_title
+        quote_text = quote.quote_text
+
+        # FAQ titles: use just "[FAQ]" as title, move rest to quote text
+        if quote_title.startswith("[FAQ]"):
+            remaining_title = quote_title[5:].strip()  # Remove "[FAQ]" prefix
+            if remaining_title:
+                quote_text = f"{remaining_title}\n{quote_text}"
+            quote_title = "[FAQ]"
+
+        field_name = f"**{quote_title}**"
         if len(field_name) > 256:
             field_name = field_name[:253] + "..."
-        embed.add_field(name=field_name, value=f"> {quote.quote_text}", inline=False)
+        embed.add_field(name=field_name, value=f"> {quote_text}", inline=False)
 
     # Add explanation field (split if needed)
     if len(data.explanation) > 0:
