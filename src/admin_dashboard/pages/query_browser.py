@@ -18,12 +18,25 @@ def render(db: AnalyticsDatabase) -> None:
     """
     st.title("📋 Query Browser")
 
-    # Get available LLM models
+    # Get available LLM models and servers
     all_queries = db.get_all_queries(limit=1000)
     llm_models = {q["llm_model"] for q in all_queries}
 
+    # Extract unique servers with most recent timestamp (for ordering)
+    servers_dict = {}
+    for q in all_queries:
+        if q.get("discord_server_name") and q.get("discord_server_id"):
+            server_key = (q["discord_server_id"], q["discord_server_name"])
+            timestamp = q.get("timestamp", "")
+            # Keep the most recent timestamp for each server
+            if server_key not in servers_dict or timestamp > servers_dict[server_key]:
+                servers_dict[server_key] = timestamp
+
+    # Sort servers by timestamp descending (most recent first)
+    servers_list = sorted(servers_dict.keys(), key=lambda x: servers_dict[x], reverse=True)
+
     # Render filters
-    filters_component = QueryFilters(list(llm_models))
+    filters_component = QueryFilters(list(llm_models), servers_list)
     filters = filters_component.render()
 
     # Fetch filtered queries

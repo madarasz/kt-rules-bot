@@ -1,19 +1,8 @@
-# TEST SET CODENAME: SLEEPING-BEAVER+
-# LAST UPDATE: 2024-11-23
+# TEST SET CODENAME: WORKING-SATURDAY
+# LAST UPDATE: 2024-12-13
+# NUMBER OF TEST CASES: 13
+# NUMBER OF GROUND TRUTH CONTEXTS: 23
 
-# - test_id: rain-bitter-demise
-#   query: >
-#     Would the banshee resolve his dash/fall back with Rain of Tears before the damage of Bitter Demise can hit it, or would the blooded operative be removed from the battlefield before any of that, thus possibly dealing damage to the banshee?
-#   ground_truth_contexts:
-#     - "Use this ASPECT TECHNIQUE when a friendly HOWLING BANSHEE operative is fighting, after you strike with a critical success"
-#     - "Whenever a friendly BLOODED operative is incapacitated, before it's removed from the killzone"
-
-# - test_id: teleport-counteract
-#   query: >
-#     Can I use the Teleport Pad during counteract?
-#   ground_truth_contexts:
-#     - "TELEPORT PAD"
-#     - "COUNTERACT"
 - test_id: warpcoven-heal
   query: >
     Can I heal with a Warpcoven?
@@ -50,27 +39,6 @@
   ground_truth_contexts:
     - "KABOOM! - Firefight Ploy": "Use this firefight ploy when a friendly **WRECKA KREW** operative performs the **Shoot** action and a weapon with the **Blast** weapon rule" # KABOOM!
     - "WRECKA KREW - TANKBUSTA ROKKITEER": "Don't select a valid target. Instead, place your Pulsa marker **visible** to this operative" # TANKBUSTA
-
-# - test_id: fight-through-wall
-#   query: >
-#     can two operatives fight even if not visible to each other on two different sides of a stronghold wall?
-#   ground_truth_contexts:
-#     - "Visibility cannot be determined over or through Wall terrain."
-#     - "Something is within an operative's control range if it's visible to and within 1\" of that operative."
-
-# - test_id: door-difference
-#   query: >
-#     is there a difference between the doors on the strongholds and large ruins ruleswise?
-#   ground_truth_contexts:
-#     - "The upper level of a large ruin terrain feature is"
-#     - "The upper level(s) of a stronghold terrain feature is"
-
-# - test_id: climbing-ladder
-#   query: >
-#     how  do you measure the distance needed to climb up to the second story of volkus map while using a ladder?
-#   ground_truth_contexts:
-#     - "An operative must be within 1\" horizontally and 3\" vertically of terrain that's visible to them to climb it."
-#     - "UNIVERSAL EQUIPMENT - 2X LADDERS"
 - test_id: blast-vs-torrent
   query: >
     what is the difference between blast and torrent
@@ -87,20 +55,6 @@
     Which teams that have rotated out?
   ground_truth_contexts:
     - "Non-classified kill teams": "Non-classified kill teams"
-
-#- test_id: cp-lost-cancelled
-#  query: >
-#    Would the Curtain Falls firefight ploy still cost CP even after the Nemesis Claw chain snare 
-#    equipment potenatially would block the free fall back action?
-#  ground_truth_contexts:
-#    - "THE CURTAIN FALLS"
-#    - "Whenever an enemy operative would perform the Fall Back action while within control range of a friendly NEMESIS CLAW operative"
-- test_id: return-to-darkness-teleport # Only works with RAG_ENABLE_QUERY_EXPANSION = True
-  query: >
-    can I use return to darkness ploy with nemesis claw operative to use the teleport on tomb world map?
-  ground_truth_contexts:
-    - "RETURN TO DARKNESS": "One friendly **NEMESIS CLAW** operative can immediately perform a free **Fall Back** or **Reposition** action, but it must end that move with **Heavy** terrain within its **control range**"
-    - "TELEPORT PAD": "whenever a friendly operative on a teleport pad performs the **Charge**, **Fall Back** or **Reposition** action, you can teleport it. If you do, don't move it"
 - test_id: nemesis-midnight-clad-barricade
   query: >
     Can a nemesis claw operative use light barricade as cover and be obscured as well if its more than 8 inches away from the enemy operative?
@@ -118,52 +72,90 @@
     what is the difference between ploy and firefight ploy?
   ground_truth_contexts:
     - "PLOYS": "Players can spend CP on ploys to gain rules bonuses at the opportune moment."
-- test_id: can-the-route-kill-canoptek-warrior
-  query: >
-    can the route tacop be scored with killing a canoptek warrior?
-  ground_truth_contexts:
-    - "MACROCYTE WARRIOR": "As a **STRATEGIC GAMBIT** in each turning point after the first, if you have less than three non-**incapacitated** friendly **CANOPTEK CIRCLE WARRIOR** operatives,"
-    - "ROUTE TacOp": "Whenever a friendly operative incapacitates an enemy operative, if that friendly operative is within 6"
 - test_id: vantage-usage
   query: >
     Please tell me what rules can we use, when an operatíve in vantage (2"+) shoot his target, and the target is in light cover?
   ground_truth_contexts:
     - "Vantage": "Vantage terrain is the upper levels of the killzone areas operatives can be placed upon" # Missing
     - "VALID TARGET": "Some rules require you to select a valid target for an operative. This is most common when an operative is shooting, but some rare rules require it too."
-
+# - test_id: fight-through-wall
+#   query: >
+#     can two operatives fight even if not visible to each other on two different sides of a stronghold wall?
+#   ground_truth_contexts:
+#     - "Visibility cannot be determined over or through Wall terrain."
+#     - "Something is within an operative's control range if it's visible to and within 1\" of that operative."
+# - test_id: door-difference
+#   query: >
+#     is there a difference between the doors on the strongholds and large ruins ruleswise?
+#   ground_truth_contexts:
+#     - "The upper level of a large ruin terrain feature is"
+#     - "The upper level(s) of a stronghold terrain feature is"
+# - test_id: climbing-ladder
+#   query: >
+#     how  do you measure the distance needed to climb up to the second story of volkus map while using a ladder?
+#   ground_truth_contexts:
+#     - "An operative must be within 1\" horizontally and 3\" vertically of terrain that's visible to them to climb it."
+#     - "UNIVERSAL EQUIPMENT - 2X LADDERS"
+#- test_id: cp-lost-cancelled
+#  query: >
+#    Would the Curtain Falls firefight ploy still cost CP even after the Nemesis Claw chain snare 
+#    equipment potenatially would block the free fall back action?
+#  ground_truth_contexts:
+#    - "THE CURTAIN FALLS"
+#    - "Whenever an enemy operative would perform the Fall Back action while within control range of a friendly NEMESIS CLAW operative"
+#- test_id: return-to-darkness-teleport # Only works with RAG_ENABLE_QUERY_EXPANSION = True
+#  query: >
+#    can I use return to darkness ploy with nemesis claw operative to use the teleport on tomb world map?
+#  ground_truth_contexts:
+#    - "RETURN TO DARKNESS": "One friendly **NEMESIS CLAW** operative can immediately perform a free **Fall Back** or **Reposition** action, but it must end that move with **Heavy** terrain within its **control range**"
+#    - "TELEPORT PAD": "whenever a friendly operative on a teleport pad performs the **Charge**, **Fall Back** or **Reposition** action, you can teleport it. If you do, don't move it"
+#- test_id: can-the-route-kill-canoptek-warrior
+#  query: >
+#    can the route tacop be scored with killing a canoptek warrior?
+#  ground_truth_contexts:
+#    - "MACROCYTE WARRIOR": "As a **STRATEGIC GAMBIT** in each turning point after the first, if you have less than three non-**incapacitated** friendly **CANOPTEK CIRCLE WARRIOR** operatives,"
+#    - "ROUTE TacOp": "Whenever a friendly operative incapacitates an enemy operative, if that friendly operative is within 6"
+#- test_id: if-an-operative
+#  query: >
+#    if an operative has accurate 1 from two different sources, does that count as accurate 2?
+#  ground_truth_contexts:
+#    - "Accurate x": "You can retain up to x attack dice as normal successes without rolling them."
+# - test_id: rain-bitter-demise
+#   query: >
+#     Would the banshee resolve his dash/fall back with Rain of Tears before the damage of Bitter Demise can hit it, or would the blooded operative be removed from the battlefield before any of that, thus possibly dealing damage to the banshee?
+#   ground_truth_contexts:
+#     - "Use this ASPECT TECHNIQUE when a friendly HOWLING BANSHEE operative is fighting, after you strike with a critical success"
+#     - "Whenever a friendly BLOODED operative is incapacitated, before it's removed from the killzone"
+# - test_id: teleport-counteract
+#   query: >
+#     Can I use the Teleport Pad during counteract?
+#   ground_truth_contexts:
+#     - "TELEPORT PAD"
+#     - "COUNTERACT"
 # - test_id: crit-ops-initiative
 #   query: >
 #     in the 2025 crit ops, do the player who loses initiative still get 2cp azlt the strategy phase?
 #   ground_truth_contexts:
 #     - "2. READY"
-
 # - test_id: geomancer-geomanic-grot
 #   query: >
 #     could a canoptek geomancer use the geomantic disturbance on a barricade which is 7" away from it, behind the barricade is a kommando grot, within 2". Does the kommando grot take damage, if the roll with 2d6 is 10?
 #   ground_truth_contexts:
 #     - "GEOMANTIC DISTURBANCE"
 #     - "Sneaky Zogger"
-
 # - test_id: geomancer-shoot-grot
 #   query: >
 #     Can a Geomancer shoot a kommando grot with conceal order behind a light a barricade?
 #   ground_truth_contexts:
 #     - "Sneaky Zogger"
-
 # - test_id: canoptek-tombcrawler-shoot-grot
 #   query: >
 #     does canoptek tomb crawler can shoot kommando grot with conceal order behind a light a barricade?
 #   ground_truth_contexts:
 #     - "CANOPTEK TOMB CRAWLER"
 #     - "Sneaky Zogger"
-
 # - test_id: how-do-you-climb-barricade
 #   query: >
 #     How do you climb over a barricade?
 #   ground_truth_contexts:
 #     - "Climbing"
-- test_id: if-an-operative
-  query: >
-    if an operative has accurate 1 from two different sources, does that count as accurate 2?
-  ground_truth_contexts:
-    - "Accurate x": "You can retain up to x attack dice as normal successes without rolling them."

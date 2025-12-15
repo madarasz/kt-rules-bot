@@ -620,6 +620,10 @@ class AnalyticsDatabase:
                     query += " AND channel_id = ?"
                     params.append(filters["channel_id"])
 
+                if "discord_server_id" in filters and filters["discord_server_id"]:
+                    query += " AND discord_server_id = ?"
+                    params.append(filters["discord_server_id"])
+
                 if "search" in filters and filters["search"]:
                     query += " AND (query_text LIKE ? OR response_text LIKE ?)"
                     search_term = f"%{filters['search']}%"
