@@ -108,7 +108,7 @@ def _format_structured(bot_response: BotResponse, smalltalk: bool = False) -> li
         if quote_title.startswith("[FAQ]"):
             remaining_title = quote_title[5:].strip()  # Remove "[FAQ]" prefix
             if remaining_title:
-                quote_text = f"{remaining_title}\n{quote_text}"
+                quote_text = f"{remaining_title} \n> {quote_text}"
             quote_title = "[FAQ]"
 
         field_name = f"**{quote_title}**"
