@@ -5,11 +5,7 @@ import streamlit as st
 from src.lib.database import AnalyticsDatabase
 
 from ..utils.constants import ADMIN_STATUS_COLORS
-from ..utils.formatters import (
-    format_feedback,
-    format_timestamp,
-    truncate_text,
-)
+from ..utils.formatters import format_feedback, format_timestamp, truncate_text
 from ..utils.icons import get_quote_validation_icon
 from ..utils.session import set_selected_query
 from .deletion import DeletionButton
