@@ -4,7 +4,7 @@ Multi-provider Large Language Model integration with unified interface.
 
 ## Purpose
 
-Provides a provider-agnostic interface for LLM text generation and PDF extraction. Supports multiple LLM providers (Anthropic, OpenAI, Google, X) through a factory pattern with automatic retry, rate limiting, and error handling.
+Provides a provider-agnostic interface for LLM text generation and PDF extraction. Supports multiple LLM providers (Anthropic, OpenAI, Google, X, DeepSeek, Moonshot/Kimi) through a factory pattern with automatic retry, rate limiting, and error handling.
 
 ## Architecture
 
@@ -49,6 +49,7 @@ Defines the LLM provider interface:
 - ChatGPT/Grok: Function calling with strict mode
 - Gemini: JSON mode (`response_mime_type: "application/json"`)
 - DeepSeek: Function calling
+- Kimi: JSON mode with schema in prompt (thinking mode incompatible with tool_choice)
 
 This ensures consistent, parseable responses across all providers.
 
@@ -89,6 +90,11 @@ Creates LLM provider instances:
 # DeepSeek
 "deepseek-chat" → deepseek-chat
 "deepseek-reasoner" → deepseek-reasoner
+
+# Moonshot/Kimi
+"kimi-k2.5" → kimi-k2.5
+"kimi-k2-0905-preview" → kimi-k2-0905-preview
+"kimi-k2-turbo-preview" → kimi-k2-turbo-preview
 ```
 
 ## Provider Output Differences
@@ -104,6 +110,7 @@ All LLM providers return structured JSON conforming to the same schema, but they
 | **Gemini** | JSON mode with `response.parsed` | SDK parse (Pydantic instance via `response.parsed`) | ✅ Populated |
 | **Grok** | OpenAI-style JSON schema | Post-response validation | ❌ Not populated |
 | **DeepSeek** | Function calling | Post-response validation | ❌ Not populated |
+| **Kimi** | JSON mode with schema in prompt | Post-response validation | ❌ Not populated |
 
 ### Native Parse Methods
 
@@ -222,6 +229,7 @@ short_answer = parsed["short_answer"]
 | **Gemini** | Safety ratings | 0.5-0.9 (NEGLIGIBLE→0.9, LOW→0.8, MEDIUM→0.7, HIGH→0.5) |
 | **Grok** | Hardcoded | 0.8 (no logprobs support yet) |
 | **DeepSeek** | Hardcoded | 0.8 (0.85 for deepseek-reasoner) |
+| **Kimi** | Hardcoded | 0.8 (no logprobs support) |
 
 **Gemini is unique**: Derives confidence from content safety ratings rather than using a static value.
 
@@ -232,6 +240,7 @@ Some models use internal reasoning tokens that don't appear in the final output.
 - **ChatGPT**: GPT-5, o-series (o3, o4-mini, etc.) - use `max_completion_tokens` instead of `max_tokens`
 - **Gemini**: Gemini 2.5 Pro, Gemini 2.5 Flash (2.5+)
 - **DeepSeek**: deepseek-reasoner
+- **Kimi**: kimi-k2.5 (has thinking mode enabled by default)
 
 Standard models use `max_tokens` directly without multiplication.
 
@@ -296,6 +305,20 @@ DeepSeek integration:
 - deepseek-reasoner: Multiplies max_tokens by 3 (internal reasoning tokens), uses confidence 0.85
 - Context window up to 128K tokens
 - Default confidence: 0.8 (0.85 for reasoner)
+- No PDF extraction support
+
+#### Kimi Adapter ([kimi.py](kimi.py))
+Moonshot Kimi integration:
+- Uses OpenAI SDK with custom base URL (`https://api.moonshot.ai/v1`)
+- **Structured output**: JSON mode with schema in prompt (not function calling)
+- **Pydantic usage**: Post-response validation - manually validates JSON string with `model_validate_json()`
+- **Output fields**: Only populates `answer_text` (JSON string), `structured_output` field is **NOT populated**
+- Uses `response_format={"type": "json_object"}` with JSON schema appended to system prompt
+- Supports kimi-k2.5, kimi-k2-0905-preview, kimi-k2-turbo-preview
+- kimi-k2.5: Has thinking mode enabled by default (incompatible with tool_choice)
+- kimi-k2.5: Only supports temperature=1.0, multiplies max_tokens by 3 (thinking tokens)
+- Context window: 256K tokens for all K2 models
+- Default confidence: 0.8
 - No PDF extraction support
 
 ### Supporting Services

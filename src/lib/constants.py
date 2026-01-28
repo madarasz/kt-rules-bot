@@ -39,6 +39,9 @@ LLM_PROVIDERS_LITERAL = Literal[
     "grok-3-mini",
     "deepseek-chat",
     "deepseek-reasoner",
+    "kimi-k2.5",
+    "kimi-k2-0905-preview",
+    "kimi-k2-turbo-preview",
     "mistral-large",
     "mistral-medium",
     "mistral-small",
@@ -69,14 +72,6 @@ PDF_EXTRACTION_PROVIDERS = [
     "claude-4.1-opus",
 ]
 
-# Claude models that support structured outputs (beta.messages.parse)
-# Models not in this list use tool use fallback
-CLAUDE_MODELS_WITH_STRUCTURED_OUTPUTS = [
-    "claude-sonnet-4-5-20250929",
-    "claude-opus-4-1-20250805",
-    # claude-haiku-4-5-20251001 not yet supported
-]
-
 # Quality test providers (curated list for --all-models testing)
 QUALITY_TEST_PROVIDERS = [
     #"gpt-5.1-chat-latest",
@@ -86,7 +81,11 @@ QUALITY_TEST_PROVIDERS = [
     "claude-4.5-sonnet",
     #"claude-4.5-opus",
     #"gemini-3-pro-preview",
+    #"gemini-3-flash-preview",
     "gemini-2.5-flash",
+    #"kimi-k2.5",
+    #"kimi-k2-0905-preview",
+    #"kimi-k2-turbo-preview",
     #"gemini-2.5-pro",
     #"deepseek-chat",
     "grok-4-1-fast-reasoning",
@@ -122,7 +121,7 @@ LLM_EXTRACTION_TIMEOUT = 300  # PDF extraction timeout (5 minutes for large PDFs
 LLM_JUDGE_TIMEOUT = 30  # Quality test judge evaluation timeout
 
 # Default LLM generation parameters
-LLM_DEFAULT_MAX_TOKENS = 1024  # Maximum response length
+LLM_DEFAULT_MAX_TOKENS = 2048  # Maximum response length
 LLM_DEFAULT_TEMPERATURE = 0.1  # Lower = more deterministic (0.0-1.0)
 
 

@@ -114,6 +114,10 @@ def estimate_cost(prompt_tokens: int, completion_tokens: int, model: str) -> flo
         # https://api-docs.deepseek.com/quick_start/pricing
         "deepseek-chat": {"prompt": 0.00028, "completion": 0.00042},
         "deepseek-reasoner": {"prompt": 0.00028, "completion": 0.00042},
+        # https://platform.moonshot.ai/docs/pricing/chat
+        "kimi-k2.5": {"prompt": 0.0001, "completion": 0.003},
+        "kimi-k2-0905-preview": {"prompt": 0.00015, "completion": 0.0025},
+        "kimi-k2-turbo-preview": {"prompt": 0.00015, "completion": 0.008},
         # https://docs.x.ai/docs/models
         "grok-4-1-fast-reasoning": {"prompt": 0.0002, "completion": 0.0005},
         # https://mistral.ai/pricing#api-pricing

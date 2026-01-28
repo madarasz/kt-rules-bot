@@ -15,6 +15,7 @@ from src.services.llm.deepseek import DeepSeekAdapter
 from src.services.llm.dial import DialAdapter
 from src.services.llm.gemini import GeminiAdapter
 from src.services.llm.grok import GrokAdapter
+from src.services.llm.kimi import KimiAdapter
 from src.services.llm.mistral import MistralAdapter
 
 logger = get_logger(__name__)
@@ -52,6 +53,9 @@ class LLMProviderFactory:
         "grok-3-mini": (GrokAdapter, "grok-3-mini", "x"),
         "deepseek-chat": (DeepSeekAdapter, "deepseek-chat", "deepseek"),
         "deepseek-reasoner": (DeepSeekAdapter, "deepseek-reasoner", "deepseek"),
+        "kimi-k2.5": (KimiAdapter, "kimi-k2.5", "moonshot"),
+        "kimi-k2-0905-preview": (KimiAdapter, "kimi-k2-0905-preview", "moonshot"),
+        "kimi-k2-turbo-preview": (KimiAdapter, "kimi-k2-turbo-preview", "moonshot"),
         "mistral-large": (MistralAdapter, "mistral-large-latest", "mistral"),
         "mistral-medium": (MistralAdapter, "mistral-medium-2505", "mistral"),
         "mistral-small": (MistralAdapter, "mistral-small-latest", "mistral"),
@@ -144,6 +148,7 @@ class LLMProviderFactory:
                 "dial": server_config.dial_api_key,
                 "deepseek": server_config.deepseek_api_key,
                 "mistral": server_config.mistral_api_key,
+                "moonshot": server_config.moonshot_api_key,
             }
             api_key = server_api_key_map.get(api_key_type)
         else:
@@ -156,6 +161,7 @@ class LLMProviderFactory:
                 "dial": config.dial_api_key,
                 "deepseek": config.deepseek_api_key,
                 "mistral": config.mistral_api_key,
+                "moonshot": config.moonshot_api_key,
             }
             api_key = global_api_key_map.get(api_key_type)
 
@@ -170,6 +176,7 @@ class LLMProviderFactory:
                 "dial": "DIAL_API_KEY",
                 "deepseek": "DEEPSEEK_API_KEY",
                 "mistral": "MISTRAL_API_KEY",
+                "moonshot": "MOONSHOT_API_KEY",
             }
 
             missing_key = api_key_env_map[api_key_type]

@@ -11,7 +11,6 @@ from uuid import uuid4
 
 from anthropic import Anthropic, AsyncAnthropic
 
-from src.lib.constants import CLAUDE_MODELS_WITH_STRUCTURED_OUTPUTS
 from src.lib.logging import get_logger
 from src.lib.pdf_utils import decompress_pdf_with_cleanup
 from src.services.llm.base import (
@@ -33,6 +32,13 @@ from src.services.llm.schemas import Answer, CustomJudgeResponse, HopEvaluation
 
 logger = get_logger(__name__)
 
+# Claude models that support structured outputs (beta.messages.parse)
+# Models not in this list use tool use fallback
+CLAUDE_MODELS_WITH_STRUCTURED_OUTPUTS = [
+    "claude-sonnet-4-5-20250929",
+    "claude-opus-4-1-20250805",
+    # claude-haiku-4-5-20251001 not yet supported
+]
 
 class ClaudeAdapter(LLMProvider):
     """Anthropic Claude API integration."""

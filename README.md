@@ -9,7 +9,7 @@ Helps **Warhammer 40k: Kill Team** players quickly find accurate rule informatio
 
 - **LLM with RAG** using semantic + **BM25** keyword search with **multi-hop** retrieval
 - **Structured JSON LLM output with Pydantic** (for supported models)
-- **20+ LLM models supported** from OpenAI, Claude, Gemini, Grok, Mistral and Deepseek
+- **30+ LLM models supported** from OpenAI, Claude, Gemini, Grok, Mistral, DeepSeek and Kimi
 - **Comprehensive testing** with unit tests, RAG tests, and LLM model comparison tests - see [Testing Strategy](docs/TESTING-STRATEGY.md)
 - **ChromaDB** vector database
 - **Python 3.12** with discord.py for Discord integration

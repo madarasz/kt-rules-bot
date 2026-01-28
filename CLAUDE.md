@@ -7,7 +7,10 @@ Discord bot answering Kill Team rules questions using RAG + LLM (ChromaDB + Clau
 ## Quick Start for Agents
 
 ```bash
-# Setup
+# Activate virtual environment (required for all commands)
+source venv/bin/activate
+
+# Setup (if venv doesn't exist)
 pip install -r requirements.txt
 cp config/.env.template config/.env  # Add your API keys
 
@@ -47,7 +50,7 @@ python3 scripts/migrate_db.py
 
 ## Architecture
 
-**Tech Stack**: Python 3.11+, discord.py, ChromaDB, OpenAI, Anthropic, Google AI, X/Grok, DeepSeek
+**Tech Stack**: Python 3.11+, discord.py, ChromaDB, OpenAI, Anthropic, Google AI, X/Grok, DeepSeek, Moonshot/Kimi
 
 **RAG Pipeline**:
 - Hybrid retrieval (vector + BM25) with RRF fusion
@@ -62,6 +65,7 @@ python3 scripts/migrate_db.py
 - GPT: `gpt-5`, `gpt-4.1`, `gpt-4o`, `o3`, `o4-mini` + variants
 - Grok: `grok-4-fast-reasoning`, `grok-3` + variants
 - DeepSeek: `deepseek-chat`, `deepseek-reasoner`
+- Kimi: `kimi-k2.5`, `kimi-k2-0905-preview`, `kimi-k2-turbo-preview`
 
 **See**: [src/services/CLAUDE.md](src/services/CLAUDE.md) for detailed architecture
 
@@ -235,8 +239,8 @@ The bot uses **per-server API key configuration**, allowing multiple Discord ser
 ### Per-Server Configurable Settings
 
 - **LLM Provider** (REQUIRED): `llm_provider` - which model to use for queries
-- **API Keys**: `anthropic_api_key`, `openai_api_key`, `google_api_key`, `x_api_key`, `deepseek_api_key`
-  - The API key must match the `llm_provider` (e.g., claude models need `anthropic_api_key`)
+- **API Keys**: `anthropic_api_key`, `openai_api_key`, `google_api_key`, `x_api_key`, `deepseek_api_key`, `moonshot_api_key`
+  - The API key must match the `llm_provider` (e.g., claude models need `anthropic_api_key`, kimi models need `moonshot_api_key`)
 
 
 ## API Documentation

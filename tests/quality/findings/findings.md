@@ -1,5 +1,7 @@
 # Decisions
 ## LLM models removed from consideration
+- `kimi-k2.5` answers are good, but it is too slow (60s+). Other Kimi models just give bad answers
+- `gemini-3-flash-preview` is slower (20s+), more expensive than `gemini-2.5-flash`. It might be smarter, but sometimes has truncated JSON isse
 - `gpt-5`, `grok-4-0709`, `gemini-3-pro-preview`: VERY SLOW (often around 2 mins or more)
 - `gpt-5.1-chat-latest` is not that impressive, `gpt-4.1` is slightly better, slightly faster, only a little bit more expensive
 - `gtp-4o` gives bad answers and is expensive
@@ -13,6 +15,15 @@
 - `gtp-4o` is unsuitable as a judge, it has a lot of false negative judgements,`claude-4.5-opus` is great, but it is very expensive. `claude-4.5-sonnet` is too permissive. `claude-4.5-haiku` is promising as a judge.
 
 # Test results
+
+## Kimi test - 2026.01.28
+![kimi-chart](quality_test_2026-01-28_13-10-25_KIMI.png)
+| Model | Avg Score % | Avg Time/Query (s) | Avg Cost/Query ($) |
+|-------|-------------|--------------------|--------------------|
+| kimi-k2.5 | 83.2% (±19.7) | 65.78 (±19.43) | $0.0106 (±0.0031) |
+| kimi-k2-0905-preview | 74.8% (±26.7) | 31.31 (±10.25) | $0.0021 (±0.0002) |
+| kimi-k2-turbo-preview | 66.7% (±29.8) | 5.29 (±1.54) | $0.0037 (±0.0010) |
+
 
 ## Big model test - 2025.12.09
 ![chart](quality_test_2025-12-09_multirun_3x.png)
