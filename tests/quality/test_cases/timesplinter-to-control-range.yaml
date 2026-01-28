@@ -1,0 +1,18 @@
+test_id: timesplinter-to-control-range
+context_file: tests/quality/test_cases/timesplinter-to-control-range-context.json
+query: >
+  Can hierotek circle's cronomancer place a friendly operative with the time splinter ability in control range of an enemy operative?
+ground_truth_answers:
+  - key: "Final Answer"
+    text: "Yes, it can place the friendly operative in control range of an enemy operative."
+    priority: critical
+  - key: "No prohibition"
+    text: "Timesplinter ability does not prohibit placing the friendly operative in control range of an enemy operative."
+    priority: critical
+  - key: "Comparing to other abilities with restrictions"
+    text: "Other ability states specific restrictions on placing operatives in control range, but timesplinter does not."
+    priority: supporting
+ground_truth_contexts:
+  - key: "CHRONOMANCER - TIMESPLINTER"
+    text: "Remove it from the killzone and set it back up **visible** to and **within 5\"** horizontally of this operative, in a location it can be placed."
+    priority: critical

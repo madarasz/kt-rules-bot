@@ -16,6 +16,53 @@
 
 # Test results
 
+## Big model test - 2026.01.28
+- added new test `timesplinter-to-control-range`
+![chart](quality_test_2026-01-28_13-52-13_top4_models_x3.png)
+| Model | Avg Score % | Avg Time/Query (s) | Avg Cost/Query ($) |
+|-------|-------------|--------------------|--------------------|
+| grok-4-1-fast-reasoning | 83.9% (±21.9) | 28.97 (±13.19) | $0.0018 (±0.0001) |
+| claude-4.5-sonnet | 78.7% (±27.0) | 11.89 (±3.40) | $0.0289 (±0.0025) |
+| gemini-2.5-flash | 78.4% (±21.5) | 9.56 (±1.75) | $0.0036 (±0.0003) |
+| gpt-4.1 | 78.0% (±21.3) | 9.36 (±3.63) | $0.0183 (±0.0016) |
+
+Key takeaways:
+- `gemini-2.5-flash` sometimes paraphrasing, lower Quote Faithfullness
+- `grok-4-1-fast-reasoning` uses many quotes, finds all the relevant ones, maybe it's too verbose
+- `grok-4-1-fast-reasoning` sometimes uncertain "I don't know"
+- `claude-4.5-sonnet` struggled with test *teleport-counteract*
+
+Difference in scores:
+- action-in-strategic-phase
+  - `claude-4.5-sonnet` 98.3% (±0.5) - great answers
+  - `grok-4-1-fast-reasoning` 62.0% (±27.2) - 1 good answer, 2 "I don't know"
+  - `gemini-2.5-flash` 43.0% (±4.2) - thiks Fall Back during Strategy phase limits same actions during activation
+  - `gpt-4.1` 38.0% (±5.7) - thiks Fall Back during Strategy phase limits same actions during activation
+- chain-snare-vs-curtain-falls
+  - `claude-4.5-sonnet` 92.7% (±0.9) - good answers
+  - `gemini-2.5-flash` 87.7% (±1.2) - bad Quote Faithfullness
+  - `gpt-4.1` 86.3% (±1.9) - lower Quote Recall, but great explanations
+  - `grok-4-1-fast-reasoning` 74.3% (±26.4) - 1 "I don't know"
+- eliminator-concealed-counteract *- almost every model above 97%, test could be retired*
+  - `gtp-4.1` 91.7% (±2.5) - missed the most contexts, failing to cite the Eliminator's Keywords (proving ANGEL OF DEATH) in multiple runs
+- missing-context - almost every model above 94%
+  - `gemini-2.5-flash` 67.7% (±26.8) - 1 hallucinated answer, slight paraphrasing
+- non-reciprocal-blast *- no or rare good answers, hardest question, nice indicator for future improvements*
+  - `claude-4.5-sonnet` 78.7% (±7.6)
+  - `gpt-4.1` 74.3% (±11.5)
+  - `grok-4-1-fast-reasoning` 63.3% (±18.6) - cites too many rules
+  - `gemini-2.5-flash` 56.3% (±5.0) - cites too many rules
+- strategic-double-action
+  - `gemini-2.5-flash` 91.3% (±8.0) and `gpt-4.1` 80.7% (±10.5) sometimes left out important COVERT GUISES rule
+- teleport-counteract *- should LLMs know that teleports are more than 2" apart? might be a bad test -*
+  - `gpt-4.1` 96.0%
+  - `gemini-2.5-flash` 89.7% (±2.9) - Quote Faithfullness issue
+  - `grok-4-1-fast-reasoning` 82.7% (±18.2) - 1 "I don't know"
+  - `claude-4.5-sonnet` 30.7% (±0.5) - wrong quotes, bad answer, confuses 2" with 2 AP
+- timesplinter-to-control-range *- REANIMATION PROTOCOL quote should be added as required -*
+  - `gpt-4.1` 62.3% (±24.6) - conflicting short answer and explanation
+  - `claude-4.5-sonnet` 36.3% (±2.4) - generalizes REANIMATION PROTOCOL instead of using it as a counter example
+
 ## Kimi test - 2026.01.28
 ![kimi-chart](quality_test_2026-01-28_13-10-25_KIMI.png)
 | Model | Avg Score % | Avg Time/Query (s) | Avg Cost/Query ($) |

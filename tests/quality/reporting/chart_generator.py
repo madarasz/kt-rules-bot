@@ -218,6 +218,7 @@ class ChartGenerator:
             std_chars=std_chars,
             test_queries=set(),  # Don't include queries for per-test-case charts
             title=f"Model Performance Comparison - {test_id}",
+            filtered_model_data=model_data,  # Pass filtered data for scatter points
         )
 
     def _create_chart(
@@ -234,6 +235,7 @@ class ChartGenerator:
         test_queries: set[str],
         title: str,
         model_run_averages: dict | None = None,
+        filtered_model_data: dict | None = None,
     ) -> str:
         """Create a chart with the given data."""
         # Create figure
@@ -292,7 +294,7 @@ class ChartGenerator:
 
         # Add individual data points for different queries if multi-run or multi-test-case
         if self.report.is_multi_run or self.report.is_multi_test_case:
-            self._add_individual_points(ax1, pos1, models, "scores", model_run_averages)
+            self._add_individual_points(ax1, pos1, models, "scores", model_run_averages, filtered_model_data)
 
         ax1.set_xlabel("Model", fontsize=12, fontweight="bold")
         ax1.set_ylabel("Score %", fontsize=12, fontweight="bold", color=color_earned)
@@ -316,7 +318,7 @@ class ChartGenerator:
                 alpha=0.7,
             )
         if self.report.is_multi_run or self.report.is_multi_test_case:
-            self._add_individual_points(ax2, pos2, models, "times", model_run_averages)
+            self._add_individual_points(ax2, pos2, models, "times", model_run_averages, filtered_model_data)
         ax2.set_ylabel("Time (seconds)", fontsize=12, fontweight="bold", color=color_time)
         ax2.tick_params(axis="y", labelcolor=color_time)
         # Ensure time axis starts from 0
@@ -337,7 +339,7 @@ class ChartGenerator:
                 alpha=0.7,
             )
         if self.report.is_multi_run or self.report.is_multi_test_case:
-            self._add_individual_points(ax3, pos3, models, "costs", model_run_averages)
+            self._add_individual_points(ax3, pos3, models, "costs", model_run_averages, filtered_model_data)
         ax3.set_ylabel("Cost (USD)", fontsize=12, fontweight="bold", color=color_cost)
         ax3.tick_params(axis="y", labelcolor=color_cost)
         # Ensure cost axis starts from 0
@@ -358,7 +360,7 @@ class ChartGenerator:
                 alpha=0.7,
             )
         if self.report.is_multi_run or self.report.is_multi_test_case:
-            self._add_individual_points(ax4, pos4, models, "chars", model_run_averages)
+            self._add_individual_points(ax4, pos4, models, "chars", model_run_averages, filtered_model_data)
         ax4.set_ylabel("Response Characters", fontsize=12, fontweight="bold", color=color_chars)
         ax4.tick_params(axis="y", labelcolor=color_chars)
         # Ensure characters axis starts from 0
@@ -499,19 +501,29 @@ class ChartGenerator:
         return earned_values, error_values
 
     def _add_individual_points(
-        self, ax, positions, models: list[str], metric: str, model_run_averages: dict | None = None
+        self,
+        ax,
+        positions,
+        models: list[str],
+        metric: str,
+        model_run_averages: dict | None = None,
+        filtered_model_data: dict | None = None,
     ):
         """Add individual data points as small circles on the chart.
 
         If model_run_averages is provided, plots per-run averages (average across all tests for each run).
-        Otherwise, plots individual test results (old behavior for per-test-case charts).
+        If filtered_model_data is provided, uses that data (for per-test-case charts).
+        Otherwise, falls back to self.report.results (should not happen in practice).
         """
         for i, model in enumerate(models):
             # Use per-run averages if provided (for multi-run main chart)
             if model_run_averages and model in model_run_averages:
                 values = model_run_averages[model].get(metric, [])
+            elif filtered_model_data and model in filtered_model_data:
+                # Use filtered data for per-test-case charts
+                values = filtered_model_data[model].get(metric, [])
             else:
-                # Fall back to individual test results (for per-test-case charts)
+                # Fall back to individual test results (should not happen in practice)
                 model_results = [r for r in self.report.results if r.model == model]
                 if not model_results:
                     continue

@@ -515,12 +515,19 @@ class QualityTestRunner:
                 if test_case.context_file and not force_rag:
                     try:
                         # Load cached RAG context from file
-                        rag_context, hop_evaluations, _, embedding_cost = load_rag_context(
+                        # Note: We ignore the cached costs (_cached_embedding_cost, hop_evaluations costs)
+                        # because no RAG retrieval is performed when using cache
+                        rag_context, hop_evaluations, _, _cached_embedding_cost = load_rag_context(
                             test_case.context_file
                         )
+                        # Zero out RAG-related costs since no API calls were made
+                        embedding_cost = 0.0
+                        # Clear hop evaluations to prevent multi_hop_cost calculation in run_test()
+                        hop_evaluations = []
                         logger.info(
                             f"Using cached context from {test_case.context_file} "
-                            f"for test '{test_case.test_id}' (Run #{run_num})"
+                            f"for test '{test_case.test_id}' (Run #{run_num}) "
+                            f"(RAG costs zeroed)"
                         )
                     except RAGContextSerializationError as e:
                         # Don't fallback to RAG - raise error to fail fast
