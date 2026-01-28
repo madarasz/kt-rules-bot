@@ -101,7 +101,7 @@ All LLM providers return structured JSON conforming to the same schema, but they
 |----------|-----------|----------------|--------------------------|
 | **Claude** | `beta.messages.parse()` | Native parse (Pydantic instance returned) | ✅ Populated |
 | **ChatGPT** | `beta.chat.completions.parse()` | Native parse (Pydantic instance returned) | ✅ Populated |
-| **Gemini** | JSON mode with schema | Post-response validation | ✅ Populated |
+| **Gemini** | JSON mode with `response.parsed` | SDK parse (Pydantic instance via `response.parsed`) | ✅ Populated |
 | **Grok** | OpenAI-style JSON schema | Post-response validation | ❌ Not populated |
 | **DeepSeek** | Function calling | Post-response validation | ❌ Not populated |
 
@@ -130,23 +130,35 @@ response = await client.beta.chat.completions.parse(
 parsed_output = choice.message.parsed  # Pydantic instance
 ```
 
+### SDK Parse Methods
+
+**Gemini** uses the SDK's built-in `response.parsed` property:
+- Pass Pydantic model to `response_schema` parameter
+- SDK returns Pydantic instance via `response.parsed`
+- More robust than manual validation (catches truncated JSON from preview models)
+- Falls back to error reporting with raw text if parsing fails
+
+**Implementation:**
+```python
+# Gemini: response.parsed (recommended)
+response = await client.models.generate_content(
+    response_mime_type="application/json",
+    response_schema=pydantic_model,  # Schema configuration
+    ...
+)
+pydantic_response = response.parsed  # Pydantic instance via SDK
+answer_text = pydantic_response.model_dump_json()
+```
+
 ### Post-Response Validation
 
-**Gemini, Grok, and DeepSeek** receive raw JSON strings and validate them manually:
+**Grok and DeepSeek** receive raw JSON strings and validate them manually:
 - Configure API to return JSON using schema, but receive raw string
 - Manually call `pydantic_model.model_validate_json(json_string)`
 - More flexible but requires explicit validation step
 
 **Implementation:**
 ```python
-# Gemini: JSON mode
-response = await client.models.generate_content(
-    response_mime_type="application/json",
-    response_schema=pydantic_model,  # Schema configuration
-    ...
-)
-answer_text = response.text  # Raw JSON string
-pydantic_response = pydantic_model.model_validate_json(answer_text)
 
 # Grok: OpenAI-compatible JSON schema
 response = await client.post(
@@ -249,12 +261,13 @@ OpenAI ChatGPT integration:
 Google Gemini integration:
 - Uses `google-genai` SDK (new API)
 - **Structured output**: JSON mode with `response_mime_type: "application/json"` and `response_schema`
-- **Pydantic usage**: Post-response validation - manually validates JSON string with `model_validate_json()`
+- **Pydantic usage**: SDK parse via `response.parsed` - SDK returns Pydantic instance directly (more robust than manual validation)
 - **Output fields**: Populates both `answer_text` (JSON string) and `structured_output` (dict) in LLMResponse
 - **Special feature**: Sentence numbering for quote extraction (see Gemini Quote Extraction below)
 - Uses different Pydantic schema (`GeminiAnswer` with sentence numbers) to avoid RECITATION errors
+- **Truncation detection**: Falls back to raw text analysis if `response.parsed` fails (catches truncated JSON from preview models)
 - Best for PDF extraction (native multimodal)
-- Supports Gemini 2.5 Pro and Flash
+- Supports Gemini 2.5 Pro, Flash, and 3.x preview models
 - Gemini 2.5+ models: Multiply max_tokens by 3 (internal reasoning tokens)
 - Confidence from safety ratings (0.5-0.9): NEGLIGIBLE→0.9, LOW→0.8, MEDIUM→0.7, HIGH→0.5
 - Content filter detection via `finish_reason`

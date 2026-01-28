@@ -56,7 +56,7 @@ class GeminiAdapter(LLMProvider):
         self.model = model
 
         # Gemini 2.5+ models with thinking capabilities use reasoning tokens
-        reasoning_models = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-pro-preview"]
+        reasoning_models = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-pro-preview", "gemini-3-flash-preview"]
         self.uses_completion_tokens = model in reasoning_models
 
         logger.info(f"Initialized Gemini adapter with model {model}")
@@ -209,31 +209,40 @@ class GeminiAdapter(LLMProvider):
                 ]:  # Not normal completion
                     logger.warning(f"Gemini unexpected finish_reason: {finish_reason}")
 
-            # Extract JSON answer text (response.text is already JSON string with JSON mode)
+            # Extract and validate response using SDK's built-in parsed property
+            # This is more robust than manual validation as it handles edge cases
+            # like truncated JSON from preview models
             try:
-                answer_text = response.text
-            except ValueError as e:
-                # response.text throws ValueError when no valid parts exist
-                logger.error(f"Gemini response has no valid text parts: {e}")
-                raise ContentFilterError(
-                    "Gemini response was blocked. The query may have triggered safety filters. "
-                    "Try rephrasing or use a different model (--provider claude-4.5-sonnet)."
-                ) from e
+                # Try SDK's parsed property first (recommended approach)
+                pydantic_response = response.parsed
+                if pydantic_response is None:
+                    # Fallback to manual parsing if parsed is None
+                    raise ValueError("response.parsed returned None")
+                answer_text = pydantic_response.model_dump_json()
+                logger.debug(f"Validated structured JSON via response.parsed: {len(answer_text)} chars")
+            except Exception as parse_error:
+                # If SDK parsing fails, try to get raw text for error reporting
+                try:
+                    raw_text = response.text
+                except ValueError:
+                    raw_text = "<no text available>"
 
-            # Validate and parse JSON using Pydantic
-            try:
-                # Validate with Pydantic model for type safety
-                pydantic_response = pydantic_model.model_validate_json(answer_text)
-                logger.debug(f"Validated structured JSON with Pydantic: {len(answer_text)} chars")
-            except Exception as e:
-                logger.exception("Gemini returned invalid JSON or schema mismatch")
-                # Include the raw response in the error message for debugging
+                # Check for truncated JSON (common with preview models)
+                if raw_text != "<no text available>" and not raw_text.strip().endswith('}'):
+                    logger.error(f"Gemini returned truncated JSON: ...{raw_text[-100:]}")
+                    raise ValueError(
+                        f"Gemini response was truncated (JSON incomplete). "
+                        f"Last 100 chars: {raw_text[-100:]}"
+                    ) from parse_error
+
+                # Log the full error context
+                logger.exception("Gemini SDK parsing failed")
                 error_msg = (
                     f"Gemini returned invalid JSON or schema validation failed. "
-                    f"Response may be malformed. Error: {e}\n\n"
-                    f"RAW RESPONSE:\n{answer_text}"
+                    f"Error: {parse_error}\n\n"
+                    f"RAW RESPONSE:\n{raw_text}"
                 )
-                raise ValueError(error_msg) from e
+                raise ValueError(error_msg) from parse_error
 
             # Validate it's not empty
             if not answer_text or not answer_text.strip():

@@ -31,6 +31,7 @@ class LLMProviderFactory:
         "claude-4.5-haiku": (ClaudeAdapter, "claude-haiku-4-5-20251001", "anthropic"),
         "gemini-3-pro-preview": (GeminiAdapter, "gemini-3-pro-preview", "google"),
         "gemini-2.5-pro": (GeminiAdapter, "gemini-2.5-pro", "google"),
+        "gemini-3-flash-preview": (GeminiAdapter, "gemini-3-flash-preview", "google"),
         "gemini-2.5-flash": (GeminiAdapter, "gemini-2.5-flash", "google"),
         "gpt-5.1": (ChatGPTAdapter, "gpt-5.1", "openai"),
         "gpt-5.1-chat-latest": (ChatGPTAdapter, "gpt-5.1-chat-latest", "openai"),

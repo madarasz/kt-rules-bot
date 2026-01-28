@@ -109,6 +109,7 @@ def estimate_cost(prompt_tokens: int, completion_tokens: int, model: str) -> flo
         # https://ai.google.dev/gemini-api/docs/pricing
         "gemini-3-pro-preview": {"prompt": 0.002, "completion": 0.012},
         "gemini-2.5-pro": {"prompt": 0.00125, "completion": 0.01},
+        "gemini-3-flash-preview": {"prompt": 0.0005, "completion": 0.003},
         "gemini-2.5-flash": {"prompt": 0.0003, "completion": 0.0025},
         # https://api-docs.deepseek.com/quick_start/pricing
         "deepseek-chat": {"prompt": 0.00028, "completion": 0.00042},
