@@ -213,6 +213,7 @@ class QualityReport:
     models: list[str]
     test_cases: list[str]
     report_dir: str
+    judge_model: str
     prompt_path: str | None = None
     chart_path: str | None = None
     ragas_chart_path: str | None = None

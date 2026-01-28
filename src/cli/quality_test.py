@@ -52,6 +52,33 @@ def _suppress_event_loop_closed_errors() -> None:
     sys.excepthook = custom_excepthook
 
 
+def _detect_runs_from_results(results: list) -> int:
+    """Detect the number of runs from parsed test results.
+
+    Extracts run numbers from output filenames and returns the maximum.
+    If no run numbers can be extracted, returns 1 (single run).
+
+    Args:
+        results: List of individual test results from replay
+
+    Returns:
+        Maximum run number found (minimum 1)
+    """
+    import re
+
+    max_run = 1
+
+    for result in results:
+        # Extract run number from: output_{test_id}_{model}_{run}.md
+        match = re.search(r'_(\d+)\.md$', result.output_filename)
+        if match:
+            run_num = int(match.group(1))
+            max_run = max(max_run, run_num)
+
+    logger.debug(f"Detected {max_run} runs from {len(results)} result files")
+    return max_run
+
+
 def quality_test(
     test_id: str | None = None,
     model: str | None = None,
@@ -148,15 +175,20 @@ def quality_test(
             test_cases_inferred = list({r.test_id for r in results})
             models_inferred = list({r.model for r in results})
 
+            # Detect actual number of runs from output filenames
+            runs_detected = _detect_runs_from_results(results)
+            logger.info(f"Detected {runs_detected} runs from output directory")
+
             # Create the main report object
             report = QualityReport(
                 results=results,
                 total_time_seconds=total_time,
                 total_cost_usd=total_cost,
-                runs=1,  # Replay doesn't support multi-run detection yet
+                runs=runs_detected,  # Detected from output filenames
                 models=models_inferred,
                 test_cases=test_cases_inferred,
                 report_dir=str(replay_dir),
+                judge_model=runner.judge_model,
                 prompt_path=str(output_dir / "prompt.md"),
             )
 
@@ -240,6 +272,7 @@ def quality_test(
             models=models_to_run,
             test_cases=[tc.test_id for tc in test_cases_to_run],
             report_dir=str(report_dir),
+            judge_model=runner.judge_model,
             prompt_path=str(report_dir / "prompt.md"),
         )
 

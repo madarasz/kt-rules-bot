@@ -5,7 +5,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_JUDGING
+from src.lib.constants import QUALITY_TEST_JUDGING
 from tests.quality.reporting.chart_generator import ChartGenerator
 from tests.quality.reporting.report_models import IndividualTestResult, ModelSummary, QualityReport
 
@@ -183,7 +183,7 @@ class ReportGenerator:
             )
 
         header.append(f"- **Test cases**: {', '.join(self.report.test_cases)}")
-        header.append(f"- **Judge model**: {QUALITY_TEST_JUDGE_MODEL} ({QUALITY_TEST_JUDGING} mode)")
+        header.append(f"- **Judge model**: {self.report.judge_model} ({QUALITY_TEST_JUDGING} mode)")
 
         if self.report.chart_path:
             chart_name = os.path.basename(self.report.chart_path)

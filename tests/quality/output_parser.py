@@ -117,6 +117,9 @@ class OutputParser:
         # Extract explanation
         explanation = OutputParser._extract_explanation(content)
 
+        # Extract persona afterword
+        persona_afterword = OutputParser._extract_persona_afterword(content)
+
         # Reconstruct JSON structure (matching StructuredLLMResponse format)
         # Include required persona fields with default values (they don't affect scoring)
         response_json = {
@@ -125,7 +128,7 @@ class OutputParser:
             "persona_short_answer": "",  # Default: empty (persona not needed for replay)
             "quotes": quotes,
             "explanation": explanation,
-            "persona_afterword": "",  # Default: empty (persona not needed for replay)
+            "persona_afterword": persona_afterword,  # Use extracted value instead of ""
         }
 
         # Create LLMResponse with metadata tokens
@@ -214,14 +217,61 @@ class OutputParser:
 
     @staticmethod
     def _extract_explanation(content: str) -> str:
-        """Extract explanation section after ## Explanation."""
-        # Pattern: ## Explanation\n{text} until next ## or <!-- or end
-        pattern = r"## Explanation\s*\n(.+?)(?:\n##|<!--|$)"
+        """Extract explanation section after ## Explanation, excluding persona_afterword.
+
+        The persona_afterword is the last paragraph before the --- separator.
+        """
+        # Pattern: ## Explanation\n{text} until --- or ## or <!-- or end
+        pattern = r"## Explanation\s*\n(.+?)(?:\n---|\\n##|<!--|$)"
         match = re.search(pattern, content, re.DOTALL)
         if not match:
             logger.warning("Could not extract explanation, using empty string")
             return ""
-        return match.group(1).strip()
+
+        full_text = match.group(1).strip()
+
+        # Split into paragraphs (separated by blank lines)
+        paragraphs = [p.strip() for p in re.split(r'\n\n+', full_text) if p.strip()]
+
+        # Last paragraph is persona_afterword, rest is explanation
+        if len(paragraphs) > 1:
+            # Multiple paragraphs: all but last are explanation
+            explanation = '\n\n'.join(paragraphs[:-1])
+        elif len(paragraphs) == 1:
+            # Single paragraph: check if it looks like persona afterword
+            if len(paragraphs[0]) < 100 and '**' not in paragraphs[0]:
+                # Short, no formatting → likely just persona afterword
+                explanation = ""
+            else:
+                # Long or has formatting → likely just explanation
+                explanation = paragraphs[0]
+        else:
+            explanation = ""
+
+        return explanation
+
+    @staticmethod
+    def _extract_persona_afterword(content: str) -> str:
+        """Extract persona_afterword from last paragraph of ## Explanation section."""
+        # Same pattern as _extract_explanation
+        pattern = r"## Explanation\s*\n(.+?)(?:\n---|\\n##|<!--|$)"
+        match = re.search(pattern, content, re.DOTALL)
+        if not match:
+            return ""
+
+        full_text = match.group(1).strip()
+
+        # Split into paragraphs (separated by blank lines)
+        paragraphs = [p.strip() for p in re.split(r'\n\n+', full_text) if p.strip()]
+
+        # Last paragraph is persona_afterword if it looks like one
+        if len(paragraphs) > 0:
+            last_para = paragraphs[-1]
+            # Check if it looks like persona afterword (short, no bold formatting)
+            if len(last_para) < 100 and '**' not in last_para:
+                return last_para
+
+        return ""
 
     @staticmethod
     def _generate_quote_id(quote_text: str) -> str:
