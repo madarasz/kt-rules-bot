@@ -16,6 +16,10 @@
 
 # Test results
 
+## Big model test - 2026.01.30 - improved prompt
+![chart](quality_test_2026-01-30_12-22-57_prompt_v3_top4_models_x5.png)
+[DETAILED REPORT](2026-01-30_prompt_v3_model_comparison.md)
+
 ## Big model test - 2026.01.28
 - added new test `timesplinter-to-control-range`
 ![chart](quality_test_2026-01-28_13-52-13_top4_models_x3.png)
@@ -28,9 +32,9 @@
 
 Key takeaways:
 - `gemini-2.5-flash` sometimes paraphrasing, lower Quote Faithfullness
-- `grok-4-1-fast-reasoning` uses many quotes, finds all the relevant ones, maybe it's too verbose
+- `grok-4-1-fast-reasoning` uses too many quotes, it's too verbose
 - `grok-4-1-fast-reasoning` sometimes uncertain "I don't know"
-- `claude-4.5-sonnet` struggled with test *teleport-counteract*
+- `claude-4.5-sonnet` struggled with test *teleport-counteract*, *timesplinter-to-control-range*
 
 Difference in scores:
 - action-in-strategic-phase
