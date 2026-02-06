@@ -29,28 +29,49 @@ Runs test queries → Evaluates responses (LLM judge) → Generates reports with
 YAML files in `test_cases/`:
 
 ```yaml
-test_id: banner-carrier-dies
+test_id: non-reciprocal-blast
+context_file: tests/quality/test_cases/non-reciprocal-blast-context.json  # Optional
 query: >
-  If my plant banner is picked up by my opponent and the carrier dies,
-  who places the banner, me or my opponent?
+  My operative has a blast 2" weapon. Is it possible for it to be closer than 2"
+  to its target, but not to be hit by the blast?
 
-requirements:
-  - check: Quote Place marker rule
-    type: contains                    # Exact text match
-    description: >
-      If an operative carrying a marker is incapacitated,
-      it must perform this action...
-    points: 5
+ground_truth_answers:
+  - key: "Final Answer"
+    text: "Yes, the operative with the blast weapon can avoid being hit by the blast."
+    priority: critical
+  - key: "Visibility"
+    text: "Not being visible to the target allows you to avoid being hit by the blast."
+    priority: critical
+  - key: "Shooter identity"
+    text: "Your operative is the shooter"
+    priority: supporting
 
-  - check: Correct final answer
-    type: llm                         # LLM judge evaluation
-    description: The final answer is that your opponent places it.
-    points: 10
+ground_truth_contexts:
+  - key: "Blast X"
+    text: "Secondary targets are other operatives visible to and within x of the primary target"
+    priority: critical
 ```
 
-**Requirement types**:
-- `contains`: Exact text match (normalized, case-insensitive)
-- `llm`: LLM judge evaluates if description is accurate
+**Required fields:**
+- `test_id`: Unique identifier for the test case
+- `query`: The user question to test
+- `ground_truth_answers`: Expected answer components (what the response should convey)
+- `ground_truth_contexts`: Rule excerpts that should be retrieved/cited
+
+**Optional fields:**
+- `context_file`: Path to cached RAG context JSON (for deterministic testing)
+
+**GroundTruthAnswer fields:**
+- `key`: Unique identifier for this answer component
+- `text`: Expected answer text the response should convey
+- `priority`: Weight for scoring (`critical`=10, `important`=5, `supporting`=3)
+
+**GroundTruthContext fields:**
+- `key`: Unique identifier for this context
+- `text`: Exact rule text that should be quoted/cited
+- `priority`: Weight for scoring (`critical`=10, `important`=5, `supporting`=3)
+
+> **Note**: The old `requirements` format with `type: contains` and `type: llm` is deprecated. Use `ground_truth_answers` and `ground_truth_contexts` instead
 
 ## RAG Context Caching
 
@@ -120,26 +141,63 @@ tests/quality/
 
 **[test_runner.py](test_runner.py)**: Loads test cases → Runs queries → Collects results → Generates reports
 
-**[evaluator.py](evaluator.py)**: Evaluates requirements using:
-- `contains`: Normalized text matching
-- `llm`: LLM judge (default: `gpt-4o`)
+**[evaluator.py](evaluator.py)**: Evaluates responses using RAGAS-style metrics:
+- Quote Precision/Recall/Faithfulness (deterministic)
+- Explanation Faithfulness (LLM judge)
+- Answer Correctness (LLM judge comparing to ground truth answers)
+- Custom feedback (Explanation Problems, Style)
 
 **[reporting/](reporting/)**: Aggregates results → Generates markdown + charts → Archives data
 
 ## Generated Reports
 
-**Main report** (`report.md`):
-- Overall summary (pass rates, avg scores)
-- Per-test breakdown
-- Per-model comparison
-- Requirement-level details
+Reports are organized by test dimensionality in `results/{timestamp}/`:
 
-**Charts**:
-- Score distribution heatmaps
-- Model comparison bar charts
-- Multi-run consistency plots
+### Main Report (`report.md`)
 
-**Raw data** (`summary.json`): Full results for custom analysis
+**Header section:**
+- Total time, cost breakdown (Main LLM, Multi-hop, Judge, Embeddings with percentages)
+- Total queries count, best score with model name
+- Test cases list, judge model used
+
+**Summary table:** Per-test-case statistics
+| Test Case | Avg Score % | Avg Time (s) | Avg Cost ($) |
+|-----------|-------------|--------------|--------------|
+| test-name | 96.0% (±0.8) | 10.07 | $0.0357 |
+
+**Individual results:** Per-run details with RAGAS metrics and judge feedback
+
+### Per-Run Output Files (`output_{test_id}_{model}_{run}.md`)
+
+Each run generates a detailed output file containing:
+
+**Query and Response:**
+- Original query text
+- Full LLM response with quotes and explanation
+
+**RAGAS Metrics breakdown:**
+- **Quote Precision** (0.0-1.0): Fraction of cited quotes that are relevant
+- **Quote Recall** (0.0-1.0): Fraction of ground truth contexts that were cited
+  - Lists missing ground truth contexts with priority icons (⭐ critical, ⚠️ important)
+- **Quote Faithfulness** (0.0-1.0): How accurately quotes are reproduced
+- **Explanation Faithfulness** (0.0-1.0): How well explanation is grounded in quotes
+- **Answer Correctness** (0.0-1.0): How well response matches ground truth answers
+  - Per-component breakdown (e.g., "Final Answer": 1.00, "Visibility": 0.90)
+
+**Custom Judge Feedback:**
+- `Explanation Problems`: Issues with the explanation (critical errors, unsupported claims)
+- `Style`: Comments on structure, clarity, and presentation
+
+**Metadata (JSON block):**
+- Test metadata (test_id, model, actual_model_id, run_num, timestamp)
+- Costs (llm_generation_usd, multi_hop_usd, embedding_usd)
+- Latency (llm_generation_seconds)
+- Tokens (prompt, completion, total)
+- Deterministic metrics (quote_precision, quote_recall, quote_faithfulness)
+
+### Other Files
+
+- `prompt.md`: The system prompt used for generation
 
 ## Configuration
 
@@ -164,16 +222,11 @@ QUALITY_TEST_RATE_LIMIT_INITIAL_DELAY = 2.0       # Initial retry delay (doubles
 ## Adding Test Cases
 
 1. Create YAML in `test_cases/my-test.yaml`
-2. Define query and requirements (contains + llm types)
-3. Run: `python -m src.cli quality-test --test my-test`
-4. Review results in `results/{timestamp}/`
-5. Archive baseline: copy results to `archived_results/`
-
-**Tips**:
-- Use `contains` for exact rule quotes
-- Use `llm` for semantic correctness
-- Weight points by importance (10 for core answer, 3-5 for details)
-- Test across all models to identify provider differences
+2. Define `test_id`, `query`, `ground_truth_answers`, and `ground_truth_contexts`
+3. Optionally generate cached RAG context (see RAG Context Caching section)
+4. Run: `python -m src.cli quality-test --test my-test`
+5. Review results in `results/{timestamp}/`
+6. Archive baseline: copy results to `archived_results/`
 
 ## Multi-Run Testing
 
@@ -235,27 +288,23 @@ python -m src.cli quality-test --all-models
 
 ## Quality Metrics
 
-**Per-test**:
-- Score: Sum of requirement points earned
-- Pass: All requirements met (score == max_score)
+**RAGAS-style metrics (per-test)**:
+- **Quote Precision**: Fraction of cited quotes that match ground truth contexts
+- **Quote Recall**: Fraction of ground truth contexts that were cited
+- **Quote Faithfulness**: How accurately quotes are reproduced from source
+- **Explanation Faithfulness**: How well explanation claims are grounded in cited quotes
+- **Answer Correctness**: How well response conveys ground truth answers (weighted by priority)
+
+**Per-test aggregates**:
+- Score: Weighted combination of all metrics (0-100%)
+- Pass/Fail: Based on score threshold
 - Generation time: LLM response latency
 - Cost: Estimated API cost (USD)
 
-**Aggregated**:
-- Pass rate: % of tests passed
-- Avg score %: Average (score/max_score)
+**Report aggregates**:
+- Avg Score %: Average (score) with standard deviation (±)
 - Model ranking: By avg score
-- Consistency: Variance across runs
-
-## Troubleshooting
-
-**Low scores**: Check retrieved chunks (may need RAG tuning), review LLM responses in `output_*.md`
-
-**Inconsistent scores**: Increase judge temperature to 0.0, verify test cases are well-defined
-
-**Judge errors**: Judge model may refuse violent content → retry logic handles this
-
-**Slow tests**: Reduce `--runs`, test subset with `--test`, use faster models
+- Consistency: Variance across runs (shown as ±std dev)
 
 ## Related Documentation
 
