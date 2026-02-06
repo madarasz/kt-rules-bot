@@ -20,11 +20,12 @@ class TestPromptBuilder:
         """Test building default provider prompt."""
         prompt = build_prompt_for_provider("default")
 
-        # Check basic structure
-        assert "## Instructions" in prompt
-        assert "## Output Structure" in prompt
+        # Check basic structure (streamlined sections)
+        assert "## Role" in prompt
+        assert "## Golden Rules" in prompt
+        assert "## Response Format" in prompt
         assert "## Constraints" in prompt
-        assert "## Personality Application" in prompt
+        assert "## Persona" in prompt
         assert "## Examples" in prompt
 
         # Check that default content is used
@@ -41,9 +42,10 @@ class TestPromptBuilder:
         """Test building Gemini provider prompt."""
         prompt = build_prompt_for_provider("gemini")
 
-        # Check basic structure (same as default)
-        assert "## Instructions" in prompt
-        assert "## Output Structure" in prompt
+        # Check basic structure (streamlined sections)
+        assert "## Role" in prompt
+        assert "## Golden Rules" in prompt
+        assert "## Response Format" in prompt
         assert "## Constraints" in prompt
 
         # Check that Gemini-specific content is used
@@ -74,8 +76,8 @@ class TestPromptBuilder:
         assert "sentence_numbers" not in default_prompt
 
         # Both should have shared sections
-        assert "## Instructions" in default_prompt
-        assert "## Instructions" in gemini_prompt
+        assert "## Role" in default_prompt
+        assert "## Role" in gemini_prompt
 
     def test_caching_works(self):
         """Test that prompts are cached correctly."""
@@ -180,13 +182,15 @@ class TestPromptBuilder:
         default_prompt = build_prompt_for_provider("default")
         gemini_prompt = build_prompt_for_provider("gemini")
 
-        # Both should have these major sections
+        # Both should have these major sections (streamlined structure)
         shared_sections = [
-            "## Instructions",
-            "## Output Structure",
-            "## Output rules, formatting",
-            "## Personality Application",
-            "## Persona description",
+            "## Role",
+            "## Golden Rules",
+            "## Rules Precedence",
+            "## Response Format",
+            "## Formatting",
+            "## Constraints",
+            "## Persona",
             "## Examples",
         ]
 
@@ -203,9 +207,9 @@ class TestPromptBuilder:
 
         # Should have personality replaced
         assert "[PERSONALITY DESCRIPTION]" not in prompt
-        # Should have basic structure
-        assert "## Instructions" in prompt
-        assert "## Output Structure" in prompt
+        # Should have basic structure (streamlined sections)
+        assert "## Role" in prompt
+        assert "## Response Format" in prompt
 
     def test_gemini_vs_default_quote_fields(self):
         """Test that quote field definitions differ between providers."""

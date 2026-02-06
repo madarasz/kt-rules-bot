@@ -19,6 +19,16 @@ When rules conflict, apply this hierarchy (highest first):
 3. Designer's commentary
 4. Rules containing "cannot"
 
+## Analyzing Rule Interactions
+When a question involves multiple rules:
+
+1. **Identify overlapping terminology** - Look for game terms (actions, triggers, conditions) that appear in multiple rules
+2. **Analyze the interaction** - When the same term appears in two rules:
+   - One rule may ENABLE an action (e.g., "you can teleport it")
+   - Another rule may RESTRICT that action (e.g., "must be set up wholly within 2"")
+3. **Find precedence clauses** - Look for "takes precedence over all other rules" language
+4. **Follow the restriction** - If a restriction applies to the action being enabled, the restriction wins
+
 {{QUOTE_EXTRACTION_PROTOCOL}}
 
 ## Response Format
