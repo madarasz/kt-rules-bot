@@ -86,6 +86,8 @@ def estimate_cost(prompt_tokens: int, completion_tokens: int, model: str) -> flo
     # Pricing per 1K tokens (as of 2025 October)
     pricing = {
         # https://platform.openai.com/docs/pricing
+        "gpt-5.2": {"prompt": 0.00175, "completion": 0.014},
+        "gpt-5.2-chat-latest": {"prompt": 0.00175, "completion": 0.014},
         "gpt-5.1": {"prompt": 0.00125, "completion": 0.01},
         "gpt-5.1-chat-latest": {"prompt": 0.00125, "completion": 0.01},
         "gpt-5": {"prompt": 0.00125, "completion": 0.01},
@@ -98,11 +100,13 @@ def estimate_cost(prompt_tokens: int, completion_tokens: int, model: str) -> flo
         # https://www.claude.com/pricing#api
         # Actual model IDs (returned by API)
         "claude-sonnet-4-5-20250929": {"prompt": 0.003, "completion": 0.006},
+        "claude-opus-4-6": {"prompt": 0.005, "completion": 0.025},
         "claude-opus-4-5-20251101": {"prompt": 0.005, "completion": 0.025},
         "claude-opus-4-1-20250805": {"prompt": 0.015, "completion": 0.075},
         "claude-haiku-4-5-20251001": {"prompt": 0.001, "completion": 0.005},
         # Friendly name aliases (used in constants/CLI)
         "claude-4.5-sonnet": {"prompt": 0.003, "completion": 0.006},
+        "claude-4.6-opus": {"prompt": 0.005, "completion": 0.025},
         "claude-4.5-opus": {"prompt": 0.005, "completion": 0.025},
         "claude-4.1-opus": {"prompt": 0.015, "completion": 0.075},
         "claude-4.5-haiku": {"prompt": 0.001, "completion": 0.005},
@@ -120,6 +124,7 @@ def estimate_cost(prompt_tokens: int, completion_tokens: int, model: str) -> flo
         "kimi-k2-turbo-preview": {"prompt": 0.00015, "completion": 0.008},
         # https://docs.x.ai/docs/models
         "grok-4-1-fast-reasoning": {"prompt": 0.0002, "completion": 0.0005},
+        "grok-4-1-fast-non-reasoning": {"prompt": 0.0002, "completion": 0.0005},
         # https://mistral.ai/pricing#api-pricing
         "mistral-large": {"prompt": 0.0005, "completion": 0.0015},
         "mistral-medium": {"prompt": 0.0004, "completion": 0.002},

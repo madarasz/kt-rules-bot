@@ -27,6 +27,7 @@ class LLMProviderFactory:
     # Model name to (adapter_class, actual_model_id, api_key_type) mapping
     _model_registry = {
         "claude-4.5-sonnet": (ClaudeAdapter, "claude-sonnet-4-5-20250929", "anthropic"),
+        "claude-4.6-opus": (ClaudeAdapter, "claude-opus-4-6", "anthropic"),
         "claude-4.5-opus": (ClaudeAdapter, "claude-opus-4-5-20251101", "anthropic"),
         "claude-4.1-opus": (ClaudeAdapter, "claude-opus-4-1-20250805", "anthropic"),
         "claude-4.5-haiku": (ClaudeAdapter, "claude-haiku-4-5-20251001", "anthropic"),
@@ -34,6 +35,8 @@ class LLMProviderFactory:
         "gemini-2.5-pro": (GeminiAdapter, "gemini-2.5-pro", "google"),
         "gemini-3-flash-preview": (GeminiAdapter, "gemini-3-flash-preview", "google"),
         "gemini-2.5-flash": (GeminiAdapter, "gemini-2.5-flash", "google"),
+        "gpt-5.2": (ChatGPTAdapter, "gpt-5.2", "openai"),
+        "gpt-5.2-chat-latest": (ChatGPTAdapter, "gpt-5.2-chat-latest", "openai"),
         "gpt-5.1": (ChatGPTAdapter, "gpt-5.1", "openai"),
         "gpt-5.1-chat-latest": (ChatGPTAdapter, "gpt-5.1-chat-latest", "openai"),
         "gpt-5": (ChatGPTAdapter, "gpt-5", "openai"),
@@ -47,6 +50,7 @@ class LLMProviderFactory:
         "o3-mini": (ChatGPTAdapter, "o3-mini", "openai"),
         "o4-mini": (ChatGPTAdapter, "o4-mini", "openai"),
         "grok-4-1-fast-reasoning": (GrokAdapter, "grok-4-1-fast-reasoning", "x"),
+        "grok-4-1-fast-non-reasoning": (GrokAdapter, "grok-4-1-fast-non-reasoning", "x"),
         "grok-4-fast-reasoning": (GrokAdapter, "grok-4-fast-reasoning", "x"),
         "grok-4-0709": (GrokAdapter, "grok-4-0709", "x"),
         "grok-3": (GrokAdapter, "grok-3", "x"),

@@ -12,6 +12,7 @@ from typing import Literal, get_args
 
 # All available LLM providers (complete list)
 LLM_PROVIDERS_LITERAL = Literal[
+    "claude-4.6-opus",
     "claude-4.5-sonnet",
     "claude-4.5-opus",
     "claude-4.1-opus",
@@ -20,6 +21,8 @@ LLM_PROVIDERS_LITERAL = Literal[
     "gemini-3-flash-preview",
     "gemini-2.5-pro",
     "gemini-2.5-flash",
+    "gpt-5.2",
+    "gpt-5.2-chat-latest",
     "gpt-5.1",
     "gpt-5.1-chat-latest",
     "gpt-5",
@@ -33,6 +36,7 @@ LLM_PROVIDERS_LITERAL = Literal[
     "o3-mini",
     "o4-mini",
     "grok-4-1-fast-reasoning",
+    "grok-4-1-fast-non-reasoning",
     "grok-4-fast-reasoning",
     "grok-4-0709",
     "grok-3",
@@ -74,21 +78,24 @@ PDF_EXTRACTION_PROVIDERS = [
 
 # Quality test providers (curated list for --all-models testing)
 QUALITY_TEST_PROVIDERS = [
+    "gpt-5.2",
+    "gpt-5.2-chat-latest",
     #"gpt-5.1-chat-latest",
-    "gpt-4.1",
+    #"gpt-4.1",
     #"gpt-4o",
     # "gpt-4.1-mini",
-    "claude-4.5-sonnet",
+    #"claude-4.5-sonnet",
+    #"claude-4.6-opus",
     #"claude-4.5-opus",
     #"gemini-3-pro-preview",
     #"gemini-3-flash-preview",
-    "gemini-2.5-flash",
+    #"gemini-2.5-flash",
     #"kimi-k2.5",
     #"kimi-k2-0905-preview",
     #"kimi-k2-turbo-preview",
     #"gemini-2.5-pro",
     #"deepseek-chat",
-    "grok-4-1-fast-reasoning",
+    #"grok-4-1-fast-reasoning",
     #"mistral-large",
     #"mistral-medium",
     # "grok-3",
