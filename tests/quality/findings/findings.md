@@ -5,6 +5,7 @@
 - `gpt-5`, `grok-4-0709`, `gemini-3-pro-preview`: VERY SLOW (often around 2 mins or more)
 - `gpt-5.1-chat-latest` is not that impressive, `gpt-4.1` is slightly better, slightly faster, only a little bit more expensive
 - `gtp-4o` gives bad answers and is expensive
+- `claude-4.6-opus`: expensive (6¢+), somewhat slow, `claude-4.5-sonnet` still generates better answers
 - `claude-4.5-opus`: expensive (6¢+), slow, does not support Pydantic JSON output, sometimes break
 - `claude-4.1-opus`: 5-8x more expensive than other models, and does not preform well either (already superseeded by 4.5 Opus)
 - `gemini-2.5-pro`: on par with `gemini-2.5-flash`, but slower and more expensive
