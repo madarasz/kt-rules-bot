@@ -17,6 +17,9 @@
 
 # Test results
 
+## Big model test - 2026.02.07 - improved prompt v3.2
+[DETAILED REPORT](2026-02-07_prompt_v3_2_model_comparison.md)
+
 ## Big model test - 2026.01.30 - improved prompt
 ![chart](quality_test_2026-01-30_12-22-57_prompt_v3_top4_models_x5.png)
 [DETAILED REPORT](2026-01-30_prompt_v3_model_comparison.md)
