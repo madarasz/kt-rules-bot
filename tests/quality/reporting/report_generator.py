@@ -71,6 +71,11 @@ class ReportGenerator:
         ):
             content.append(self._get_test_case_summary_table())
 
+        # Add metrics summary table at the end
+        metrics_table = self._get_metrics_summary_table()
+        if metrics_table:
+            content.append(metrics_table)
+
         # Link to sub-reports or show individual results
         if self.report.is_multi_test_case and self.report.is_multi_model:
             content.append("\n## Detailed Test Case Reports")
@@ -114,6 +119,11 @@ class ReportGenerator:
         if self.report.per_test_case_reports[test_id].chart_path:
             chart_name = os.path.basename(self.report.per_test_case_reports[test_id].chart_path)
             content.append(f"\n![Test Case Chart](./{chart_name})")
+
+        # Add metrics summary table for this test case
+        metrics_table = self._get_metrics_summary_table(model_summaries_for_test_case)
+        if metrics_table:
+            content.append(metrics_table)
 
         content.append("\n## Individual Results")
         if self.report.is_multi_run and self.report.is_multi_model:
@@ -218,6 +228,66 @@ class ReportGenerator:
                 f"${summary.avg_cost:.4f}{cost_std_dev}",
             ]
             table.append("| " + " | ".join(row) + " |")
+        return "\n".join(table)
+
+    def _get_metrics_summary_table(self, summaries: list[ModelSummary] | None = None) -> str:
+        """Builds a markdown table showing average RAGAS metrics per model."""
+        if summaries is None:
+            summaries = list(self.report.per_model_summaries.values())
+
+        # Check if any model has RAGAS metrics
+        has_ragas = any(
+            s.avg_quote_recall is not None
+            or s.avg_quote_precision is not None
+            or s.avg_quote_faithfulness is not None
+            or s.avg_explanation_faithfulness is not None
+            or s.avg_answer_correctness is not None
+            for s in summaries
+        )
+
+        if not has_ragas:
+            return ""
+
+        headers = [
+            "Model",
+            "Score",
+            "Quote Recall",
+            "Quote Precision",
+            "Quote Faithfulness",
+            "Expl. Faithfulness",
+            "Answer Correctness",
+        ]
+        table = [
+            "\n## Metrics Summary",
+            "| " + " | ".join(headers) + " |",
+            "|" + "|".join(["-" * (len(h) + 2) for h in headers]) + "|",
+        ]
+
+        def format_metric(value: float | None, std_dev: float) -> str:
+            if value is None:
+                return "-"
+            if self.report.is_multi_run and std_dev > 0:
+                return f"{value:.3f} (±{std_dev:.3f})"
+            return f"{value:.3f}"
+
+        for summary in sorted(summaries, key=lambda s: s.avg_score_pct, reverse=True):
+            score_str = f"{summary.avg_score_pct:.1f}%"
+            if self.report.is_multi_run:
+                score_str += f" (±{summary.std_dev_score_pct:.1f})"
+
+            row = [
+                summary.model_name,
+                score_str,
+                format_metric(summary.avg_quote_recall, summary.std_dev_quote_recall),
+                format_metric(summary.avg_quote_precision, summary.std_dev_quote_precision),
+                format_metric(summary.avg_quote_faithfulness, summary.std_dev_quote_faithfulness),
+                format_metric(
+                    summary.avg_explanation_faithfulness, summary.std_dev_explanation_faithfulness
+                ),
+                format_metric(summary.avg_answer_correctness, summary.std_dev_answer_correctness),
+            ]
+            table.append("| " + " | ".join(row) + " |")
+
         return "\n".join(table)
 
     def _get_test_case_summary_table(self) -> str:

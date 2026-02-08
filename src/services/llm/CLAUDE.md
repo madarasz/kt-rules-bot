@@ -108,7 +108,7 @@ All LLM providers return structured JSON conforming to the same schema, but they
 | **Claude** | `beta.messages.parse()` | Native parse (Pydantic instance returned) | ✅ Populated |
 | **ChatGPT** | `beta.chat.completions.parse()` | Native parse (Pydantic instance returned) | ✅ Populated |
 | **Gemini** | JSON mode with `response.parsed` | SDK parse (Pydantic instance via `response.parsed`) | ✅ Populated |
-| **Grok** | OpenAI-style JSON schema | Post-response validation | ❌ Not populated |
+| **Grok** | OpenAI-style JSON schema | Post-response validation | ✅ Populated |
 | **DeepSeek** | Function calling | Post-response validation | ❌ Not populated |
 | **Kimi** | JSON mode with schema in prompt | Post-response validation | ❌ Not populated |
 
@@ -195,12 +195,12 @@ parsed_output = pydantic_model.model_validate_json(function_args)
 
 The `LLMResponse.structured_output` field is **optional** and only populated by some providers:
 
-**✅ Populated (Claude, ChatGPT, Gemini):**
+**✅ Populated (Claude, ChatGPT, Gemini, Grok):**
 - Contains the parsed Pydantic model as a dictionary
 - Allows consumers to access structured data without re-parsing JSON
 - Source: `parsed_output.model_dump()` or post-processed dict
 
-**❌ Not Populated (Grok, DeepSeek):**
+**❌ Not Populated (DeepSeek, Kimi):**
 - Field remains `None`
 - Consumers must parse `answer_text` JSON string themselves
 - Keeps response minimal
@@ -286,7 +286,7 @@ X/Grok integration:
 - Uses `httpx` with OpenAI-compatible API
 - **Structured output**: OpenAI-style JSON schema via `response_format`
 - **Pydantic usage**: Post-response validation - manually validates JSON string with `model_validate_json()`
-- **Output fields**: Only populates `answer_text` (JSON string), `structured_output` field is **NOT populated**
+- **Output fields**: Populates both `answer_text` (JSON string) and `structured_output` (dict) in LLMResponse
 - Converts Pydantic model to JSON schema via `model_json_schema()`
 - Supports Grok 3 and Grok 4 models
 - Fast reasoning capabilities
@@ -402,8 +402,8 @@ class LLMResponse:
 ```
 
 **Note on `structured_output` field:**
-- **Populated by**: Claude, ChatGPT, Gemini - contains parsed Pydantic model as dictionary
-- **Not populated by**: Grok, DeepSeek - field is `None`
+- **Populated by**: Claude, ChatGPT, Gemini, Grok - contains parsed Pydantic model as dictionary
+- **Not populated by**: DeepSeek, Kimi - field is `None`
 - **Usage**: Allows consumers to access structured data without re-parsing `answer_text` JSON
 - **Format**: Dictionary matching the Pydantic schema (Answer, GeminiAnswer, HopEvaluation, or CustomJudgeResponse)
 
@@ -434,8 +434,8 @@ All LLM providers return JSON matching this schema:
 
 All providers return this JSON in the `LLMResponse.answer_text` field as a JSON string. Additionally:
 
-- **Claude, ChatGPT, Gemini**: Also populate `LLMResponse.structured_output` with the parsed dict
-- **Grok, DeepSeek**: Leave `structured_output` as `None`
+- **Claude, ChatGPT, Gemini, Grok**: Also populate `LLMResponse.structured_output` with the parsed dict
+- **DeepSeek, Kimi**: Leave `structured_output` as `None`
 
 This JSON is parsed by [StructuredLLMResponse](../../../src/models/structured_response.py) and converted to Discord embeds.
 

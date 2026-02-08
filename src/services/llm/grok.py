@@ -24,7 +24,7 @@ from src.services.llm.base import (
     TokenLimitError,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
-from src.services.llm.schemas import Answer, HopEvaluation
+from src.services.llm.schemas import Answer, CustomJudgeResponse, HopEvaluation
 
 logger = get_logger(__name__)
 
@@ -76,6 +76,9 @@ class GrokAdapter(LLMProvider):
             if schema_type == "hop_evaluation":
                 pydantic_model = HopEvaluation
                 logger.debug("Using hop evaluation schema (Pydantic)")
+            elif schema_type == "custom_judge":
+                pydantic_model = CustomJudgeResponse
+                logger.debug("Using custom judge schema (Pydantic)")
             else:  # "default"
                 pydantic_model = Answer
                 logger.debug("Using default answer schema (Pydantic)")
@@ -149,6 +152,7 @@ class GrokAdapter(LLMProvider):
                 # Validate with Pydantic model for type safety
                 parsed_output = pydantic_model.model_validate_json(content)
                 answer_text = parsed_output.model_dump_json()
+                structured_output_dict = parsed_output.model_dump()
                 logger.debug(
                     f"Extracted structured JSON from Grok (Pydantic): {len(answer_text)} chars"
                 )
@@ -203,6 +207,7 @@ class GrokAdapter(LLMProvider):
                 citations_included=citations_included,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
+                structured_output=structured_output_dict,
             )
 
         except Exception as e:

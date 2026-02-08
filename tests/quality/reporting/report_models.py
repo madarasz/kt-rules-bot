@@ -201,6 +201,66 @@ class ModelSummary:
             return 0.0
         return np.mean([r.total_cost_usd for r in self.results])
 
+    @property
+    def avg_quote_recall(self) -> float | None:
+        """Average quote recall across all results (skips None values)."""
+        values = [r.quote_recall for r in self.results if r.quote_recall is not None]
+        return float(np.mean(values)) if values else None
+
+    @property
+    def std_dev_quote_recall(self) -> float:
+        """Standard deviation of quote recall (returns 0.0 if < 2 values)."""
+        values = [r.quote_recall for r in self.results if r.quote_recall is not None]
+        return float(np.std(values)) if len(values) >= 2 else 0.0
+
+    @property
+    def avg_quote_precision(self) -> float | None:
+        """Average quote precision across all results (skips None values)."""
+        values = [r.quote_precision for r in self.results if r.quote_precision is not None]
+        return float(np.mean(values)) if values else None
+
+    @property
+    def std_dev_quote_precision(self) -> float:
+        """Standard deviation of quote precision (returns 0.0 if < 2 values)."""
+        values = [r.quote_precision for r in self.results if r.quote_precision is not None]
+        return float(np.std(values)) if len(values) >= 2 else 0.0
+
+    @property
+    def avg_quote_faithfulness(self) -> float | None:
+        """Average quote faithfulness across all results (skips None values)."""
+        values = [r.quote_faithfulness for r in self.results if r.quote_faithfulness is not None]
+        return float(np.mean(values)) if values else None
+
+    @property
+    def std_dev_quote_faithfulness(self) -> float:
+        """Standard deviation of quote faithfulness (returns 0.0 if < 2 values)."""
+        values = [r.quote_faithfulness for r in self.results if r.quote_faithfulness is not None]
+        return float(np.std(values)) if len(values) >= 2 else 0.0
+
+    @property
+    def avg_explanation_faithfulness(self) -> float | None:
+        """Average explanation faithfulness across all results (skips None values)."""
+        values = [r.explanation_faithfulness for r in self.results if r.explanation_faithfulness is not None]
+        return float(np.mean(values)) if values else None
+
+    @property
+    def std_dev_explanation_faithfulness(self) -> float:
+        """Standard deviation of explanation faithfulness (returns 0.0 if < 2 values)."""
+        values = [r.explanation_faithfulness for r in self.results if r.explanation_faithfulness is not None]
+        return float(np.std(values)) if len(values) >= 2 else 0.0
+
+    @property
+    def avg_answer_correctness(self) -> float | None:
+        """Average answer correctness across all results (skips None values)."""
+        values = [r.answer_correctness for r in self.results if r.answer_correctness is not None]
+        return float(np.mean(values)) if values else None
+
+    @property
+    def std_dev_answer_correctness(self) -> float:
+        """Standard deviation of answer correctness (returns 0.0 if < 2 values)."""
+        values = [r.answer_correctness for r in self.results if r.answer_correctness is not None]
+        return float(np.std(values)) if len(values) >= 2 else 0.0
+
 
 @dataclass
 class QualityReport:

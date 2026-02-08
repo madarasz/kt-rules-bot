@@ -13,14 +13,25 @@
 - `deepseek-chat` is OK, cheap, but slow. `grok-4.1-fast-reasoning` is similar, but with better results.
 
 ## Models for judging
-- `gtp-4o` is unsuitable as a judge, it has a lot of false negative judgements,`claude-4.5-opus` is great, but it is very expensive. `claude-4.5-sonnet` is too permissive. `claude-4.5-haiku` is promising as a judge.
+- `claude-4.5-opus` is great, but it is very expensive. `claude-4.5-haiku` is a good judge. `grok-4-1-fast-reasoning` is almost just as good, very cheap, but slow. `grok-4-1-fast-non-reasoning` is a bit worse, very cheap, but quick. Only use these four models for judging.
+- `claude-4.5-sonnet` is too permissive. `gtp-4o` is unsuitable as a judge, it has a lot of false negative judgements.
 
 # Test results
 
 ## Big model test - 2026.02.07 - improved prompt v3.2
 [DETAILED REPORT](2026-02-07_prompt_v3_2_model_comparison.md)
+![chart](2026-02-07_prompt_V3_2_model_comparision.png)
+| Model | Avg Score % | Avg Time/Query (s) | Avg Cost/Query ($) |
+|-------|-------------|--------------------|--------------------|
+| grok-4-1-fast-reasoning | 85.0% | 16.46 | $0.0018 |
+| claude-4.5-sonnet | 84.7% | 12.18 | $0.0302 |
+| gpt-5.2-chat-latest | 84.3% | 8.01 | $0.0212 |
+| grok-4-1-fast-non-reasoning | 80.5% | 4.07 | $0.0018 |
 
-## Big model test - 2026.01.30 - improved prompt
+## Judge test - 2026.02.07 - grok models are promising
+[Detailed judge model comparision](2026-02-07_judge_model_comparison_analysis.md)
+
+## Big model test - 2026.01.30 - improved prompt v3
 ![chart](quality_test_2026-01-30_12-22-57_prompt_v3_top4_models_x5.png)
 [DETAILED REPORT](2026-01-30_prompt_v3_model_comparison.md)
 
