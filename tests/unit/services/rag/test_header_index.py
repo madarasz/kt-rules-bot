@@ -1,7 +1,8 @@
 """Unit tests for HeaderIndex fuzzy header lookup."""
 
-import pytest
 from uuid import uuid4
+
+import pytest
 
 from src.models.rag_context import DocumentChunk
 from src.services.rag.header_index import HeaderIndex
@@ -213,8 +214,8 @@ class TestCleanMissingQuery:
 
     def test_simple_comma_separated(self):
         """Simple comma-separated titles are parsed correctly."""
+
         from src.services.rag.multi_hop_retriever import MultiHopRetriever
-        from unittest.mock import Mock
 
         retriever = MultiHopRetriever.__new__(MultiHopRetriever)
 

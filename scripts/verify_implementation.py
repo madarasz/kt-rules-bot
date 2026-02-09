@@ -13,6 +13,7 @@ def verify_gemini():
     print("\n=== Gemini Adapter ===")
     try:
         import inspect
+
         from src.services.llm.gemini import GeminiAdapter
 
         # Get the source code of the generate method
@@ -41,6 +42,7 @@ def verify_claude():
     print("\n=== Claude Adapter ===")
     try:
         import inspect
+
         from src.services.llm.claude import ClaudeAdapter
 
         # Get the __init__ source
@@ -69,8 +71,9 @@ def verify_schemas():
     """Verify schema definitions."""
     print("\n=== Schemas ===")
     try:
-        from src.services.llm.schemas import HopEvaluation
         import inspect
+
+        from src.services.llm.schemas import HopEvaluation
 
         # Check HopEvaluation.missing_query field
         source = inspect.getsource(HopEvaluation)
@@ -105,7 +108,7 @@ def verify_sdk_versions():
         print(f"openai: {openai.__version__} (required: >=2.8.1)")
 
         from google import genai
-        print(f"google-genai: installed")
+        print("google-genai: installed")
 
     except ImportError as e:
         print(f"❌ Import error: {e}")

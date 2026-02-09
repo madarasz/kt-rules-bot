@@ -6,8 +6,8 @@ a comprehensive report showing pass/fail rates for each test case.
 """
 
 import re
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
 
 def analyze_test_results():

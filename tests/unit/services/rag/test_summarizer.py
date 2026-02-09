@@ -1,15 +1,17 @@
 """Unit tests for ChunkSummarizer.
 
-Tests summary generation logic with mocked OpenAI client.
+Tests summary generation logic with mocked LLM provider.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
 
+from src.services.llm.base import LLMResponse
+from src.services.llm.schemas import ChunkSummaries, ChunkSummary
 from src.services.rag.chunker import MarkdownChunk
-from src.services.rag.summarizer import ChunkSummaries, ChunkSummarizer, ChunkSummary
+from src.services.rag.summarizer import ChunkSummarizer
 
 
 @pytest.fixture
@@ -65,25 +67,25 @@ class TestChunkSummaryModels:
 class TestFormatChunksForLLM:
     """Tests for _format_chunks_for_llm method."""
 
-    @patch("src.services.rag.summarizer.get_config")
+    @patch("src.services.rag.summarizer.LLMProviderFactory")
     @patch("src.services.rag.summarizer.SUMMARY_ENABLED", True)
     @patch("src.services.rag.summarizer.load_summary_prompt")
-    def test_format_empty_chunks(self, mock_prompt, mock_config):
+    def test_format_empty_chunks(self, mock_prompt, mock_factory):
         """Test formatting empty chunks list."""
-        mock_config.return_value = Mock(openai_api_key="test-key")
         mock_prompt.return_value = "Test prompt"
+        mock_factory.create.return_value = Mock()
 
         summarizer = ChunkSummarizer()
         result = summarizer._format_chunks_for_llm([])
         assert result == ""
 
-    @patch("src.services.rag.summarizer.get_config")
+    @patch("src.services.rag.summarizer.LLMProviderFactory")
     @patch("src.services.rag.summarizer.SUMMARY_ENABLED", True)
     @patch("src.services.rag.summarizer.load_summary_prompt")
-    def test_format_single_chunk(self, mock_prompt, mock_config, sample_chunks):
+    def test_format_single_chunk(self, mock_prompt, mock_factory, sample_chunks):
         """Test formatting single chunk."""
-        mock_config.return_value = Mock(openai_api_key="test-key")
         mock_prompt.return_value = "Test prompt"
+        mock_factory.create.return_value = Mock()
 
         summarizer = ChunkSummarizer()
         result = summarizer._format_chunks_for_llm([sample_chunks[0]])
@@ -92,13 +94,13 @@ class TestFormatChunksForLLM:
         assert "Header: Movement Phase" in result
         assert "Text: Operatives can move" in result
 
-    @patch("src.services.rag.summarizer.get_config")
+    @patch("src.services.rag.summarizer.LLMProviderFactory")
     @patch("src.services.rag.summarizer.SUMMARY_ENABLED", True)
     @patch("src.services.rag.summarizer.load_summary_prompt")
-    def test_format_multiple_chunks(self, mock_prompt, mock_config, sample_chunks):
+    def test_format_multiple_chunks(self, mock_prompt, mock_factory, sample_chunks):
         """Test formatting multiple chunks with proper numbering."""
-        mock_config.return_value = Mock(openai_api_key="test-key")
         mock_prompt.return_value = "Test prompt"
+        mock_factory.create.return_value = Mock()
 
         summarizer = ChunkSummarizer()
         result = summarizer._format_chunks_for_llm(sample_chunks)
@@ -114,29 +116,37 @@ class TestGenerateSummaries:
     """Tests for generate_summaries method."""
 
     @pytest.mark.asyncio
-    @patch("src.services.rag.summarizer.get_config")
+    @patch("src.services.rag.summarizer.LLMProviderFactory")
     @patch("src.services.rag.summarizer.SUMMARY_ENABLED", True)
     @patch("src.services.rag.summarizer.load_summary_prompt")
-    async def test_generate_summaries_success(self, mock_prompt, mock_config, sample_chunks):
+    async def test_generate_summaries_success(self, mock_prompt, mock_factory, sample_chunks):
         """Test successful summary generation."""
-        mock_config.return_value = Mock(openai_api_key="test-key")
         mock_prompt.return_value = "Test prompt"
 
-        # Mock OpenAI client
-        mock_client = Mock()
-        mock_completion = Mock()
-        mock_parsed = ChunkSummaries(
-            summaries=[
-                ChunkSummary(chunk_number=1, summary="Movement rules summary"),
-                ChunkSummary(chunk_number=2, summary="Shooting rules summary"),
-            ]
+        # Create mock LLM provider
+        mock_provider = AsyncMock()
+        mock_response = LLMResponse(
+            response_id=uuid4(),
+            answer_text="{}",  # Not used when structured_output is set
+            confidence_score=0.9,
+            token_count=150,
+            latency_ms=500,
+            provider="test",
+            model_version="test-model",
+            citations_included=False,
+            prompt_tokens=100,
+            completion_tokens=50,
+            structured_output={
+                "summaries": [
+                    {"chunk_number": 1, "summary": "Movement rules summary"},
+                    {"chunk_number": 2, "summary": "Shooting rules summary"},
+                ]
+            },
         )
-        mock_completion.choices = [Mock(message=Mock(parsed=mock_parsed))]
-        mock_completion.usage = Mock(prompt_tokens=100, completion_tokens=50)
-        mock_client.beta.chat.completions.parse.return_value = mock_completion
+        mock_provider.generate.return_value = mock_response
+        mock_factory.create.return_value = mock_provider
 
         summarizer = ChunkSummarizer()
-        summarizer.client = mock_client
 
         # Generate summaries
         result_chunks, prompt_tokens, completion_tokens, model = await summarizer.generate_summaries(
@@ -151,24 +161,23 @@ class TestGenerateSummaries:
         assert prompt_tokens == 100
         assert completion_tokens == 50
 
-        # Verify OpenAI API called
-        assert mock_client.beta.chat.completions.parse.called
+        # Verify LLM provider called
+        assert mock_provider.generate.called
 
     @pytest.mark.asyncio
-    @patch("src.services.rag.summarizer.get_config")
+    @patch("src.services.rag.summarizer.LLMProviderFactory")
     @patch("src.services.rag.summarizer.SUMMARY_ENABLED", True)
     @patch("src.services.rag.summarizer.load_summary_prompt")
-    async def test_generate_summaries_api_failure(self, mock_prompt, mock_config, sample_chunks):
-        """Test graceful handling when OpenAI API fails."""
-        mock_config.return_value = Mock(openai_api_key="test-key")
+    async def test_generate_summaries_api_failure(self, mock_prompt, mock_factory, sample_chunks):
+        """Test graceful handling when LLM API fails."""
         mock_prompt.return_value = "Test prompt"
 
-        # Mock OpenAI client to raise exception
-        mock_client = Mock()
-        mock_client.beta.chat.completions.parse.side_effect = Exception("API Error")
+        # Mock LLM provider to raise exception
+        mock_provider = AsyncMock()
+        mock_provider.generate.side_effect = Exception("API Error")
+        mock_factory.create.return_value = mock_provider
 
         summarizer = ChunkSummarizer()
-        summarizer.client = mock_client
 
         # Generate summaries (should not raise)
         result_chunks, prompt_tokens, completion_tokens, model = await summarizer.generate_summaries(
@@ -200,13 +209,13 @@ class TestGenerateSummaries:
         assert model == ""
 
     @pytest.mark.asyncio
-    @patch("src.services.rag.summarizer.get_config")
+    @patch("src.services.rag.summarizer.LLMProviderFactory")
     @patch("src.services.rag.summarizer.SUMMARY_ENABLED", True)
     @patch("src.services.rag.summarizer.load_summary_prompt")
-    async def test_generate_summaries_empty_chunks(self, mock_prompt, mock_config):
+    async def test_generate_summaries_empty_chunks(self, mock_prompt, mock_factory):
         """Test handling of empty chunks list."""
-        mock_config.return_value = Mock(openai_api_key="test-key")
         mock_prompt.return_value = "Test prompt"
+        mock_factory.create.return_value = Mock()
 
         summarizer = ChunkSummarizer()
 
@@ -218,31 +227,39 @@ class TestGenerateSummaries:
         assert completion_tokens == 0
 
     @pytest.mark.asyncio
-    @patch("src.services.rag.summarizer.get_config")
+    @patch("src.services.rag.summarizer.LLMProviderFactory")
     @patch("src.services.rag.summarizer.SUMMARY_ENABLED", True)
     @patch("src.services.rag.summarizer.load_summary_prompt")
     async def test_generate_summaries_missing_chunk_number(
-        self, mock_prompt, mock_config, sample_chunks
+        self, mock_prompt, mock_factory, sample_chunks
     ):
         """Test handling when LLM skips a chunk number."""
-        mock_config.return_value = Mock(openai_api_key="test-key")
         mock_prompt.return_value = "Test prompt"
 
-        # Mock OpenAI client - only returns summary for chunk 1
-        mock_client = Mock()
-        mock_completion = Mock()
-        mock_parsed = ChunkSummaries(
-            summaries=[
-                ChunkSummary(chunk_number=1, summary="Only first summary"),
-                # Missing chunk 2
-            ]
+        # Mock LLM provider - only returns summary for chunk 1
+        mock_provider = AsyncMock()
+        mock_response = LLMResponse(
+            response_id=uuid4(),
+            answer_text="{}",
+            confidence_score=0.9,
+            token_count=125,
+            latency_ms=400,
+            provider="test",
+            model_version="test-model",
+            citations_included=False,
+            prompt_tokens=100,
+            completion_tokens=25,
+            structured_output={
+                "summaries": [
+                    {"chunk_number": 1, "summary": "Only first summary"},
+                    # Missing chunk 2
+                ]
+            },
         )
-        mock_completion.choices = [Mock(message=Mock(parsed=mock_parsed))]
-        mock_completion.usage = Mock(prompt_tokens=100, completion_tokens=25)
-        mock_client.beta.chat.completions.parse.return_value = mock_completion
+        mock_provider.generate.return_value = mock_response
+        mock_factory.create.return_value = mock_provider
 
         summarizer = ChunkSummarizer()
-        summarizer.client = mock_client
 
         result_chunks, _, _, _ = await summarizer.generate_summaries(sample_chunks)
 

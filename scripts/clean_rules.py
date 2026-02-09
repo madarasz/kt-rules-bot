@@ -11,12 +11,10 @@ Replaces all ' (U+2019, right single quotation mark) characters with
 ' (ASCII apostrophe).
 """
 
-import os
 from pathlib import Path
-from typing import Tuple, List
 
 
-def clean_file(file_path: Path) -> Tuple[bool, int]:
+def clean_file(file_path: Path) -> tuple[bool, int]:
     """
     Replace curly apostrophes with straight apostrophes in a file.
 
@@ -28,7 +26,7 @@ def clean_file(file_path: Path) -> Tuple[bool, int]:
     """
     try:
         # Read the file
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             content = f.read()
 
         # Replace curly apostrophes with straight apostrophes
@@ -50,7 +48,7 @@ def clean_file(file_path: Path) -> Tuple[bool, int]:
         return False, 0
 
 
-def process_directory(directory: Path, pattern: str, project_root: Path) -> Tuple[int, int, int]:
+def process_directory(directory: Path, pattern: str, project_root: Path) -> tuple[int, int, int]:
     """
     Process all files matching pattern in directory.
 
