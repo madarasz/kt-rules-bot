@@ -5,7 +5,7 @@ explicitly names rules. Instead of semantic search (which dilutes relevance
 for compound queries), this enables direct header lookup.
 """
 
-from rapidfuzz import fuzz
+from rapidfuzz import fuzz, process
 
 from src.lib.constants import HEADER_FUZZY_THRESHOLD
 from src.lib.logging import get_logger
@@ -67,14 +67,18 @@ class HeaderIndex:
         if not query_normalized:
             return None, 0.0
 
-        best_match_header = None
-        best_score = 0.0
-
-        for header in self._all_headers:
-            score = fuzz.ratio(query_normalized, header) / 100.0
-            if score >= threshold and score > best_score:
-                best_score = score
-                best_match_header = header
+        result = process.extractOne(
+            query_normalized,
+            self._all_headers,
+            scorer=fuzz.ratio,
+            score_cutoff=threshold * 100,
+        )
+        if result:
+            best_match_header, raw_score, _ = result
+            best_score = raw_score / 100.0
+        else:
+            best_match_header = None
+            best_score = 0.0
 
         if best_match_header:
             chunk = self._header_to_chunk[best_match_header]

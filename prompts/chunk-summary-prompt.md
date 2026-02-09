@@ -12,6 +12,7 @@ Generate a single-sentence summary for each chunk of rules text provided. Each s
 - Do not repeat the rule name in the summary. 
   - **Bad Example**: ASSAULT BOOST WARRIOR: The Assault Boost Warrior enables free use of Assault or Tactical Combat Doctrine
   - **Good Example**: ASSAULT BOOST WARRIOR: Enables free use of Assault or Tactical Combat Doctrine
+
 ## Content-Specific Guidelines
 
 ### For Operatives

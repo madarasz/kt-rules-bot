@@ -368,6 +368,7 @@ class GenerationConfig:
     - "default": Standard Kill Team rules answer (Answer model)
     - "hop_evaluation": Multi-hop retrieval context evaluation (HopEvaluation model)
     - "custom_judge": Quality test evaluation (CustomJudgeResponse model)
+    - "chunk_summaries": Chunk summary generation during ingestion (ChunkSummaries model)
     """
 
     max_tokens: int = LLM_DEFAULT_MAX_TOKENS  # Maximum response length

@@ -526,11 +526,8 @@ class MultiHopRetriever:
         Returns:
             List of cleaned individual titles
         """
-        # Remove apostrophes (judge sometimes wraps titles in quotes)
-        cleaned = missing_query.replace("'", "")
-
-        # Split by comma
-        titles = [t.strip() for t in cleaned.split(',') if t.strip()]
+        # Split by comma first, then strip wrapping quotes per title
+        titles = [t.strip().strip("'\"") for t in missing_query.split(',') if t.strip()]
 
         return titles
 
