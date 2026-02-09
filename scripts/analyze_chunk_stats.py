@@ -9,8 +9,8 @@ from statistics import mean, median, stdev
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.services.rag.vector_db import VectorDBService
 from src.lib.tokens import count_tokens
+from src.services.rag.vector_db import VectorDBService
 
 
 def analyze_chunks(verbose: bool = False):

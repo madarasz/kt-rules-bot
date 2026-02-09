@@ -6,8 +6,11 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import BinaryIO
+from typing import TYPE_CHECKING, BinaryIO
 from uuid import UUID
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
 
 from src.lib.constants import (
     LLM_DEFAULT_MAX_TOKENS,
@@ -195,6 +198,34 @@ HOP_EVALUATION_SCHEMA = {
     "additionalProperties": False,
 }
 
+# Schema for chunk summaries (used during ingestion)
+CHUNK_SUMMARIES_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "summaries": {
+            "type": "array",
+            "description": "List of chunk summaries",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "chunk_number": {
+                        "type": "integer",
+                        "description": "Chunk number (1-indexed)",
+                    },
+                    "summary": {
+                        "type": "string",
+                        "description": "One-sentence summary of the chunk",
+                    },
+                },
+                "required": ["chunk_number", "summary"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["summaries"],
+    "additionalProperties": False,
+}
+
 # Schema for custom LLM judge in quality testing
 CUSTOM_JUDGE_SCHEMA = {
     "type": "object",
@@ -236,6 +267,97 @@ CUSTOM_JUDGE_SCHEMA = {
 }
 
 
+# Schema selection helpers to reduce code duplication across LLM adapters
+@dataclass
+class SchemaInfo:
+    """Full schema information for structured output configuration.
+
+    Used by adapters that need more than just the Pydantic model (e.g., Claude, DeepSeek).
+    """
+
+    pydantic_model: type["BaseModel"]
+    json_schema: dict
+    tool_name: str
+    tool_description: str
+
+
+def _get_schema_registry() -> dict[str, SchemaInfo]:
+    """Lazily build schema registry to avoid circular imports.
+
+    Returns:
+        Dictionary mapping schema type names to SchemaInfo objects.
+    """
+    from src.services.llm.schemas import Answer, ChunkSummaries, CustomJudgeResponse, HopEvaluation
+
+    return {
+        "hop_evaluation": SchemaInfo(
+            pydantic_model=HopEvaluation,
+            json_schema=HOP_EVALUATION_SCHEMA,
+            tool_name="evaluate_context_sufficiency",
+            tool_description="Evaluate if retrieved context is sufficient to answer the question",
+        ),
+        "custom_judge": SchemaInfo(
+            pydantic_model=CustomJudgeResponse,
+            json_schema=CUSTOM_JUDGE_SCHEMA,
+            tool_name="evaluate_answer_quality",
+            tool_description="Evaluate Kill Team rules answer quality and correctness",
+        ),
+        "chunk_summaries": SchemaInfo(
+            pydantic_model=ChunkSummaries,
+            json_schema=CHUNK_SUMMARIES_SCHEMA,
+            tool_name="generate_chunk_summaries",
+            tool_description="Generate one-sentence summaries for rule chunks",
+        ),
+        "default": SchemaInfo(
+            pydantic_model=Answer,
+            json_schema=STRUCTURED_OUTPUT_SCHEMA,
+            tool_name="format_kill_team_answer",
+            tool_description="Format Kill Team rules answer with quotes and explanation",
+        ),
+    }
+
+
+def get_pydantic_model(schema_type: str, use_gemini_answer: bool = False) -> type["BaseModel"]:
+    """Get Pydantic model for structured output schema type.
+
+    This is the simpler helper for adapters that only need the Pydantic model
+    (ChatGPT, Grok, Gemini, Kimi, Mistral).
+
+    Args:
+        schema_type: One of "default", "hop_evaluation", "custom_judge", "chunk_summaries"
+        use_gemini_answer: If True and schema_type is "default", returns GeminiAnswer
+                          instead of Answer (for Gemini's sentence-number quote extraction)
+
+    Returns:
+        Pydantic model class for the specified schema type
+    """
+    # Handle Gemini's special case for default schema
+    if use_gemini_answer and schema_type == "default":
+        from src.services.llm.schemas import GeminiAnswer
+
+        return GeminiAnswer
+
+    registry = _get_schema_registry()
+    schema_info = registry.get(schema_type, registry["default"])
+    return schema_info.pydantic_model
+
+
+def get_schema_info(schema_type: str) -> SchemaInfo:
+    """Get full schema info including JSON schema and tool metadata.
+
+    This is the comprehensive helper for adapters that need more than just the
+    Pydantic model (Claude, DeepSeek).
+
+    Args:
+        schema_type: One of "default", "hop_evaluation", "custom_judge", "chunk_summaries"
+
+    Returns:
+        SchemaInfo with pydantic_model, json_schema, tool_name, and tool_description
+    """
+    registry = _get_schema_registry()
+    return registry.get(schema_type, registry["default"])
+
+
 # Data classes for generation
 @dataclass
 class GenerationConfig:
@@ -246,6 +368,7 @@ class GenerationConfig:
     - "default": Standard Kill Team rules answer (Answer model)
     - "hop_evaluation": Multi-hop retrieval context evaluation (HopEvaluation model)
     - "custom_judge": Quality test evaluation (CustomJudgeResponse model)
+    - "chunk_summaries": Chunk summary generation during ingestion (ChunkSummaries model)
     """
 
     max_tokens: int = LLM_DEFAULT_MAX_TOKENS  # Maximum response length

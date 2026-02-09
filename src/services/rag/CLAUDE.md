@@ -65,6 +65,14 @@ Synonym-based query expansion for better BM25 keyword matching:
 - Supports multi-word phrases and single-word synonyms
 - Case-insensitive matching with word boundary detection
 
+### Header Index ([header_index.py](header_index.py))
+Fuzzy header lookup for multi-hop retrieval:
+- In-memory index mapping chunk headers to chunks
+- Fuzzy matching using rapidfuzz (configurable threshold, default 85%)
+- Used when hop judge explicitly names rules to retrieve them directly
+- Avoids semantic search dilution from compound `missing_query` strings
+- Built automatically at startup from all indexed chunks
+
 ### Document Chunker ([chunker.py](chunker.py))
 Semantic chunking strategy (configurable multi-level splitting):
 - **Splits at multiple header levels** from ## up to configured maximum (e.g., ## and ### for level 3)
@@ -137,8 +145,40 @@ Instead of a single retrieval, multi-hop performs multiple passes:
 1. **Initial Retrieval**: Retrieve top-k chunks for user query
 2. **Gap Analysis**: LLM evaluates if context is sufficient to answer the question
 3. **Focused Retrieval** (if gaps found): Generate specific sub-query for missing information
+   - **Header-based lookup**: First tries fuzzy header matching (85% threshold) for explicitly named rules
+   - **Semantic fallback**: Unmatched titles go through standard hybrid search
 4. **Repeat**: Continue until context is sufficient OR max hops reached
 5. **Final Generation**: Pass all accumulated chunks to LLM for answer
+
+### Header-Based Hop Retrieval
+
+When the hop judge explicitly names rules (e.g., `"COUNTERACT, Movement: Minimum move stat"`), direct header matching outperforms semantic search because compound queries dilute relevance.
+
+**Algorithm**:
+1. Parse `missing_query` by comma (hyphens preserved as part of titles)
+2. Remove apostrophes (judge sometimes wraps titles in quotes)
+3. For each title, fuzzy match against chunk headers at 85% threshold
+4. Score = fuzzy_match_percent - 0.01 (preserves match quality signal)
+5. Unmatched titles fall back to semantic retrieval
+6. Merge results: header matches first (higher precision), then semantic
+
+**Example**:
+```
+missing_query: "'Movement: Minimum move stat', COUNTERACT, Cover rules"
+                          │
+              Parse → ["Movement: Minimum move stat", "COUNTERACT", "Cover rules"]
+                          │
+              Header fuzzy match (85%):
+              ✅ "Movement: Minimum move stat" → 92% match → score=0.91
+              ✅ "COUNTERACT" → 100% match → score=0.99
+              ❌ "Cover rules" → no match at 85%
+                          │
+              Semantic fallback for "Cover rules"
+                          │
+              Final: [COUNTERACT(0.99), Movement(0.91), COVER(0.87), ...]
+```
+
+**Configuration**: `HEADER_FUZZY_THRESHOLD = 0.85` in [src/lib/constants.py](../../lib/constants.py)
 
 ### Configuration
 
@@ -155,6 +195,9 @@ RAG_HOP_EVALUATION_MODEL = "gpt-4.1-mini"
 
 # Timeout for gap analysis LLM call
 RAG_HOP_EVALUATION_TIMEOUT = 20
+
+# Header fuzzy matching threshold for hop retrieval (0.0-1.0)
+HEADER_FUZZY_THRESHOLD = 0.85
 ```
 
 ### Retrieval Flow (Multi-Hop Enabled)
@@ -169,9 +212,12 @@ Multi-Hop Orchestrator (multi_hop_retriever.py)
 Gap Analysis LLM: "Can I answer with these chunks?"
     ↓
     ├─ YES → Return all chunks
-    └─ NO  → Generate focused sub-query
+    └─ NO  → Generate focused sub-query (e.g., "COUNTERACT, Cover rules")
         ↓
-[Hop 1] Retrieve for sub-query → 5 more chunks
+[Hop 1] Header-based + Semantic retrieval:
+    ├─ Parse titles by comma
+    ├─ Fuzzy header match (85%) → direct chunk lookup
+    └─ Unmatched → semantic fallback
     ↓ (deduplicate by chunk_id)
 Add unique chunks to accumulated context
     ↓
@@ -244,6 +290,7 @@ Savings: ~$0.0003 per hop evaluation
 
 **Components**:
 - [multi_hop_retriever.py](multi_hop_retriever.py): Orchestrates multi-hop process
+- [header_index.py](header_index.py): Fuzzy header lookup for named rules
 - [team_filter.py](team_filter.py): Filters teams structure for cost optimization
 - Prompt: [prompts/hop-evaluation-prompt.md](../../../prompts/hop-evaluation-prompt.md)
 - Schema: `HOP_EVALUATION_SCHEMA` in [src/services/llm/base.py](../llm/base.py)

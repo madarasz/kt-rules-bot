@@ -166,15 +166,19 @@ Content for section 2.
 def test_ingestion_continues_after_summary_failure(temp_chroma_db, temp_rules_dir):
     """Test that ingestion continues even if summary generation fails.
 
-    This tests the graceful degradation behavior by simulating an OpenAI API failure.
+    This tests the graceful degradation behavior by simulating an LLM API failure.
     """
+    from unittest.mock import AsyncMock
+
     with (
         patch("src.services.rag.summarizer.SUMMARY_ENABLED", True),
-        patch("src.services.rag.summarizer.OpenAI") as mock_openai_class,
+        patch("src.services.rag.summarizer.LLMProviderFactory") as mock_factory,
+        patch("src.services.rag.summarizer.load_summary_prompt", return_value="Test prompt"),
     ):
-        # Create a mock client that raises an exception when parse is called
-        mock_client = mock_openai_class.return_value
-        mock_client.beta.chat.completions.parse.side_effect = Exception("Simulated API failure")
+        # Create a mock provider that raises an exception when generate is called
+        mock_provider = AsyncMock()
+        mock_provider.generate.side_effect = Exception("Simulated API failure")
+        mock_factory.create.return_value = mock_provider
 
         ingestor = RAGIngestor(db_path=temp_chroma_db)
 

@@ -295,10 +295,15 @@ class TestSchemaVariants:
         llm = LLMProviderFactory.create(provider)
 
         # HopEvaluation request asks if context is sufficient
+        # Note: system_prompt="" is required for non-default schemas to prevent
+        # the LLM from following the default Kill Team prompt format
         request = GenerationRequest(
             prompt="Can a model with the Stealth operative perform a charge action?",
             context=["Core Rules: Actions\nModels can perform Move, Shoot, or Charge actions."],
-            config=GenerationConfig(structured_output_schema="hop_evaluation"),
+            config=GenerationConfig(
+                structured_output_schema="hop_evaluation",
+                system_prompt="",  # Empty system prompt for hop evaluation
+            ),
         )
 
         response = await llm.generate(request)
@@ -346,7 +351,10 @@ class TestSchemaVariants:
         request = GenerationRequest(
             prompt=judge_prompt,
             context=[],
-            config=GenerationConfig(structured_output_schema="custom_judge"),
+            config=GenerationConfig(
+                structured_output_schema="custom_judge",
+                system_prompt="",  # Empty system prompt for custom_judge schema
+            ),
         )
 
         response = await llm.generate(request)

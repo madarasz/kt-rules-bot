@@ -509,6 +509,8 @@ class TestRetrieveMultiHop:
         base_retriever.retrieve = Mock(
             side_effect=[(initial_context, [], {}), (hop_context, [], {})]
         )
+        # Mock retrieve_by_header - returns (None, 0.0) to trigger semantic fallback
+        base_retriever.retrieve_by_header = Mock(return_value=(None, 0.0))
 
         retriever = MultiHopRetriever(base_retriever, max_hops=2)
 
@@ -548,6 +550,8 @@ class TestRetrieveMultiHop:
         base_retriever = Mock()
         context = RAGContext.from_retrieval(uuid4(), sample_chunks[:1])
         base_retriever.retrieve = Mock(return_value=(context, [], {}))
+        # Mock retrieve_by_header - returns (None, 0.0) to trigger semantic fallback
+        base_retriever.retrieve_by_header = Mock(return_value=(None, 0.0))
 
         retriever = MultiHopRetriever(base_retriever, max_hops=1)
 
@@ -594,6 +598,8 @@ class TestRetrieveMultiHop:
         base_retriever = Mock()
         context = RAGContext.from_retrieval(uuid4(), sample_chunks)
         base_retriever.retrieve = Mock(return_value=(context, [], {}))
+        # Mock retrieve_by_header - returns (None, 0.0) to trigger semantic fallback
+        base_retriever.retrieve_by_header = Mock(return_value=(None, 0.0))
 
         retriever = MultiHopRetriever(base_retriever, max_hops=2)
 

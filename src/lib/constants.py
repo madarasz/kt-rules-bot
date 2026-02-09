@@ -78,7 +78,7 @@ PDF_EXTRACTION_PROVIDERS = [
 
 # Quality test providers (curated list for --all-models testing)
 QUALITY_TEST_PROVIDERS = [
-    "gpt-5.2",
+    #"gpt-5.2",
     "gpt-5.2-chat-latest",
     #"gpt-5.1-chat-latest",
     #"gpt-4.1",
@@ -89,13 +89,14 @@ QUALITY_TEST_PROVIDERS = [
     #"claude-4.5-opus",
     #"gemini-3-pro-preview",
     #"gemini-3-flash-preview",
-    #"gemini-2.5-flash",
+    "gemini-2.5-flash",
     #"kimi-k2.5",
     #"kimi-k2-0905-preview",
     #"kimi-k2-turbo-preview",
     #"gemini-2.5-pro",
     #"deepseek-chat",
-    #"grok-4-1-fast-reasoning",
+    "grok-4-1-fast-reasoning",
+    "grok-4-1-fast-non-reasoning",
     #"mistral-large",
     #"mistral-medium",
     # "grok-3",
@@ -141,7 +142,7 @@ LLM_EXTRACTION_TEMPERATURE = 0  # Low temperature for consistent structure
 # ============================================================================
 
 # Default judge model for quality tests (used by both Ragas and custom judge)
-QUALITY_TEST_JUDGE_MODEL = "claude-4.5-haiku"
+QUALITY_TEST_JUDGE_MODEL = "grok-4-1-fast-non-reasoning"
 
 # Quality test judging mode
 # - "RAGAS": Enable LLM-based metrics (Quote Faithfulness, Explanation Faithfulness, Answer Correctness) using Ragas library
@@ -261,7 +262,7 @@ PROMPT_OVERRIDES_DIR = "prompts/overrides"
 SUMMARY_ENABLED = True
 
 # LLM model to use for summary generation (use cheap/fast model)
-SUMMARY_LLM_MODEL = "gpt-4.1-mini"
+SUMMARY_LLM_MODEL = "grok-4-1-fast-non-reasoning"
 
 # Path to summary generation prompt template
 CHUNK_SUMMARY_PROMPT_PATH = "prompts/chunk-summary-prompt.md"
@@ -294,6 +295,11 @@ RAG_SYNONYM_DICT_PATH = "data/rag_synonyms.json"
 # Multi-Hop RAG Constants
 # ============================================================================
 
+# Header fuzzy matching threshold for hop retrieval (0.0-1.0)
+# When hop judge names specific rules, we first try direct header matching
+# at this threshold before falling back to semantic search
+HEADER_FUZZY_THRESHOLD = 0.85
+
 # Maximum number of retrieval iterations after initial query (default: 0 = disabled)
 # 0 = single-hop only (multi-hop disabled)
 # 1 = initial + 1 hop, 2 = initial + 2 hops, etc.
@@ -303,8 +309,8 @@ RAG_MAX_HOPS = 1
 # Total chunks accumulated = (MAX_HOPS + 1) × HOP_CHUNK_LIMIT
 RAG_HOP_CHUNK_LIMIT = 5
 
-# LLM model for hop context evaluation (default: gpt-4.1-mini for speed)
-RAG_HOP_EVALUATION_MODEL = "mistral-medium"
+# LLM model for hop context evaluation
+RAG_HOP_EVALUATION_MODEL = "grok-4-1-fast-non-reasoning"
 
 # Hop evaluation timeout in seconds
 RAG_HOP_EVALUATION_TIMEOUT = 20

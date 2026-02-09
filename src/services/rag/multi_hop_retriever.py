@@ -6,8 +6,8 @@ and requests additional information if needed.
 
 import asyncio
 import json
-import re
 import time
+from dataclasses import replace
 from typing import Any
 from uuid import UUID
 
@@ -236,38 +236,29 @@ class MultiHopRetriever:
                     )
                     break
 
-                # Normalize comma-separated values: ensure space after commas
-                normalized_query = re.sub(r',(?! )', ', ', evaluation.missing_query)
-
-                hop_request = RetrieveRequest(
-                    query=normalized_query,
-                    context_key=context_key,
-                    max_chunks=self.chunks_per_hop,
-                    use_multi_hop=False,  # Prevent infinite recursion
-                )
-
+                # Use header-based lookup with semantic fallback
                 retrieval_start = time.time()
-                hop_context, _, _ = self.base_retriever.retrieve(hop_request, query_id)
+                new_chunks = await self._retrieve_for_hop(
+                    evaluation.missing_query, context_key, query_id
+                )
                 evaluation.retrieval_time_s = time.time() - retrieval_start
 
-                # Deduplicate by chunk_id
+                # Deduplicate against accumulated chunks
                 existing_ids = {c.chunk_id for c in accumulated_chunks}
-                new_chunks = [
-                    c for c in hop_context.document_chunks if c.chunk_id not in existing_ids
-                ]
+                new_unique_chunks = [c for c in new_chunks if c.chunk_id not in existing_ids]
 
                 # Track hop number for new chunks
-                for chunk in new_chunks:
+                for chunk in new_unique_chunks:
                     chunk_hop_map[chunk.chunk_id] = hop_num
 
-                accumulated_chunks.extend(new_chunks)
+                accumulated_chunks.extend(new_unique_chunks)
 
                 logger.info(
                     "multi_hop_retrieval",
                     hop=hop_num,
-                    query=normalized_query,
-                    chunks_retrieved=len(hop_context.document_chunks),
-                    new_unique_chunks=len(new_chunks),
+                    query=evaluation.missing_query,
+                    chunks_retrieved=len(new_chunks),
+                    new_unique_chunks=len(new_unique_chunks),
                     total_chunks=len(accumulated_chunks),
                 )
 
@@ -517,3 +508,110 @@ class MultiHopRetriever:
                 formatted_chunks.append(f"{i}. {text}\n")
 
         return "\n".join(formatted_chunks)
+
+    def _clean_missing_query(self, missing_query: str) -> list[str]:
+        """Parse missing_query into individual titles.
+
+        Handles:
+        - Apostrophe-wrapped titles: "'Title A', Title B" → ["Title A", "Title B"]
+        - Comma separation: "A, B, C" → ["A", "B", "C"]
+        - Whitespace cleanup
+
+        Note: Hyphens are NOT delimiters - "FIREFIGHT PHASE - WHEN A FRIENDLY..."
+        is a single title.
+
+        Args:
+            missing_query: Raw missing_query from hop evaluation
+
+        Returns:
+            List of cleaned individual titles
+        """
+        # Split by comma first, then strip wrapping quotes per title
+        titles = [t.strip().strip("'\"") for t in missing_query.split(',') if t.strip()]
+
+        return titles
+
+    async def _retrieve_for_hop(
+        self, missing_query: str, context_key: str, query_id: UUID
+    ) -> list[DocumentChunk]:
+        """Retrieve chunks for hop using header lookup + semantic fallback.
+
+        For each title in missing_query:
+        1. Try fuzzy header match (85% threshold)
+        2. If matched, use fuzzy score - 0.01 as relevance
+        3. Collect unmatched titles for semantic fallback
+
+        Args:
+            missing_query: Comma-separated titles from hop evaluation
+            context_key: Context key for tracking
+            query_id: Query UUID
+
+        Returns:
+            List of retrieved chunks (header-matched first, then semantic)
+        """
+        # Step 1: Parse into individual titles
+        titles = self._clean_missing_query(missing_query)
+
+        header_matched_chunks: list[DocumentChunk] = []
+        unmatched_titles: list[str] = []
+
+        # Step 2: Fuzzy header search for each title (85% threshold)
+        for title in titles:
+            chunk, score = self.base_retriever.retrieve_by_header(title)
+            if chunk:
+                # Use fuzzy match score - 0.01 as relevance score
+                adjusted_score = score - 0.01
+                boosted_chunk = replace(chunk, relevance_score=adjusted_score)
+                header_matched_chunks.append(boosted_chunk)
+
+                logger.info(
+                    "hop_header_match",
+                    title=title,
+                    matched_header=chunk.header,
+                    score=score,
+                    adjusted_score=adjusted_score,
+                )
+            else:
+                unmatched_titles.append(title)
+                logger.info(
+                    "hop_header_no_match",
+                    title=title,
+                )
+
+        # Step 3: Semantic fallback for unmatched titles
+        semantic_chunks: list[DocumentChunk] = []
+        if unmatched_titles:
+            fallback_query = ", ".join(unmatched_titles)
+            hop_request = RetrieveRequest(
+                query=fallback_query,
+                context_key=context_key,
+                max_chunks=self.chunks_per_hop,
+                use_multi_hop=False,
+            )
+            hop_context, _, _ = self.base_retriever.retrieve(hop_request, query_id)
+            semantic_chunks = hop_context.document_chunks
+
+            logger.info(
+                "hop_semantic_fallback",
+                unmatched_titles=unmatched_titles,
+                fallback_query=fallback_query,
+                chunks_retrieved=len(semantic_chunks),
+            )
+
+        # Step 4: Merge and deduplicate (header matches first)
+        seen_ids = set()
+        final_chunks = []
+
+        for chunk in header_matched_chunks + semantic_chunks:
+            if chunk.chunk_id not in seen_ids:
+                seen_ids.add(chunk.chunk_id)
+                final_chunks.append(chunk)
+
+        logger.info(
+            "hop_retrieval_complete",
+            header_matched=len(header_matched_chunks),
+            semantic_fallback=len(semantic_chunks),
+            final_unique=len(final_chunks),
+        )
+
+        return final_chunks

@@ -21,9 +21,9 @@ from src.services.llm.base import (
     LLMResponse,
     RateLimitError,
     TokenLimitError,
+    get_schema_info,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
-from src.services.llm.schemas import Answer, HopEvaluation
 
 logger = get_logger(__name__)
 
@@ -79,21 +79,13 @@ class DeepSeekAdapter(LLMProvider):
         )
 
         try:
-            # Select Pydantic model based on configuration
+            # Select schema based on configuration
             schema_type = request.config.structured_output_schema
-
-            if schema_type == "hop_evaluation":
-                pydantic_model = HopEvaluation
-                function_name = "evaluate_context_sufficiency"
-                function_description = (
-                    "Evaluate if retrieved context is sufficient to answer the question"
-                )
-                logger.debug("Using hop evaluation schema (Pydantic)")
-            else:  # "default"
-                pydantic_model = Answer
-                function_name = "format_kill_team_answer"
-                function_description = "Format Kill Team rules answer with quotes and explanation"
-                logger.debug("Using default answer schema (Pydantic)")
+            schema_info = get_schema_info(schema_type)
+            pydantic_model = schema_info.pydantic_model
+            function_name = schema_info.tool_name
+            function_description = schema_info.tool_description
+            logger.debug(f"Using {schema_type} schema (Pydantic)")
 
             # Build API call parameters with function calling (DeepSeek doesn't support parse method yet)
             # Use Pydantic model for schema generation and validation
