@@ -12,6 +12,7 @@ from src.lib.constants import (
     BM25_B,
     BM25_K1,
     BM25_WEIGHT,
+    HEADER_FUZZY_THRESHOLD,
     MAXIMUM_FINAL_CHUNK_COUNT,
     RAG_ENABLE_QUERY_EXPANSION,
     RAG_ENABLE_QUERY_NORMALIZATION,
@@ -24,6 +25,7 @@ from src.lib.logging import get_logger
 from src.models.rag_context import DocumentChunk, RAGContext
 from src.models.rag_request import RetrieveRequest
 from src.services.rag.embeddings import EmbeddingService
+from src.services.rag.header_index import HeaderIndex
 from src.services.rag.hybrid_retriever import HybridRetriever
 from src.services.rag.keyword_extractor import KeywordExtractor
 from src.services.rag.multi_hop_retriever import MultiHopRetriever
@@ -86,12 +88,18 @@ class RAGRetriever:
 
         # Initialize hybrid retriever if enabled
         self.hybrid_retriever: HybridRetriever | None = None
+        self._all_chunks: list[DocumentChunk] = []  # Cached for header index
         if enable_hybrid:
             self.hybrid_retriever = HybridRetriever(
                 k=rrf_k, bm25_k1=bm25_k1, bm25_b=bm25_b, bm25_weight=bm25_weight
             )
             # Index all chunks from vector DB
             self._build_hybrid_index()
+
+        # Initialize header index for fuzzy header lookup (used by multi-hop)
+        self.header_index = HeaderIndex()
+        if self._all_chunks:
+            self.header_index.build_from_chunks(self._all_chunks)
 
         # Initialize multi-hop retriever if enabled
         self.multi_hop_retriever = None
@@ -486,6 +494,9 @@ class RAGRetriever:
             # Build BM25 index
             self.hybrid_retriever.index_chunks(chunks)
 
+            # Cache chunks for header index (built after this method returns)
+            self._all_chunks = chunks
+
             logger.info(
                 "hybrid_index_built",
                 chunk_count=len(chunks),
@@ -496,3 +507,20 @@ class RAGRetriever:
             logger.error("hybrid_index_build_failed", error=str(e))
             # Non-fatal: continue without hybrid search
             self.hybrid_retriever = None
+
+    def retrieve_by_header(
+        self, header_query: str, threshold: float = HEADER_FUZZY_THRESHOLD
+    ) -> tuple[DocumentChunk | None, float]:
+        """Retrieve single chunk by fuzzy header match.
+
+        Used by multi-hop retrieval when hop judge names specific rules.
+        Falls back to None if no match found at threshold.
+
+        Args:
+            header_query: Header text to search for
+            threshold: Minimum similarity (0.0-1.0)
+
+        Returns:
+            Tuple of (matching chunk or None, match score)
+        """
+        return self.header_index.fuzzy_search(header_query, threshold)

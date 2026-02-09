@@ -9,7 +9,9 @@ Generate a single-sentence summary for each chunk of rules text provided. Each s
 - Be actionable and specific
 - Omit filler phrases like "this section outlines", "this profile details", "this entry details"
 - Start directly with the key information
-
+- Do not repeat the rule name in the summary. 
+  - **Bad Example**: ASSAULT BOOST WARRIOR: The Assault Boost Warrior enables free use of Assault or Tactical Combat Doctrine
+  - **Good Example**: ASSAULT BOOST WARRIOR: Enables free use of Assault or Tactical Combat Doctrine
 ## Content-Specific Guidelines
 
 ### For Operatives
