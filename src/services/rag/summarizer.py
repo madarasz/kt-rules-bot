@@ -7,10 +7,6 @@ Used during ingestion to enhance retrieval quality.
 import time
 from pathlib import Path
 
-from openai import OpenAI
-from pydantic import BaseModel, Field
-
-from src.lib.config import get_config
 from src.lib.constants import (
     CHUNK_SUMMARY_PROMPT_PATH,
     LLM_DEFAULT_MAX_TOKENS,
@@ -18,22 +14,12 @@ from src.lib.constants import (
     SUMMARY_LLM_MODEL,
 )
 from src.lib.logging import get_logger
+from src.services.llm.base import GenerationConfig, GenerationRequest
+from src.services.llm.factory import LLMProviderFactory
+from src.services.llm.schemas import ChunkSummaries
 from src.services.rag.chunker import MarkdownChunk
 
 logger = get_logger(__name__)
-
-
-class ChunkSummary(BaseModel):
-    """Single chunk summary."""
-
-    chunk_number: int = Field(description="Chunk number (1-indexed)")
-    summary: str = Field(description="One-sentence summary of the chunk")
-
-
-class ChunkSummaries(BaseModel):
-    """Batch of chunk summaries."""
-
-    summaries: list[ChunkSummary] = Field(description="List of chunk summaries")
 
 
 def load_summary_prompt() -> str:
@@ -65,13 +51,18 @@ class ChunkSummarizer:
     """Generates one-sentence summaries for rule chunks using LLM."""
 
     def __init__(self):
-        """Initialize the chunk summarizer with OpenAI client."""
+        """Initialize the chunk summarizer with LLM provider."""
         if not SUMMARY_ENABLED:
             logger.info("Summary generation is disabled (SUMMARY_ENABLED=False)")
+            self.provider = None
             return
 
-        config = get_config()
-        self.client = OpenAI(api_key=config.openai_api_key)
+        # Use LLMProviderFactory to get the appropriate provider
+        self.provider = LLMProviderFactory.create(SUMMARY_LLM_MODEL)
+        if self.provider is None:
+            logger.error(f"Failed to create LLM provider for model: {SUMMARY_LLM_MODEL}")
+            return
+
         self.summary_prompt = load_summary_prompt()
         self.model = SUMMARY_LLM_MODEL
         logger.info(f"Initialized ChunkSummarizer with model: {SUMMARY_LLM_MODEL}")
@@ -101,6 +92,10 @@ class ChunkSummarizer:
             logger.debug("Summary generation disabled, returning chunks unchanged")
             return (chunks, 0, 0, "")
 
+        if self.provider is None:
+            logger.warning("No LLM provider available, returning chunks unchanged")
+            return (chunks, 0, 0, "")
+
         if not chunks:
             logger.debug("No chunks to summarize")
             return (chunks, 0, 0, "")
@@ -109,30 +104,44 @@ class ChunkSummarizer:
             # Build input text with numbered chunks
             chunk_input = self._format_chunks_for_llm(chunks)
 
-            # Make OpenAI call with structured output
+            # Build the full prompt
+            full_prompt = f"{self.summary_prompt}\n\n{chunk_input}"
+
+            # Configure the generation request
+            config = GenerationConfig(
+                max_tokens=LLM_DEFAULT_MAX_TOKENS * 3,
+                temperature=0.3,
+                system_prompt="You are a technical writer creating concise summaries for game rules documentation.",
+                structured_output_schema="chunk_summaries",
+            )
+
+            request = GenerationRequest(
+                prompt=full_prompt,
+                context=[],  # No RAG context needed for summarization
+                config=config,
+            )
+
+            # Make LLM call with structured output
             logger.info(f"Generating summaries for {len(chunks)} chunks...")
             start_time = time.time()
 
-            completion = self.client.beta.chat.completions.parse(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a technical writer creating concise summaries for game rules documentation.",
-                    },
-                    {"role": "user", "content": f"{self.summary_prompt}\n\n{chunk_input}"},
-                ],
-                response_format=ChunkSummaries,
-                temperature=0.3,
-                max_tokens=LLM_DEFAULT_MAX_TOKENS * 3,
-            )
+            response = await self.provider.generate(request)
 
             latency_ms = int((time.time() - start_time) * 1000)
 
-            # Extract structured response
-            summaries_response = completion.choices[0].message.parsed
-            prompt_tokens = completion.usage.prompt_tokens
-            completion_tokens = completion.usage.completion_tokens
+            # Parse structured response
+            # The response can be in structured_output (dict) or answer_text (JSON string)
+            if response.structured_output:
+                summaries_data = response.structured_output
+            else:
+                import json
+                summaries_data = json.loads(response.answer_text)
+
+            # Validate with Pydantic model
+            summaries_response = ChunkSummaries.model_validate(summaries_data)
+
+            prompt_tokens = response.prompt_tokens
+            completion_tokens = response.completion_tokens
 
             # Parse summaries from structured output
             summaries_dict = {}

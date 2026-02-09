@@ -142,3 +142,17 @@ class CustomJudgeResponse(BaseModel):
         default_factory=list,
         description="Per-answer correctness scores as array of {answer_key, score} objects",
     )
+
+
+# Chunk summary models (used during ingestion)
+class ChunkSummary(BaseModel):
+    """Single chunk summary."""
+
+    chunk_number: int = Field(description="Chunk number (1-indexed)")
+    summary: str = Field(description="One-sentence summary of the chunk")
+
+
+class ChunkSummaries(BaseModel):
+    """Batch of chunk summaries for RAG ingestion."""
+
+    summaries: list[ChunkSummary] = Field(description="List of chunk summaries")

@@ -14,9 +14,6 @@ from anthropic import Anthropic, AsyncAnthropic
 from src.lib.logging import get_logger
 from src.lib.pdf_utils import decompress_pdf_with_cleanup
 from src.services.llm.base import (
-    CUSTOM_JUDGE_SCHEMA,
-    HOP_EVALUATION_SCHEMA,
-    STRUCTURED_OUTPUT_SCHEMA,
     AuthenticationError,
     ContentFilterError,
     ExtractionRequest,
@@ -26,9 +23,9 @@ from src.services.llm.base import (
     LLMResponse,
     PDFParseError,
     RateLimitError,
+    get_schema_info,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
-from src.services.llm.schemas import Answer, CustomJudgeResponse, HopEvaluation
 
 logger = get_logger(__name__)
 
@@ -84,22 +81,12 @@ class ClaudeAdapter(LLMProvider):
         try:
             # Select schema based on configuration
             schema_type = request.config.structured_output_schema
-
-            if schema_type == "hop_evaluation":
-                pydantic_model = HopEvaluation
-                json_schema = HOP_EVALUATION_SCHEMA
-                tool_name = "evaluate_context_sufficiency"
-                tool_description = "Evaluate if retrieved context is sufficient to answer the question"
-            elif schema_type == "custom_judge":
-                pydantic_model = CustomJudgeResponse
-                json_schema = CUSTOM_JUDGE_SCHEMA
-                tool_name = "evaluate_answer_quality"
-                tool_description = "Evaluate Kill Team rules answer quality and correctness"
-            else:  # "default"
-                pydantic_model = Answer
-                json_schema = STRUCTURED_OUTPUT_SCHEMA
-                tool_name = "format_kill_team_answer"
-                tool_description = "Format Kill Team rules answer with quotes and explanation"
+            schema_info = get_schema_info(schema_type)
+            pydantic_model = schema_info.pydantic_model
+            json_schema = schema_info.json_schema
+            tool_name = schema_info.tool_name
+            tool_description = schema_info.tool_description
+            logger.debug(f"Using {schema_type} schema (Pydantic)")
 
             # Check if model supports structured outputs
             supports_structured_outputs = self.model in CLAUDE_MODELS_WITH_STRUCTURED_OUTPUTS

@@ -22,9 +22,9 @@ from src.services.llm.base import (
     PDFParseError,
     RateLimitError,
     TokenLimitError,
+    get_pydantic_model,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
-from src.services.llm.schemas import Answer, HopEvaluation
 
 logger = get_logger(__name__)
 
@@ -72,13 +72,8 @@ class MistralAdapter(LLMProvider):
         try:
             # Select Pydantic model based on configuration
             schema_type = request.config.structured_output_schema
-
-            if schema_type == "hop_evaluation":
-                pydantic_model = HopEvaluation
-                logger.debug("Using hop evaluation schema (Pydantic)")
-            else:  # "default"
-                pydantic_model = Answer
-                logger.debug("Using default answer schema (Pydantic)")
+            pydantic_model = get_pydantic_model(schema_type)
+            logger.debug(f"Using {schema_type} schema (Pydantic)")
 
             # Build API request payload with structured output using Pydantic JSON schema
             # Mistral supports OpenAI-compatible response_format for structured outputs

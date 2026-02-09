@@ -23,6 +23,7 @@ from src.services.llm.base import (
     LLMResponse,
     PDFParseError,
     RateLimitError,
+    get_pydantic_model,
     load_system_prompt,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
@@ -30,7 +31,6 @@ from src.services.llm.gemini_quote_extractor import (
     number_sentences_in_chunk,
     post_process_gemini_response,
 )
-from src.services.llm.schemas import CustomJudgeResponse, GeminiAnswer, HopEvaluation
 
 logger = get_logger(__name__)
 
@@ -113,17 +113,10 @@ class GeminiAdapter(LLMProvider):
 
         try:
             # Select Pydantic schema based on configuration
+            # use_gemini_answer=True makes "default" return GeminiAnswer instead of Answer
             schema_type = request.config.structured_output_schema
-
-            if schema_type == "hop_evaluation":
-                pydantic_model = HopEvaluation
-                logger.debug("Using hop evaluation schema (Pydantic)")
-            elif schema_type == "custom_judge":
-                pydantic_model = CustomJudgeResponse
-                logger.debug("Using custom judge schema (Pydantic)")
-            else:  # "default"
-                pydantic_model = GeminiAnswer
-                logger.debug("Using default answer schema (Pydantic)")
+            pydantic_model = get_pydantic_model(schema_type, use_gemini_answer=True)
+            logger.debug(f"Using {schema_type} schema (Pydantic)")
 
             # Configure generation with JSON mode for structured output
             # Use Pydantic model's JSON schema (Google's recommended approach as of Nov 2024)
