@@ -6,14 +6,15 @@
 **Test Cases:** 7 tests, 5 models, 5 runs each
 
 ## Overall Rankings
+![chart](2026-02-07_prompt_V3_2_model_comparision.png)
 
-| Rank | Model | Avg Score | Consistency (±std) | Avg Time | Cost/Query |
-|------|-------|-----------|-------------------|----------|------------|
-| 1 | **grok-4-1-fast-reasoning** | 85.5% | ±19.1 | 16.46s | $0.0018 |
-| 2 | **claude-4.5-sonnet** | 84.7% | ±15.6 | 11.89s | $0.0302 |
-| 3 | **gpt-5.2-chat-latest** | 84.7% | ±19.5 | 8.01s | $0.0212 |
-| 4 | **grok-4-1-fast-non-reasoning** | 81.0% | ±25.3 | 4.07s | $0.0018 |
-| 5 | **gemini-2.5-flash** | 75.7% | ±23.9 | 8.30s | $0.0038 |
+| Rank | Model | Avg Score | Avg Time | Cost/Query |
+|------|-------|-----------|-----------|------------|
+| 1 | **grok-4-1-fast-reasoning** | 85.5% | 16.46s | $0.0018 |
+| 2 | **claude-4.5-sonnet** | 84.7% | 11.89s | $0.0302 |
+| 3 | **gpt-5.2-chat-latest** | 84.7% | 8.01s | $0.0212 |
+| 4 | **grok-4-1-fast-non-reasoning** | 81.0% | 4.07s | $0.0018 |
+| 5 | **gemini-2.5-flash** | 75.7% | 8.30s | $0.0038 |
 
 ---
 

@@ -118,7 +118,7 @@ QUALITY_TEST_PROVIDERS = [
 ]
 
 # Default LLM provider for generation
-DEFAULT_LLM_PROVIDER = "claude-4.5-sonnet"  # Default model for Discord bot and CLI
+DEFAULT_LLM_PROVIDER = "grok-4-1-fast-reasoning"  # Default model for Discord bot and CLI
 
 # LLM retry configuration
 LLM_MAX_RETRIES = 2  # Number of retry attempts on ContentFilterError
