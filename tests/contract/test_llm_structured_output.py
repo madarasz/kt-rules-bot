@@ -28,9 +28,11 @@ TEST_PROMPT = "Can a model perform two Shoot actions in the same activation?"
 TEST_CONTEXT = [
     "Core Rules: Actions\nA model cannot perform the same action more than once in the same activation."
 ]
+TEST_CHUNK_IDS = ["test-chunk-id-12345678"]
 
 SMALLTALK_PROMPT = "Hello! How are you?"
 SMALLTALK_CONTEXT = []
+SMALLTALK_CHUNK_IDS: list[str] = []
 
 
 @pytest.mark.parametrize("provider", PROVIDERS_TO_TEST)
@@ -50,7 +52,9 @@ async def test_provider_structured_output_compliance(provider):
     """
     llm = LLMProviderFactory.create(provider)
 
-    request = GenerationRequest(prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig())
+    request = GenerationRequest(
+        prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig(), chunk_ids=TEST_CHUNK_IDS
+    )
 
     response = await llm.generate(request)
 
@@ -140,7 +144,10 @@ async def test_provider_smalltalk_flag(provider):
 
     # Test with smalltalk
     request = GenerationRequest(
-        prompt=SMALLTALK_PROMPT, context=SMALLTALK_CONTEXT, config=GenerationConfig()
+        prompt=SMALLTALK_PROMPT,
+        context=SMALLTALK_CONTEXT,
+        config=GenerationConfig(),
+        chunk_ids=SMALLTALK_CHUNK_IDS,
     )
 
     response = await llm.generate(request)
@@ -164,7 +171,9 @@ async def test_provider_markdown_conversion(provider):
     """
     llm = LLMProviderFactory.create(provider)
 
-    request = GenerationRequest(prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig())
+    request = GenerationRequest(
+        prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig(), chunk_ids=TEST_CHUNK_IDS
+    )
 
     response = await llm.generate(request)
     structured_response = StructuredLLMResponse.from_json(response.answer_text)
@@ -194,7 +203,7 @@ class TestProviderSpecificEdgeCases:
         llm = LLMProviderFactory.create("gpt-4.1")
 
         request = GenerationRequest(
-            prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig()
+            prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig(), chunk_ids=TEST_CHUNK_IDS
         )
 
         response = await llm.generate(request)
@@ -240,7 +249,7 @@ class TestPydanticModelValidation:
         """
         llm = LLMProviderFactory.create(provider)
         request = GenerationRequest(
-            prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig()
+            prompt=TEST_PROMPT, context=TEST_CONTEXT, config=GenerationConfig(), chunk_ids=TEST_CHUNK_IDS
         )
 
         response = await llm.generate(request)
@@ -304,6 +313,7 @@ class TestSchemaVariants:
                 structured_output_schema="hop_evaluation",
                 system_prompt="",  # Empty system prompt for hop evaluation
             ),
+            chunk_ids=["hop-eval-test-chunk-1"],
         )
 
         response = await llm.generate(request)
@@ -355,6 +365,7 @@ class TestSchemaVariants:
                 structured_output_schema="custom_judge",
                 system_prompt="",  # Empty system prompt for custom_judge schema
             ),
+            chunk_ids=[],
         )
 
         response = await llm.generate(request)

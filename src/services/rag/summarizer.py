@@ -118,6 +118,7 @@ class ChunkSummarizer:
             request = GenerationRequest(
                 prompt=full_prompt,
                 context=[],  # No RAG context needed for summarization
+                chunk_ids=[],  # Empty list for non-RAG requests
                 config=config,
             )
 

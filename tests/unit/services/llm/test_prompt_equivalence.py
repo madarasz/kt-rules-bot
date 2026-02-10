@@ -4,14 +4,13 @@ These tests ensure backward compatibility by comparing the assembled prompts
 from the template system against the original prompt files.
 """
 
-from src.services.llm.base import load_system_prompt
-from src.services.llm.prompt_builder import build_prompt_for_provider
+from src.services.llm.prompt_builder import build_system_prompt
 
 
 def test_default_prompt_has_key_sections():
     """Test that new default prompt contains all key sections from legacy prompt."""
     # Load using new system
-    new_prompt = build_prompt_for_provider("default")
+    new_prompt = build_system_prompt("default")
 
     # Key sections that must be present
     required_sections = [
@@ -28,7 +27,7 @@ def test_default_prompt_has_key_sections():
         "## Constraints",
         "## Personality Application",
         "## Persona description",
-        "[PERSONALITY DESCRIPTION]",
+        # Personality is now injected, not a placeholder
         "## Examples",
         "Example 1 - Rules Question",
         "Example 2 - Smalltalk",
@@ -41,7 +40,7 @@ def test_default_prompt_has_key_sections():
 def test_gemini_prompt_has_key_sections():
     """Test that new Gemini prompt contains all key sections from legacy prompt."""
     # Load using new system
-    new_prompt = build_prompt_for_provider("gemini")
+    new_prompt = build_system_prompt("gemini")
 
     # Key sections specific to Gemini
     required_sections = [
@@ -63,7 +62,7 @@ def test_gemini_prompt_has_key_sections():
 
 def test_default_prompt_quote_extraction_protocol():
     """Test that default prompt has verbatim quote extraction instructions."""
-    new_prompt = build_prompt_for_provider("default")
+    new_prompt = build_system_prompt("default")
 
     # Key instructions for verbatim quote extraction
     assert "Copy relevant chunk text verbatim" in new_prompt
@@ -74,7 +73,7 @@ def test_default_prompt_quote_extraction_protocol():
 
 def test_gemini_prompt_quote_extraction_protocol():
     """Test that Gemini prompt has sentence-number-based extraction instructions."""
-    new_prompt = build_prompt_for_provider("gemini")
+    new_prompt = build_system_prompt("gemini")
 
     # Key instructions for sentence-number-based extraction
     assert "NOT include verbatim text" in new_prompt
@@ -83,30 +82,30 @@ def test_gemini_prompt_quote_extraction_protocol():
     assert "RECITATION" in new_prompt
 
 
-def test_load_system_prompt_default():
-    """Test that load_system_prompt works with default provider."""
-    prompt = load_system_prompt("default")
+def test_build_system_prompt_default():
+    """Test that build_system_prompt works with default provider."""
+    prompt = build_system_prompt("default")
 
     # Should have personality injected (not placeholders)
-    assert "[PERSONALITY DESCRIPTION]" not in prompt
+    assert "{{PERSONALITY_DESCRIPTION}}" not in prompt
     assert "## Instructions" in prompt
     assert "## Output Structure" in prompt
 
 
-def test_load_system_prompt_gemini():
-    """Test that load_system_prompt works with Gemini provider."""
-    prompt = load_system_prompt("gemini")
+def test_build_system_prompt_gemini():
+    """Test that build_system_prompt works with Gemini provider."""
+    prompt = build_system_prompt("gemini")
 
     # Should have personality injected
-    assert "[PERSONALITY DESCRIPTION]" not in prompt
+    assert "{{PERSONALITY_DESCRIPTION}}" not in prompt
     # Should have Gemini-specific content
     assert "sentence_numbers" in prompt
     assert "RECITATION" in prompt
 
 
-def test_load_system_prompt_default_without_arg():
-    """Test that load_system_prompt defaults to 'default' provider when no arg provided."""
-    prompt = load_system_prompt()
+def test_build_system_prompt_default_without_arg():
+    """Test that build_system_prompt defaults to 'default' provider when no arg provided."""
+    prompt = build_system_prompt()
 
     # Should use default provider
     assert "## Instructions" in prompt
@@ -116,8 +115,8 @@ def test_load_system_prompt_default_without_arg():
 
 def test_default_vs_gemini_differences():
     """Test key differences between default and Gemini prompts."""
-    default_prompt = build_prompt_for_provider("default")
-    gemini_prompt = build_prompt_for_provider("gemini")
+    default_prompt = build_system_prompt("default")
+    gemini_prompt = build_system_prompt("gemini")
 
     # Should not be identical
     assert default_prompt != gemini_prompt
@@ -138,8 +137,8 @@ def test_default_vs_gemini_differences():
 
 def test_shared_sections_identical():
     """Test that shared sections are identical between providers."""
-    default_prompt = build_prompt_for_provider("default")
-    gemini_prompt = build_prompt_for_provider("gemini")
+    default_prompt = build_system_prompt("default")
+    gemini_prompt = build_system_prompt("gemini")
 
     # Instructions section should be identical
     default_instructions = default_prompt.split("## Quote Extraction Protocol")[0]
@@ -153,19 +152,20 @@ def test_shared_sections_identical():
 
 def test_no_placeholders_in_final_prompts():
     """Test that no template placeholders remain in assembled prompts."""
-    default_prompt = build_prompt_for_provider("default")
-    gemini_prompt = build_prompt_for_provider("gemini")
+    default_prompt = build_system_prompt("default")
+    gemini_prompt = build_system_prompt("gemini")
 
-    # No double-brace placeholders should remain
+    # No double-brace placeholders should remain (except User Prompt Template section)
     for prompt_name, prompt in [("default", default_prompt), ("gemini", gemini_prompt)]:
-        assert "{{" not in prompt, f"{prompt_name} prompt has unreplaced placeholders"
-        assert "}}" not in prompt, f"{prompt_name} prompt has unreplaced placeholders"
+        # User Prompt Template section has runtime placeholders
+        prompt_without_user_template = prompt.split("## User Prompt Template")[0]
+        assert "{{" not in prompt_without_user_template, f"{prompt_name} prompt has unreplaced placeholders"
 
 
 def test_example_json_differences():
     """Test that example JSON differs correctly between providers."""
-    default_prompt = build_prompt_for_provider("default")
-    gemini_prompt = build_prompt_for_provider("gemini")
+    default_prompt = build_system_prompt("default")
+    gemini_prompt = build_system_prompt("gemini")
 
     # Default should have quote_text with content
     assert '"quote_text": "During each friendly ANGEL OF DEATH' in default_prompt or \

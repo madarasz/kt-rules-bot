@@ -24,13 +24,13 @@ from src.services.llm.base import (
     PDFParseError,
     RateLimitError,
     get_pydantic_model,
-    load_system_prompt,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
 from src.services.llm.gemini_quote_extractor import (
     number_sentences_in_chunk,
     post_process_gemini_response,
 )
+from src.services.llm.prompt_builder import build_system_prompt
 
 logger = get_logger(__name__)
 
@@ -79,7 +79,7 @@ class GeminiAdapter(LLMProvider):
         start_time = time.time()
 
         # Use Gemini-specific prompt (uses sentence numbers to avoid RECITATION errors)
-        gemini_system_prompt = load_system_prompt("gemini")
+        gemini_system_prompt = build_system_prompt("gemini")
 
         # PRE-PROCESSING: Number sentences in chunks to enable quote extraction
         numbered_chunks = []
