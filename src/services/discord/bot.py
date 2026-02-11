@@ -163,7 +163,7 @@ class KillTeamBotOrchestrator:
                 user_query.sanitized_text, llm_response, hop_evaluations
             )
             latency_breakdown = QueryCostCalculator.calculate_latency_breakdown(
-                retrieval_latency_ms, hop_evaluations, llm_response.latency_ms
+                retrieval_latency_ms, hop_evaluations, llm_response.latency_ms, total_latency_ms
             )
             self._log_costs(costs, correlation_id)
 

@@ -98,6 +98,7 @@ class AnalyticsRecorder:
                     "main_llm_cost": cost_breakdown["main_llm_cost"],
                     "retrieval_latency_ms": latency_breakdown["retrieval_latency_ms"],
                     "hop_evaluation_latency_ms": latency_breakdown["hop_evaluation_latency_ms"],
+                    "total_latency_ms": latency_breakdown["total_latency_ms"],
                     "quote_validation_score": (
                         quote_validation_result.validation_score if quote_validation_result else None
                     ),

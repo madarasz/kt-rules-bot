@@ -130,11 +130,18 @@ def _render_metadata(query: dict) -> None:
     retrieval_s = query.get("retrieval_latency_ms", 0) / 1000
     hop_eval_s = query.get("hop_evaluation_latency_ms", 0) / 1000
     main_llm_s = query.get("latency_ms", 0) / 1000
-    total_s = retrieval_s + hop_eval_s + main_llm_s
+    total_measured_s = query.get("total_latency_ms", 0) / 1000
+    # Calculate "other" time (overhead not accounted for in component breakdowns)
+    component_sum_s = retrieval_s + hop_eval_s + main_llm_s
+    other_s = max(0, total_measured_s - component_sum_s)
+    # Use measured total if available, otherwise fall back to component sum
+    total_s = total_measured_s if total_measured_s > 0 else component_sum_s
     st.write(f"**Total Latency:** {total_s:.2f}s")
     st.write(f"  - Retrieval: {retrieval_s:.2f}s")
     st.write(f"  - Hop Evaluation: {hop_eval_s:.2f}s")
     st.write(f"  - Main LLM: {main_llm_s:.2f}s")
+    if other_s > 0.01:  # Only show if meaningful (> 10ms)
+        st.write(f"  - Other: {other_s:.2f}s")
 
     # Quote validation
     _render_quote_validation_metadata(query)

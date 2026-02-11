@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS queries (
     main_llm_cost REAL DEFAULT 0.0,
     retrieval_latency_ms INTEGER DEFAULT 0,
     hop_evaluation_latency_ms INTEGER DEFAULT 0,
+    total_latency_ms INTEGER DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -214,9 +215,9 @@ class AnalyticsDatabase:
                         cost, quote_validation_score, quote_total_count,
                         quote_valid_count, quote_invalid_count,
                         hop_evaluation_cost, main_llm_cost,
-                        retrieval_latency_ms, hop_evaluation_latency_ms,
+                        retrieval_latency_ms, hop_evaluation_latency_ms, total_latency_ms,
                         created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
                         query_data["query_id"],
@@ -248,6 +249,7 @@ class AnalyticsDatabase:
                         query_data.get("main_llm_cost", 0.0),
                         query_data.get("retrieval_latency_ms", 0),
                         query_data.get("hop_evaluation_latency_ms", 0),
+                        query_data.get("total_latency_ms", 0),
                         now,
                         now,
                     ),

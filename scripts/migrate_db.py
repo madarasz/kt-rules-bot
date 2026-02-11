@@ -59,6 +59,8 @@ def migrate_analytics_db(db_path: str) -> None:
             ("queries", "main_llm_cost", "REAL DEFAULT 0.0"),
             ("queries", "retrieval_latency_ms", "INTEGER DEFAULT 0"),
             ("queries", "hop_evaluation_latency_ms", "INTEGER DEFAULT 0"),
+            # Total measured latency (added 2026-02-11)
+            ("queries", "total_latency_ms", "INTEGER DEFAULT 0"),
         ]
 
         applied_count = 0
