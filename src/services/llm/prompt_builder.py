@@ -139,7 +139,6 @@ class PromptBuilder:
             ValueError: If required placeholder is missing in overrides or dynamic values
         """
         # Build cache key including dynamic values
-        global _PROMPT_CACHE
         dynamic_values = dynamic_values or {}
         cache_key = (provider_type, frozenset(dynamic_values.items()))
 
@@ -284,7 +283,7 @@ def clear_cache() -> None:
     - Raw template content cache
     - User prompt template cache
     """
-    global _PROMPT_CACHE, _TEMPLATE_CONTENT, _USER_PROMPT_TEMPLATE
+    global _TEMPLATE_CONTENT, _USER_PROMPT_TEMPLATE
     _PROMPT_CACHE.clear()
     _TEMPLATE_CONTENT = None
     _USER_PROMPT_TEMPLATE = None
@@ -301,22 +300,28 @@ def build_user_prompt(
     Args:
         user_query: Sanitized user question
         context: Retrieved document chunks
-        chunk_ids: List of chunk IDs (UUIDs) for attribution (can be None or empty)
+        chunk_ids: List of chunk IDs (UUIDs) for attribution. Required when context
+                   is non-empty; must have same length as context.
 
     Returns:
         Formatted user prompt with context
 
     Raises:
         FileNotFoundError: If template file is missing
-        ValueError: If user prompt section not found in template, or if
-                    chunk_ids length doesn't match context length
+        ValueError: If user prompt section not found in template, if chunk_ids
+                    is None when context is non-empty, or if chunk_ids length
+                    doesn't match context length
     """
     # Handle empty context (e.g., hop evaluation or smalltalk)
     if not context:
         return f"User Question: {user_query}\n\nAnswer:"
 
-    # Normalize chunk_ids
-    chunk_ids = chunk_ids or []
+    # Validate chunk_ids when context is non-empty
+    if chunk_ids is None:
+        raise ValueError(
+            "chunk_ids must be provided when context is non-empty "
+            f"(context has {len(context)} chunks)"
+        )
 
     # Validate lengths match
     if len(chunk_ids) != len(context):
