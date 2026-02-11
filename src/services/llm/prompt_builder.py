@@ -16,6 +16,10 @@ logger = get_logger(__name__)
 # Cache for assembled prompts (keyed by (provider_type, frozenset(dynamic_values)))
 _PROMPT_CACHE: dict[tuple[str, frozenset], str] = {}
 
+# Module-level template cache (loaded once)
+_TEMPLATE_CONTENT: str | None = None
+_USER_PROMPT_TEMPLATE: str | None = None
+
 # Provider types
 ProviderType = Literal["default", "gemini"]
 
@@ -23,6 +27,68 @@ ProviderType = Literal["default", "gemini"]
 DYNAMIC_PLACEHOLDERS = [
     "PERSONALITY_DESCRIPTION",
 ]
+
+# User prompt template section marker
+_USER_PROMPT_SECTION_MARKER = "## User Prompt Template"
+
+
+def _get_template_path() -> Path:
+    """Get the template file path."""
+    from src.lib.constants import PROMPT_TEMPLATE_PATH
+
+    current_file = Path(__file__)
+    project_root = current_file.parent.parent.parent.parent
+    return project_root / PROMPT_TEMPLATE_PATH
+
+
+def _get_template_content() -> str:
+    """Load template content once, cache for reuse.
+
+    Returns:
+        Raw template file content
+
+    Raises:
+        FileNotFoundError: If template file is missing
+    """
+    global _TEMPLATE_CONTENT
+    if _TEMPLATE_CONTENT is None:
+        template_path = _get_template_path()
+        if not template_path.exists():
+            raise FileNotFoundError(f"Template file not found: {template_path}")
+        _TEMPLATE_CONTENT = template_path.read_text(encoding="utf-8")
+        logger.debug(f"Loaded template content from {template_path}")
+    return _TEMPLATE_CONTENT
+
+
+def _get_user_prompt_template() -> str:
+    """Extract and cache user prompt section from template.
+
+    Returns:
+        User prompt template section (after the marker, stripped)
+
+    Raises:
+        FileNotFoundError: If template file is missing
+        ValueError: If user prompt section marker not found
+    """
+    global _USER_PROMPT_TEMPLATE
+    if _USER_PROMPT_TEMPLATE is None:
+        content = _get_template_content()
+
+        if _USER_PROMPT_SECTION_MARKER not in content:
+            raise ValueError(
+                f"User prompt section not found in template: {_USER_PROMPT_SECTION_MARKER}"
+            )
+
+        # Get content after the marker (skip the heading line)
+        user_prompt_start = content.index(_USER_PROMPT_SECTION_MARKER)
+        user_prompt_section = content[user_prompt_start:]
+
+        # Skip the heading line itself
+        lines = user_prompt_section.split("\n")
+        _USER_PROMPT_TEMPLATE = "\n".join(lines[1:]).strip()
+        logger.debug("Extracted and cached user prompt template section")
+
+    return _USER_PROMPT_TEMPLATE
 
 
 class PromptBuilder:
@@ -81,8 +147,8 @@ class PromptBuilder:
             logger.debug(f"Using cached prompt for provider_type={provider_type}")
             return _PROMPT_CACHE[cache_key]
 
-        # Load template
-        template = self.template_path.read_text(encoding="utf-8")
+        # Load template from cache
+        template = _get_template_content()
 
         # Load overrides
         overrides_file = self.overrides_dir / f"{provider_type}-overrides.yaml"
@@ -158,9 +224,8 @@ class PromptBuilder:
 
     def clear_cache(self) -> None:
         """Clear cached prompts (useful for testing)."""
-        global _PROMPT_CACHE
-        _PROMPT_CACHE.clear()
-        logger.debug("Prompt cache cleared")
+        clear_cache()
+        logger.debug("Prompt cache cleared via PromptBuilder")
 
 
 def build_prompt_for_provider(
@@ -211,8 +276,19 @@ def build_system_prompt(provider_type: ProviderType = "default") -> str:
     return build_prompt_for_provider(provider_type, dynamic_values)
 
 
-# User prompt template section marker
-_USER_PROMPT_SECTION_MARKER = "## User Prompt Template"
+def clear_cache() -> None:
+    """Clear all cached prompts and templates (useful for testing).
+
+    Clears:
+    - Assembled system prompt cache
+    - Raw template content cache
+    - User prompt template cache
+    """
+    global _PROMPT_CACHE, _TEMPLATE_CONTENT, _USER_PROMPT_TEMPLATE
+    _PROMPT_CACHE.clear()
+    _TEMPLATE_CONTENT = None
+    _USER_PROMPT_TEMPLATE = None
+    logger.debug("All prompt caches cleared")
 
 
 def build_user_prompt(
@@ -220,8 +296,7 @@ def build_user_prompt(
 ) -> str:
     """Build user prompt with retrieved context using template.
 
-    Loads the user prompt template from the same template file and replaces
-    dynamic placeholders at runtime.
+    Uses cached user prompt template and replaces dynamic placeholders at runtime.
 
     Args:
         user_query: Sanitized user question
@@ -236,8 +311,6 @@ def build_user_prompt(
         ValueError: If user prompt section not found in template, or if
                     chunk_ids length doesn't match context length
     """
-    from src.lib.constants import PROMPT_TEMPLATE_PATH
-
     # Handle empty context (e.g., hop evaluation or smalltalk)
     if not context:
         return f"User Question: {user_query}\n\nAnswer:"
@@ -251,29 +324,8 @@ def build_user_prompt(
             f"chunk_ids length ({len(chunk_ids)}) must match context length ({len(context)})"
         )
 
-    # Load template file
-    current_file = Path(__file__)
-    project_root = current_file.parent.parent.parent.parent
-    template_path = project_root / PROMPT_TEMPLATE_PATH
-
-    if not template_path.exists():
-        raise FileNotFoundError(f"Template file not found: {template_path}")
-
-    template_content = template_path.read_text(encoding="utf-8")
-
-    # Extract user prompt section
-    if _USER_PROMPT_SECTION_MARKER not in template_content:
-        raise ValueError(
-            f"User prompt section not found in template: {_USER_PROMPT_SECTION_MARKER}"
-        )
-
-    # Get content after the marker (skip the heading line)
-    user_prompt_start = template_content.index(_USER_PROMPT_SECTION_MARKER)
-    user_prompt_section = template_content[user_prompt_start:]
-
-    # Skip the heading line itself
-    lines = user_prompt_section.split("\n")
-    user_prompt_template = "\n".join(lines[1:]).strip()
+    # Get cached user prompt template
+    user_prompt_template = _get_user_prompt_template()
 
     # Build context text with chunk IDs
     context_text = "\n\n".join(
