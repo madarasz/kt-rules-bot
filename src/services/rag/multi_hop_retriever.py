@@ -359,6 +359,7 @@ class MultiHopRetriever:
         request = GenerationRequest(
             prompt=prompt,
             context=[],
+            chunk_ids=[],  # Empty list for hop evaluation (no RAG context)
             config=GenerationConfig(
                 max_tokens=300,
                 temperature=0.0,  # Deterministic

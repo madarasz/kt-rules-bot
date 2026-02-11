@@ -56,7 +56,9 @@ class TestClaudeAdapter:
             )
         )
 
-        request = GenerationRequest(prompt="Test", context=["Context"], config=GenerationConfig())
+        request = GenerationRequest(
+            prompt="Test", context=["Context"], config=GenerationConfig(), chunk_ids=["test-chunk-1"]
+        )
 
         # Should raise RateLimitError
         with pytest.raises(RateLimitError):
@@ -76,7 +78,9 @@ class TestClaudeAdapter:
             )
         )
 
-        request = GenerationRequest(prompt="Test", context=["Context"], config=GenerationConfig())
+        request = GenerationRequest(
+            prompt="Test", context=["Context"], config=GenerationConfig(), chunk_ids=["test-chunk-1"]
+        )
 
         with pytest.raises(AuthenticationError):
             await claude_adapter.generate(request)
@@ -175,7 +179,9 @@ class TestGrokAdapter:
 
         mock_httpx.AsyncClient.return_value = mock_context_manager
 
-        request = GenerationRequest(prompt="Test query", context=[], config=GenerationConfig())
+        request = GenerationRequest(
+            prompt="Test query", context=[], config=GenerationConfig(), chunk_ids=[]
+        )
 
         with pytest.raises(RateLimitError, match="Grok rate limit"):
             await grok_adapter.generate(request)
@@ -197,7 +203,9 @@ class TestGrokAdapter:
 
         mock_httpx.AsyncClient.return_value = mock_context_manager
 
-        request = GenerationRequest(prompt="Test query", context=[], config=GenerationConfig())
+        request = GenerationRequest(
+            prompt="Test query", context=[], config=GenerationConfig(), chunk_ids=[]
+        )
 
         with pytest.raises(AuthenticationError, match="Grok auth error"):
             await grok_adapter.generate(request)

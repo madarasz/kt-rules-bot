@@ -134,7 +134,7 @@ The primary directive is to provide a clear, accurate, and easily understandable
 
 ## Persona description
 
-[PERSONALITY DESCRIPTION]
+{{PERSONALITY_DESCRIPTION}}
 
 ## Examples
 
@@ -157,3 +157,14 @@ Hello!
   "persona_afterword": "State your query, if you possess one of merit."
 }
 ```
+
+## User Prompt Template
+
+Context from Kill Team 3rd Edition rules:
+{{CONTEXT_TEXT}}
+
+User Question: {{USER_QUERY}}
+
+When quoting rules, reference the chunk ID in the chunk_id field (e.g., "{{EXAMPLE_CHUNK_ID}}" for the first chunk).
+
+Answer:

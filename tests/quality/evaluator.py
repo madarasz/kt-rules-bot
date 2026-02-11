@@ -145,6 +145,7 @@ Is the claim accurate? Answer YES or NO, then briefly explain."""
                 GenerationRequest(
                     prompt=judge_prompt,
                     context=[],  # No RAG context needed for judging
+                    chunk_ids=[],  # Empty list for non-RAG requests
                     config=GenerationConfig(
                         max_tokens=QUALITY_TEST_JUDGE_MAX_TOKENS,
                         temperature=QUALITY_TEST_JUDGE_TEMPERATURE,

@@ -20,62 +20,16 @@ from src.lib.constants import (
     LLM_EXTRACTION_TIMEOUT,
     LLM_GENERATION_TIMEOUT,
 )
-from src.lib.personality import (
-    get_afterword_example,
-    get_personality_description,
-    get_short_answer_example,
-)
-
-# Cached system prompts (loaded once, keyed by provider type)
-_SYSTEM_PROMPT_CACHE: dict[str, str] = {}
 
 
-def load_system_prompt(provider_type: str = "default") -> str:
-    """Load system prompt using template + provider-specific overrides.
+def _default_system_prompt() -> str:
+    """Load default system prompt for GenerationConfig.
 
-    Builds prompt from base template and provider overrides, replaces personality
-    placeholders, and caches the result.
-
-    Args:
-        provider_type: Provider type ("default" or "gemini"). Defaults to "default".
-
-    Returns:
-        System prompt text with personality injected
-
-    Raises:
-        FileNotFoundError: If template or override files are missing
-        ValueError: If override file is invalid or missing required placeholders
+    Deferred import to avoid circular dependencies.
     """
-    global _SYSTEM_PROMPT_CACHE
+    from src.services.llm.prompt_builder import build_system_prompt
 
-    # Check cache
-    if provider_type in _SYSTEM_PROMPT_CACHE:
-        return _SYSTEM_PROMPT_CACHE[provider_type]
-
-    # Build prompt using PromptBuilder
-    from src.services.llm.prompt_builder import build_prompt_for_provider
-
-    try:
-        template = build_prompt_for_provider(provider_type)
-    except FileNotFoundError as e:
-        # Log error and re-raise with clear message
-        from src.lib.logging import get_logger
-
-        logger = get_logger(__name__)
-        logger.error(
-            f"Failed to load prompt template for provider_type={provider_type}: {e}\n"
-            f"Ensure PROMPT_TEMPLATE_PATH and PROMPT_OVERRIDES_DIR are correctly configured."
-        )
-        raise
-
-    # Replace personality placeholders
-    template = template.replace("[PERSONALITY DESCRIPTION]", get_personality_description())
-    template = template.replace("[PERSONALITY SHORT ANSWER]", get_short_answer_example())
-    template = template.replace("[PERSONALITY AFTERWORD]", get_afterword_example())
-
-    # Cache and return
-    _SYSTEM_PROMPT_CACHE[provider_type] = template
-    return _SYSTEM_PROMPT_CACHE[provider_type]
+    return build_system_prompt("default")
 
 
 # Exception classes
@@ -373,7 +327,7 @@ class GenerationConfig:
 
     max_tokens: int = LLM_DEFAULT_MAX_TOKENS  # Maximum response length
     temperature: float = LLM_DEFAULT_TEMPERATURE  # Lower = more deterministic
-    system_prompt: str = field(default_factory=load_system_prompt)
+    system_prompt: str = field(default_factory=_default_system_prompt)
     include_citations: bool = True
     timeout_seconds: int = LLM_GENERATION_TIMEOUT  # Must respond within timeout
     structured_output_schema: str = "default"  # "default", "hop_evaluation", or "custom_judge"
@@ -497,47 +451,21 @@ class LLMProvider(ABC):
     def _build_prompt(
         self, user_query: str, context: list[str], chunk_ids: list[str] | None = None
     ) -> str:
-        """Build user prompt with retrieved context.
+        """Build user prompt with retrieved context using template.
 
         Note: System prompt is configured separately in GenerationConfig.
 
         Args:
             user_query: Sanitized user question
             context: Retrieved document chunks
-            chunk_ids: Optional list of chunk IDs (UUIDs) for attribution
+            chunk_ids: List of chunk IDs (UUIDs) for attribution (None or empty for no context)
 
         Returns:
             Formatted user prompt with context
         """
-        if chunk_ids and len(chunk_ids) == len(context):
-            # Format with chunk IDs for quote attribution
-            context_text = "\n\n".join(
-                [
-                    f"[CHUNK_{chunk_id[-8:]}]:\n{chunk}"
-                    for chunk_id, chunk in zip(chunk_ids, context, strict=True)
-                ]
-            )
+        from src.services.llm.prompt_builder import build_user_prompt
 
-            return f"""Context from Kill Team 3rd Edition rules:
-{context_text}
-
-User Question: {user_query}
-
-When quoting rules, reference the chunk ID in the chunk_id field (e.g., "{chunk_ids[0][-8:]}" for the first chunk).
-
-Answer:"""
-        else:
-            # Fallback to numbered context (backward compatibility)
-            context_text = "\n\n".join(
-                [f"[Context {i + 1}]:\n{chunk}" for i, chunk in enumerate(context)]
-            )
-
-            return f"""Context from Kill Team 3rd Edition rules:
-{context_text}
-
-User Question: {user_query}
-
-Answer:"""
+        return build_user_prompt(user_query, context, chunk_ids)
 
     @staticmethod
     def _create_extraction_prompt() -> str:

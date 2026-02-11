@@ -249,7 +249,7 @@ class CustomJudge:
             # Generate response with retry logic for 429/529 errors
             async def generate_judge_evaluation():
                 return await provider.generate(
-                    GenerationRequest(prompt=prompt, context=[], config=config)
+                    GenerationRequest(prompt=prompt, context=[], chunk_ids=[], config=config)
                 )
 
             response = await retry_with_rate_limit_backoff(
