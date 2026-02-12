@@ -232,16 +232,24 @@ def _render_llm_model_performance(df: pd.DataFrame) -> None:
     model_stats = (
         df.groupby("llm_model")
         .agg(
-            {
-                "query_id": "count",
-                "quote_validation_score": "mean",
-                "upvotes": "sum",
-                "downvotes": "sum",
-            }
+            queries=("query_id", "count"),
+            avg_quote_validation=("quote_validation_score", "mean"),
+            upvotes=("upvotes", "sum"),
+            downvotes=("downvotes", "sum"),
+            total_cost=("cost", "sum"),
+            avg_cost=("cost", "mean"),
         )
         .reset_index()
     )
-    model_stats.columns = ["Model", "Queries", "Avg Quote Validation", "Upvotes", "Downvotes"]
+    model_stats.columns = [
+        "Model",
+        "Queries",
+        "Avg Quote Validation",
+        "Upvotes",
+        "Downvotes",
+        "Total Cost",
+        "Avg Cost/Query",
+    ]
     model_stats["Helpful Rate"] = model_stats["Upvotes"] / (
         model_stats["Upvotes"] + model_stats["Downvotes"]
     )
@@ -250,6 +258,14 @@ def _render_llm_model_performance(df: pd.DataFrame) -> None:
     # Format quote validation as percentage
     model_stats["Avg Quote Validation"] = model_stats["Avg Quote Validation"].apply(
         lambda x: f"{x:.1%}" if pd.notna(x) else "N/A"
+    )
+
+    # Format cost columns as currency
+    model_stats["Total Cost"] = model_stats["Total Cost"].apply(
+        lambda x: f"${x:.5f}" if pd.notna(x) else "N/A"
+    )
+    model_stats["Avg Cost/Query"] = model_stats["Avg Cost/Query"].apply(
+        lambda x: f"${x:.5f}" if pd.notna(x) else "N/A"
     )
 
     st.dataframe(model_stats, use_container_width=True, hide_index=True)
@@ -263,7 +279,7 @@ def _render_top_downvoted_queries(df: pd.DataFrame) -> None:
     """
     st.subheader("🚨 Top 50 Most Downvoted Queries")
 
-    top_downvoted = df.nlargest(50, "downvotes")[
+    top_downvoted = df[df["downvotes"] > 0].nlargest(50, "downvotes")[
         [
             "timestamp",
             "query_text",
