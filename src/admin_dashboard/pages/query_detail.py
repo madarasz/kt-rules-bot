@@ -12,11 +12,13 @@ from ..utils.icons import bool_to_icon, get_quote_validation_icon
 from ..utils.session import (
     get_admin_notes_state,
     get_admin_status_state,
+    get_fixed_issue_state,
     get_selected_query_id,
     init_admin_fields_state,
     navigate_to_page,
     set_admin_notes_state,
     set_admin_status_state,
+    set_fixed_issue_state,
 )
 
 
@@ -48,18 +50,21 @@ def render(db: AnalyticsDatabase) -> None:
     chunks = db.get_chunks_for_query(query_id)
 
     # Render sections
-    _render_query_response_and_metadata(query)
+    _render_query_response_and_sidebar(query_id, query, db)
     _render_invalid_quotes(query_id, query, db)
     _render_hop_evaluations(query_id, query, db)
     _render_chunks(chunks, db)
-    _render_admin_controls(query_id, query, db)
 
 
-def _render_query_response_and_metadata(query: dict) -> None:
-    """Render query text, response, and metadata in a two-column layout.
+def _render_query_response_and_sidebar(
+    query_id: str, query: dict, db: AnalyticsDatabase
+) -> None:
+    """Render query text, response, admin controls, and metadata in a two-column layout.
 
     Args:
+        query_id: Query ID
         query: Query data dictionary
+        db: Database instance
     """
     col1, col2 = st.columns([2, 1])
 
@@ -75,6 +80,8 @@ def _render_query_response_and_metadata(query: dict) -> None:
             st.text_area("Response", value=query["response_text"], height=200, disabled=True)
 
     with col2:
+        _render_admin_controls_sidebar(query_id, query, db)
+        st.divider()
         _render_metadata(query)
 
 
@@ -102,14 +109,12 @@ def _render_metadata(query: dict) -> None:
         query: Query data dictionary
     """
     st.subheader("📊 Metadata")
-    st.write(f"**Query ID:** `{query['query_id'][:8]}...`")
+    st.write(f"**Query ID:** `{query['query_id']}`")
     st.write(f"**Timestamp:** {query['timestamp']}")
     st.write(f"**Channel:** {query['channel_name']} ({query['discord_server_name']})")
     st.write(f"**User:** @{query['username']}")
     st.write(f"**Model:** {query['llm_model']}")
-    st.write(f"**Confidence:** {query['confidence_score']:.2f}")
     st.write(f"**RAG Score:** {query['rag_score']:.2f}")
-    st.write(f"**Validation:** {'✅ Passed' if query['validation_passed'] else '❌ Failed'}")
 
     # Feedback
     _rate, helpful_str = format_helpful_rate(query["upvotes"], query["downvotes"])
@@ -144,6 +149,7 @@ def _render_metadata(query: dict) -> None:
         st.write(f"  - Other: {other_s:.2f}s")
 
     # Quote validation
+    st.write(f"**JSON Validation:** {'✅ Passed' if query['validation_passed'] else '❌ Failed'}")
     _render_quote_validation_metadata(query)
 
 
@@ -260,8 +266,10 @@ def _render_chunks(chunks: list[dict], db: AnalyticsDatabase) -> None:
     chunk_viewer.render()
 
 
-def _render_admin_controls(query_id: str, query: dict, db: AnalyticsDatabase) -> None:
-    """Render admin controls section.
+def _render_admin_controls_sidebar(
+    query_id: str, query: dict, db: AnalyticsDatabase
+) -> None:
+    """Render admin controls in sidebar layout (single column).
 
     Args:
         query_id: Query ID
@@ -271,39 +279,62 @@ def _render_admin_controls(query_id: str, query: dict, db: AnalyticsDatabase) ->
     st.subheader("🗒️ Admin Controls")
 
     # Initialize session state
-    init_admin_fields_state(query_id, query["admin_status"], query["admin_notes"])
+    db_fixed_issue = bool(query.get("fixed_issue", 0))
+    init_admin_fields_state(query_id, query["admin_status"], query["admin_notes"], db_fixed_issue)
 
-    col1, col2 = st.columns(2)
+    # Handle case where query has deprecated status that's not in options
+    current_status = get_admin_status_state(query_id)
+    if current_status not in ADMIN_STATUS_OPTIONS:
+        # Map deprecated statuses to new ones
+        if current_status == "reviewed":
+            current_status = "approved"
+        elif current_status == "issues":
+            current_status = "flagged"
+        else:
+            current_status = "pending"
+        set_admin_status_state(query_id, current_status)
 
-    with col1:
-        new_status = st.selectbox(
-            "Admin Status",
-            ADMIN_STATUS_OPTIONS,
-            index=ADMIN_STATUS_OPTIONS.index(get_admin_status_state(query_id)),
-            key=f"status_select_{query_id}",
-        )
-        set_admin_status_state(query_id, new_status)
+    new_status = st.selectbox(
+        "Admin Status",
+        ADMIN_STATUS_OPTIONS,
+        index=ADMIN_STATUS_OPTIONS.index(current_status),
+        key=f"status_select_{query_id}",
+    )
+    set_admin_status_state(query_id, new_status)
 
-    with col2:
-        new_notes = st.text_area(
-            "Admin Notes",
-            value=get_admin_notes_state(query_id),
-            height=100,
-            key=f"notes_area_{query_id}",
-        )
-        set_admin_notes_state(query_id, new_notes)
+    # Fixed issue checkbox
+    new_fixed_issue = st.checkbox(
+        "Fixed Issue",
+        value=get_fixed_issue_state(query_id),
+        key=f"fixed_issue_checkbox_{query_id}",
+        help="Mark if the issue identified by this query has been fixed",
+    )
+    set_fixed_issue_state(query_id, new_fixed_issue)
+
+    new_notes = st.text_area(
+        "Admin Notes",
+        value=get_admin_notes_state(query_id),
+        height=80,
+        key=f"notes_area_{query_id}",
+    )
+    set_admin_notes_state(query_id, new_notes)
 
     # Check for changes
-    has_changes = new_status != query["admin_status"] or new_notes != (query["admin_notes"] or "")
+    has_changes = (
+        new_status != query["admin_status"]
+        or new_notes != (query["admin_notes"] or "")
+        or new_fixed_issue != db_fixed_issue
+    )
 
     # Save button
-    col_save, _col_reset = st.columns([1, 4])
-    with col_save:
-        if st.button("💾 Save Changes", type="primary", disabled=not has_changes):
-            db.update_query_admin_fields(
-                query_id=query_id, admin_status=new_status, admin_notes=new_notes
-            )
-            st.success("✅ Changes saved successfully!")
+    if st.button("💾 Save Changes", type="primary", disabled=not has_changes):
+        db.update_query_admin_fields(
+            query_id=query_id,
+            admin_status=new_status,
+            admin_notes=new_notes,
+            fixed_issue=new_fixed_issue,
+        )
+        st.success("✅ Saved!")
 
     if has_changes:
-        st.info("💡 You have unsaved changes. Click 'Save Changes' to persist them.")
+        st.caption("💡 Unsaved changes")

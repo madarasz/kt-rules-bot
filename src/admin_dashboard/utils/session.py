@@ -85,18 +85,23 @@ def set_chunk_relevance_state(chunk_id: int, value: int | None) -> None:
     st.session_state[key] = value
 
 
-def init_admin_fields_state(query_id: str, status: str, notes: str) -> None:
+def init_admin_fields_state(
+    query_id: str, status: str, notes: str, fixed_issue: bool = False
+) -> None:
     """Initialize admin fields in session state if not present.
 
     Args:
         query_id: Query ID
         status: Initial admin status
         notes: Initial admin notes
+        fixed_issue: Initial fixed_issue flag
     """
     if f"admin_status_{query_id}" not in st.session_state:
         st.session_state[f"admin_status_{query_id}"] = status
     if f"admin_notes_{query_id}" not in st.session_state:
         st.session_state[f"admin_notes_{query_id}"] = notes or ""
+    if f"fixed_issue_{query_id}" not in st.session_state:
+        st.session_state[f"fixed_issue_{query_id}"] = fixed_issue
 
 
 def get_admin_status_state(query_id: str) -> str:
@@ -141,6 +146,28 @@ def set_admin_notes_state(query_id: str, notes: str) -> None:
         notes: Admin notes
     """
     st.session_state[f"admin_notes_{query_id}"] = notes
+
+
+def get_fixed_issue_state(query_id: str) -> bool:
+    """Get fixed_issue flag from session state.
+
+    Args:
+        query_id: Query ID
+
+    Returns:
+        Fixed issue flag
+    """
+    return st.session_state.get(f"fixed_issue_{query_id}", False)
+
+
+def set_fixed_issue_state(query_id: str, value: bool) -> None:
+    """Set fixed_issue flag in session state.
+
+    Args:
+        query_id: Query ID
+        value: Fixed issue flag
+    """
+    st.session_state[f"fixed_issue_{query_id}"] = value
 
 
 def set_selected_rag_test_run(run_id: str) -> None:

@@ -61,6 +61,8 @@ def migrate_analytics_db(db_path: str) -> None:
             ("queries", "hop_evaluation_latency_ms", "INTEGER DEFAULT 0"),
             # Total measured latency (added 2026-02-11)
             ("queries", "total_latency_ms", "INTEGER DEFAULT 0"),
+            # Fixed issue tracking (added 2026-02-12)
+            ("queries", "fixed_issue", "INTEGER DEFAULT 0"),
         ]
 
         applied_count = 0
@@ -72,6 +74,39 @@ def migrate_analytics_db(db_path: str) -> None:
                 applied_count += 1
             else:
                 print(f"  ✅ Column {table}.{column} already exists")
+
+        conn.commit()
+
+        # Data migrations for status changes (2026-02-12)
+        print("\n🔍 Migrating deprecated status values...")
+
+        # Migrate 'reviewed' to 'approved'
+        cursor = conn.execute(
+            "SELECT COUNT(*) FROM queries WHERE admin_status = 'reviewed'"
+        )
+        reviewed_count = cursor.fetchone()[0]
+        if reviewed_count > 0:
+            print(f"  ➕ Migrating {reviewed_count} 'reviewed' → 'approved'")
+            conn.execute(
+                "UPDATE queries SET admin_status = 'approved' WHERE admin_status = 'reviewed'"
+            )
+            applied_count += 1
+        else:
+            print("  ✅ No 'reviewed' status to migrate")
+
+        # Migrate 'issues' to 'flagged'
+        cursor = conn.execute(
+            "SELECT COUNT(*) FROM queries WHERE admin_status = 'issues'"
+        )
+        issues_count = cursor.fetchone()[0]
+        if issues_count > 0:
+            print(f"  ➕ Migrating {issues_count} 'issues' → 'flagged'")
+            conn.execute(
+                "UPDATE queries SET admin_status = 'flagged' WHERE admin_status = 'issues'"
+            )
+            applied_count += 1
+        else:
+            print("  ✅ No 'issues' status to migrate")
 
         conn.commit()
 

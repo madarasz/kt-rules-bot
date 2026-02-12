@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS queries (
     downvotes INTEGER DEFAULT 0,
     admin_status TEXT DEFAULT 'pending',
     admin_notes TEXT,
+    fixed_issue INTEGER DEFAULT 0,
     multi_hop_enabled INTEGER DEFAULT 0,
     hops_used INTEGER DEFAULT 0,
     cost REAL DEFAULT 0.0,
@@ -706,14 +707,19 @@ class AnalyticsDatabase:
             return []
 
     def update_query_admin_fields(
-        self, query_id: str, admin_status: str | None = None, admin_notes: str | None = None
+        self,
+        query_id: str,
+        admin_status: str | None = None,
+        admin_notes: str | None = None,
+        fixed_issue: bool | None = None,
     ) -> None:
-        """Update admin status and/or notes for a query.
+        """Update admin status, notes, and/or fixed_issue flag for a query.
 
         Args:
             query_id: Query UUID
-            admin_status: New admin status (pending/approved/reviewed/issues/flagged)
+            admin_status: New admin status (pending/approved/flagged/RAG issue/LLM issue)
             admin_notes: New admin notes (freeform text)
+            fixed_issue: Whether the issue has been fixed (True/False)
         """
         if not self.enabled:
             return
@@ -733,6 +739,10 @@ class AnalyticsDatabase:
             if admin_notes is not None:
                 set_clauses.append("admin_notes = ?")
                 params.append(admin_notes)
+
+            if fixed_issue is not None:
+                set_clauses.append("fixed_issue = ?")
+                params.append(1 if fixed_issue else 0)
 
             if not set_clauses:
                 return

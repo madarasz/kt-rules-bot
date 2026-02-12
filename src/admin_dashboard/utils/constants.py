@@ -3,8 +3,6 @@
 ADMIN_STATUS_OPTIONS = [
     "pending",
     "approved",
-    "reviewed",
-    "issues",
     "flagged",
     "RAG issue",
     "LLM issue",
@@ -13,8 +11,6 @@ ADMIN_STATUS_OPTIONS = [
 ADMIN_STATUS_COLORS = {
     "pending": "🟡",
     "approved": "🟢",
-    "reviewed": "🔵",
-    "issues": "🟠",
     "flagged": "🔴",
     "RAG issue": "🟣",
     "LLM issue": "🟤",

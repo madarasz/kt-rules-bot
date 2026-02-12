@@ -4,7 +4,6 @@ import streamlit as st
 
 from src.lib.database import AnalyticsDatabase
 
-from ..utils.icons import get_chunk_relevance_icon
 from ..utils.session import (
     get_chunk_relevance_state,
     init_chunk_relevance_state,
@@ -26,112 +25,119 @@ class ChunkViewer:
         self.db = db
         self.chunk_id = chunk["id"]
 
-    def render(self) -> None:
-        """Render the chunk viewer."""
+    def render_table_row(self) -> None:
+        """Render the chunk as a table row with inline action buttons."""
         # Initialize session state
         init_chunk_relevance_state(self.chunk_id, self.chunk["relevant"])
 
         # Get current relevance
         current_rel = get_chunk_relevance_state(self.chunk_id)
 
-        # Render expander with status icon
-        status_icon = get_chunk_relevance_icon(current_rel)
-        hop_label = self._get_hop_label()
+        # Define columns: Rank, Title, Hop, Score, Vector, BM25, RRF, Status Actions
+        cols = st.columns([0.5, 3, 0.5, 0.8, 0.8, 0.8, 0.8, 1.5])
 
-        with st.expander(
-            f"{status_icon} Rank {self.chunk['rank']}: {self.chunk['chunk_header'] or 'No header'}{hop_label} "
-            f"(Score: {self.chunk['final_score']:.2f})"
-        ):
-            col1, col2 = st.columns([3, 1])
+        # Rank
+        with cols[0]:
+            st.write(f"**{self.chunk['rank']}**")
 
-            with col1:
-                self._render_chunk_info()
+        # Title (chunk header) with relevance indicator
+        with cols[1]:
+            title = self.chunk["chunk_header"] or "No header"
+            prefix = "" if current_rel != 1 else "✅ "
+            st.write(f"{prefix}{title}")
 
-            with col2:
-                self._render_scores()
-                self._render_relevance_controls(current_rel)
+        # Hop number
+        with cols[2]:
+            hop_number = self.chunk.get("hop_number", 0)
+            st.write(f"{hop_number if hop_number is not None else 0}")
 
-    def _get_hop_label(self) -> str:
-        """Get hop number label for the chunk.
+        # Final Score
+        with cols[3]:
+            st.write(f"{self.chunk['final_score']:.3f}")
 
-        Returns:
-            Hop label string or empty string
-        """
-        hop_number = self.chunk.get("hop_number", 0)
-        return f" [Hop {hop_number}]" if hop_number is not None else ""
+        # Vector Similarity
+        with cols[4]:
+            vector_sim = self.chunk["vector_similarity"]
+            if vector_sim:
+                st.write(f"{vector_sim:.3f}")
+            else:
+                st.write("0")
 
-    def _render_chunk_info(self) -> None:
-        """Render chunk information (document, type, preview)."""
-        st.write(f"**Document:** {self.chunk['document_name']}")
-        st.write(f"**Type:** {self.chunk['document_type']}")
-        st.text_area(
-            "Preview",
-            value=self.chunk["chunk_text"],
-            height=150,
-            disabled=True,
-            key=f"chunk_{self.chunk_id}",
-        )
+        # BM25 Score
+        with cols[5]:
+            bm25 = self.chunk["bm25_score"]
+            if bm25:
+                st.write(f"{bm25:.1f}")
+            else:
+                st.write("0")
 
-    def _render_scores(self) -> None:
-        """Render chunk scoring information."""
-        # Vector similarity
-        if self.chunk["vector_similarity"]:
-            st.write(f"**Vector Sim:** {self.chunk['vector_similarity']:.3f}")
-        else:
-            st.write("**Vector Sim:** N/A")
+        # RRF Score
+        with cols[6]:
+            rrf = self.chunk["rrf_score"]
+            if rrf:
+                st.write(f"{rrf:.3f}")
+            else:
+                st.write("0")
 
-        # BM25 score
-        if self.chunk["bm25_score"]:
-            st.write(f"**BM25:** {self.chunk['bm25_score']:.1f}")
-        else:
-            st.write("**BM25:** N/A")
+        # Status and Action Buttons
+        with cols[7]:
+            self._render_inline_relevance_controls(current_rel)
 
-        # RRF score
-        if self.chunk["rrf_score"]:
-            st.write(f"**RRF:** {self.chunk['rrf_score']:.3f}")
-        else:
-            st.write("**RRF:** N/A")
+    def _render_inline_relevance_controls(self, current_rel: int | None) -> None:
+        """Render inline relevance status and marking controls.
 
-        st.write(f"**Final:** {self.chunk['final_score']:.3f}")
-
-    def _render_relevance_controls(self, current_rel: int | None) -> None:
-        """Render relevance status and marking controls.
+        Uses colored backgrounds to indicate current status:
+        - Green: relevant (current_rel == 1)
+        - Red: not relevant (current_rel == 0)
+        - Blue: unknown (current_rel is None)
 
         Args:
             current_rel: Current relevance value
         """
-        # Show current status
-        st.write("**Status:**")
+        # Determine background color for the active button
         if current_rel == 1:
-            st.success("✓ Relevant")
+            active_color = "#28a745"  # Green
         elif current_rel == 0:
-            st.error("✗ Not relevant")
+            active_color = "#dc3545"  # Red
         else:
-            st.info("? Not reviewed")
+            active_color = "#007bff"  # Blue
 
-        # Relevance buttons
-        st.write("**Mark as:**")
-        col_a, col_b, col_c = st.columns(3)
+        # Inject CSS marker with unique ID to target this chunk's buttons
+        marker_id = f"chunk-marker-{self.chunk_id}"
+        st.markdown(
+            f"""
+            <style>
+            #{marker_id} ~ div [data-testid="stBaseButton-primary"] button {{
+                background-color: {active_color} !important;
+                border-color: {active_color} !important;
+            }}
+            </style>
+            <span id="{marker_id}" style="display:none;"></span>
+            """,
+            unsafe_allow_html=True,
+        )
 
-        with col_a:
+        btn_cols = st.columns(3)
+
+        with btn_cols[0]:
             if st.button(
-                "✓",
+                "Y",
                 key=f"rel_yes_{self.chunk_id}",
                 help="Mark as relevant",
                 type="primary" if current_rel == 1 else "secondary",
             ):
                 self._update_relevance(True)
 
-        with col_b:
+        with btn_cols[1]:
             if st.button(
-                "✗",
+                "N",
                 key=f"rel_no_{self.chunk_id}",
                 help="Mark as not relevant",
                 type="primary" if current_rel == 0 else "secondary",
             ):
                 self._update_relevance(False)
 
-        with col_c:
+        with btn_cols[2]:
             if st.button(
                 "?",
                 key=f"rel_none_{self.chunk_id}",
@@ -153,7 +159,7 @@ class ChunkViewer:
 
 
 class ChunkListViewer:
-    """Component for displaying a list of chunks."""
+    """Component for displaying a list of chunks in a table format."""
 
     def __init__(self, chunks: list[dict], db: AnalyticsDatabase):
         """Initialize chunk list viewer.
@@ -166,11 +172,40 @@ class ChunkListViewer:
         self.db = db
 
     def render(self) -> None:
-        """Render all chunks."""
+        """Render all chunks as a table."""
         if not self.chunks:
             st.info("No chunks retrieved for this query.")
             return
 
-        for chunk in self.chunks:
+        # Table header
+        header_cols = st.columns([0.5, 3, 0.5, 0.8, 0.8, 0.8, 0.8, 1.5])
+        with header_cols[0]:
+            st.write("**#**")
+        with header_cols[1]:
+            st.write("**Title**")
+        with header_cols[2]:
+            st.write("**Hop**")
+        with header_cols[3]:
+            st.write("**Score**")
+        with header_cols[4]:
+            st.write("**Vector**")
+        with header_cols[5]:
+            st.write("**BM25**")
+        with header_cols[6]:
+            st.write("**RRF**")
+        with header_cols[7]:
+            st.write("**Status**")
+
+        st.divider()
+
+        # Table rows
+        for i, chunk in enumerate(self.chunks):
             viewer = ChunkViewer(chunk, self.db)
-            viewer.render()
+            viewer.render_table_row()
+            # Add border between rows (except after the last row)
+            if i < len(self.chunks) - 1:
+                st.markdown(
+                    '<hr style="margin: 0.5rem 0; border: none; '
+                    'border-top: 1px solid rgba(128, 128, 128, 0.3);">',
+                    unsafe_allow_html=True,
+                )

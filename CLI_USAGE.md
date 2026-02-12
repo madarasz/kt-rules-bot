@@ -710,6 +710,47 @@ Results: 16 valid, 1 invalid
 
 ---
 
+### SQLite Queries - Query Analytics Database
+
+Query the analytics database directly using sqlite3 CLI. Useful for ad-hoc queries and reviewing admin notes.
+
+**Database Location:** `data/analytics.db`
+
+**Examples:**
+```bash
+# List all queries with admin notes (pretty-printed)
+sqlite3 -header -column data/analytics.db \
+  "SELECT query_id, substr(query_text, 1, 40) as query, admin_status, admin_notes
+   FROM queries
+   WHERE admin_notes IS NOT NULL AND admin_notes != '';"
+
+# Count queries by admin status
+sqlite3 -header -column data/analytics.db \
+  "SELECT admin_status, COUNT(*) as count
+   FROM queries
+   GROUP BY admin_status;"
+
+# Export to CSV
+sqlite3 -header -csv data/analytics.db \
+  "SELECT * FROM queries WHERE admin_notes IS NOT NULL;" > queries_with_notes.csv
+```
+
+**Example Output:**
+```
+query_id                              query                                     admin_status  admin_notes
+------------------------------------  ----------------------------------------  ------------  --------------------------
+a1b2c3d4-e5f6-7890-abcd-ef1234567890  Can I shoot through barricades?           reviewed      Verified against core rules
+b2c3d4e5-f6a7-8901-bcde-f23456789012  How does overwatch work with charges?     flagged       Needs RAG tuning - missing chunk
+```
+
+**Useful Flags:**
+- `-header` - Show column headers
+- `-column` - Align output in columns
+- `-csv` - Output as CSV format
+- `-json` - Output as JSON format
+
+---
+
 ## Support
 
 For issues or questions:

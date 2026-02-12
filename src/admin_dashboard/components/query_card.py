@@ -57,8 +57,14 @@ class QueryCard:
         """Render admin status column."""
         with col:
             status = self.query["admin_status"]
-            icon = ADMIN_STATUS_COLORS.get(status, "⚪")
-            st.write(f"{icon} {status}")
+            fixed_issue = bool(self.query.get("fixed_issue", 0))
+
+            if fixed_issue:
+                # Show green icon if issue is fixed, regardless of actual status
+                st.write(f"🟢 {status} (fixed)")
+            else:
+                icon = ADMIN_STATUS_COLORS.get(status, "⚪")
+                st.write(f"{icon} {status}")
 
     def _render_feedback(self, col) -> None:
         """Render feedback column."""
