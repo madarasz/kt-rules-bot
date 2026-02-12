@@ -238,6 +238,7 @@ def _render_llm_model_performance(df: pd.DataFrame) -> None:
             downvotes=("downvotes", "sum"),
             total_cost=("cost", "sum"),
             avg_cost=("cost", "mean"),
+            avg_latency=("latency_ms", "mean"),
         )
         .reset_index()
     )
@@ -249,6 +250,7 @@ def _render_llm_model_performance(df: pd.DataFrame) -> None:
         "Downvotes",
         "Total Cost",
         "Avg Cost/Query",
+        "Avg LLM Latency",
     ]
     model_stats["Helpful Rate"] = model_stats["Upvotes"] / (
         model_stats["Upvotes"] + model_stats["Downvotes"]
@@ -267,6 +269,26 @@ def _render_llm_model_performance(df: pd.DataFrame) -> None:
     model_stats["Avg Cost/Query"] = model_stats["Avg Cost/Query"].apply(
         lambda x: f"${x:.5f}" if pd.notna(x) else "N/A"
     )
+
+    # Format latency column
+    model_stats["Avg LLM Latency"] = model_stats["Avg LLM Latency"].apply(
+        lambda x: f"{x:.0f} ms" if pd.notna(x) else "N/A"
+    )
+
+    # Reorder columns to put Helpful Rate before Upvotes
+    model_stats = model_stats[
+        [
+            "Model",
+            "Queries",
+            "Avg Quote Validation",
+            "Helpful Rate",
+            "Upvotes",
+            "Downvotes",
+            "Total Cost",
+            "Avg Cost/Query",
+            "Avg LLM Latency",
+        ]
+    ]
 
     st.dataframe(model_stats, use_container_width=True, hide_index=True)
 
