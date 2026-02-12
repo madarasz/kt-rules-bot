@@ -15,7 +15,7 @@ def render_overview_metrics(stats: dict) -> None:
         st.metric("Total Queries", stats["total_queries"])
 
     with col2:
-        st.metric("Avg Latency", f"{stats['avg_latency_ms']:.0f}ms")
+        st.metric("Avg LLM Latency", f"{stats['avg_latency_ms']:.0f}ms")
 
     with col3:
         st.metric("Helpful Rate", f"{stats['helpful_rate']:.0%}")

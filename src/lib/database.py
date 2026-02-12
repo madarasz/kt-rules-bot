@@ -834,8 +834,11 @@ class AnalyticsDatabase:
             logger.error(f"Failed to delete query: {e}", exc_info=True)
             return False
 
-    def get_stats(self) -> dict[str, Any]:
+    def get_stats(self, discord_server_id: str | None = None) -> dict[str, Any]:
         """Get database statistics for dashboard.
+
+        Args:
+            discord_server_id: Optional server ID to filter stats by. If None, returns stats for all servers.
 
         Returns:
             Dictionary with stats (total_queries, avg_latency, helpful_rate, etc.)
@@ -845,22 +848,30 @@ class AnalyticsDatabase:
 
         try:
             with self._get_connection() as conn:
+                # Build WHERE clause for server filtering
+                where_clause = ""
+                params: list[str] = []
+                if discord_server_id:
+                    where_clause = " WHERE discord_server_id = ?"
+                    params = [discord_server_id]
+
                 # Total queries
-                cursor = conn.execute("SELECT COUNT(*) FROM queries")
+                cursor = conn.execute(f"SELECT COUNT(*) FROM queries{where_clause}", params)
                 total_queries = cursor.fetchone()[0]
 
                 # Avg latency
-                cursor = conn.execute("SELECT AVG(latency_ms) FROM queries")
+                cursor = conn.execute(f"SELECT AVG(latency_ms) FROM queries{where_clause}", params)
                 avg_latency = cursor.fetchone()[0] or 0
 
                 # Feedback stats
                 cursor = conn.execute(
-                    """
+                    f"""
                     SELECT
                         SUM(upvotes) as total_upvotes,
                         SUM(downvotes) as total_downvotes
-                    FROM queries
-                """
+                    FROM queries{where_clause}
+                """,
+                    params,
                 )
                 row = cursor.fetchone()
                 total_upvotes = row[0] or 0
@@ -870,24 +881,39 @@ class AnalyticsDatabase:
 
                 # Admin status counts
                 cursor = conn.execute(
-                    """
+                    f"""
                     SELECT admin_status, COUNT(*)
-                    FROM queries
+                    FROM queries{where_clause}
                     GROUP BY admin_status
-                """
+                """,
+                    params,
                 )
                 status_counts = dict(cursor.fetchall())
 
-                # Chunk relevance stats
-                cursor = conn.execute(
+                # Chunk relevance stats (requires JOIN when filtering by server)
+                if discord_server_id:
+                    cursor = conn.execute(
+                        """
+                        SELECT
+                            SUM(CASE WHEN rc.relevant = 1 THEN 1 ELSE 0 END) as relevant_count,
+                            SUM(CASE WHEN rc.relevant = 0 THEN 1 ELSE 0 END) as not_relevant_count,
+                            SUM(CASE WHEN rc.relevant IS NULL THEN 1 ELSE 0 END) as not_reviewed_count
+                        FROM retrieved_chunks rc
+                        JOIN queries q ON rc.query_id = q.query_id
+                        WHERE q.discord_server_id = ?
+                    """,
+                        params,
+                    )
+                else:
+                    cursor = conn.execute(
+                        """
+                        SELECT
+                            SUM(CASE WHEN relevant = 1 THEN 1 ELSE 0 END) as relevant_count,
+                            SUM(CASE WHEN relevant = 0 THEN 1 ELSE 0 END) as not_relevant_count,
+                            SUM(CASE WHEN relevant IS NULL THEN 1 ELSE 0 END) as not_reviewed_count
+                        FROM retrieved_chunks
                     """
-                    SELECT
-                        SUM(CASE WHEN relevant = 1 THEN 1 ELSE 0 END) as relevant_count,
-                        SUM(CASE WHEN relevant = 0 THEN 1 ELSE 0 END) as not_relevant_count,
-                        SUM(CASE WHEN relevant IS NULL THEN 1 ELSE 0 END) as not_reviewed_count
-                    FROM retrieved_chunks
-                """
-                )
+                    )
                 row = cursor.fetchone()
 
                 return {
