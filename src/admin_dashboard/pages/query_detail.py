@@ -93,6 +93,25 @@ def _render_query_response_and_sidebar(
         _render_metadata(query)
 
 
+def _format_quote_for_streamlit(quote_title: str, quote_text: str) -> str:
+    """Format a quote for Streamlit markdown, handling multi-line text.
+    
+    Prefixes each line with '> ' so that Streamlit renders the entire
+    text as a quote block, even when there are line breaks.
+    
+    Args:
+        quote_title: Title of the quote
+        quote_text: Text content of the quote
+        
+    Returns:
+        Formatted markdown string with proper quote formatting
+    """
+    lines = [f"> **{quote_title}**"]
+    for line in quote_text.split('\n'):
+        lines.append(f"> {line}")
+    return '\n'.join(lines)
+
+
 def _render_structured_response(response: StructuredLLMResponse) -> None:
     """Render structured LLM response.
 
@@ -104,7 +123,7 @@ def _render_structured_response(response: StructuredLLMResponse) -> None:
     st.write(f"**persona short answer:** *{response.persona_short_answer}*")
 
     for quote in response.quotes:
-        st.write(f"> **{quote.quote_title}**\n> {quote.quote_text}")
+        st.write(_format_quote_for_streamlit(quote.quote_title, quote.quote_text))
 
     st.write(f"**explanation:** {response.explanation}")
     st.write(f"**persona afterword:** *{response.persona_afterword}*")

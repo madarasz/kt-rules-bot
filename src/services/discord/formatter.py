@@ -11,6 +11,22 @@ from src.services.discord.feedback_buttons import FeedbackView
 from src.services.llm.validator import ValidationResult
 
 
+def _format_quote_text(text: str) -> str:
+    """Format text as a Discord quote block, handling multi-line text.
+    
+    Prefixes each line with '> ' so that Discord renders the entire
+    text as a quote block, even when there are line breaks.
+    
+    Args:
+        text: Text to format as a quote
+        
+    Returns:
+        Text with each line prefixed by '> '
+    """
+    lines = text.split('\n')
+    return '\n'.join(f"> {line}" for line in lines)
+
+
 def _split_field_value(text: str, max_length: int = 1024) -> list[str]:
     """Split text into chunks at sentence boundaries, respecting Discord's field limit.
 
@@ -108,13 +124,13 @@ def _format_structured(bot_response: BotResponse, smalltalk: bool = False) -> li
         if quote_title.startswith("[FAQ]"):
             remaining_title = quote_title[5:].strip()  # Remove "[FAQ]" prefix
             if remaining_title:
-                quote_text = f"{remaining_title} \n> {quote_text}"
+                quote_text = f"{remaining_title}\n{quote_text}"
             quote_title = "[FAQ]"
 
         field_name = f"**{quote_title}**"
         if len(field_name) > 256:
             field_name = field_name[:253] + "..."
-        embed.add_field(name=field_name, value=f"> {quote_text}", inline=False)
+        embed.add_field(name=field_name, value=_format_quote_text(quote_text), inline=False)
 
     # Add explanation field (split if needed)
     if len(data.explanation) > 0:
