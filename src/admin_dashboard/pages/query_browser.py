@@ -7,7 +7,7 @@ from src.lib.database import AnalyticsDatabase
 
 from ..components.filters import QueryFilters
 from ..components.query_card import QueryCard
-from ..utils.session import set_selected_query
+from ..utils.session import set_query_id_list, set_selected_query
 
 
 def render(db: AnalyticsDatabase) -> None:
@@ -45,6 +45,9 @@ def render(db: AnalyticsDatabase) -> None:
     if not queries:
         st.info("No queries found matching filters.")
         return
+
+    # Store query ID list for navigation in detail page
+    set_query_id_list([q["query_id"] for q in queries])
 
     # Display query cards
     st.subheader(f"Found {len(queries)} queries")

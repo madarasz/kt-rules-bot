@@ -187,3 +187,21 @@ def get_selected_rag_test_run() -> str | None:
         Selected RAG test run ID or None
     """
     return st.session_state.get("selected_rag_test_run_id")
+
+
+def set_query_id_list(query_ids: list[str]) -> None:
+    """Store the current filtered query ID list in session state.
+
+    Args:
+        query_ids: Ordered list of query IDs from the browser
+    """
+    st.session_state["query_id_list"] = query_ids
+
+
+def get_query_id_list() -> list[str] | None:
+    """Get the stored query ID list from session state.
+
+    Returns:
+        List of query IDs or None if not set
+    """
+    return st.session_state.get("query_id_list")

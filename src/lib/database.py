@@ -676,6 +676,97 @@ class AnalyticsDatabase:
             logger.error(f"Failed to get query: {e}", exc_info=True)
             return None
 
+    def get_adjacent_query_ids(
+        self, query_id: str, filters: dict[str, Any] | None = None
+    ) -> tuple[str | None, str | None]:
+        """Get the previous and next query IDs relative to the given query.
+
+        Returns queries ordered by timestamp DESC (newest first).
+        Previous = newer query (timestamp > current)
+        Next = older query (timestamp < current)
+
+        Args:
+            query_id: Current query ID
+            filters: Optional filters (same as get_all_queries)
+
+        Returns:
+            Tuple of (previous_id, next_id), either can be None
+        """
+        if not self.enabled:
+            return (None, None)
+
+        try:
+            # Get current query timestamp
+            current = self.get_query_by_id(query_id)
+            if not current:
+                return (None, None)
+
+            current_timestamp = current["timestamp"]
+
+            # Build filter query
+            def build_query(direction: str) -> tuple[str, list]:
+                query = "SELECT query_id FROM queries WHERE 1=1"
+                params = []
+
+                if filters:
+                    if "admin_status" in filters and filters["admin_status"]:
+                        query += " AND admin_status = ?"
+                        params.append(filters["admin_status"])
+
+                    if "llm_model" in filters and filters["llm_model"]:
+                        query += " AND llm_model = ?"
+                        params.append(filters["llm_model"])
+
+                    if "channel_id" in filters and filters["channel_id"]:
+                        query += " AND channel_id = ?"
+                        params.append(filters["channel_id"])
+
+                    if "discord_server_id" in filters and filters["discord_server_id"]:
+                        query += " AND discord_server_id = ?"
+                        params.append(filters["discord_server_id"])
+
+                    if "search" in filters and filters["search"]:
+                        query += " AND (query_text LIKE ? OR response_text LIKE ?)"
+                        search_term = f"%{filters['search']}%"
+                        params.extend([search_term, search_term])
+
+                    if "start_date" in filters and filters["start_date"]:
+                        query += " AND timestamp >= ?"
+                        params.append(filters["start_date"])
+
+                    if "end_date" in filters and filters["end_date"]:
+                        query += " AND timestamp <= ?"
+                        params.append(filters["end_date"])
+
+                if direction == "prev":
+                    # Previous = newer (timestamp > current), order ASC to get closest
+                    query += " AND timestamp > ? ORDER BY timestamp ASC LIMIT 1"
+                else:
+                    # Next = older (timestamp < current), order DESC to get closest
+                    query += " AND timestamp < ? ORDER BY timestamp DESC LIMIT 1"
+
+                params.append(current_timestamp)
+                return query, params
+
+            with self._get_connection() as conn:
+                # Get previous (newer)
+                prev_query, prev_params = build_query("prev")
+                prev_cursor = conn.execute(prev_query, prev_params)
+                prev_row = prev_cursor.fetchone()
+                prev_id = prev_row["query_id"] if prev_row else None
+
+                # Get next (older)
+                next_query, next_params = build_query("next")
+                next_cursor = conn.execute(next_query, next_params)
+                next_row = next_cursor.fetchone()
+                next_id = next_row["query_id"] if next_row else None
+
+            return (prev_id, next_id)
+
+        except Exception as e:
+            logger.error(f"Failed to get adjacent query IDs: {e}", exc_info=True)
+            return (None, None)
+
     def get_chunks_for_query(self, query_id: str) -> list[dict[str, Any]]:
         """Get all retrieved chunks for a query.
 

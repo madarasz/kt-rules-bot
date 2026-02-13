@@ -17,12 +17,14 @@ from ..utils.session import (
     get_admin_notes_state,
     get_admin_status_state,
     get_fixed_issue_state,
+    get_query_id_list,
     get_selected_query_id,
     init_admin_fields_state,
     navigate_to_page,
     set_admin_notes_state,
     set_admin_status_state,
     set_fixed_issue_state,
+    set_selected_query,
 )
 
 
@@ -34,15 +36,14 @@ def render(db: AnalyticsDatabase) -> None:
     """
     st.title("🔍 Query Detail")
 
-    # Back button
-    if st.button("⬅️ Back to Query Browser"):
-        navigate_to_page(PAGE_NAMES["QUERY_BROWSER"])
-
     # Get query ID
     query_id = get_selected_query_id()
     if not query_id:
         st.info("Select a query from the Query Browser to view details.")
         return
+
+    # Navigation bar (back + prev/next)
+    _render_navigation(query_id, db)
 
     # Fetch query
     query = db.get_query_by_id(query_id)
@@ -664,3 +665,54 @@ def _wrap_text(text: str, width: int = 80) -> list[str]:
         List of wrapped lines
     """
     return textwrap.wrap(text, width=width) or [""]
+
+
+def _render_navigation(query_id: str, db: AnalyticsDatabase) -> None:
+    """Render back button and previous/next navigation in a single row.
+
+    Args:
+        query_id: Current query ID
+        db: Database instance
+    """
+    # Try to get query list from session state first
+    query_id_list = get_query_id_list()
+
+    prev_id = None
+    next_id = None
+    position_text = ""
+
+    if query_id_list and query_id in query_id_list:
+        # Use the stored list from browser
+        idx = query_id_list.index(query_id)
+        prev_id = query_id_list[idx - 1] if idx > 0 else None
+        next_id = query_id_list[idx + 1] if idx < len(query_id_list) - 1 else None
+        position_text = f"Query {idx + 1} / {len(query_id_list)}"
+    else:
+        # Fallback to database lookup (no filters, just timestamp order)
+        prev_id, next_id = db.get_adjacent_query_ids(query_id, filters=None)
+
+    col_back, col_prev, col_pos, col_next = st.columns([2, 1, 1, 1])
+
+    with col_back:
+        if st.button("⬅️ Back to Query Browser"):
+            navigate_to_page(PAGE_NAMES["QUERY_BROWSER"])
+
+    with col_prev:
+        if prev_id:
+            if st.button("◀ Previous", key="nav_prev", type="secondary"):
+                set_selected_query(prev_id)
+        else:
+            st.button("◀ Previous", key="nav_prev", disabled=True)
+
+    with col_pos:
+        if position_text:
+            st.caption(position_text)
+
+    with col_next:
+        if next_id:
+            if st.button("Next ▶", key="nav_next", type="secondary"):
+                set_selected_query(next_id)
+        else:
+            st.button("Next ▶", key="nav_next", disabled=True)
+
+    st.divider()
