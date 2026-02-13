@@ -22,6 +22,5 @@ PAGE_NAMES = {
     "ANALYTICS": "📊 Analytics",
     "RAG_TEST_RESULTS": "📊 RAG Test Results",
     "RAG_TEST_DETAIL": "🔬 RAG Test Detail",
-    "EXPORT_TESTS": "🧪 Export Tests",
     "SETTINGS": "⚙️ Settings",
 }

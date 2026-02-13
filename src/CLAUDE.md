@@ -16,16 +16,19 @@ Contains all production code for:
 
 ```
 src/
-├── cli/          # Command-line interface tools
-├── lib/          # Shared utilities and configuration
-├── models/       # Domain models and data structures
-└── services/     # Core business logic and external integrations
-    ├── discord/  # Discord bot and message handling
-    ├── rag/      # RAG retrieval pipeline (includes ingestor.py)
-    └── llm/      # LLM provider integrations
+├── admin_dashboard/  # Streamlit admin web interface
+├── cli/              # Command-line interface tools
+├── lib/              # Shared utilities and configuration
+├── models/           # Domain models and data structures
+└── services/         # Core business logic and external integrations
+    ├── discord/      # Discord bot and message handling
+    ├── rag/          # RAG retrieval pipeline (includes ingestor.py)
+    └── llm/          # LLM provider integrations
 ```
 
 ## Subsystem Overview
+
+### [admin_dashboard/](admin_dashboard/CLAUDE.md) - Admin Web Interface
 
 ### [cli/](cli/CLAUDE.md) - Command-Line Interface
 Entry points for all operations:
@@ -161,6 +164,7 @@ python -m src.cli quality-test  # Quality tests
 
 ## Documentation
 Each subdirectory has its own CLAUDE.md:
+- [admin_dashboard/CLAUDE.md](admin_dashboard/CLAUDE.md) - Admin dashboard
 - [cli/CLAUDE.md](cli/CLAUDE.md) - CLI documentation
 - [lib/CLAUDE.md](lib/CLAUDE.md) - Utilities documentation
 - [models/CLAUDE.md](models/CLAUDE.md) - Data models

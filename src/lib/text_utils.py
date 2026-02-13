@@ -9,7 +9,8 @@ def normalize_text_for_matching(text: str) -> str:
     """Normalize text for ground truth matching.
 
     Applies consistent normalization used across all RAG evaluation code:
-    - Strip whitespace
+    - Normalize whitespace (replace newlines/tabs/multiple spaces with single space)
+    - Strip leading/trailing whitespace
     - Convert to lowercase
     - Remove markdown asterisks (bold/italic markers)
     - Remove ellipsis characters (… and ...)
@@ -20,14 +21,16 @@ def normalize_text_for_matching(text: str) -> str:
     Returns:
         Normalized text string
     """
-    return text.strip().lower().replace("*", "").replace("…", "").replace("...", "")
+    # Normalize whitespace: replace newlines, tabs, multiple spaces with single space
+    normalized = " ".join(text.split())
+    return normalized.lower().replace("*", "").replace("…", "").replace("...", "")
 
 
 def ground_truth_matches_text(ground_truth: str, text: str) -> bool:
     """Check if ground truth substring matches retrieved text.
 
     Uses consistent normalization for substring matching:
-    - Both strings are normalized (strip, lowercase, remove asterisks)
+    - Both strings are normalized (whitespace, lowercase, remove asterisks)
     - Ground truth must be contained in text (substring match)
 
     Args:

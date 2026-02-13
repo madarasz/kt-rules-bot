@@ -10,7 +10,6 @@ from src.lib.database import AnalyticsDatabase
 from . import auth
 from .pages import (
     analytics,
-    export_tests,
     query_browser,
     query_detail,
     rag_test_detail,
@@ -64,7 +63,6 @@ def render_sidebar() -> None:
         PAGE_NAMES["ANALYTICS"],
         PAGE_NAMES["RAG_TEST_RESULTS"],
         PAGE_NAMES["RAG_TEST_DETAIL"],
-        PAGE_NAMES["EXPORT_TESTS"],
         PAGE_NAMES["SETTINGS"],
     ]
 
@@ -95,8 +93,6 @@ def route_to_page(page: str, db: AnalyticsDatabase) -> None:
         rag_test_results.render(db)
     elif page == PAGE_NAMES["RAG_TEST_DETAIL"]:
         rag_test_detail.render(db)
-    elif page == PAGE_NAMES["EXPORT_TESTS"]:
-        export_tests.render(db)
     elif page == PAGE_NAMES["SETTINGS"]:
         settings.render(db)
 

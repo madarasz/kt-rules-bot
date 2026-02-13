@@ -1,5 +1,7 @@
 """Query detail page for the admin dashboard."""
 
+import textwrap
+
 import streamlit as st
 
 from src.lib.database import AnalyticsDatabase
@@ -7,7 +9,7 @@ from src.models.structured_response import StructuredLLMResponse
 
 from ..components.chunk_viewer import ChunkListViewer
 from ..utils.constants import ADMIN_STATUS_OPTIONS, PAGE_NAMES
-from ..utils.formatters import format_helpful_rate
+from ..utils.formatters import format_helpful_rate, generate_test_id
 from ..utils.icons import bool_to_icon, get_quote_validation_icon
 from ..utils.session import (
     get_admin_notes_state,
@@ -54,6 +56,8 @@ def render(db: AnalyticsDatabase) -> None:
     _render_invalid_quotes(query_id, query, db)
     _render_hop_evaluations(query_id, query, db)
     _render_chunks(chunks, db)
+    _render_rag_test_export(chunks, query)
+    _render_quality_test_export(query)
 
 
 def _render_query_response_and_sidebar(
@@ -338,3 +342,216 @@ def _render_admin_controls_sidebar(
 
     if has_changes:
         st.caption("💡 Unsaved changes")
+
+
+def _render_rag_test_export(chunks: list[dict], query: dict) -> None:
+    """Render RAG test export section if relevant chunks exist.
+
+    Args:
+        chunks: List of chunk data dictionaries
+        query: Query data dictionary
+    """
+    # Filter to only relevant chunks
+    relevant_chunks = [c for c in chunks if c.get("relevant") == 1]
+
+    if not relevant_chunks:
+        return  # Don't show section if no relevant chunks
+
+    st.subheader("📤 Export to RAG Test")
+
+    # Generate YAML in the new format
+    yaml_content = _generate_single_test_yaml(query, relevant_chunks)
+
+    st.code(yaml_content, language="yaml")
+
+    # Download button
+    test_id = generate_test_id(query["query_text"])
+    st.download_button(
+        label="⬇️ Download YAML",
+        data=yaml_content,
+        file_name=f"{test_id}.yaml",
+        mime="text/yaml",
+    )
+
+
+def _generate_single_test_yaml(query: dict, relevant_chunks: list[dict]) -> str:
+    """Generate YAML for a single RAG test case in the new format.
+
+    Format:
+    test_id: some-id
+    query: >
+      Query text here...
+
+    ground_truth_contexts:
+      - "Chunk Header": "Relevant text snippet..."
+
+    Args:
+        query: Query data dictionary
+        relevant_chunks: List of relevant chunk dictionaries
+
+    Returns:
+        YAML formatted string
+    """
+    lines = []
+
+    # test_id
+    test_id = generate_test_id(query["query_text"])
+    lines.append(f"test_id: {test_id}")
+
+    # query (multi-line format)
+    lines.append("query: >")
+    for line in query["query_text"].split("\n"):
+        lines.append(f"  {line}")
+
+    # ground_truth_contexts
+    lines.append("")
+    lines.append("ground_truth_contexts:")
+    for chunk in relevant_chunks:
+        header = chunk.get("chunk_header") or "No header"
+        # Extract first ~150 chars of chunk text as snippet
+        text_snippet = _extract_text_snippet(chunk.get("chunk_text", ""))
+
+        # Escape quotes
+        escaped_header = header.replace('"', '\\"')
+        escaped_snippet = text_snippet.replace('"', '\\"')
+
+        lines.append(f'  - "{escaped_header}": "{escaped_snippet}"')
+
+    return "\n".join(lines)
+
+
+def _extract_text_snippet(text: str, max_length: int = 150) -> str:
+    """Extract a meaningful snippet from chunk text.
+
+    Args:
+        text: Full chunk text
+        max_length: Maximum length of snippet
+
+    Returns:
+        Extracted text snippet (single line, no line breaks)
+    """
+    if not text:
+        return ""
+
+    # Normalize whitespace: replace newlines with spaces, collapse multiple spaces
+    normalized = " ".join(text.split())
+
+    # Take first meaningful portion
+    snippet = normalized[:max_length]
+
+    # Try to end at a sentence boundary if possible
+    if len(normalized) > max_length:
+        last_period = snippet.rfind(".")
+        if last_period > max_length // 2:
+            snippet = snippet[:last_period + 1]
+        else:
+            snippet = snippet.rstrip() + "..."
+
+    return snippet
+
+
+def _render_quality_test_export(query: dict) -> None:
+    """Render Quality Test export section.
+
+    Args:
+        query: Query data dictionary
+    """
+    st.subheader("📤 Export to Quality Test")
+
+    # Try to parse structured response
+    try:
+        structured_response = StructuredLLMResponse.from_json(query["response_text"])
+    except ValueError:
+        st.warning("Cannot export: response is not in structured JSON format")
+        return
+
+    # Generate YAML
+    test_id = generate_test_id(query["query_text"])
+    yaml_content = _generate_quality_test_yaml(query, structured_response)
+
+    st.code(yaml_content, language="yaml")
+
+    # CLI command for generating context file
+    query_escaped = query["query_text"].replace('"', '\\"')
+    query_single_line = " ".join(query_escaped.split())
+    context_cmd = f'python3 -m src.cli query "{query_single_line}" --rag-only --context-output tests/quality/test_cases/{test_id}-context.json'
+    st.caption("Generate context file:")
+    st.code(context_cmd, language="bash")
+
+    # Download button
+    st.download_button(
+        label="⬇️ Download YAML",
+        data=yaml_content,
+        file_name=f"{test_id}-quality.yaml",
+        mime="text/yaml",
+        key="quality_test_download",
+    )
+
+
+def _generate_quality_test_yaml(query: dict, response: StructuredLLMResponse) -> str:
+    """Generate YAML for a Quality Test case.
+
+    Args:
+        query: Query data dictionary
+        response: Parsed structured LLM response
+
+    Returns:
+        YAML formatted string
+    """
+    lines = []
+
+    # test_id and context_file
+    test_id = generate_test_id(query["query_text"])
+    lines.append(f"test_id: {test_id}")
+    lines.append(f"context_file: tests/quality/test_cases/{test_id}-context.json")
+
+    # query (multi-line format)
+    lines.append("query: >")
+    query_normalized = " ".join(query["query_text"].split())
+    for line in _wrap_text(query_normalized, width=80):
+        lines.append(f"  {line}")
+
+    # ground_truth_answers
+    lines.append("")
+    lines.append("ground_truth_answers:")
+    short_answer_normalized = " ".join(response.short_answer.split())
+    escaped_answer = short_answer_normalized.replace('"', '\\"')
+    lines.append('  - key: "Final Answer"')
+    lines.append(f'    text: "{escaped_answer}"')
+    lines.append("    priority: critical")
+    lines.append("  # ADD MORE GROUND TRUTHS HERE")
+
+    # ground_truth_contexts (from quotes)
+    lines.append("")
+    lines.append("ground_truth_contexts:")
+    for quote in response.quotes:
+        key = quote.quote_title
+        # Normalize whitespace and extract snippet
+        text_normalized = " ".join(quote.quote_text.split())
+        snippet = text_normalized[:150] + "..." if len(text_normalized) > 150 else text_normalized
+
+        escaped_key = key.replace('"', '\\"')
+        escaped_text = snippet.replace('"', '\\"')
+
+        lines.append(f'  - key: "{escaped_key}"')
+        lines.append(f'    text: "{escaped_text}"')
+        lines.append("    priority: critical")
+
+    # Comment explaining priority values
+    lines.append("")
+    lines.append("# Priority values: critical (10 points), important (5 points), supporting (3 points)")
+
+    return "\n".join(lines)
+
+
+def _wrap_text(text: str, width: int = 80) -> list[str]:
+    """Wrap text to specified width for YAML formatting.
+
+    Args:
+        text: Text to wrap
+        width: Maximum line width
+
+    Returns:
+        List of wrapped lines
+    """
+    return textwrap.wrap(text, width=width) or [""]
