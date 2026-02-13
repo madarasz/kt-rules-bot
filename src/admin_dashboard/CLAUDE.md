@@ -67,6 +67,10 @@ streamlit run src/cli/admin_dashboard.py --server.port 8501
 - Admin status dropdown (pending → approved/flagged/RAG issue/LLM issue)
 - Admin notes text area
 - Fixed issue checkbox for tracking resolved problems
+- **LLM Re-run comparison** (expander): Re-run query with a different model from `QUALITY_TEST_PROVIDERS`.
+  - Model dropdown + "Reuse RAG context" checkbox (unchecked = fresh retrieval, checked = use stored DB chunks)
+  - Side-by-side original vs. re-run response with latency/token/cost metadata
+  - Backend: `services/llm_rerun.py` handles orchestration (fresh RAG or DB chunk reconstruction → LLM generation)
 - RAG chunks table with relevance marking controls
 
 ### Analytics (`analytics.py`)

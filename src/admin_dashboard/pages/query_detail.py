@@ -7,6 +7,8 @@ import streamlit as st
 from src.lib.database import AnalyticsDatabase
 from src.models.structured_response import StructuredLLMResponse
 
+from ..services.llm_rerun import get_available_models, rerun_query
+
 from ..components.chunk_viewer import ChunkListViewer
 from ..utils.constants import ADMIN_STATUS_OPTIONS, PAGE_NAMES
 from ..utils.formatters import format_helpful_rate, generate_test_id
@@ -53,6 +55,7 @@ def render(db: AnalyticsDatabase) -> None:
 
     # Render sections
     _render_query_response_and_sidebar(query_id, query, db)
+    _render_llm_rerun_section(query_id, query, chunks)
     _render_invalid_quotes(query_id, query, db)
     _render_hop_evaluations(query_id, query, db)
     _render_chunks(chunks, db)
@@ -342,6 +345,112 @@ def _render_admin_controls_sidebar(
 
     if has_changes:
         st.caption("💡 Unsaved changes")
+
+
+def _render_llm_rerun_section(query_id: str, query: dict, chunks: list[dict]) -> None:
+    """Render the LLM re-run comparison section.
+
+    Allows admins to re-run the query with a different LLM model
+    and compare the result side-by-side with the original.
+
+    Args:
+        query_id: Query ID
+        query: Query data dictionary
+        chunks: List of chunk data dictionaries from DB
+    """
+    with st.expander("🔄 Re-run Query with Different LLM", expanded=False):
+        available_models = get_available_models()
+        original_model = query.get("llm_model", "")
+
+        # Controls row
+        ctrl_col1, ctrl_col2 = st.columns([2, 1])
+
+        with ctrl_col1:
+            selected_model = st.selectbox(
+                "LLM Model",
+                available_models,
+                index=0,
+                key=f"rerun_model_{query_id}",
+                help=f"Original model: {original_model}",
+            )
+
+        with ctrl_col2:
+            reuse_rag = st.checkbox(
+                "Reuse RAG context",
+                value=False,
+                key=f"rerun_reuse_rag_{query_id}",
+                help=(
+                    "Checked: use the same RAG chunks stored in DB (LLM-only comparison). "
+                    "Unchecked: perform fresh RAG retrieval with the current vector DB."
+                ),
+            )
+
+        # Run button
+        if st.button("🚀 Run Query", key=f"rerun_btn_{query_id}", type="primary"):
+            with st.spinner(f"Running query with {selected_model}..."):
+                result = rerun_query(
+                    query_text=query["query_text"],
+                    chunks_from_db=chunks,
+                    model_name=selected_model,
+                    reuse_rag_context=reuse_rag,
+                )
+                st.session_state[f"rerun_result_{query_id}"] = result
+
+        # Display result if available
+        rerun_result = st.session_state.get(f"rerun_result_{query_id}")
+        if rerun_result is None:
+            return
+
+        if rerun_result.error:
+            st.error(rerun_result.error)
+            return
+
+        # Side-by-side comparison
+        st.divider()
+        col_orig, col_rerun = st.columns(2)
+
+        with col_orig:
+            st.markdown(f"**📋 Original** (`{original_model}`)")
+            try:
+                original_structured = StructuredLLMResponse.from_json(query["response_text"])
+                _render_structured_response(original_structured)
+            except ValueError:
+                st.text_area(
+                    "Response",
+                    value=query["response_text"],
+                    height=300,
+                    disabled=True,
+                    key=f"rerun_orig_raw_{query_id}",
+                )
+
+        with col_rerun:
+            st.markdown(f"**🔄 Re-run** (`{rerun_result.model}`)")
+            if rerun_result.structured_response:
+                _render_structured_response(rerun_result.structured_response)
+            else:
+                st.text_area(
+                    "Response",
+                    value=rerun_result.answer_text,
+                    height=300,
+                    disabled=True,
+                    key=f"rerun_new_raw_{query_id}",
+                )
+
+            # Metadata below the re-run response
+            rag_info = rerun_result.rag_info
+            rag_source = rag_info.get("source", "Unknown")
+            rag_chunks = rag_info.get("chunk_count", 0)
+            rag_avg = rag_info.get("avg_relevance", 0.0)
+            retrieval_ms = rag_info.get("retrieval_time_ms")
+
+            cost_cents = rerun_result.cost_usd * 100
+            latency_s = rerun_result.latency_ms / 1000
+
+            st.caption(f"⏱ Total latency: {latency_s:.1f}s | 💰 {cost_cents:.3f}¢")
+            rag_line = f"📦 RAG: {rag_source} ({rag_chunks} chunks, {rag_avg:.2f} avg)"
+            if retrieval_ms is not None:
+                rag_line += f" | retrieval: {retrieval_ms}ms"
+            st.caption(rag_line)
 
 
 def _render_rag_test_export(chunks: list[dict], query: dict) -> None:
