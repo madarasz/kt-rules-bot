@@ -66,10 +66,37 @@ class QuoteValidator:
                 # Empty quote - skip validation
                 continue
 
-            # Check if quote appears in any chunk (exact or fuzzy match)
-            found, matched_chunk_id, similarity, matched_text = self._find_quote_in_chunks(
-                quote_text, context_chunks, chunk_ids
-            )
+            # Split on [...] markers and validate each segment independently
+            segments = [s.strip() for s in quote_text.split("[...]") if s.strip()]
+
+            if len(segments) > 1:
+                # Merged quote with [...] - validate each segment
+                segment_results = []
+                worst_similarity = 1.0
+                best_matched_text = ""
+                best_chunk_id = None
+
+                for segment in segments:
+                    found_seg, matched_id, sim, matched = self._find_quote_in_chunks(
+                        segment, context_chunks, chunk_ids
+                    )
+                    segment_results.append(found_seg)
+                    if sim < worst_similarity:
+                        worst_similarity = sim
+                        best_matched_text = matched
+                        best_chunk_id = matched_id
+                    elif best_chunk_id is None:
+                        best_chunk_id = matched_id
+
+                found = all(segment_results)
+                similarity = worst_similarity
+                matched_chunk_id = best_chunk_id
+                matched_text = best_matched_text
+            else:
+                # Single segment - validate normally
+                found, matched_chunk_id, similarity, matched_text = self._find_quote_in_chunks(
+                    quote_text, context_chunks, chunk_ids
+                )
 
             # Store per-quote details
             quote_scores.append(
@@ -295,7 +322,8 @@ class QuoteValidator:
         # Remove inline code `code`
         text = re.sub(r"`([^`]+)`", r"\1", text)
 
-        # Remove ellipsis characters (both Unicode and three-dot variants)
+        # Remove ellipsis characters (bracketed, Unicode, and three-dot variants)
+        text = text.replace("[...]", "")  # Bracketed ellipsis (merged quotes)
         text = text.replace("…", "")  # Unicode ellipsis U+2026
         text = text.replace("...", "")  # Three-dot ellipsis
 

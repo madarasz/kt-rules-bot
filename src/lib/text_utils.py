@@ -23,7 +23,7 @@ def normalize_text_for_matching(text: str) -> str:
     """
     # Normalize whitespace: replace newlines, tabs, multiple spaces with single space
     normalized = " ".join(text.split())
-    return normalized.lower().replace("*", "").replace("…", "").replace("...", "")
+    return normalized.lower().replace("*", "").replace("[...]", "").replace("…", "").replace("...", "")
 
 
 def ground_truth_matches_text(ground_truth: str, text: str) -> bool:

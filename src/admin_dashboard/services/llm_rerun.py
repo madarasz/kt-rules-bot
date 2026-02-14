@@ -6,6 +6,7 @@ Supports two modes:
 """
 
 import asyncio
+import contextlib
 import time
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
@@ -15,7 +16,6 @@ from src.lib.logging import get_logger
 from src.lib.tokens import estimate_cost
 from src.models.rag_context import DocumentChunk, RAGContext
 from src.models.structured_response import StructuredLLMResponse
-from src.services.llm.base import GenerationConfig, GenerationRequest, LLMResponse
 from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.retry import retry_on_content_filter
 
@@ -199,10 +199,8 @@ async def _rerun_query_async(
         )
 
         # Try to parse as structured response
-        try:
+        with contextlib.suppress(ValueError):
             result.structured_response = StructuredLLMResponse.from_json(llm_response.answer_text)
-        except ValueError:
-            pass  # Will display raw text instead
 
     except Exception as e:
         logger.error(f"Re-run query failed: {e}", exc_info=True)

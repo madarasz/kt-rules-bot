@@ -7,9 +7,8 @@ import streamlit as st
 from src.lib.database import AnalyticsDatabase
 from src.models.structured_response import StructuredLLMResponse
 
-from ..services.llm_rerun import get_available_models, rerun_query
-
 from ..components.chunk_viewer import ChunkListViewer
+from ..services.llm_rerun import get_available_models, rerun_query
 from ..utils.constants import ADMIN_STATUS_OPTIONS, PAGE_NAMES
 from ..utils.formatters import format_helpful_rate, generate_test_id
 from ..utils.icons import bool_to_icon, get_quote_validation_icon
@@ -95,14 +94,14 @@ def _render_query_response_and_sidebar(
 
 def _format_quote_for_streamlit(quote_title: str, quote_text: str) -> str:
     """Format a quote for Streamlit markdown, handling multi-line text.
-    
+
     Prefixes each line with '> ' so that Streamlit renders the entire
     text as a quote block, even when there are line breaks.
-    
+
     Args:
         quote_title: Title of the quote
         quote_text: Text content of the quote
-        
+
     Returns:
         Formatted markdown string with proper quote formatting
     """

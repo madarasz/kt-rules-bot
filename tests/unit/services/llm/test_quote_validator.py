@@ -167,3 +167,53 @@ class TestQuoteValidator:
         assert similarity_plain == 1.0
         assert is_valid_markdown is True
         assert similarity_markdown == 1.0
+
+    def test_validate_quote_with_ellipsis_marker(self, validator, sample_chunk_ids):
+        """Test validation of a quote with [...] merging two segments from the same chunk."""
+        context = [
+            "First rule sentence. Middle stuff here. Last rule sentence.",
+        ]
+        chunk_ids = [sample_chunk_ids[0]]
+
+        quotes = [
+            {
+                "quote_title": "Test Rule",
+                "quote_text": "First rule sentence. [...] Last rule sentence.",
+                "chunk_id": "90abcdef",
+            },
+        ]
+
+        result = validator.validate(quotes, context, chunk_ids)
+
+        assert result.is_valid is True
+        assert result.validation_score == 1.0
+        assert result.valid_quotes == 1
+
+    def test_is_quote_in_chunk_with_ellipsis(self, validator):
+        """Test _is_quote_in_chunk handles [...] by validating segments."""
+        chunk = (
+            "Once per action, you can attempt to use one Boon of Damnation. "
+            "Roll a D6. Note that you cannot make an attempt more than once."
+        )
+        # Merged quote with [...] omitting middle
+        quote = (
+            "Once per action, you can attempt to use one Boon of Damnation. "
+            "[...] Note that you cannot make an attempt more than once."
+        )
+
+        # The validator splits on [...] and checks each segment
+        # So we test the full validate() path
+        quotes = [{"quote_title": "Test", "quote_text": quote, "chunk_id": ""}]
+        result = validator.validate(quotes, [chunk])
+
+        assert result.is_valid is True
+        assert result.valid_quotes == 1
+
+    def test_normalize_text_strips_ellipsis_markers(self):
+        """Test that _normalize_text strips [...] markers."""
+        text = "First part. [...] Second part."
+        result = QuoteValidator._normalize_text(text)
+        assert "[...]" not in result
+        assert "first part" in result
+        assert "second part" in result
+
