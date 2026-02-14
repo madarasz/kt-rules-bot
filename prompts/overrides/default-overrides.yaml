@@ -38,23 +38,11 @@ QUOTE_EXTRACTION_PROTOCOL: |
   ```
   ❌ This is incorrect - paraphrased instead of verbatim
 
-  ### Merging Quotes from the Same Chunk
-  When you need to cite **multiple non-adjacent passages from the same chunk**, combine them into a **single quote** using `[...]` to indicate omitted text between the passages.
-
-  **Do NOT** repeat the same chunk title multiple times — merge into one quote entry instead.
-
-  **Example - Multiple passages from same chunk:**
-  ✅ **Correct** (merged with `[...]`):
-  ```json
-  {"quote_title": "MURDERWING CHAOS LORD - Path to Damnation", "quote_text": "Once per action, you can attempt to use one Boon of Damnation when it specifies (see right). [...] Note that you cannot make an attempt more than once per action, regardless of the D6 result."}
-  ```
-
   ### Important Reminders
-  - Quotes must be **exact copies** from the context chunks provided (with `[...]` for omitted parts)
+  - Quotes must be **exact copies** from the context chunks provided
   - If you cannot find the exact text in context, do NOT fabricate a quote
   - Minor punctuation differences are acceptable ONLY if they appear in the source
-  - Never combine text from **different** context chunks into a single quote
-  - Use `[...]` only to omit text **within** a single chunk
+  - Never combine text from multiple context chunks into a single quote
 
 QUOTES_FIELD_DEFINITION: |
   4. **quotes** (array of objects)

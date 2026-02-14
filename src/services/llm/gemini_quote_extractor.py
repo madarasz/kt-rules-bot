@@ -203,11 +203,7 @@ def post_process_gemini_response(
         f"Post-processing {len(quotes)} quotes. Available chunk IDs: {list(chunk_id_to_sentences.keys())}"
     )
 
-    # Merge quotes with the same chunk_id before extraction
-    merged_quotes = _merge_quotes_by_chunk_id(quotes)
-    response_json["quotes"] = merged_quotes
-
-    for quote in merged_quotes:
+    for quote in quotes:
         quote_text = quote.get("quote_text", "").strip()
         sentence_numbers = quote.get("sentence_numbers", [])
         chunk_id = quote.get("chunk_id", "")
@@ -258,82 +254,3 @@ def post_process_gemini_response(
         )
 
     return response_json
-
-
-def _merge_quotes_by_chunk_id(quotes: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Merge multiple quotes with the same chunk_id into a single quote.
-
-    When Gemini returns multiple quotes referencing the same chunk, merge them
-    by combining sentence_numbers. The extract_verbatim_quote function will
-    handle inserting [...] between non-contiguous sentence groups.
-
-    Args:
-        quotes: List of quote dicts from Gemini response
-
-    Returns:
-        List of quote dicts with same-chunk quotes merged
-    """
-    # Group quotes by chunk_id (preserve order of first occurrence)
-    chunk_id_order = []
-    chunk_id_groups: dict[str, list[dict[str, Any]]] = {}
-
-    for quote in quotes:
-        chunk_id = quote.get("chunk_id", "")
-        if not chunk_id:
-            # No chunk_id — keep as standalone
-            chunk_id_order.append(None)
-            continue
-
-        if chunk_id not in chunk_id_groups:
-            chunk_id_order.append(chunk_id)
-            chunk_id_groups[chunk_id] = []
-        chunk_id_groups[chunk_id].append(quote)
-
-    # Build merged list
-    merged = []
-    seen_chunk_ids = set()
-
-    for entry in chunk_id_order:
-        if entry is None:
-            # Standalone quote (no chunk_id) — find next one without chunk_id
-            for quote in quotes:
-                if not quote.get("chunk_id", "") and id(quote) not in seen_chunk_ids:
-                    merged.append(quote)
-                    seen_chunk_ids.add(id(quote))
-                    break
-            continue
-
-        chunk_id = entry
-        if chunk_id in seen_chunk_ids:
-            continue
-        seen_chunk_ids.add(chunk_id)
-
-        group = chunk_id_groups[chunk_id]
-        if len(group) == 1:
-            merged.append(group[0])
-            continue
-
-        # Merge multiple quotes for this chunk_id
-        first = group[0]
-        all_sentence_numbers = []
-        for q in group:
-            all_sentence_numbers.extend(q.get("sentence_numbers", []))
-
-        # Deduplicate and sort
-        merged_sentence_numbers = sorted(set(all_sentence_numbers))
-
-        merged_quote = {
-            "quote_title": first.get("quote_title", ""),
-            "quote_text": "",  # Will be filled by extraction
-            "sentence_numbers": merged_sentence_numbers,
-            "chunk_id": chunk_id,
-        }
-
-        logger.info(
-            f"Merged {len(group)} quotes for chunk_id '{chunk_id}': "
-            f"sentence_numbers {merged_sentence_numbers}"
-        )
-
-        merged.append(merged_quote)
-
-    return merged
