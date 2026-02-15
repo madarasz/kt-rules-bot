@@ -187,7 +187,8 @@ class TestQuoteValidator:
 
         assert result.is_valid is True
         assert result.validation_score == 1.0
-        assert result.valid_quotes == 1
+        # [...] splits into 2 segments, each validated independently
+        assert result.valid_quotes == 2
 
     def test_is_quote_in_chunk_with_ellipsis(self, validator):
         """Test _is_quote_in_chunk handles [...] by validating segments."""
@@ -207,7 +208,8 @@ class TestQuoteValidator:
         result = validator.validate(quotes, [chunk])
 
         assert result.is_valid is True
-        assert result.valid_quotes == 1
+        # [...] splits into 2 segments, each validated independently
+        assert result.valid_quotes == 2
 
     def test_normalize_text_strips_ellipsis_markers(self):
         """Test that _normalize_text strips [...] markers."""
