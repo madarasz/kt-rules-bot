@@ -72,6 +72,7 @@ def render(db: AnalyticsDatabase) -> None:
     _render_llm_model_performance(df)
     _render_top_downvoted_queries(df)
     _render_quote_hallucinations(df)
+    _render_top_users(df)
 
     # Chunk relevance stats
     #st.subheader("🎯 RAG Chunk Relevance Analysis")
@@ -162,20 +163,22 @@ def _render_latency_breakdown_chart(df: pd.DataFrame) -> None:
 
 
 def _render_feedback_trends(df: pd.DataFrame) -> None:
-    """Render feedback trends chart.
+    """Render feedback trends chart aggregated by week.
 
     Args:
         df: DataFrame of queries
     """
     st.subheader("📉 Feedback Trends")
 
-    daily_feedback = df.groupby("date").agg({"upvotes": "sum", "downvotes": "sum"}).reset_index()
+    weekly_feedback = (
+        df.resample("W-Mon", on="timestamp").agg({"upvotes": "sum", "downvotes": "sum"}).reset_index()
+    )
 
     fig = go.Figure()
     fig.add_trace(
         go.Scatter(
-            x=daily_feedback["date"],
-            y=daily_feedback["upvotes"],
+            x=weekly_feedback["timestamp"],
+            y=weekly_feedback["upvotes"],
             mode="lines+markers",
             name="Upvotes",
             line={"color": "green"},
@@ -183,36 +186,36 @@ def _render_feedback_trends(df: pd.DataFrame) -> None:
     )
     fig.add_trace(
         go.Scatter(
-            x=daily_feedback["date"],
-            y=daily_feedback["downvotes"],
+            x=weekly_feedback["timestamp"],
+            y=weekly_feedback["downvotes"],
             mode="lines+markers",
             name="Downvotes",
             line={"color": "red"},
         )
     )
-    fig.update_layout(title="Daily Feedback Trends", xaxis_title="Date", yaxis_title="Count")
+    fig.update_layout(title="Weekly Feedback Trends", xaxis_title="Week", yaxis_title="Count")
     st.plotly_chart(fig, use_container_width=True)
 
 
 def _render_cost_analysis(df: pd.DataFrame) -> None:
-    """Render cost analysis charts.
+    """Render cost analysis charts aggregated by week.
 
     Args:
         df: DataFrame of queries
     """
-    st.subheader("💰 Daily Cost Breakdown")
+    st.subheader("💰 Weekly Cost Breakdown")
 
-    daily_costs = df.groupby("date").agg({"cost": "sum"}).reset_index()
+    weekly_costs = df.resample("W-Mon", on="timestamp").agg({"cost": "sum"}).reset_index()
 
     fig = px.bar(
-        daily_costs,
-        x="date",
+        weekly_costs,
+        x="timestamp",
         y="cost",
-        title="Daily Query Costs (USD)",
-        labels={"cost": "Total Cost (USD)", "date": "Date"},
+        title="Weekly Query Costs (USD)",
+        labels={"cost": "Total Cost (USD)", "timestamp": "Week"},
     )
     fig.update_traces(marker_color="#4CAF50")
-    fig.update_layout(xaxis_title="Date", yaxis_title="Cost (USD)", yaxis_tickformat="$.5f")
+    fig.update_layout(xaxis_title="Week", yaxis_title="Cost (USD)", yaxis_tickformat="$.5f")
     st.plotly_chart(fig, use_container_width=True)
 
     # Show total cost metrics
@@ -434,3 +437,30 @@ def _render_hallucination_row(row: pd.Series) -> None:
     with col5:
         if st.button("👁️", key=f"view_halluc_{row['query_id']}", help="View details"):
             set_selected_query(row["query_id"])
+
+
+def _render_top_users(df: pd.DataFrame) -> None:
+    """Render table of most active users by query count.
+
+    Args:
+        df: DataFrame of queries
+    """
+    st.subheader("👥 Top Active Users")
+
+    if "username" not in df.columns:
+        st.info("No user data available.")
+        return
+
+    user_queries = (
+        df.groupby("username")
+        .agg(queries=("query_id", "count"))
+        .reset_index()
+        .sort_values("queries", ascending=False)
+    )
+    user_queries.columns = ["User", "Number of Queries"]
+
+    if user_queries.empty:
+        st.info("No user data available.")
+        return
+
+    st.dataframe(user_queries, use_container_width=True, hide_index=True)
