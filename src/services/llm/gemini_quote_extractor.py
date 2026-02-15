@@ -11,6 +11,7 @@ Split strategy:
 import re
 from typing import Any
 
+from src.lib.constants import QUOTE_MERGE_SEPARATOR
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -163,7 +164,7 @@ def extract_verbatim_quote(
 
     # Join groups with [...] between them
     group_texts = [" ".join(text for _, text in group) for group in groups]
-    return " [...] ".join(group_texts)
+    return f" {QUOTE_MERGE_SEPARATOR} ".join(group_texts)
 
 
 def post_process_gemini_response(

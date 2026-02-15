@@ -7,6 +7,8 @@ using function calling, tool use, or JSON mode.
 import json
 from dataclasses import asdict, dataclass
 
+from src.lib.constants import QUOTE_MERGE_SEPARATOR
+
 
 @dataclass
 class StructuredQuote:
@@ -172,7 +174,7 @@ class StructuredLLMResponse:
             if key in seen:
                 # Append text to existing quote with [...] separator
                 existing = merged[seen[key]]
-                existing.quote_text = f"{existing.quote_text} [...] {quote.quote_text}"
+                existing.quote_text = f"{existing.quote_text} {QUOTE_MERGE_SEPARATOR} {quote.quote_text}"
             else:
                 seen[key] = len(merged)
                 merged.append(

@@ -96,7 +96,7 @@ QUALITY_TEST_PROVIDERS = [
     #"gemini-2.5-pro",
     #"deepseek-chat",
     "grok-4-1-fast-reasoning",
-    "grok-4-1-fast-non-reasoning",
+    #"grok-4-1-fast-non-reasoning",
     #"mistral-large",
     #"mistral-medium",
     # "grok-3",
@@ -183,6 +183,7 @@ CUSTOM_JUDGE_PROMPT_PATH = "prompts/quality-test-custom-judge.md"  # Prompt temp
 # Quote Validation Configuration
 # Uses fuzzy string matching (rapidfuzz) to detect quote inaccuracies
 QUOTE_SIMILARITY_THRESHOLD = 0.98
+QUOTE_MERGE_SEPARATOR = "[...]"  # Separator for merged quotes from the same chunk
 
 # Quality test concurrency and rate limit handling
 QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS = 2  # Max parallel LLM requests

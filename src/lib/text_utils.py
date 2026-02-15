@@ -4,6 +4,8 @@ Provides centralized functions for ground truth matching and text normalization
 to ensure consistency across evaluators and test runners.
 """
 
+from src.lib.constants import QUOTE_MERGE_SEPARATOR
+
 
 def normalize_text_for_matching(text: str) -> str:
     """Normalize text for ground truth matching.
@@ -23,7 +25,7 @@ def normalize_text_for_matching(text: str) -> str:
     """
     # Normalize whitespace: replace newlines, tabs, multiple spaces with single space
     normalized = " ".join(text.split())
-    return normalized.lower().replace("*", "").replace("[...]", "").replace("…", "").replace("...", "")
+    return normalized.lower().replace("*", "").replace(QUOTE_MERGE_SEPARATOR, "").replace("…", "").replace("...", "")
 
 
 def ground_truth_matches_text(ground_truth: str, text: str) -> bool:
