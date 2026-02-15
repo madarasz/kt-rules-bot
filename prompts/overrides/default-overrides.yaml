@@ -10,7 +10,8 @@ QUOTE_EXTRACTION_PROTOCOL: |
   3. **Copy full chunk header verbatim** into `quote_title` (word-for-word, including punctuation)
   4. **Do NOT paraphrase** or combine quotes from different sections
   5. **Do NOT modify** the text in any way (no rewording, no summarizing)
-  6. If a rule is not in context, do NOT include it in quotes - state in the explanation that no official answer can be provided
+  6. When you need to cite **multiple non-adjacent passages from the same chunk**, combine them into a **single quote** using `[...]` to indicate omitted text between the passages.
+  7. If a rule is not in context, do NOT include it in quotes - state in the explanation that no official answer can be provided
 
   ### Correct Example (Verbatim Quote)
   **Context chunk contains:**
@@ -42,7 +43,8 @@ QUOTE_EXTRACTION_PROTOCOL: |
   - Quotes must be **exact copies** from the context chunks provided
   - If you cannot find the exact text in context, do NOT fabricate a quote
   - Minor punctuation differences are acceptable ONLY if they appear in the source
-  - Never combine text from multiple context chunks into a single quote
+  - Never combine text from **different** context chunks into a single quote
+  - Use `[...]` only to omit text **within** a single chunk
 
 QUOTES_FIELD_DEFINITION: |
   4. **quotes** (array of objects)
