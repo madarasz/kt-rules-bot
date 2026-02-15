@@ -124,7 +124,7 @@ class QuoteValidator:
                     },
                 )
 
-        total_quotes = len(quotes)
+        total_quotes = len(expanded_quotes)
         valid_quotes = total_quotes - len(invalid_quotes)
         validation_score = valid_quotes / total_quotes if total_quotes > 0 else 1.0
 
