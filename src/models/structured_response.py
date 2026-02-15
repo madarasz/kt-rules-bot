@@ -7,6 +7,8 @@ using function calling, tool use, or JSON mode.
 import json
 from dataclasses import asdict, dataclass
 
+from src.lib.constants import QUOTE_MERGE_SEPARATOR
+
 
 @dataclass
 class StructuredQuote:
@@ -110,6 +112,9 @@ class StructuredLLMResponse:
                 )
             )
 
+        # Merge duplicate quotes from the same chunk
+        quotes = cls._merge_duplicate_quotes(quotes)
+
         return cls(
             smalltalk=data["smalltalk"],
             short_answer=data["short_answer"],
@@ -142,3 +147,42 @@ class StructuredLLMResponse:
                 raise ValueError(f"quote[{i}].quote_title cannot be empty")
             if not quote.quote_text.strip():
                 raise ValueError(f"quote[{i}].quote_text cannot be empty")
+
+    @staticmethod
+    def _merge_duplicate_quotes(quotes: list[StructuredQuote]) -> list[StructuredQuote]:
+        """Merge quotes that reference the same chunk into a single quote.
+
+        When the LLM returns multiple quotes with the same chunk_id (or same
+        quote_title if chunk_id is empty), combine their quote_text values
+        with ``[...]`` between them to indicate omitted text.
+
+        Args:
+            quotes: List of parsed StructuredQuote objects.
+
+        Returns:
+            Deduplicated list with merged quote texts.
+        """
+        if len(quotes) <= 1:
+            return quotes
+
+        # Group by chunk_id if available, otherwise by quote_title
+        seen: dict[str, int] = {}  # key -> index in merged list
+        merged: list[StructuredQuote] = []
+
+        for quote in quotes:
+            key = quote.chunk_id if quote.chunk_id else quote.quote_title
+            if key in seen:
+                # Append text to existing quote with [...] separator
+                existing = merged[seen[key]]
+                existing.quote_text = f"{existing.quote_text} {QUOTE_MERGE_SEPARATOR} {quote.quote_text}"
+            else:
+                seen[key] = len(merged)
+                merged.append(
+                    StructuredQuote(
+                        quote_title=quote.quote_title,
+                        quote_text=quote.quote_text,
+                        chunk_id=quote.chunk_id,
+                    )
+                )
+
+        return merged

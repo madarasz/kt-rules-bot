@@ -11,6 +11,7 @@ Split strategy:
 import re
 from typing import Any
 
+from src.lib.constants import QUOTE_MERGE_SEPARATOR
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -117,12 +118,13 @@ def extract_verbatim_quote(
         quote_title: Rule title (for logging only)
 
     Returns:
-        Verbatim quote text (concatenated sentences, separated by space)
+        Verbatim quote text (concatenated sentences, separated by space).
+        Non-contiguous sentence numbers are separated by [...] markers.
 
     Example:
-        >>> sentences = ["First sentence.", "Second sentence.", "Third."]
-        >>> extract_verbatim_quote(sentences, [1, 3])
-        'First sentence. Third.'
+        >>> sentences = ["First sentence.", "Second sentence.", "Third.", "Fourth."]
+        >>> extract_verbatim_quote(sentences, [1, 2, 4])
+        'First sentence. Second sentence. [...] Fourth.'
     """
     if not sentence_numbers:
         logger.debug(
@@ -130,8 +132,14 @@ def extract_verbatim_quote(
         )
         return ""
 
-    extracted = []
-    for num in sentence_numbers:
+    # Sort and deduplicate sentence numbers
+    sorted_numbers = sorted(set(sentence_numbers))
+
+    # Group consecutive sentence numbers
+    groups = []  # list of lists of (sentence_number, sentence_text)
+    current_group = []
+
+    for num in sorted_numbers:
         # Convert to 0-indexed
         idx = num - 1
 
@@ -143,10 +151,20 @@ def extract_verbatim_quote(
             )
             continue
 
-        extracted.append(sentences[idx])
+        # Check if this continues the current group
+        if current_group and num != current_group[-1][0] + 1:
+            # Gap detected — start a new group
+            groups.append(current_group)
+            current_group = []
 
-    # Join sentences with space
-    return " ".join(extracted)
+        current_group.append((num, sentences[idx]))
+
+    if current_group:
+        groups.append(current_group)
+
+    # Join groups with [...] between them
+    group_texts = [" ".join(text for _, text in group) for group in groups]
+    return f" {QUOTE_MERGE_SEPARATOR} ".join(group_texts)
 
 
 def post_process_gemini_response(
@@ -221,7 +239,7 @@ def post_process_gemini_response(
             f"Looking up chunk_id '{chunk_id}' for quote '{quote_title}': found {len(sentences)} sentences"
         )
 
-        # Extract verbatim quote
+        # Extract verbatim quote (handles [...] insertion for non-contiguous sentences)
         verbatim_quote = extract_verbatim_quote(sentences, sentence_numbers, quote_title)
 
         # Update quote_text

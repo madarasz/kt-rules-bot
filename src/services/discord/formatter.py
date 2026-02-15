@@ -13,13 +13,13 @@ from src.services.llm.validator import ValidationResult
 
 def _format_quote_text(text: str) -> str:
     """Format text as a Discord quote block, handling multi-line text.
-    
+
     Prefixes each line with '> ' so that Discord renders the entire
     text as a quote block, even when there are line breaks.
-    
+
     Args:
         text: Text to format as a quote
-        
+
     Returns:
         Text with each line prefixed by '> '
     """

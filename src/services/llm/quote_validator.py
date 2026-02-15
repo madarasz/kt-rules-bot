@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 from rapidfuzz import fuzz
 
-from src.lib.constants import QUOTE_SIMILARITY_THRESHOLD
+from src.lib.constants import QUOTE_MERGE_SEPARATOR, QUOTE_SIMILARITY_THRESHOLD
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -57,7 +57,19 @@ class QuoteValidator:
         invalid_quotes = []
         quote_scores = []
 
+        # Expand merged quotes: split any quote containing [...] into separate entries
+        expanded_quotes = []
         for quote in quotes:
+            quote_text = quote.get("quote_text", "").strip()
+            if QUOTE_MERGE_SEPARATOR in quote_text:
+                for segment in quote_text.split(QUOTE_MERGE_SEPARATOR):
+                    segment = segment.strip()
+                    if segment:
+                        expanded_quotes.append({**quote, "quote_text": segment})
+            else:
+                expanded_quotes.append(quote)
+
+        for quote in expanded_quotes:
             quote_text = quote.get("quote_text", "").strip()
             quote_title = quote.get("quote_title", "")
             quote_chunk_id = quote.get("chunk_id", "")
@@ -66,7 +78,6 @@ class QuoteValidator:
                 # Empty quote - skip validation
                 continue
 
-            # Check if quote appears in any chunk (exact or fuzzy match)
             found, matched_chunk_id, similarity, matched_text = self._find_quote_in_chunks(
                 quote_text, context_chunks, chunk_ids
             )
@@ -113,7 +124,7 @@ class QuoteValidator:
                     },
                 )
 
-        total_quotes = len(quotes)
+        total_quotes = len(expanded_quotes)
         valid_quotes = total_quotes - len(invalid_quotes)
         validation_score = valid_quotes / total_quotes if total_quotes > 0 else 1.0
 
@@ -295,7 +306,8 @@ class QuoteValidator:
         # Remove inline code `code`
         text = re.sub(r"`([^`]+)`", r"\1", text)
 
-        # Remove ellipsis characters (both Unicode and three-dot variants)
+        # Remove ellipsis characters (bracketed, Unicode, and three-dot variants)
+        text = text.replace(QUOTE_MERGE_SEPARATOR, "")  # Bracketed ellipsis (merged quotes)
         text = text.replace("…", "")  # Unicode ellipsis U+2026
         text = text.replace("...", "")  # Three-dot ellipsis
 
