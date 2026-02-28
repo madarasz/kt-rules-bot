@@ -26,6 +26,7 @@ class LLMProviderFactory:
 
     # Model name to (adapter_class, actual_model_id, api_key_type) mapping
     _model_registry = {
+        "claude-4.6-sonnet": (ClaudeAdapter, "claude-sonnet-4-6", "anthropic"),
         "claude-4.5-sonnet": (ClaudeAdapter, "claude-sonnet-4-5-20250929", "anthropic"),
         "claude-4.6-opus": (ClaudeAdapter, "claude-opus-4-6", "anthropic"),
         "claude-4.5-opus": (ClaudeAdapter, "claude-opus-4-5-20251101", "anthropic"),

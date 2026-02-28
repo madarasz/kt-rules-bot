@@ -13,6 +13,7 @@ from typing import Literal, get_args
 # All available LLM providers (complete list)
 LLM_PROVIDERS_LITERAL = Literal[
     "claude-4.6-opus",
+    "claude-4.6-sonnet",
     "claude-4.5-sonnet",
     "claude-4.5-opus",
     "claude-4.1-opus",
@@ -84,12 +85,13 @@ QUALITY_TEST_PROVIDERS = [
     #"gpt-4.1",
     #"gpt-4o",
     # "gpt-4.1-mini",
+    "claude-4.6-sonnet",
     #"claude-4.5-sonnet",
     #"claude-4.6-opus",
     #"claude-4.5-opus",
     #"gemini-3-pro-preview",
     #"gemini-3-flash-preview",
-    "gemini-2.5-flash",
+    #"gemini-2.5-flash",
     #"kimi-k2.5",
     #"kimi-k2-0905-preview",
     #"kimi-k2-turbo-preview",
