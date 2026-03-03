@@ -1,18 +1,59 @@
 """PDF utility functions.
 
-Provides PDF processing utilities including decompression for Claude compatibility.
+Provides PDF processing utilities including decompression for Claude compatibility
+and text extraction for providers without native PDF support.
 """
 
+import io
 import os
 import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 
+import pdfplumber
 import pikepdf
 
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def extract_text_from_pdf(pdf_bytes: bytes) -> str:
+    """Extract text from PDF bytes using pdfplumber.
+
+    Used for LLM providers that don't support native PDF processing (e.g., Grok).
+    Extracts text from each page with layout preservation.
+
+    Args:
+        pdf_bytes: PDF file content as bytes
+
+    Returns:
+        Concatenated text from all pages with page markers
+
+    Raises:
+        ValueError: If PDF is empty or has no extractable text
+    """
+    if len(pdf_bytes) == 0:
+        raise ValueError("PDF file is empty")
+
+    extracted_pages = []
+
+    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+        logger.info(f"Extracting text from PDF with {len(pdf.pages)} pages")
+
+        for i, page in enumerate(pdf.pages, start=1):
+            # Extract text with layout preservation
+            text = page.extract_text(layout=True)
+            if text:
+                extracted_pages.append(f"--- Page {i} ---\n{text}")
+
+    if not extracted_pages:
+        raise ValueError("PDF has no extractable text")
+
+    full_text = "\n\n".join(extracted_pages)
+    logger.info(f"Extracted {len(full_text)} characters from {len(extracted_pages)} pages")
+
+    return full_text
 
 
 def decompress_pdf(pdf_path: str) -> str:

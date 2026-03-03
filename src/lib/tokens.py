@@ -113,6 +113,7 @@ def estimate_cost(prompt_tokens: int, completion_tokens: int, model: str) -> flo
         "claude-4.1-opus": {"prompt": 0.015, "completion": 0.075},
         "claude-4.5-haiku": {"prompt": 0.001, "completion": 0.005},
         # https://ai.google.dev/gemini-api/docs/pricing
+        "gemini-3.1-pro-preview": {"prompt": 0.002, "completion": 0.012},
         "gemini-3-pro-preview": {"prompt": 0.002, "completion": 0.012},
         "gemini-2.5-pro": {"prompt": 0.00125, "completion": 0.01},
         "gemini-3-flash-preview": {"prompt": 0.0005, "completion": 0.003},

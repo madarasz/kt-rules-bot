@@ -18,6 +18,7 @@ LLM_PROVIDERS_LITERAL = Literal[
     "claude-4.5-opus",
     "claude-4.1-opus",
     "claude-4.5-haiku",
+    "gemini-3.1-pro-preview",
     "gemini-3-pro-preview",
     "gemini-3-flash-preview",
     "gemini-2.5-pro",
@@ -70,11 +71,13 @@ LLM_PROVIDERS_LITERAL = Literal[
 ALL_LLM_PROVIDERS = list(get_args(LLM_PROVIDERS_LITERAL))
 
 PDF_EXTRACTION_PROVIDERS = [
+    "gemini-3.1-pro-preview",
     "gemini-3-pro-preview",
     "gemini-2.5-pro",  # Recommended: Most reliable
     "gemini-2.5-flash",  # Recommended: Fast and reliable
     "claude-4.5-sonnet",
     "claude-4.1-opus",
+    "grok-4-1-fast-reasoning"
 ]
 
 # Quality test providers (curated list for --all-models testing)
@@ -89,7 +92,7 @@ QUALITY_TEST_PROVIDERS = [
     #"claude-4.5-sonnet",
     #"claude-4.6-opus",
     #"claude-4.5-opus",
-    #"gemini-3-pro-preview",
+    #"gemini-3.1-pro-preview",
     #"gemini-3-flash-preview",
     #"gemini-2.5-flash",
     #"kimi-k2.5",

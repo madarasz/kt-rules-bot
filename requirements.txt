@@ -20,6 +20,7 @@ pydantic>=2.5.0
 python-dotenv>=1.0.0
 tiktoken>=0.5.0
 pikepdf>=9.0.0  # PDF decompression for Claude compatibility
+pdfplumber>=0.10.0  # PDF text extraction for Grok provider
 
 # Testing
 pytest>=7.4.0

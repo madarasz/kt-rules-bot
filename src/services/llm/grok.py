@@ -250,8 +250,8 @@ class GrokAdapter(LLMProvider):
     async def extract_pdf(self, request: ExtractionRequest) -> ExtractionResponse:
         """Extract markdown from PDF using Grok.
 
-        Note: Grok currently doesn't support direct PDF processing.
-        This method is a placeholder for future implementation.
+        Grok doesn't support native PDF processing, so we extract text first
+        using pdfplumber, then send the text to Grok for markdown formatting.
 
         Args:
             request: Extraction request with PDF file
@@ -264,7 +264,9 @@ class GrokAdapter(LLMProvider):
             LLMTimeoutError: Extraction timeout
             TokenLimitError: PDF too large
         """
-        time.time()
+        from src.lib.pdf_utils import extract_text_from_pdf
+
+        start_time = time.time()
 
         try:
             # Read PDF bytes
@@ -273,20 +275,97 @@ class GrokAdapter(LLMProvider):
             if len(pdf_bytes) == 0:
                 raise PDFParseError("PDF file is empty")
 
-            # Grok doesn't currently support direct PDF processing
-            # In production, you'd convert PDF to text/images first
-            logger.warning("Grok PDF extraction requires text conversion (not implemented)")
+            # Extract text from PDF using pdfplumber
+            logger.info("Extracting text from PDF for Grok processing")
+            extracted_text = extract_text_from_pdf(pdf_bytes)
 
-            # Placeholder: In production, convert PDF to text and send to Grok
-            raise NotImplementedError("Grok PDF extraction requires PDF-to-text conversion")
+            # Build prompt with extraction instructions and extracted text
+            full_prompt = f"""{request.extraction_prompt}
 
-        except TimeoutError as e:
+--- EXTRACTED PDF TEXT ---
+{extracted_text}
+--- END OF PDF TEXT ---
+
+Please convert the above extracted text into well-structured markdown following the instructions."""
+
+            # Call Grok API
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {"role": "user", "content": full_prompt},
+                ],
+                "max_tokens": request.config.max_tokens,
+                "temperature": request.config.temperature,
+                "stream": False,
+            }
+
+            async with httpx.AsyncClient(timeout=request.config.timeout_seconds) as client:
+                response = await client.post(
+                    f"{self.base_url}/chat/completions", headers=self.headers, json=payload
+                )
+
+            latency_ms = int((time.time() - start_time) * 1000)
+
+            # Handle HTTP errors
+            if response.status_code == 429:
+                raise RateLimitError(f"Grok rate limit: {response.text}")
+            elif response.status_code == 401:
+                raise AuthenticationError(f"Grok auth error: {response.text}")
+            elif response.status_code >= 400:
+                raise Exception(f"Grok API error {response.status_code}: {response.text}")
+
+            # Parse response
+            response_data = response.json()
+
+            if not response_data.get("choices") or len(response_data["choices"]) == 0:
+                raise Exception("Grok returned no choices in response")
+
+            choice = response_data["choices"][0]
+            message = choice.get("message", {})
+            markdown_content = message.get("content", "")
+
+            if not markdown_content:
+                raise Exception("Grok returned empty content")
+
+            # Token counts
+            usage = response_data.get("usage", {})
+            prompt_tokens = usage.get("prompt_tokens", 0)
+            completion_tokens = usage.get("completion_tokens", 0)
+
+            # Validate extraction
+            warnings = self._validate_extraction(markdown_content)
+            if warnings:
+                logger.warning(f"Extraction validation warnings: {warnings}")
+
+            logger.info(
+                "Grok PDF extraction completed",
+                extra={
+                    "latency_ms": latency_ms,
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "content_length": len(markdown_content),
+                },
+            )
+
+            return ExtractionResponse(
+                extraction_id=uuid4(),
+                markdown_content=markdown_content,
+                token_count=prompt_tokens + completion_tokens,
+                latency_ms=latency_ms,
+                provider="grok",
+                model_version=self.model,
+                validation_warnings=warnings,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+            )
+
+        except httpx.TimeoutException as e:
             logger.warning("Grok PDF extraction timeout")
             raise LLMTimeoutError(
                 f"Grok extraction exceeded {request.config.timeout_seconds}s timeout"
             ) from e
 
-        except NotImplementedError:
+        except (RateLimitError, AuthenticationError, LLMTimeoutError):
             raise
 
         except Exception as e:
@@ -296,7 +375,7 @@ class GrokAdapter(LLMProvider):
                 logger.error(f"Grok token limit exceeded: {e}")
                 raise TokenLimitError(f"Grok token limit: {e}") from e
 
-            if "pdf" in error_msg or "parse" in error_msg:
+            if "pdf" in error_msg or "parse" in error_msg or "text" in error_msg:
                 logger.error(f"Grok PDF parse error: {e}")
                 raise PDFParseError(f"Grok PDF error: {e}") from e
 

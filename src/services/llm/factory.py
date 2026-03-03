@@ -32,6 +32,7 @@ class LLMProviderFactory:
         "claude-4.5-opus": (ClaudeAdapter, "claude-opus-4-5-20251101", "anthropic"),
         "claude-4.1-opus": (ClaudeAdapter, "claude-opus-4-1-20250805", "anthropic"),
         "claude-4.5-haiku": (ClaudeAdapter, "claude-haiku-4-5-20251001", "anthropic"),
+        "gemini-3.1-pro-preview": (GeminiAdapter, "gemini-3.1-pro-preview", "google"),
         "gemini-3-pro-preview": (GeminiAdapter, "gemini-3-pro-preview", "google"),
         "gemini-2.5-pro": (GeminiAdapter, "gemini-2.5-pro", "google"),
         "gemini-3-flash-preview": (GeminiAdapter, "gemini-3-flash-preview", "google"),
