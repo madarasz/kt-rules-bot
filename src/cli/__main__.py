@@ -298,6 +298,13 @@ def create_parser() -> argparse.ArgumentParser:
     download_all_teams_parser.add_argument(
         "--force", action="store_true", help="Re-download all teams regardless of date"
     )
+    download_all_teams_parser.add_argument(
+        "--model",
+        "-m",
+        choices=ALL_LLM_PROVIDERS,
+        default="gemini-2.5-pro",
+        help="LLM model to use for extraction (default: gemini-2.5-pro)",
+    )
 
     return parser
 
@@ -385,7 +392,7 @@ def main() -> None:
             )
 
         elif args.command == "download-all-teams":
-            download_all_teams(dry_run=args.dry_run, force=args.force)
+            download_all_teams(dry_run=args.dry_run, force=args.force, model=args.model)
 
         else:
             parser.print_help()

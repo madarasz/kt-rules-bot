@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from src.cli.download_team import download_team_internal
+from src.lib.constants import ALL_LLM_PROVIDERS
 from src.lib.logging import get_logger
 
 logger = get_logger(__name__)
@@ -246,12 +247,15 @@ def should_download_team(hit: dict, force: bool = False) -> tuple[bool, str]:
         return False, f"up-to-date: {existing_date}"
 
 
-def download_all_teams(dry_run: bool = False, force: bool = False) -> None:
+def download_all_teams(
+    dry_run: bool = False, force: bool = False, model: str = "gemini-2.5-pro"
+) -> None:
     """Download all team rule PDFs from Warhammer Community.
 
     Args:
         dry_run: If True, only show what would be downloaded
         force: If True, re-download all teams regardless of date
+        model: LLM model to use for PDF extraction
     """
     start_time = time.time()
 
@@ -355,7 +359,7 @@ def download_all_teams(dry_run: bool = False, force: bool = False) -> None:
         try:
             result = download_team_internal(
                 url,
-                model="gemini-2.5-pro",
+                model=model,
                 verbose=False,
                 team_name=normalized_team_name,
                 update_date=api_date,
@@ -432,11 +436,18 @@ def main() -> None:
     parser.add_argument(
         "--force", action="store_true", help="Re-download all teams regardless of date"
     )
+    parser.add_argument(
+        "--model",
+        "-m",
+        choices=ALL_LLM_PROVIDERS,
+        default="gemini-2.5-pro",
+        help="LLM model to use for extraction (default: gemini-2.5-pro)",
+    )
 
     args = parser.parse_args()
 
     try:
-        download_all_teams(dry_run=args.dry_run, force=args.force)
+        download_all_teams(dry_run=args.dry_run, force=args.force, model=args.model)
     except Exception as e:
         logger.error(f"download-all-teams failed: {e}", exc_info=True)
         print(f"❌ Failed: {e}")

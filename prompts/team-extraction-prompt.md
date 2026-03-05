@@ -23,10 +23,19 @@ Extract each operative's complete datacard information:
 - **Keywords:** Bottom line keywords (e.g., "PATHFINDER, T'AU EMPIRE, LEADER, SHAS'UI")
 
 #### Abilities
-All special rules, abilities, and unique actions (marked with AP cost) as heading 3: 
+All special rules, abilities, and unique actions as heading 3:
+
+**Passive abilities** use Title Case:
 ```
-### [OPERATIVE NAME] - [Ability Name]
+### [OPERATIVE NAME] - [Ability Name in Title Case]
 ```
+Example: `### WOLF SCOUT FROSTEYE - Storm-veiled Execution`
+
+**Actions with AP cost** use ALL CAPS for the action name:
+```
+### [OPERATIVE NAME] - [ACTION NAME IN ALL CAPS] [X]AP
+```
+Example: `### WOLF SCOUT FANGBEARER - HEALING BALMS [1AP]`
 
 ### 2. Kill Team Selection Card
 Black-bordered card containing:
@@ -37,28 +46,54 @@ Black-bordered card containing:
 
 Rewrite the text to remove footnotes and integrate their referenced information into the main text as much close to the original text as possible. Ensure that the rewritten text is clear and self-contained.
 
+**CRITICAL: Preserve exact wording** from the PDF as much as possible. For example:
+- If PDF says "Your kill team consists of 6 operatives selected from the follows:" - use exactly that text
+- **Bold operative names** in selection lists (e.g., `**PACK LEADER**`, `**FANGBEARER**`)
+
 ### 3. Faction Rules Card
 Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS"). Put each new faction rule into a new header 2 section. Use header 3 sections if there are multiple variants of a single faction rule.
+
+**CRITICAL Header Format for Faction Rules:**
+```
+## [RULE NAME] - Faction Rule
+```
+Example: `## ELEMENTAL STORM - Faction Rule`, NOT `## WOLF SCOUTS - ELEMENTAL STORM`
 
 ### 4. Ploy Cards
 - **Strategy Ploys** (exactly 4): Tactical options used during Strategy phase
 - **Firefight Ploys** (exactly 4): Tactical options used during Firefight phase
 
+**CRITICAL Header Format for Ploys:**
+```
+## [PLOY NAME] - Strategy Ploy
+## [PLOY NAME] - Firefight Ploy
+```
+Example: `## CLOAKED BY THE STORM - Strategy Ploy`, NOT `## WOLF SCOUTS - CLOAKED BY THE STORM - Strategy Ploy`
+
 ### 5. Equipment Cards
 - **Faction Equipment** (exactly 4): Team-specific equipment options
 - **Universal Equipment:** SKIP/IGNORE these completely
 
+**CRITICAL Header Format for Equipment:**
+```
+## [EQUIPMENT NAME] - Faction Equipment
+```
+Example: `## FROST WEAPONS - Faction Equipment`, NOT `## WOLF SCOUTS - FROST WEAPONS - Faction Equipment`
+
 ### Rules Commentaries
-**Each Q&A pair must:**
-1. Use header 2 (##) and `[FAQ]` prefix for each Q&A pair
-2. Format the question with `*Question*:` prefix
-3. Format the answer with `*Answer*:` prefix
-4. **Bold** the following elements:
-   - Faction/unit names (e.g., **CORSAIR VOIDSCARRED**)
-   - Ability names (e.g., **Warding Shield**)
-   - Game action names (e.g., **Shoot** action, **Guard** action)
-   - Keywords (e.g., **Blast 2"**, **Heavy** terrain, **Torrent**)
-   - Critical game terms when relevant (e.g., **incapacitated**, **counteract**)
+**Each Q&A pair must use this EXACT format:**
+```
+## [FAQ] *Question:* [Full question text with **bold** game terms]
+*Answer:* [Full answer text]
+```
+Example:
+```
+## [FAQ] *Question:* Can my **STORM** be measured through Wall Terrain in Close Quarters?
+*Answer:* No.
+```
+- The question goes on the SAME LINE as the header after `*Question:*`
+- Bold game terms like **STORM**, **WOLF SCOUT**, etc. in both question and answer
+- Do NOT repeat the question on a separate line
 
 ## Extraction Rules
 1. **Verbatim Extraction Required:**
@@ -86,14 +121,22 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS"). Put e
       - Faction/unit names (e.g., **CORSAIR VOIDSCARRED**)
       - Ability names (e.g., **Warding Shield**)
       - Game action names (e.g., **Shoot** action, **Guard** action)
-      - Keywords (e.g., **Blast**, **Heavy** terrain, **Torrent**)
+      - Keywords in rule text (e.g., **Blast**, **Heavy** terrain, **Torrent**)
       - Critical game terms when relevant (e.g., **incapacitated**, **counteract**, **visible**, **wholly within x"**, **control range**, **in cover**)
+   - **DO NOT bold** weapon rules inside weapon tables - write them as plain text (e.g., `Piercing 1, Lethal 5+` not `**Piercing 1**, **Lethal 5+**`)
+   - **Empty weapon rules:** Leave the cell empty (e.g., `| |`) - do NOT use `-` or `—`
    - Use structured formats for complex multi-condition rules
+   - **"within" should NOT be bolded** - only bold the target (e.g., `within your **STORM**`, `within **control range**`)
+   - **Distance expressions should NOT be bolded** (e.g., `within 6"` not `**within 6"**`)
+   - **Period placement:** Place periods INSIDE bold markers for special keywords (e.g., `**STRATEGIC GAMBIT.**` not `**STRATEGIC GAMBIT**.`)
+   - **Restriction clauses:** Keep on same line/paragraph as the main rule text, do NOT put on separate line
+   - **Always bold these terms:** **incapacitated**, **counteract**, **visible**, **obscured**, **control range**, **cover**, **STORM** (team-specific), **REANIMATED** (team-specific), **Conceal**, **Engage**
+   - **Weapon rules in rule text** (outside tables) should be bold: **Severe**, **Saturate**, **Lethal**, **Rending**, **Piercing**, **Blast**, **Shock**, **Stun**, etc.
 
 5. **Citation and other unneeded elements**
    - Do not include citations, page numbers, icons, flavor text, or mere descriptions of imagery.
 
-## Output Structure
+## Output Structure Example
 
 ```markdown
 ## [KILL TEAM NAME] - Operative Selection
@@ -102,8 +145,8 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS"). Put e
 ### [KILL TEAM NAME] - Archetypes
 - [List archetypes]
 
-## [Faction Rule Name] - Faction Rule
-### [Faction Rule Name] - [Faction Rule Variant]
+## [FACTION RULE NAME] - Faction Rule
+### [FACTION RULE NAME] - [Faction Rule Variant]
 [Complete rule text]
 
 ## [KILL TEAM NAME] - [OPERATIVE NAME]
@@ -115,7 +158,7 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS"). Put e
 
 **Weapons:**
 | Type | Name | ATK | HIT | DMG | Weapon Rules |
-|------|------|-----|-----|-----|--------------|
+|---|---|---|---|---|---|
 | [type] | [name] | [X] | [X]+ | [X/X] | [rules] |
 
 **Keywords:** [list keywords]
@@ -148,11 +191,14 @@ Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS"). Put e
 - ZERO TOLERANCE for flavor or story text, do not include such.
 - **Zero tolerance for data errors:** Every stat, keyword, and numerical value must be exact
 - **CRITICAL: Use `##` (H2) headers for all major rule sections**
-  - Each header should include the team name as prefix
-  - Each distinct ploy, operative, equipment, faction rule, or concept must have its own `## [Team name] - Header Name`
+  - **Operatives:** `## [KILL TEAM NAME] - [OPERATIVE NAME]` (team name prefix)
+  - **Faction Rules:** `## [RULE NAME] - Faction Rule` (NO team name prefix)
+  - **Strategy Ploys:** `## [PLOY NAME] - Strategy Ploy` (NO team name prefix)
+  - **Firefight Ploys:** `## [PLOY NAME] - Firefight Ploy` (NO team name prefix)
+  - **Equipment:** `## [EQUIPMENT NAME] - Faction Equipment` (NO team name prefix)
   - This structure is essential for document chunking and searchability
-  - Examples: `## OBELISK NODE MATRIX`, `## CANOPTEK CIRCLE - GEOMANCER`, `## SOULDRAIN - Strategy Ploy`
-  - Use `###` (H3) for sub-sections within a major element
+  - Use `###` (H3) for sub-sections within a major element (abilities, actions)
+- The distinction between **within** and **wholly within** is very important, do not mix these up
 - No empty header sections. If it's empty, skip it.
 - **Preserve all weapon rules:** Include every special rule listed in WR column
 - **Maintain rule interactions:** Keep all cross-references between abilities

@@ -79,6 +79,8 @@ personality/**/*.jpg
 personality/**/*.png
 DEPLOYMENT.md
 .codemie
+*.v*.md
+*.v*.py
 
 # OS
 .DS_Store
