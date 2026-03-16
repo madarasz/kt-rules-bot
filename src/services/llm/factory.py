@@ -14,9 +14,12 @@ from src.services.llm.claude import ClaudeAdapter
 from src.services.llm.deepseek import DeepSeekAdapter
 from src.services.llm.dial import DialAdapter
 from src.services.llm.gemini import GeminiAdapter
+from src.services.llm.glm import GLMAdapter
 from src.services.llm.grok import GrokAdapter
 from src.services.llm.kimi import KimiAdapter
+from src.services.llm.minimax import MiniMaxAdapter
 from src.services.llm.mistral import MistralAdapter
+from src.services.llm.qwen import QwenAdapter
 
 logger = get_logger(__name__)
 
@@ -88,6 +91,16 @@ class LLMProviderFactory:
         "dial-amazon-titan": (DialAdapter, "amazon.titan-tg1-large", "dial"),
         "dial-gemini-2.5-pro": (DialAdapter, "gemini-2.5-pro", "dial"),
         "dial-gemini-2.5-flash": (DialAdapter, "gemini-2.5-flash", "dial"),
+        # Qwen models (Alibaba Cloud)
+        "qwen3-max-2026-01-23": (QwenAdapter, "qwen3-max-2026-01-23", "alibaba"),
+        "qwen3.5-plus": (QwenAdapter, "qwen3.5-plus", "alibaba"),
+        "qwen3-coder-next": (QwenAdapter, "qwen3-coder-next", "alibaba"),
+        "qwen3-coder-plus": (QwenAdapter, "qwen3-coder-plus", "alibaba"),
+        # GLM models (Z.AI)
+        "glm-5": (GLMAdapter, "glm-5", "alibaba"),
+        "glm-4.7": (GLMAdapter, "glm-4.7", "alibaba"),
+        # MiniMax models
+        "MiniMax-M2.5": (MiniMaxAdapter, "MiniMax-M2.5", "alibaba"),
     }
 
     @classmethod
@@ -155,6 +168,7 @@ class LLMProviderFactory:
                 "deepseek": server_config.deepseek_api_key,
                 "mistral": server_config.mistral_api_key,
                 "moonshot": server_config.moonshot_api_key,
+                "alibaba": server_config.alibaba_api_key,
             }
             api_key = server_api_key_map.get(api_key_type)
         else:
@@ -168,6 +182,7 @@ class LLMProviderFactory:
                 "deepseek": config.deepseek_api_key,
                 "mistral": config.mistral_api_key,
                 "moonshot": config.moonshot_api_key,
+                "alibaba": config.alibaba_api_key,
             }
             api_key = global_api_key_map.get(api_key_type)
 
@@ -183,6 +198,7 @@ class LLMProviderFactory:
                 "deepseek": "DEEPSEEK_API_KEY",
                 "mistral": "MISTRAL_API_KEY",
                 "moonshot": "MOONSHOT_API_KEY",
+                "alibaba": "ALIBABA_API_KEY",
             }
 
             missing_key = api_key_env_map[api_key_type]

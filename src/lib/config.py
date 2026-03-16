@@ -29,6 +29,7 @@ class Config:
     deepseek_api_key: str | None = None
     mistral_api_key: str | None = None
     moonshot_api_key: str | None = None
+    alibaba_api_key: str | None = None
 
     # LLM Selection
     default_llm_provider: LLM_PROVIDERS_LITERAL = os.getenv(
@@ -151,6 +152,7 @@ class Config:
             deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
             mistral_api_key=os.getenv("MISTRAL_API_KEY"),
             moonshot_api_key=os.getenv("MOONSHOT_API_KEY"),
+            alibaba_api_key=os.getenv("ALIBABA_API_KEY"),
             # LLM Selection
             default_llm_provider=os.getenv("DEFAULT_LLM_PROVIDER", DEFAULT_LLM_PROVIDER),  # type: ignore
             # RAG

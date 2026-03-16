@@ -35,6 +35,7 @@ class ServerConfig:
     deepseek_api_key: str | None = None
     mistral_api_key: str | None = None
     moonshot_api_key: str | None = None
+    alibaba_api_key: str | None = None
 
     # RAG Configuration (optional override)
     rag_hop_evaluation_model: LLM_PROVIDERS_LITERAL | None = (
@@ -116,6 +117,7 @@ class MultiServerConfig:
                         deepseek_api_key=server_data.get("deepseek_api_key"),
                         mistral_api_key=server_data.get("mistral_api_key"),
                         moonshot_api_key=server_data.get("moonshot_api_key"),
+                        alibaba_api_key=server_data.get("alibaba_api_key"),
                         rag_hop_evaluation_model=server_data.get("rag_hop_evaluation_model"),
                     )
 

@@ -66,6 +66,16 @@ LLM_PROVIDERS_LITERAL = Literal[
     "dial-amazon-titan",
     "dial-gemini-2.5-pro",
     "dial-gemini-2.5-flash",
+    # Qwen models (Alibaba Cloud)
+    "qwen3-max-2026-01-23",
+    "qwen3.5-plus",
+    "qwen3-coder-next",
+    "qwen3-coder-plus",
+    # GLM models (Z.AI)
+    "glm-5",
+    "glm-4.7",
+    # MiniMax models
+    "MiniMax-M2.5",
 ]
 
 ALL_LLM_PROVIDERS = list(get_args(LLM_PROVIDERS_LITERAL))

@@ -31,6 +31,7 @@ servers:
     # deepseek_api_key: "sk-..."
     # mistral_api_key: "..."
     # dial_api_key: "dial-..."
+    # alibaba_api_key: "..."  # For Qwen, GLM, MiniMax models
 
     # RAG hop evaluation model (optional override)
     # rag_hop_evaluation_model: "gpt-4.1-mini"  # Falls back to .env or constants.py
@@ -62,6 +63,9 @@ servers:
 #   DeepSeek: deepseek-chat, deepseek-reasoner
 #   Mistral: mistral-large, mistral-medium, mistral-small
 #   DIAL: dial-gpt-4o, dial-gpt-4.1, dial-gpt-5, dial-sonet-4.5, dial-opus-4.1, etc.
+#   Qwen (Alibaba): qwen3-max-2026-01-23, qwen3.5-plus, qwen3-coder-next, qwen3-coder-plus
+#   GLM (Z.AI): glm-5, glm-4.7
+#   MiniMax: MiniMax-M2.5
 
 # How to find your Discord Guild ID:
 # 1. Enable Developer Mode in Discord (User Settings → Advanced → Developer Mode)

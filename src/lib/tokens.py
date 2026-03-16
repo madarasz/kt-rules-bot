@@ -136,6 +136,16 @@ def estimate_cost(prompt_tokens: int, completion_tokens: int, model: str) -> flo
         "mistral-medium-2505": {"prompt": 0.0004, "completion": 0.002},
         "mistral-small-latest": {"prompt": 0.0001, "completion": 0.0003},
         "magistral-medium-latest": {"prompt": 0.002, "completion": 0.005},
+        # Qwen models (Alibaba Cloud) - https://help.aliyun.com/zh/model-studio/pricing
+        "qwen3.5-plus": {"prompt": 0.00040, "completion": 0.00240},  # $0.40/$2.40 per 1M tokens
+        "qwen3-max-2026-01-23": {"prompt": 0.00120, "completion": 0.00600},  # $1.20/$6.00 per 1M tokens
+        "qwen3-coder-plus": {"prompt": 0.00100, "completion": 0.00500},  # $1.00/$5.00 per 1M tokens
+        "qwen3-coder-next": {"prompt": 0.00030, "completion": 0.00150},  # $0.30/$1.50 per 1M tokens
+        # GLM models (Z.AI) - https://platform.z.ai/pricing
+        "glm-5": {"prompt": 0.00050, "completion": 0.00250},  # $0.50/$2.50 per 1M tokens
+        "glm-4.7": {"prompt": 0.00050, "completion": 0.00250},  # $0.50/$2.50 per 1M tokens
+        # MiniMax models - https://platform.minimax.io/docs/pricing
+        "MiniMax-M2.5": {"prompt": 0.00020, "completion": 0.00080},  # $0.20/$0.80 per 1M tokens
     }
 
     # Default pricing if model not found
