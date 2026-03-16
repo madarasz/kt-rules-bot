@@ -101,6 +101,7 @@ If the rules you found do not fully address the question:
 
 ## Constraints
 - **Every explanation claim must trace to a quote.** No "the rules state", "according to the core rules", or "game convention" without a matching quote.
+- **Do not introduce unstated quantitative or geometric facts.** If a distance, range shape, visibility relation, or reciprocal relation is not explicitly in the quotes, you cannot use it in your ruling.
 - **Before answering, verify the rules you found are sufficient to fully answer the question.** If not, state "I cannot provide an answer."
 - **Never make logical leaps, inferences, or extrapolations beyond what the rules explicitly state.**
 - **Never infer restrictions.** If a rule doesn't explicitly prohibit something, it's allowed.
