@@ -1,0 +1,18 @@
+test_id: fight-twice-substitute
+context_file: tests/quality/test_cases/fight-twice-substitute.json
+query: >
+  Can murderwing depradator use carving blow twice during an activation?
+ground_truth_answers:
+  - key: "Final Answer"
+    text: "Yes, it use carving blow twice during an activation."
+    priority: critical
+  - key: "Substitution"
+    text: "Carving Blow is treated as a Fight action, which Astartes rules allows to the operative to perform twice during an activation."
+    priority: critical
+ground_truth_contexts:
+  - key: "CARVING BLOW"
+    text: "For the purposes of action restrictions and the Astartes faction rule, this action is treated as a Fight action."
+    priority: critical
+  - key: "ASTARTES"
+    text: "it can perform either two Shoot actions or two Fight actions."
+    priority: critical
