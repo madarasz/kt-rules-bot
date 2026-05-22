@@ -18,6 +18,15 @@
 
 # Test results
 
+## New GTP model test - 2026.05.22
+- Grok 4.1 fast reasoning is still king. 
+![chart](gtp-2026-05-22.png)
+
+## New Grok models test - 2026.05.22
+- Grok 4.1 fast reasoning is still king. 
+- Is Sonnet 4.6 getting dumber?
+![chart](grok-tests-2026-05-22.png)
+
 ## Big model test - 2026.02.07 - improved prompt v3.2
 [DETAILED REPORT](2026-02-07_prompt_v3_2_model_comparison.md)
 ![chart](2026-02-07_prompt_V3_2_model_comparision.png)

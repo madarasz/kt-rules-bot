@@ -23,6 +23,11 @@ LLM_PROVIDERS_LITERAL = Literal[
     "gemini-3-flash-preview",
     "gemini-2.5-pro",
     "gemini-2.5-flash",
+    "gpt-5.5",
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-5.4-nano",
+    "gpt-5.3-chat-latest",
     "gpt-5.2",
     "gpt-5.2-chat-latest",
     "gpt-5.1",
@@ -41,6 +46,9 @@ LLM_PROVIDERS_LITERAL = Literal[
     "grok-4-1-fast-non-reasoning",
     "grok-4-fast-reasoning",
     "grok-4-0709",
+    "grok-4.3",
+    "grok-4.20-0309-reasoning",
+    "grok-build-0.1",
     "grok-3",
     "grok-3-mini",
     "deepseek-chat",
@@ -92,13 +100,17 @@ PDF_EXTRACTION_PROVIDERS = [
 
 # Quality test providers (curated list for --all-models testing)
 QUALITY_TEST_PROVIDERS = [
+    #"gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-5.4-nano",
+    "gpt-5.3-chat-latest",
     #"gpt-5.2",
-    "gpt-5.2-chat-latest",
+    #"gpt-5.2-chat-latest",
     #"gpt-5.1-chat-latest",
     #"gpt-4.1",
     #"gpt-4o",
     # "gpt-4.1-mini",
-    "claude-4.6-sonnet",
+    #"claude-4.6-sonnet",
     #"claude-4.5-sonnet",
     #"claude-4.6-opus",
     #"claude-4.5-opus",
@@ -110,6 +122,9 @@ QUALITY_TEST_PROVIDERS = [
     #"kimi-k2-turbo-preview",
     #"gemini-2.5-pro",
     #"deepseek-chat",
+    #"grok-4.3",
+    #"grok-4.20-0309-reasoning",
+    #"grok-build-0.1",
     "grok-4-1-fast-reasoning",
     #"grok-4-1-fast-non-reasoning",
     #"mistral-large",
@@ -157,7 +172,7 @@ LLM_EXTRACTION_TEMPERATURE = 0  # Low temperature for consistent structure
 # ============================================================================
 
 # Default judge model for quality tests (used by both Ragas and custom judge)
-QUALITY_TEST_JUDGE_MODEL = "grok-4-1-fast-non-reasoning"
+QUALITY_TEST_JUDGE_MODEL = "grok-4-1-fast-reasoning"
 
 # Quality test judging mode
 # - "RAGAS": Enable LLM-based metrics (Quote Faithfulness, Explanation Faithfulness, Answer Correctness) using Ragas library

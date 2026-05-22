@@ -86,6 +86,11 @@ def estimate_cost(prompt_tokens: int, completion_tokens: int, model: str) -> flo
     # Pricing per 1K tokens (as of 2025 October)
     pricing = {
         # https://platform.openai.com/docs/pricing
+        "gpt-5.5": {"prompt": 0.00500, "completion": 0.030},
+        "gpt-5.4": {"prompt": 0.00250, "completion": 0.015},
+        "gpt-5.4-mini": {"prompt": 0.00075, "completion": 0.0045},
+        "gpt-5.4-nano": {"prompt": 0.00020, "completion": 0.00125},
+        "gpt-5.3-chat-latest": {"prompt": 0.00175, "completion": 0.014},
         "gpt-5.2": {"prompt": 0.00175, "completion": 0.014},
         "gpt-5.2-chat-latest": {"prompt": 0.00175, "completion": 0.014},
         "gpt-5.1": {"prompt": 0.00125, "completion": 0.01},
@@ -128,6 +133,9 @@ def estimate_cost(prompt_tokens: int, completion_tokens: int, model: str) -> flo
         # https://docs.x.ai/docs/models
         "grok-4-1-fast-reasoning": {"prompt": 0.0002, "completion": 0.0005},
         "grok-4-1-fast-non-reasoning": {"prompt": 0.0002, "completion": 0.0005},
+        "grok-4.3": {"prompt": 0.00125, "completion": 0.00250},
+        "grok-4.20-0309-reasoning": {"prompt": 0.00125, "completion": 0.00250},
+        "grok-build-0.1": {"prompt": 0.00100, "completion": 0.00200},
         # https://mistral.ai/pricing#api-pricing
         "mistral-large": {"prompt": 0.0005, "completion": 0.0015},
         "mistral-medium": {"prompt": 0.0004, "completion": 0.002},
