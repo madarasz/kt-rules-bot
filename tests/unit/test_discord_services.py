@@ -13,11 +13,13 @@ import pytest
 
 from src.models.bot_response import BotResponse, Citation
 from src.models.rag_context import DocumentChunk, RAGContext
+from src.models.structured_response import StructuredLLMResponse, StructuredQuote
 from src.models.user_query import UserQuery
 from src.services.discord.context_manager import ConversationContextManager
 from src.services.discord.feedback_logger import FeedbackLogger
-from src.services.discord.formatter import create_feedback_view
+from src.services.discord.formatter import create_feedback_view, format_response
 from src.services.discord.handlers import handle_message
+from src.services.llm.validator import ValidationResult
 
 # ==================== FIXTURES ====================
 
@@ -245,6 +247,56 @@ async def test_create_feedback_view():
     assert view.query_id == "query-123"
     assert view.response_id == "response-456"
     assert view.feedback_logger == feedback_logger
+
+
+def test_format_response_renders_inch_marks_without_raw_quotes():
+    """Discord embeds should not leave inch measurements as fragile raw quotes."""
+    quote_text = (
+        '*Answer*: Total up the combined vertical distance during the action before rounding '
+        'increments. For climbing, an operative can continue its climb so long as the next '
+        'terrain is **within 1"** horizontally and 3" vertically.'
+    )
+    explanation = (
+        'The Climbing rule states an operative must be **within 1"** horizontally and '
+        '**3"** vertically of terrain to climb it.'
+    )
+    structured_data = StructuredLLMResponse(
+        smalltalk=False,
+        short_answer='Yes, use the combined vertical distance before rounding 1" increments.',
+        persona_short_answer="The geometry is not optional.",
+        quotes=[StructuredQuote(quote_title="Climbing", quote_text=quote_text)],
+        explanation=explanation,
+        persona_afterword="Measure once, then round.",
+    )
+    bot_response = BotResponse(
+        response_id=uuid4(),
+        query_id=uuid4(),
+        answer_text="",
+        citations=[],
+        confidence_score=0.9,
+        rag_score=0.9,
+        validation_passed=True,
+        llm_model="test-model",
+        token_count=100,
+        latency_ms=1200,
+        timestamp=datetime.now(UTC),
+        structured_data=structured_data,
+    )
+
+    embeds = format_response(
+        bot_response,
+        ValidationResult(is_valid=True, llm_confidence=0.9, rag_score=0.9, reason="ok"),
+        smalltalk=False,
+    )
+
+    embed_dict = embeds[0].to_dict()
+    rendered_text = "\n".join(
+        [embed_dict["description"], *[field["value"] for field in embed_dict["fields"]]]
+    )
+    assert '**within 1"**' not in rendered_text
+    assert '3" vertically' not in rendered_text
+    assert "**within 1″** horizontally and 3″ vertically" in rendered_text
+    assert "**3″** vertically" in rendered_text
 
 
 # ==================== FEEDBACK BUTTON TESTS ====================

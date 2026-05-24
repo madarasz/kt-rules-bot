@@ -27,6 +27,11 @@ def _format_quote_text(text: str) -> str:
     return '\n'.join(f"> {line}" for line in lines)
 
 
+def _format_discord_text(text: str) -> str:
+    """Apply Discord-safe display tweaks without changing response semantics."""
+    return re.sub(r'\b(?P<amount>\d+(?:\.\d+)?|[xX])\\?"', r"\g<amount>″", text)
+
+
 def _split_field_value(text: str, max_length: int = 1024) -> list[str]:
     """Split text into chunks at sentence boundaries, respecting Discord's field limit.
 
@@ -108,7 +113,9 @@ def _format_structured(bot_response: BotResponse, smalltalk: bool = False) -> li
     color = _get_embed_color(bot_response.confidence_score, smalltalk)
 
     # Main embed with short answer + persona
-    description = f"**{data.short_answer}** *{data.persona_short_answer}*"
+    description = _format_discord_text(
+        f"**{data.short_answer}** *{data.persona_short_answer}*"
+    )
 
     embed = discord.Embed(
         title=None, description=description, color=color, timestamp=datetime.now(UTC)
@@ -118,13 +125,13 @@ def _format_structured(bot_response: BotResponse, smalltalk: bool = False) -> li
     # Discord field name limit: 256 chars
     for _i, quote in enumerate(data.quotes[:25]):
         quote_title = quote.quote_title
-        quote_text = quote.quote_text
+        quote_text = _format_discord_text(quote.quote_text)
 
         # FAQ titles: use just "[FAQ]" as title, move rest to quote text
         if quote_title.startswith("[FAQ]"):
             remaining_title = quote_title[5:].strip()  # Remove "[FAQ]" prefix
             if remaining_title:
-                quote_text = f"{remaining_title}\n{quote_text}"
+                quote_text = _format_discord_text(f"{remaining_title}\n{quote_text}")
             quote_title = "[FAQ]"
 
         field_name = f"**{quote_title}**"
@@ -134,14 +141,14 @@ def _format_structured(bot_response: BotResponse, smalltalk: bool = False) -> li
 
     # Add explanation field (split if needed)
     if len(data.explanation) > 0:
-        explanation_chunks = _split_field_value(data.explanation)
+        explanation_chunks = _split_field_value(_format_discord_text(data.explanation))
 
         for chunk_idx, chunk in enumerate(explanation_chunks):
             field_name = "Explanation" if chunk_idx == 0 else ""
             embed.add_field(name=field_name, value=chunk, inline=False)
 
     # Add persona afterword
-    embed.add_field(name="", value=f"*{data.persona_afterword}*", inline=False)
+    embed.add_field(name="", value=_format_discord_text(f"*{data.persona_afterword}*"), inline=False)
 
     # Add disclaimer if not smalltalk
     if not smalltalk:
@@ -188,7 +195,7 @@ def _format_markdown(bot_response: BotResponse, smalltalk: bool = False) -> list
 
     embed = discord.Embed(
         title="Kill Team Rules Bot",
-        description=bot_response.answer_text[:2000],
+        description=_format_discord_text(bot_response.answer_text)[:2000],
         color=color,
         timestamp=datetime.now(UTC),
     )
