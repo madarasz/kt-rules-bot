@@ -106,8 +106,20 @@ class ChunkSummarizer:
             # Build input text with numbered chunks
             chunk_input = self._format_chunks_for_llm(chunks)
 
-            # Build the full prompt
-            full_prompt = f"{self.summary_prompt}\n\n{chunk_input}"
+            # For Claude: split into cache-control blocks (static instructions cached, dynamic data not).
+            # For all other providers: plain string.
+            from src.services.llm.claude import ClaudeAdapter
+            from src.services.llm.prompt_builder import (
+                CACHE_BREAK_MARKER,
+                split_user_prompt_for_cache,
+            )
+
+            if isinstance(self.provider, ClaudeAdapter):
+                full_prompt = split_user_prompt_for_cache(
+                    f"{self.summary_prompt}{CACHE_BREAK_MARKER}\n\n{chunk_input}"
+                )
+            else:
+                full_prompt = f"{self.summary_prompt}\n\n{chunk_input}"
 
             # Configure the generation request
             config = GenerationConfig(

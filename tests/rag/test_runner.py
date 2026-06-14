@@ -240,6 +240,7 @@ class RAGTestRunner:
                         "reasoning": eval.reasoning,
                         "missing_query": eval.missing_query,
                         "cost_usd": eval.cost_usd,
+                        "cache_savings_usd": eval.cache_savings_usd,
                         "filtered_teams_count": eval.filtered_teams_count,
                     }
                     for i, eval in enumerate(hop_evaluations)
@@ -582,12 +583,14 @@ class RAGTestRunner:
         # Calculate performance metrics
         avg_retrieval_time = sum(r.retrieval_time_seconds for r in results) / len(results)
 
-        # Calculate actual hop evaluation cost from stored hop evaluation data
+        # Calculate actual hop evaluation cost and cache savings from stored hop evaluation data
         hop_evaluation_cost = 0.0
+        hop_cache_savings = 0.0
         for result in results:
             if result.hop_evaluations:
                 for hop_eval in result.hop_evaluations:
                     hop_evaluation_cost += hop_eval.get("cost_usd", 0.0)
+                    hop_cache_savings += hop_eval.get("cache_savings_usd", 0.0)
 
         # Note: r.embedding_cost_usd now contains TOTAL cost (embeddings + hop evaluations)
         # from line 200 where we stored total_cost in embedding_cost_usd for backwards compatibility
@@ -796,6 +799,7 @@ class RAGTestRunner:
             hybrid_enabled=self.retriever.enable_hybrid,
             avg_hops_used=avg_hops_used,
             hop_evaluation_cost_usd=hop_evaluation_cost,
+            hop_evaluation_cache_savings_usd=hop_cache_savings,
             avg_ground_truth_found_improvement=avg_ground_truth_improvement,
             avg_filtered_teams_count=avg_filtered_teams_count,
             ground_truth_chunks_per_hop=ground_truth_per_hop,

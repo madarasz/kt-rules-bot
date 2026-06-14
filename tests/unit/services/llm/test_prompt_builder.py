@@ -5,10 +5,12 @@ import pytest
 
 from src.services.llm.prompt_builder import (
     _PROMPT_CACHE,
+    CACHE_BREAK_MARKER,
     DYNAMIC_PLACEHOLDERS,
     PromptBuilder,
     build_system_prompt,
     build_user_prompt,
+    split_user_prompt_for_cache,
 )
 
 
@@ -361,3 +363,73 @@ class TestUserPromptBuilder:
 
         with pytest.raises(ValueError):
             build_user_prompt(user_query, context, chunk_ids)
+
+
+class TestSplitUserPromptForCache:
+    """Tests for split_user_prompt_for_cache helper."""
+
+    def test_no_marker_returns_str_unchanged(self):
+        text = "plain text without any marker"
+        result = split_user_prompt_for_cache(text)
+        assert isinstance(result, str)
+        assert result == text
+
+    def test_empty_string_returns_str(self):
+        result = split_user_prompt_for_cache("")
+        assert isinstance(result, str)
+        assert result == ""
+
+    def test_one_marker_returns_two_blocks(self):
+        text = f"static part{CACHE_BREAK_MARKER}dynamic part"
+        result = split_user_prompt_for_cache(text)
+        assert isinstance(result, list)
+        assert len(result) == 2
+
+    def test_stable_block_gets_cache_control(self):
+        text = f"static part{CACHE_BREAK_MARKER}dynamic part"
+        result = split_user_prompt_for_cache(text)
+        assert result[0]["type"] == "text"
+        assert result[0]["text"] == "static part"
+        assert result[0].get("cache_control") == {"type": "ephemeral"}
+
+    def test_last_block_has_no_cache_control(self):
+        text = f"static part{CACHE_BREAK_MARKER}dynamic part"
+        result = split_user_prompt_for_cache(text)
+        assert result[1]["type"] == "text"
+        assert result[1]["text"] == "dynamic part"
+        assert "cache_control" not in result[1]
+
+    def test_two_markers_three_blocks(self):
+        text = f"block1{CACHE_BREAK_MARKER}block2{CACHE_BREAK_MARKER}block3"
+        result = split_user_prompt_for_cache(text)
+        assert isinstance(result, list)
+        assert len(result) == 3
+        assert result[0].get("cache_control") == {"type": "ephemeral"}
+        assert result[1].get("cache_control") == {"type": "ephemeral"}
+        assert "cache_control" not in result[2]
+
+    def test_whitespace_stripped_from_block_text(self):
+        text = f"  static  {CACHE_BREAK_MARKER}  dynamic  "
+        result = split_user_prompt_for_cache(text)
+        assert result[0]["text"] == "static"
+        assert result[1]["text"] == "dynamic"
+
+    def test_empty_part_before_marker_skipped(self):
+        text = f"{CACHE_BREAK_MARKER}dynamic part"
+        result = split_user_prompt_for_cache(text)
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["text"] == "dynamic part"
+        assert "cache_control" not in result[0]
+
+    def test_empty_part_after_marker_skipped(self):
+        text = f"static part{CACHE_BREAK_MARKER}   "
+        result = split_user_prompt_for_cache(text)
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["text"] == "static part"
+
+    def test_all_empty_parts_falls_back_to_str(self):
+        text = f"   {CACHE_BREAK_MARKER}   "
+        result = split_user_prompt_for_cache(text)
+        assert isinstance(result, str)

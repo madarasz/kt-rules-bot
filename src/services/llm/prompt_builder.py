@@ -41,6 +41,28 @@ def strip_cache_markers(text: str) -> str:
     return text.replace(CACHE_BREAK_MARKER, "").strip()
 
 
+def split_user_prompt_for_cache(text: str) -> str | list[dict]:
+    """Split user message on CACHE_BREAK_MARKER into Anthropic cache-control blocks.
+
+    Returns plain str if no marker found (non-Claude path or no caching needed).
+    Returns list[dict] with cache_control on every block except the last when
+    a marker is present — enabling prompt caching on the stable instruction sections.
+    """
+    if CACHE_BREAK_MARKER not in text:
+        return text
+    parts = text.split(CACHE_BREAK_MARKER)
+    blocks: list[dict] = []
+    for i, part in enumerate(parts):
+        stripped = part.strip()
+        if not stripped:
+            continue
+        block: dict = {"type": "text", "text": stripped}
+        if i < len(parts) - 1:
+            block["cache_control"] = {"type": "ephemeral"}
+        blocks.append(block)
+    return blocks or text
+
+
 def build_claude_system_blocks(provider_type: ProviderType = "default") -> list[dict]:
     """Build system prompt as Anthropic cache-control blocks.
 

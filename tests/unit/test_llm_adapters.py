@@ -85,6 +85,88 @@ class TestClaudeAdapter:
         with pytest.raises(AuthenticationError):
             await claude_adapter.generate(request)
 
+    async def test_generate_with_list_prompt_passes_blocks_as_content(self, claude_adapter):
+        """list[dict] prompt is forwarded directly as message content for cache-control blocks."""
+        blocks = [
+            {"type": "text", "text": "static instructions", "cache_control": {"type": "ephemeral"}},
+            {"type": "text", "text": "dynamic query"},
+        ]
+
+        mock_parsed = Mock()
+        mock_parsed.model_dump_json.return_value = '{"smalltalk":false,"short_answer":"Yes","persona_short_answer":"Obviously","quotes":[],"explanation":"test","persona_afterword":"Done"}'
+        mock_parsed.model_dump.return_value = {
+            "smalltalk": False,
+            "short_answer": "Yes",
+            "persona_short_answer": "Obviously",
+            "quotes": [],
+            "explanation": "test",
+            "persona_afterword": "Done",
+        }
+
+        mock_usage = Mock()
+        mock_usage.input_tokens = 100
+        mock_usage.output_tokens = 20
+        mock_usage.cache_read_input_tokens = 80
+        mock_usage.cache_creation_input_tokens = 0
+
+        mock_response = Mock()
+        mock_response.parsed_output = mock_parsed
+        mock_response.usage = mock_usage
+
+        claude_adapter.client.beta.messages.parse = AsyncMock(return_value=mock_response)
+
+        request = GenerationRequest(
+            prompt=blocks,
+            context=[],
+            chunk_ids=[],
+            config=GenerationConfig(system_prompt=""),
+        )
+
+        await claude_adapter.generate(request)
+
+        call_kwargs = claude_adapter.client.beta.messages.parse.call_args.kwargs
+        assert call_kwargs["messages"][0]["content"] == blocks
+
+    async def test_generate_with_str_prompt_builds_content_via_template(self, claude_adapter):
+        """str prompt still goes through _build_prompt (existing behavior preserved)."""
+        mock_parsed = Mock()
+        mock_parsed.model_dump_json.return_value = '{"smalltalk":false,"short_answer":"Yes","persona_short_answer":"Obviously","quotes":[],"explanation":"test","persona_afterword":"Done"}'
+        mock_parsed.model_dump.return_value = {
+            "smalltalk": False,
+            "short_answer": "Yes",
+            "persona_short_answer": "Obviously",
+            "quotes": [],
+            "explanation": "test",
+            "persona_afterword": "Done",
+        }
+
+        mock_usage = Mock()
+        mock_usage.input_tokens = 100
+        mock_usage.output_tokens = 20
+        mock_usage.cache_read_input_tokens = 0
+        mock_usage.cache_creation_input_tokens = 0
+
+        mock_response = Mock()
+        mock_response.parsed_output = mock_parsed
+        mock_response.usage = mock_usage
+
+        claude_adapter.client.beta.messages.parse = AsyncMock(return_value=mock_response)
+
+        request = GenerationRequest(
+            prompt="Can I shoot twice?",
+            context=[],
+            chunk_ids=[],
+            config=GenerationConfig(system_prompt=""),
+        )
+
+        await claude_adapter.generate(request)
+
+        call_kwargs = claude_adapter.client.beta.messages.parse.call_args.kwargs
+        content = call_kwargs["messages"][0]["content"]
+        # str prompt → _build_prompt → wrapped string, not the raw query
+        assert isinstance(content, str)
+        assert "Can I shoot twice?" in content
+
 
 class TestChatGPTAdapter:
     """Test ChatGPT LLM adapter."""

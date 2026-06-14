@@ -337,7 +337,7 @@ class GenerationConfig:
 class GenerationRequest:
     """Request for answer generation."""
 
-    prompt: str  # User query (sanitized)
+    prompt: str | list[dict]  # User query (str) or pre-built cache-control blocks (list[dict])
     context: list[str]  # Retrieved document chunks (up to 5)
     config: GenerationConfig
     chunk_ids: list[str] | None = None  # Optional chunk IDs for attribution (UUIDs)

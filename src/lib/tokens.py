@@ -154,12 +154,13 @@ def calculate_llm_cost(
 
     elif cache_mode == "openai":
         # OpenAI: cached_tokens are a subset of prompt_tokens, billed at 50% discount
-        non_cached = max(0, prompt_tokens - cache_read_tokens)
+        cache_read_tokens = min(cache_read_tokens, prompt_tokens)
+        non_cached = prompt_tokens - cache_read_tokens
         prompt_cost = (non_cached / 1000) * p["prompt"]
         cache_read_cost = (cache_read_tokens / 1000) * p["cache_read"]
         cache_creation_cost = 0.0
         total_cost = prompt_cost + cache_read_cost + completion_cost
-        cache_savings = (cache_read_tokens / 1000) * p["prompt"] * 0.5
+        cache_savings = (cache_read_tokens / 1000) * (p["prompt"] - p["cache_read"])
 
     else:
         # No caching support

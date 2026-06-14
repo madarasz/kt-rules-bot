@@ -45,6 +45,7 @@ class HopEvaluation:
         reasoning: str,
         missing_query: str | None = None,
         cost_usd: float = 0.0,
+        cache_savings_usd: float = 0.0,
         retrieval_time_s: float = 0.0,
         evaluation_time_s: float = 0.0,
         filled_prompt: str | None = None,
@@ -54,6 +55,7 @@ class HopEvaluation:
         self.reasoning = reasoning
         self.missing_query = missing_query
         self.cost_usd = cost_usd
+        self.cache_savings_usd = cache_savings_usd
         self.retrieval_time_s = retrieval_time_s  # Time for retrieval
         self.evaluation_time_s = evaluation_time_s  # Time for LLM evaluation
         self.filled_prompt = filled_prompt  # Optional: filled prompt for verbose output
@@ -66,6 +68,7 @@ class HopEvaluation:
             "reasoning": self.reasoning,
             "missing_query": self.missing_query,
             "cost_usd": self.cost_usd,
+            "cache_savings_usd": self.cache_savings_usd,
             "retrieval_time_s": self.retrieval_time_s,
             "evaluation_time_s": self.evaluation_time_s,
             "filtered_teams_count": self.filtered_teams_count,
@@ -118,11 +121,13 @@ class MultiHopRetriever:
         )
 
     def _load_prompt_template(self) -> str:
-        """Load hop evaluation prompt from file and cache in memory."""
-        from src.services.llm.prompt_builder import strip_cache_markers
+        """Load hop evaluation prompt from file and cache in memory.
 
+        Markers are kept intact so _evaluate_context can split on them for
+        Claude (cache-control blocks) or strip them for other providers.
+        """
         with open(RAG_HOP_EVALUATION_PROMPT_PATH) as f:
-            return strip_cache_markers(f.read())
+            return f.read()
 
     def _load_structure_dict(self, file_path: str) -> dict[str, Any]:
         """Load YAML structure file as dictionary.
@@ -350,12 +355,22 @@ class MultiHopRetriever:
         )
 
         # Fill prompt template with structures
-        prompt = self.evaluation_prompt_template.format(
+        filled = self.evaluation_prompt_template.format(
             user_query=user_query,
             retrieved_chunks=chunks_text,
             rule_structure=rules_structure_text,
             team_structure=teams_structure_text,
         )
+
+        # For Claude: split on CACHE_BREAK_MARKER → cache-control blocks.
+        # For all other providers: strip the marker and use plain string.
+        from src.services.llm.claude import ClaudeAdapter
+        from src.services.llm.prompt_builder import split_user_prompt_for_cache, strip_cache_markers
+
+        if isinstance(self.evaluation_llm, ClaudeAdapter):
+            prompt = split_user_prompt_for_cache(filled)
+        else:
+            prompt = strip_cache_markers(filled)
 
         # Call evaluation LLM with hop evaluation schema
         request = GenerationRequest(
@@ -408,7 +423,7 @@ class MultiHopRetriever:
                     raise ValueError(f"Missing required fields in response: {data}")
 
                 # Calculate cost using actual token counts (single source of truth)
-                cost_usd = calculate_hop_evaluation_cost(response, RAG_HOP_EVALUATION_MODEL)
+                cost_breakdown = calculate_hop_evaluation_cost(response, RAG_HOP_EVALUATION_MODEL)
 
                 # Calculate evaluation time (only the successful attempt)
                 evaluation_time_s = time.time() - eval_start
@@ -417,7 +432,8 @@ class MultiHopRetriever:
                     can_answer=data["can_answer"],
                     reasoning=data["reasoning"],
                     missing_query=data.get("missing_query"),
-                    cost_usd=cost_usd,
+                    cost_usd=cost_breakdown.total_cost,
+                    cache_savings_usd=cost_breakdown.cache_savings,
                     evaluation_time_s=evaluation_time_s,
                     filled_prompt=prompt if verbose else None,
                     filtered_teams_count=len(relevant_teams),

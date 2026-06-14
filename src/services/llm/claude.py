@@ -100,8 +100,11 @@ class ClaudeAdapter(LLMProvider):
         """
         start_time = time.time()
 
-        # Build prompt with context and optional chunk IDs
-        full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
+        # list[dict] prompt = pre-built cache-control blocks; str = normal path via _build_prompt
+        if isinstance(request.prompt, list):
+            full_prompt = request.prompt
+        else:
+            full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
 
         try:
             system = _get_system(request.config.system_prompt)

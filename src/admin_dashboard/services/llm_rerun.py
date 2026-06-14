@@ -198,7 +198,7 @@ async def _rerun_query_async(
         llm_breakdown = calculate_llm_cost(
             prompt_tokens=llm_response.prompt_tokens,
             completion_tokens=llm_response.completion_tokens,
-            model=model_name,
+            model=llm_response.model_version or model_name,
             cache_read_tokens=llm_response.cache_read_tokens,
             cache_creation_tokens=llm_response.cache_creation_tokens,
         )

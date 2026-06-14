@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 
 from src.models.rag_context import DocumentChunk, RAGContext
+from src.services.llm.base import GenerationRequest
 from src.services.rag.multi_hop_retriever import HopEvaluation, MultiHopRetriever
 
 
@@ -91,6 +92,7 @@ class TestHopEvaluation:
             can_answer=True,
             reasoning="Complete",
             cost_usd=0.001,
+            cache_savings_usd=0.0005,
             retrieval_time_s=0.5,
             evaluation_time_s=0.3,
         )
@@ -98,6 +100,7 @@ class TestHopEvaluation:
         assert result["can_answer"] is True
         assert result["reasoning"] == "Complete"
         assert result["cost_usd"] == 0.001
+        assert result["cache_savings_usd"] == 0.0005
         assert result["retrieval_time_s"] == 0.5
         assert result["evaluation_time_s"] == 0.3
 
@@ -288,6 +291,8 @@ class TestEvaluateContext:
         mock_response.token_count = 100
         mock_response.prompt_tokens = 70
         mock_response.completion_tokens = 30
+        mock_response.cache_read_tokens = 0
+        mock_response.cache_creation_tokens = 0
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -323,6 +328,8 @@ class TestEvaluateContext:
         mock_response.token_count = 100
         mock_response.prompt_tokens = 70
         mock_response.completion_tokens = 30
+        mock_response.cache_read_tokens = 0
+        mock_response.cache_creation_tokens = 0
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -407,6 +414,8 @@ class TestEvaluateContext:
         mock_response.token_count = 100
         mock_response.prompt_tokens = 70
         mock_response.completion_tokens = 30
+        mock_response.cache_read_tokens = 0
+        mock_response.cache_creation_tokens = 0
 
         mock_llm.generate = AsyncMock(side_effect=[RateLimitError("Rate limited"), mock_response])
         mock_create.return_value = mock_llm
@@ -441,6 +450,8 @@ class TestRetrieveMultiHop:
         mock_response.token_count = 100
         mock_response.prompt_tokens = 70
         mock_response.completion_tokens = 30
+        mock_response.cache_read_tokens = 0
+        mock_response.cache_creation_tokens = 0
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -485,12 +496,16 @@ class TestRetrieveMultiHop:
         response1.token_count = 100
         response1.prompt_tokens = 70
         response1.completion_tokens = 30
+        response1.cache_read_tokens = 0
+        response1.cache_creation_tokens = 0
 
         response2 = Mock()
         response2.answer_text = json.dumps({"can_answer": True, "reasoning": "Now sufficient"})
         response2.token_count = 100
         response2.prompt_tokens = 70
         response2.completion_tokens = 30
+        response2.cache_read_tokens = 0
+        response2.cache_creation_tokens = 0
 
         responses = [response1, response2]
         mock_llm.generate = AsyncMock(side_effect=responses)
@@ -538,6 +553,8 @@ class TestRetrieveMultiHop:
         mock_response.token_count = 100
         mock_response.prompt_tokens = 70
         mock_response.completion_tokens = 30
+        mock_response.cache_read_tokens = 0
+        mock_response.cache_creation_tokens = 0
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -610,3 +627,84 @@ class TestRetrieveMultiHop:
         # Should not have duplicates
         chunk_ids = [c.chunk_id for c in final_context.document_chunks]
         assert len(chunk_ids) == len(set(chunk_ids))
+
+
+class TestHopEvaluatorCachingBehavior:
+    """Tests for Claude prompt-caching in _evaluate_context."""
+
+    def _make_can_answer_response(self):
+        r = Mock()
+        r.answer_text = json.dumps({"can_answer": True, "reasoning": "Enough context", "missing_query": None})
+        r.token_count = 100
+        r.prompt_tokens = 80
+        r.completion_tokens = 20
+        r.cache_read_tokens = 0
+        r.cache_creation_tokens = 0
+        return r
+
+    @pytest.mark.asyncio
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
+    async def test_claude_evaluation_llm_gets_list_prompt(
+        self, mock_yaml_load, mock_open, mock_create, sample_chunks
+    ):
+        """When evaluation_llm is ClaudeAdapter, _evaluate_context uses list[dict] prompt."""
+        from src.services.llm.claude import ClaudeAdapter
+
+        mock_yaml_load.return_value = {}
+        mock_open.return_value.__enter__.return_value.read.return_value = (
+            "Static instructions {rule_structure}<!--CACHE_BREAK-->"
+            "\n{team_structure}\n{user_query}\n{retrieved_chunks}"
+        )
+
+        claude_llm = ClaudeAdapter(api_key="test-key", model="claude-sonnet-4-5-20250929")
+        captured_requests = []
+
+        async def capture_generate(req):
+            captured_requests.append(req)
+            return self._make_can_answer_response()
+
+        claude_llm.generate = capture_generate
+        mock_create.return_value = claude_llm
+
+        retriever = MultiHopRetriever(Mock(), max_hops=1)
+        await retriever._evaluate_context(user_query="test query", retrieved_chunks=sample_chunks)
+
+        assert captured_requests, "generate() was never called"
+        req: GenerationRequest = captured_requests[0]
+        assert isinstance(req.prompt, list), "Claude path should use list[dict] blocks"
+        assert all(isinstance(b, dict) and b.get("type") == "text" for b in req.prompt)
+        assert "cache_control" not in req.prompt[-1]
+
+    @pytest.mark.asyncio
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
+    async def test_non_claude_evaluation_llm_gets_str_prompt(
+        self, mock_yaml_load, mock_open, mock_create, sample_chunks
+    ):
+        """When evaluation_llm is not ClaudeAdapter, _evaluate_context uses plain str (no marker)."""
+        mock_yaml_load.return_value = {}
+        mock_open.return_value.__enter__.return_value.read.return_value = (
+            "Static instructions {rule_structure}<!--CACHE_BREAK-->"
+            "\n{team_structure}\n{user_query}\n{retrieved_chunks}"
+        )
+
+        captured_requests = []
+
+        async def capture_generate(req):
+            captured_requests.append(req)
+            return self._make_can_answer_response()
+
+        mock_llm = Mock()
+        mock_llm.generate = capture_generate
+        mock_create.return_value = mock_llm
+
+        retriever = MultiHopRetriever(Mock(), max_hops=1)
+        await retriever._evaluate_context(user_query="test query", retrieved_chunks=sample_chunks)
+
+        assert captured_requests, "generate() was never called"
+        req: GenerationRequest = captured_requests[0]
+        assert isinstance(req.prompt, str), "Non-Claude path should use plain str"
+        assert "<!--CACHE_BREAK-->" not in req.prompt

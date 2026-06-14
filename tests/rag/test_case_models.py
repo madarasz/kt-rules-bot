@@ -196,6 +196,7 @@ class RAGTestSummary:
     # Multi-hop statistics
     avg_hops_used: float = 0.0  # Average hops performed per test
     hop_evaluation_cost_usd: float = 0.0  # Total cost for hop evaluation LLM calls
+    hop_evaluation_cache_savings_usd: float = 0.0  # Total cache savings for hop evaluation LLM calls
     avg_ground_truth_found_improvement: float = (
         0.0  # Average number of ground truth chunks found via hops
     )
