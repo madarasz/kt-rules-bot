@@ -167,6 +167,7 @@ class ReportGenerator:
         total_multi_hop = sum(r.multi_hop_cost_usd for r in self.report.results)
         total_judge = sum(r.ragas_cost_usd for r in self.report.results)
         total_embedding = sum(r.embedding_cost_usd for r in self.report.results)
+        total_cache_savings = sum(r.cache_savings_usd for r in self.report.results)
 
         header = [
             "# Quality Test Report",
@@ -182,6 +183,9 @@ class ReportGenerator:
                 f"  - Judge: ${total_judge:.4f} ({total_judge/self.report.total_cost_usd*100:.1f}%)",
                 f"  - Embeddings: ${total_embedding:.4f} ({total_embedding/self.report.total_cost_usd*100:.1f}%)",
             ])
+            if abs(total_cache_savings) > 1e-9:
+                sign = "-" if total_cache_savings < 0 else ""
+                header.append(f"  - Cache net savings: {sign}${abs(total_cache_savings):.4f}")
 
         header.append(f"- **Total queries**: {self.report.total_queries}")
         if self.report.is_multi_model or self.report.is_multi_run:
@@ -482,7 +486,7 @@ class ReportGenerator:
                             content.append(f"  - LLM Judge: ${result.ragas_cost_usd:.4f}")
                         if result.embedding_cost_usd > 0:
                             content.append(f"  - Embeddings: ${result.embedding_cost_usd:.4f}")
-                        if result.cache_savings_usd != 0.0:
+                        if abs(result.cache_savings_usd) > 1e-9:
                             sign = "-" if result.cache_savings_usd < 0 else ""
                             content.append(f"  - Cache net savings: {sign}${abs(result.cache_savings_usd):.4f}")
                     content.append(f"- **Generation Time:** {result.generation_time_seconds:.2f}s")
@@ -572,7 +576,7 @@ class ReportGenerator:
             content.append(f"- Judge evaluation: ${result.ragas_cost_usd:.4f}")
         if result.embedding_cost_usd > 0:
             content.append(f"- Embeddings: ${result.embedding_cost_usd:.4f}")
-        if result.cache_savings_usd != 0.0:
+        if abs(result.cache_savings_usd) > 1e-9:
             sign = "-" if result.cache_savings_usd < 0 else ""
             content.append(f"- Cache net savings: {sign}${abs(result.cache_savings_usd):.4f}")
         content.append(f"- **Total: ${result.total_cost_usd:.4f}**")
@@ -600,6 +604,7 @@ class ReportGenerator:
         total_multi_hop = sum(r.multi_hop_cost_usd for r in self.report.results)
         total_judge = sum(r.ragas_cost_usd for r in self.report.results)
         total_embedding = sum(r.embedding_cost_usd for r in self.report.results)
+        total_cache_savings = sum(r.cache_savings_usd for r in self.report.results)
 
         content = []
         content.append("\n" + "=" * 60)
@@ -616,6 +621,9 @@ class ReportGenerator:
             content.append(f"  Multi-hop: ${total_multi_hop:.4f}")
             content.append(f"  Judge: ${total_judge:.4f}")
             content.append(f"  Embeddings: ${total_embedding:.4f}")
+            if abs(total_cache_savings) > 1e-9:
+                sign = "-" if total_cache_savings < 0 else ""
+                content.append(f"  Cache net savings: {sign}${abs(total_cache_savings):.4f}")
 
         # Calculate JSON formatting statistics
         json_formatted_count = sum(1 for r in self.report.results if r.json_formatted)
