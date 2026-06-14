@@ -25,20 +25,25 @@ def render_overview_metrics(stats: dict) -> None:
         st.metric("Total Feedback", total_feedback)
 
 
-def render_cost_metrics(total_cost: float, avg_cost: float) -> None:
-    """Render cost metrics in a 2-column layout.
+def render_cost_metrics(total_cost: float, avg_cost: float, avg_cache_saving_pct: float | None = None) -> None:
+    """Render cost metrics in a 2- or 3-column layout.
 
     Args:
         total_cost: Total cost across all queries
         avg_cost: Average cost per query
+        avg_cache_saving_pct: Average cache saving percentage (None = omit column)
     """
-    col1, col2 = st.columns(2)
+    cols = st.columns(3 if avg_cache_saving_pct is not None else 2)
 
-    with col1:
+    with cols[0]:
         st.metric("Total Cost", f"${total_cost:.5f}")
 
-    with col2:
+    with cols[1]:
         st.metric("Avg Cost/Query", f"${avg_cost:.5f}")
+
+    if avg_cache_saving_pct is not None:
+        with cols[2]:
+            st.metric("Avg Cache Saving", f"{avg_cache_saving_pct:.2f}%")
 
 
 def render_chunk_relevance_metrics(stats: dict) -> None:

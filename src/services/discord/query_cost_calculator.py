@@ -44,6 +44,9 @@ class QueryCostCalculator:
 
         # 3. Hop evaluation LLM costs (already tracked)
         hop_evaluation_cost = sum(hop_eval.cost_usd for hop_eval in hop_evaluations or [])
+        hop_evaluation_cache_savings = sum(
+            hop_eval.cache_savings_usd for hop_eval in hop_evaluations or []
+        )
 
         # 4. Main LLM generation cost
         llm_breakdown = calculate_llm_cost(
@@ -54,7 +57,7 @@ class QueryCostCalculator:
             cache_creation_tokens=llm_response.cache_creation_tokens,
         )
         main_llm_cost = llm_breakdown.total_cost
-        cache_savings = llm_breakdown.cache_savings
+        main_llm_cache_savings = llm_breakdown.cache_savings
 
         # Total cost
         total_cost = (
@@ -65,8 +68,9 @@ class QueryCostCalculator:
             "initial_embedding_cost": initial_embedding_cost,
             "hop_embedding_cost": hop_embedding_cost,
             "hop_evaluation_cost": hop_evaluation_cost,
+            "hop_evaluation_cache_savings": hop_evaluation_cache_savings,
             "main_llm_cost": main_llm_cost,
-            "cache_savings": cache_savings,
+            "main_llm_cache_savings": main_llm_cache_savings,
             "total_cost": total_cost,
         }
 

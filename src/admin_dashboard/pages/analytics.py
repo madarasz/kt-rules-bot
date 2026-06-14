@@ -221,7 +221,18 @@ def _render_cost_analysis(df: pd.DataFrame) -> None:
     # Show total cost metrics
     total_cost = df["cost"].sum()
     avg_cost_per_query = df["cost"].mean()
-    render_cost_metrics(total_cost, avg_cost_per_query)
+
+    avg_cache_saving_pct = None
+    if "main_llm_cache_savings" in df.columns:
+        cached_df = df[df["main_llm_cache_savings"] > 0].copy()
+        if not cached_df.empty:
+            hop_savings = cached_df.get("hop_evaluation_cache_savings", 0).fillna(0)
+            total_savings = cached_df["main_llm_cache_savings"] + hop_savings
+            gross = cached_df["cost"] + total_savings
+            per_query_pct = (total_savings / gross.replace(0, float("nan"))) * 100
+            avg_cache_saving_pct = per_query_pct.mean()
+
+    render_cost_metrics(total_cost, avg_cost_per_query, avg_cache_saving_pct)
 
 
 def _render_llm_model_performance(df: pd.DataFrame) -> None:
