@@ -22,7 +22,7 @@ from src.lib.constants import (
 )
 from src.lib.logging import get_logger
 from src.lib.statistics import format_statistics_summary
-from src.lib.tokens import estimate_cost, estimate_embedding_cost
+from src.lib.tokens import calculate_llm_cost, estimate_embedding_cost
 from src.models.rag_context_serializer import save_rag_context
 from src.models.rag_request import RetrieveRequest
 from src.services.llm.factory import LLMProviderFactory
@@ -226,7 +226,7 @@ async def _perform_llm_generation(services: TestQueryServices, query: str, rag_c
         query_id: Query UUID for correlation
 
     Returns:
-        Tuple of (llm_response, llm_time, llm_cost)
+        Tuple of (llm_response, llm_time, llm_cost, cache_savings)
     """
     llm_start = datetime.now(UTC)
 
@@ -249,11 +249,17 @@ async def _perform_llm_generation(services: TestQueryServices, query: str, rag_c
     llm_time = (datetime.now(UTC) - llm_start).total_seconds()
 
     # Calculate LLM cost
-    llm_cost = estimate_cost(
-        llm_response.prompt_tokens, llm_response.completion_tokens, llm_response.model_version
+    llm_breakdown = calculate_llm_cost(
+        prompt_tokens=llm_response.prompt_tokens,
+        completion_tokens=llm_response.completion_tokens,
+        model=llm_response.model_version,
+        cache_read_tokens=llm_response.cache_read_tokens,
+        cache_creation_tokens=llm_response.cache_creation_tokens,
     )
+    llm_cost = llm_breakdown.total_cost
+    cache_savings = llm_breakdown.cache_savings
 
-    return llm_response, llm_time, llm_cost
+    return llm_response, llm_time, llm_cost, cache_savings
 
 
 def _print_rag_results(
@@ -507,7 +513,7 @@ async def test_query(
 
     try:
         query_id = uuid4()
-        llm_response, llm_time, llm_cost = await _perform_llm_generation(
+        llm_response, llm_time, llm_cost, cache_savings = await _perform_llm_generation(
             services, query, rag_context, query_id
         )
         _print_llm_results(llm_response, llm_time)
@@ -546,6 +552,7 @@ async def test_query(
         llm_prompt_tokens=llm_response.prompt_tokens,
         llm_completion_tokens=llm_response.completion_tokens,
         llm_model=llm_response.model_version,
+        cache_savings=cache_savings,
     )
     print(f"\n{summary}")
 
