@@ -482,6 +482,9 @@ class ReportGenerator:
                             content.append(f"  - LLM Judge: ${result.ragas_cost_usd:.4f}")
                         if result.embedding_cost_usd > 0:
                             content.append(f"  - Embeddings: ${result.embedding_cost_usd:.4f}")
+                        if result.cache_savings_usd != 0.0:
+                            sign = "-" if result.cache_savings_usd < 0 else ""
+                            content.append(f"  - Cache savings: {sign}${abs(result.cache_savings_usd):.4f}")
                     content.append(f"- **Generation Time:** {result.generation_time_seconds:.2f}s")
                     content.append(
                         f"- **Output File:** [{result.output_filename}](./{result.output_filename})"
@@ -569,6 +572,9 @@ class ReportGenerator:
             content.append(f"- Judge evaluation: ${result.ragas_cost_usd:.4f}")
         if result.embedding_cost_usd > 0:
             content.append(f"- Embeddings: ${result.embedding_cost_usd:.4f}")
+        if result.cache_savings_usd != 0.0:
+            sign = "-" if result.cache_savings_usd < 0 else ""
+            content.append(f"- Cache savings: {sign}${abs(result.cache_savings_usd):.4f}")
         content.append(f"- **Total: ${result.total_cost_usd:.4f}**")
 
         content.append(f"\n**Generation Time:** {result.generation_time_seconds:.2f}s")

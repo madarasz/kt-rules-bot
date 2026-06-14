@@ -21,7 +21,7 @@ from src.lib.constants import (
     RAG_MAX_HOPS,
 )
 from src.lib.logging import get_logger
-from src.lib.tokens import estimate_cost
+from src.lib.tokens import calculate_llm_cost, estimate_cost
 from src.models.rag_context_serializer import RAGContextSerializationError, load_rag_context
 from src.models.structured_response import StructuredLLMResponse
 from src.services.llm.base import (
@@ -234,6 +234,7 @@ class QualityTestRunner:
             query_id = uuid4()
 
         error_str = None
+        llm_response = None
         llm_response_text = ""
         token_count = 0
         json_formatted = False
@@ -385,11 +386,15 @@ class QualityTestRunner:
             )
 
         # Calculate main LLM cost using actual token split and model ID
-        cost = estimate_cost(
+        llm_breakdown = calculate_llm_cost(
             prompt_tokens=actual_prompt_tokens,
             completion_tokens=actual_completion_tokens,
             model=actual_model_id,
+            cache_read_tokens=llm_response.cache_read_tokens if llm_response is not None else 0,
+            cache_creation_tokens=llm_response.cache_creation_tokens if llm_response is not None else 0,
         )
+        cost = llm_breakdown.total_cost
+        cache_savings = llm_breakdown.cache_savings
 
         # Log comprehensive cost breakdown
         total_cost = cost + multi_hop_cost + ragas_metrics.total_cost_usd + embedding_cost
@@ -402,6 +407,7 @@ class QualityTestRunner:
             ragas_cost=ragas_metrics.total_cost_usd,
             embedding_cost=embedding_cost,
             total_cost=total_cost,
+            cache_savings=cache_savings,
         )
 
         # Defensive handling: Convert NaN to 0 before int conversion
@@ -444,6 +450,7 @@ class QualityTestRunner:
             multi_hop_cost_usd=multi_hop_cost,
             ragas_cost_usd=ragas_metrics.total_cost_usd,
             embedding_cost_usd=embedding_cost,
+            cache_savings_usd=cache_savings,
             output_char_count=len(llm_response_markdown),
             generation_time_seconds=generation_time,
             output_filename=str(output_filename),
