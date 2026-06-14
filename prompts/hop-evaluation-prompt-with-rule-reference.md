@@ -172,4 +172,14 @@ This is the second half of the Available Rules Reference — apply the same scan
 {retrieved_chunks}
 </retrieved_context>
 
+# Before You Decide
+
+A quick check against `<retrieved_context>` above:
+
+- **Present means available.** If a rule's name appears as a header/subheader above — even truncated or summarized — its full text is provided downstream. Don't re-request it.
+- **A rule named after a capability is the GENERIC definition, not a team's grant of it.** "FLY - Faction Rule", "COVER", "COUNTERACT" define the mechanic in general; they do NOT establish that a specific team can do it.
+- **For "can \<team/operative\> do \<X\>" questions:** you need a rule *inside that team's own section* whose text grants X. If no rule belonging to that team mentions X, the answer is not yet available — hop for that team's faction rules, even when the generic \<X\> rule is present.
+
+Do not set `can_answer: true` merely because every question term has some entry above. When the team-specific granting rule is absent, or you are genuinely uncertain, hop.
+
 Now evaluate the user question against the retrieved context above and respond with JSON only.
