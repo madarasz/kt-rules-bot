@@ -226,12 +226,12 @@ class ReportGenerator:
                 f" (±{summary.std_dev_score_pct:.1f})" if self.report.is_multi_run else ""
             )
             time_std_dev = f" (±{summary.std_dev_time:.2f})" if self.report.is_multi_run else ""
-            cost_std_dev = f" (±{summary.std_dev_cost:.4f})" if self.report.is_multi_run else ""
+            cost_std_dev = f" (±{summary.std_dev_gross_cost:.4f})" if self.report.is_multi_run else ""
             row = [
                 summary.model_name,
                 f"{summary.avg_score_pct:.1f}%{score_std_dev}",
                 f"{summary.avg_time:.2f}{time_std_dev}",
-                f"${summary.avg_cost:.4f}{cost_std_dev}",
+                f"${summary.avg_gross_cost:.4f}{cost_std_dev}",
             ]
             table.append("| " + " | ".join(row) + " |")
         return "\n".join(table)
@@ -700,13 +700,13 @@ class ReportGenerator:
                 )
                 time_std_dev = f" (±{summary.std_dev_time:.2f})" if self.report.is_multi_run else ""
                 cost_std_dev = (
-                    f" (±${summary.std_dev_cost:.4f})" if self.report.is_multi_run else ""
+                    f" (±${summary.std_dev_gross_cost:.4f})" if self.report.is_multi_run else ""
                 )
                 row = [
                     summary.model_name,
                     f"{summary.avg_score_pct:.1f}%{score_std_dev}",
                     f"{summary.avg_time:.2f}s{time_std_dev}",
-                    f"${summary.avg_cost:.4f}{cost_std_dev}",
+                    f"${summary.avg_gross_cost:.4f}{cost_std_dev}",
                 ]
                 table.append(row)
 

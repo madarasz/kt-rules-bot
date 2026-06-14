@@ -191,6 +191,20 @@ class ModelSummary:
         return np.mean([r.embedding_cost_usd for r in self.results])
 
     @property
+    def avg_gross_cost(self) -> float:
+        """Average gross (pre-cache) production cost per test."""
+        if not self.results:
+            return 0.0
+        return np.mean([r.cost_usd + r.cache_savings_usd for r in self.results])
+
+    @property
+    def std_dev_gross_cost(self) -> float:
+        """Standard deviation of gross (pre-cache) production cost."""
+        if len(self.results) < 2:
+            return 0.0
+        return np.std([r.cost_usd + r.cache_savings_usd for r in self.results])
+
+    @property
     def avg_infrastructure(self) -> float:
         """Average total infrastructure cost per test (multi-hop + judge + embeddings)."""
         return self.avg_multi_hop + self.avg_judge + self.avg_embedding

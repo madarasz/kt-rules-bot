@@ -79,13 +79,13 @@ pricing: dict[str, dict] = {
     "grok-4.20-0309-reasoning":   {"prompt": 0.00125, "completion": 0.00250, "cache_read": 0.000625, "cache_write": 0.0, "cache_mode": "openai"},
     "grok-build-0.1":             {"prompt": 0.00100, "completion": 0.00200, "cache_read": 0.0005,   "cache_write": 0.0, "cache_mode": "openai"},
     # https://ai.google.dev/gemini-api/docs/pricing
-    # Gemini - no explicit caching support in current integration
-    "gemini-3.1-pro-preview":  {"prompt": 0.002,   "completion": 0.012,  "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
-    "gemini-3-pro-preview":    {"prompt": 0.002,   "completion": 0.012,  "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
-    "gemini-2.5-pro":          {"prompt": 0.00125, "completion": 0.01,   "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
-    "gemini-3-flash-preview":  {"prompt": 0.0005,  "completion": 0.003,  "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
-    "gemini-3.5-flash":        {"prompt": 0.0015,  "completion": 0.009,  "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
-    "gemini-2.5-flash":        {"prompt": 0.0003,  "completion": 0.0025, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
+    # Gemini - implicit caching on by default for 2.5+ models (cached_content_token_count subset of prompt_token_count)
+    "gemini-3.1-pro-preview":  {"prompt": 0.002,   "completion": 0.012,  "cache_read": 0.0002,   "cache_write": 0.0, "cache_mode": "openai"},
+    "gemini-3-pro-preview":    {"prompt": 0.002,   "completion": 0.012,  "cache_read": 0.0002,   "cache_write": 0.0, "cache_mode": "openai"},
+    "gemini-2.5-pro":          {"prompt": 0.00125, "completion": 0.01,   "cache_read": 0.000125, "cache_write": 0.0, "cache_mode": "openai"},
+    "gemini-3-flash-preview":  {"prompt": 0.0005,  "completion": 0.003,  "cache_read": 0.00005,  "cache_write": 0.0, "cache_mode": "openai"},
+    "gemini-3.5-flash":        {"prompt": 0.0015,  "completion": 0.009,  "cache_read": 0.00015,  "cache_write": 0.0, "cache_mode": "openai"},
+    "gemini-2.5-flash":        {"prompt": 0.0003,  "completion": 0.0025, "cache_read": 0.00003,  "cache_write": 0.0, "cache_mode": "openai"},
     # https://api-docs.deepseek.com/quick_start/pricing
     "deepseek-chat":    {"prompt": 0.00028, "completion": 0.00042, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
     "deepseek-reasoner":{"prompt": 0.00028, "completion": 0.00042, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
