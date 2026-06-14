@@ -7,7 +7,6 @@ Note: MiniMax uses OpenAI-compatible API endpoint with function calling for stru
 """
 
 import asyncio
-import json
 import time
 from uuid import uuid4
 
@@ -23,7 +22,6 @@ from src.services.llm.base import (
     LLMProvider,
     LLMResponse,
     RateLimitError,
-    SchemaInfo,
     TokenLimitError,
     get_schema_info,
 )

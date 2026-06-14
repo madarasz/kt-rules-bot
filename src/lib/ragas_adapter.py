@@ -8,12 +8,7 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-from datasets import Dataset
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-from ragas import evaluate
-from ragas.llms import LangchainLLMWrapper
-from ragas.metrics import AnswerRelevancy, Faithfulness
 
 from src.lib.text_utils import ground_truth_matches_text
 
@@ -132,6 +127,12 @@ def evaluate_generation(
     Raises:
         ValueError: If Ragas evaluation fails
     """
+
+    from datasets import Dataset
+    from langchain_openai import ChatOpenAI
+    from ragas import evaluate
+    from ragas.llms import LangchainLLMWrapper
+    from ragas.metrics import AnswerRelevancy, Faithfulness
 
     # Prepare dataset for Ragas
     data = {"question": [query], "answer": [response], "contexts": [retrieved_contexts]}

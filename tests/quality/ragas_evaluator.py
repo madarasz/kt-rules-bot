@@ -14,12 +14,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
-from datasets import Dataset
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-from ragas import evaluate
-from ragas.llms import LangchainLLMWrapper
-from ragas.metrics import AnswerCorrectness, Faithfulness
 
 from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_JUDGING, RAGAS_METRIC_WEIGHTS
 from src.lib.logging import get_logger
@@ -47,6 +42,9 @@ def _get_ragas_llm(judge_model: str):
     Returns:
         Configured RAGAS LLM instance
     """
+    from langchain_openai import ChatOpenAI
+    from ragas.llms import LangchainLLMWrapper
+
     # Get OpenAI API key from environment
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
@@ -76,6 +74,8 @@ def _run_ragas_evaluate_sync(dataset, metrics):
     """
     import asyncio
     import warnings
+
+    from ragas import evaluate
 
     # Suppress ResourceWarnings related to unclosed resources
     # Ragas creates async HTTP clients that may not close cleanly in threads
@@ -328,6 +328,9 @@ class RagasEvaluator:
 
             elif not use_custom_judge and QUALITY_TEST_JUDGING == "RAGAS":
                 logger.debug("Running LLM-based Ragas metrics (QUALITY_TEST_JUDGING=RAGAS)")
+
+                from datasets import Dataset
+                from ragas.metrics import AnswerCorrectness, Faithfulness
 
                 dataset_explanation = Dataset.from_dict(data_explanation)
 
