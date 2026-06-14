@@ -1,7 +1,7 @@
 """Cost calculation service for query processing."""
 
 from src.lib.constants import EMBEDDING_MODEL
-from src.lib.tokens import estimate_cost, estimate_embedding_cost
+from src.lib.tokens import calculate_llm_cost, estimate_embedding_cost
 from src.services.llm.base import LLMResponse
 
 
@@ -46,11 +46,15 @@ class QueryCostCalculator:
         hop_evaluation_cost = sum(hop_eval.cost_usd for hop_eval in hop_evaluations or [])
 
         # 4. Main LLM generation cost
-        main_llm_cost = estimate_cost(
-            llm_response.prompt_tokens,
-            llm_response.completion_tokens,
-            llm_response.model_version,
+        llm_breakdown = calculate_llm_cost(
+            prompt_tokens=llm_response.prompt_tokens,
+            completion_tokens=llm_response.completion_tokens,
+            model=llm_response.model_version,
+            cache_read_tokens=llm_response.cache_read_tokens,
+            cache_creation_tokens=llm_response.cache_creation_tokens,
         )
+        main_llm_cost = llm_breakdown.total_cost
+        cache_savings = llm_breakdown.cache_savings
 
         # Total cost
         total_cost = (
@@ -62,6 +66,7 @@ class QueryCostCalculator:
             "hop_embedding_cost": hop_embedding_cost,
             "hop_evaluation_cost": hop_evaluation_cost,
             "main_llm_cost": main_llm_cost,
+            "cache_savings": cache_savings,
             "total_cost": total_cost,
         }
 
