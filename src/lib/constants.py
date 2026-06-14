@@ -21,6 +21,7 @@ LLM_PROVIDERS_LITERAL = Literal[
     "gemini-3.1-pro-preview",
     "gemini-3-pro-preview",
     "gemini-3-flash-preview",
+    "gemini-3.5-flash",
     "gemini-2.5-pro",
     "gemini-2.5-flash",
     "gpt-5.5",
@@ -92,6 +93,7 @@ PDF_EXTRACTION_PROVIDERS = [
     "gemini-3.1-pro-preview",
     "gemini-3-pro-preview",
     "gemini-2.5-pro",  # Recommended: Most reliable
+    "gemini-3.5-flash",
     "gemini-2.5-flash",  # Recommended: Fast and reliable
     "claude-4.5-sonnet",
     "claude-4.1-opus",
