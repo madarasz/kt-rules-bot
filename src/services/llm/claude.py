@@ -179,6 +179,8 @@ class ClaudeAdapter(LLMProvider):
             prompt_tokens = response.usage.input_tokens
             completion_tokens = response.usage.output_tokens
             token_count = prompt_tokens + completion_tokens
+            cache_read_tokens = getattr(response.usage, "cache_read_input_tokens", 0) or 0
+            cache_creation_tokens = getattr(response.usage, "cache_creation_input_tokens", 0) or 0
 
             # Get structured output as dict (same structure for both API paths)
             if supports_structured_outputs:
@@ -208,6 +210,8 @@ class ClaudeAdapter(LLMProvider):
                 citations_included=citations_included,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
+                cache_read_tokens=cache_read_tokens,
+                cache_creation_tokens=cache_creation_tokens,
                 structured_output=structured_output_dict,
             )
 

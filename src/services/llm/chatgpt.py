@@ -159,6 +159,10 @@ class ChatGPTAdapter(LLMProvider):
             prompt_tokens = response.usage.prompt_tokens
             completion_tokens = response.usage.completion_tokens
             token_count = response.usage.total_tokens
+            prompt_details = getattr(response.usage, "prompt_tokens_details", None)
+            cache_read_tokens = 0
+            if prompt_details is not None:
+                cache_read_tokens = getattr(prompt_details, "cached_tokens", 0) or 0
 
             logger.info(
                 "ChatGPT generation completed",
@@ -182,6 +186,8 @@ class ChatGPTAdapter(LLMProvider):
                 citations_included=citations_included,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
+                cache_read_tokens=cache_read_tokens,
+                cache_creation_tokens=0,
                 structured_output=parsed_output.model_dump(),  # Add parsed Pydantic model as dict
             )
 

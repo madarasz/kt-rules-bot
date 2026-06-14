@@ -357,6 +357,8 @@ class LLMResponse:
     citations_included: bool  # True if answer references context chunks
     prompt_tokens: int = 0  # Input/prompt tokens
     completion_tokens: int = 0  # Output/completion tokens
+    cache_read_tokens: int = 0       # Tokens served from cache
+    cache_creation_tokens: int = 0   # Tokens written to cache (Anthropic only)
     structured_output: dict | None = None  # Parsed Pydantic model as dict (for structured schemas)
 
 
