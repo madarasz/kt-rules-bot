@@ -395,6 +395,7 @@ class ExtractionResponse:
     validation_warnings: list[str]  # E.g., "Missing YAML frontmatter"
     prompt_tokens: int = 0  # Input tokens (PDF + prompt)
     completion_tokens: int = 0  # Output tokens (markdown)
+    cache_read_tokens: int = 0  # Tokens served from cache
 
 
 # Abstract base class

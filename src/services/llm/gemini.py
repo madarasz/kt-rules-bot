@@ -440,6 +440,7 @@ class GeminiAdapter(LLMProvider):
                 validation_warnings=validation_warnings,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
+                cache_read_tokens=cache_read_tokens,
             )
 
         except TimeoutError as e:
