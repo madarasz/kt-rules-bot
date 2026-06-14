@@ -18,7 +18,7 @@ from urllib.request import Request, urlopen
 from src.lib.config import get_config
 from src.lib.constants import PDF_EXTRACTION_PROVIDERS
 from src.lib.logging import get_logger
-from src.lib.tokens import estimate_cost
+from src.lib.tokens import LLMCostBreakdown, calculate_llm_cost
 from src.services.llm.base import ExtractionConfig, ExtractionRequest
 from src.services.llm.factory import LLMProviderFactory
 
@@ -233,18 +233,9 @@ def validate_final_markdown(markdown: str, team_name: str) -> list[str]:
     return warnings
 
 
-def calculate_cost(prompt_tokens: int, completion_tokens: int, model: str) -> float:
-    """Calculate estimated cost for LLM usage.
-
-    Args:
-        prompt_tokens: Input tokens (PDF + prompt)
-        completion_tokens: Output tokens (markdown)
-        model: Model identifier
-
-    Returns:
-        Estimated cost in USD
-    """
-    return estimate_cost(prompt_tokens, completion_tokens, model)
+def _cost_breakdown(prompt_tokens: int, completion_tokens: int, model: str, cache_read_tokens: int = 0) -> LLMCostBreakdown:
+    """Calculate cost breakdown including cache savings."""
+    return calculate_llm_cost(prompt_tokens, completion_tokens, model, cache_read_tokens=cache_read_tokens)
 
 
 def download_team_internal(
@@ -295,6 +286,7 @@ def download_team_internal(
             "tokens": 0,
             "latency_ms": 0,
             "cost_usd": 0.0,
+            "cache_savings": 0.0,
             "error": f"Download failed: {e}",
             "validation_warnings": [],
         }
@@ -318,6 +310,7 @@ def download_team_internal(
             "tokens": 0,
             "latency_ms": 0,
             "cost_usd": 0.0,
+            "cache_savings": 0.0,
             "error": f"Failed to load extraction prompt: {e}",
             "validation_warnings": [],
         }
@@ -339,6 +332,7 @@ def download_team_internal(
                 "tokens": 0,
                 "latency_ms": 0,
                 "cost_usd": 0.0,
+                "cache_savings": 0.0,
                 "error": error_msg,
                 "validation_warnings": [],
             }
@@ -376,6 +370,7 @@ def download_team_internal(
             "tokens": 0,
             "latency_ms": 0,
             "cost_usd": 0.0,
+            "cache_savings": 0.0,
             "error": f"Extraction failed: {e}",
             "validation_warnings": [],
         }
@@ -389,15 +384,15 @@ def download_team_internal(
                 print(f"\nTeam name: {team_name.upper()}")
         except Exception as e:
             logger.error(f"Failed to extract team name: {e}", exc_info=True)
+            breakdown = _cost_breakdown(response.prompt_tokens, response.completion_tokens, model, response.cache_read_tokens)
             return {
                 "success": False,
                 "team_name": None,
                 "output_file": None,
                 "tokens": response.token_count,
                 "latency_ms": response.latency_ms,
-                "cost_usd": calculate_cost(
-                    response.prompt_tokens, response.completion_tokens, model
-                ),
+                "cost_usd": breakdown.total_cost,
+                "cache_savings": breakdown.cache_savings,
                 "error": f"Failed to extract team name: {e}",
                 "validation_warnings": [],
             }
@@ -423,13 +418,15 @@ def download_team_internal(
         )
     except Exception as e:
         logger.error(f"Failed to add frontmatter: {e}", exc_info=True)
+        breakdown = _cost_breakdown(response.prompt_tokens, response.completion_tokens, model, response.cache_read_tokens)
         return {
             "success": False,
             "team_name": team_name,
             "output_file": None,
             "tokens": response.token_count,
             "latency_ms": response.latency_ms,
-            "cost_usd": calculate_cost(response.prompt_tokens, response.completion_tokens, model),
+            "cost_usd": breakdown.total_cost,
+            "cache_savings": breakdown.cache_savings,
             "error": f"Failed to add frontmatter: {e}",
             "validation_warnings": [],
         }
@@ -455,26 +452,30 @@ def download_team_internal(
         logger.info(f"Saved extracted rules to {output_file}")
     except Exception as e:
         logger.error(f"Failed to save file: {e}", exc_info=True)
+        breakdown = _cost_breakdown(response.prompt_tokens, response.completion_tokens, model, response.cache_read_tokens)
         return {
             "success": False,
             "team_name": team_name,
             "output_file": None,
             "tokens": response.token_count,
             "latency_ms": response.latency_ms,
-            "cost_usd": calculate_cost(response.prompt_tokens, response.completion_tokens, model),
+            "cost_usd": breakdown.total_cost,
+            "cache_savings": breakdown.cache_savings,
             "error": f"Failed to save file: {e}",
             "validation_warnings": validation_warnings,
         }
 
     # Step 7: Calculate metrics
-    cost = calculate_cost(response.prompt_tokens, response.completion_tokens, model)
+    breakdown = _cost_breakdown(response.prompt_tokens, response.completion_tokens, model, response.cache_read_tokens)
 
     if verbose:
         latency_s = response.latency_ms / 1000
         print("\nMetrics:")
         print(f"  Tokens: {response.token_count:,}")
         print(f"  Time: {latency_s:.1f}s")
-        print(f"  Estimated cost: ${cost:.2f}")
+        print(f"  Estimated cost: ${breakdown.total_cost:.4f}")
+        if breakdown.cache_savings != 0:
+            print(f"  Cache savings: ${breakdown.cache_savings:.4f}")
 
     logger.info(
         "Extraction metrics",
@@ -482,7 +483,8 @@ def download_team_internal(
             "team_name": team_name,
             "tokens": response.token_count,
             "latency_ms": response.latency_ms,
-            "cost_usd": cost,
+            "cost_usd": breakdown.total_cost,
+            "cache_savings": breakdown.cache_savings,
         },
     )
 
@@ -493,7 +495,8 @@ def download_team_internal(
         "output_file": str(output_file),
         "tokens": response.token_count,
         "latency_ms": response.latency_ms,
-        "cost_usd": cost,
+        "cost_usd": breakdown.total_cost,
+        "cache_savings": breakdown.cache_savings,
         "error": None,
         "validation_warnings": validation_warnings,
     }
