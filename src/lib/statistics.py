@@ -94,7 +94,9 @@ class CostFormatter:
                 lines.append(f"    Completion tokens: {completion_tokens:,}")
             if cache_savings != 0.0:
                 sign = "-" if cache_savings < 0 else ""
-                lines.append(f"    Cache savings:     {sign}${abs(cache_savings):.6f}")
+                full_cost = llm_cost + abs(cache_savings)
+                pct = (abs(cache_savings) / full_cost * 100) if full_cost > 0 else 0.0
+                lines.append(f"    Cache savings:     {sign}${abs(cache_savings):.6f} ({pct:.1f}%)")
 
         return lines
 

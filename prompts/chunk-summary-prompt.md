@@ -93,3 +93,4 @@ Text: Whenever an operative is shooting this operative, ignore the Saturate weap
 1. Grants discounted firefight ploy usage and allows activating Combat Doctrine strategy ploy for free once per turning point when conditions are met
 2. Ignores Saturate rule and gains enhanced Stealthy tactic allowing retention of two cover saves including one critical success
 ```
+<!--CACHE_BREAK-->

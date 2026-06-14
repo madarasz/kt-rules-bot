@@ -128,7 +128,9 @@ class CustomJudge:
                     f"Expected location: {CUSTOM_JUDGE_PROMPT_PATH}"
                 )
 
-            self._prompt_template = prompt_file.read_text(encoding="utf-8")
+            from src.services.llm.prompt_builder import strip_cache_markers
+
+            self._prompt_template = strip_cache_markers(prompt_file.read_text(encoding="utf-8"))
             logger.debug(f"Loaded custom judge prompt from {CUSTOM_JUDGE_PROMPT_PATH}")
 
         return self._prompt_template

@@ -31,6 +31,44 @@ DYNAMIC_PLACEHOLDERS = [
 # User prompt template section marker
 _USER_PROMPT_SECTION_MARKER = "## User Prompt Template"
 
+# Marker placed in prompt files to indicate an Anthropic prompt cache breakpoint.
+# Stripped for all non-Claude providers; converted to cache_control blocks for Claude.
+CACHE_BREAK_MARKER = "<!--CACHE_BREAK-->"
+
+
+def strip_cache_markers(text: str) -> str:
+    """Remove cache break markers from prompt text (for non-Claude providers)."""
+    return text.replace(CACHE_BREAK_MARKER, "").strip()
+
+
+def build_claude_system_blocks(provider_type: ProviderType = "default") -> list[dict]:
+    """Build system prompt as Anthropic cache-control blocks.
+
+    Splits on CACHE_BREAK_MARKER and adds cache_control: ephemeral to each block
+    except the last, enabling prompt caching for the stable instruction sections.
+    Returns a list suitable for the Anthropic API `system` parameter.
+    """
+    from src.lib.personality import get_personality_description
+
+    dynamic_values = {"PERSONALITY_DESCRIPTION": get_personality_description()}
+    raw = build_prompt_for_provider(provider_type, dynamic_values)  # keeps markers
+
+    parts = raw.split(CACHE_BREAK_MARKER)
+    blocks: list[dict] = []
+    for i, part in enumerate(parts):
+        text = part.strip()
+        if not text:
+            continue
+        block: dict = {"type": "text", "text": text}
+        if i < len(parts) - 1:
+            block["cache_control"] = {"type": "ephemeral"}
+        blocks.append(block)
+
+    if not blocks:
+        blocks = [{"type": "text", "text": raw.strip()}]
+
+    return blocks
+
 
 def _get_template_path() -> Path:
     """Get the template file path."""
@@ -272,7 +310,7 @@ def build_system_prompt(provider_type: ProviderType = "default") -> str:
         "PERSONALITY_DESCRIPTION": get_personality_description(),
     }
 
-    return build_prompt_for_provider(provider_type, dynamic_values)
+    return strip_cache_markers(build_prompt_for_provider(provider_type, dynamic_values))
 
 
 def clear_cache() -> None:

@@ -94,7 +94,6 @@ class TestPromptBuilder:
 
         # Should be identical
         assert prompt1 == prompt2
-        assert id(prompt1) == id(prompt2)  # Same object in memory
 
         # Cache should contain the prompt (cache key includes dynamic values)
         assert len(_PROMPT_CACHE) >= 1

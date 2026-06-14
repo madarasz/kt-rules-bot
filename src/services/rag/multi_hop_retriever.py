@@ -119,8 +119,10 @@ class MultiHopRetriever:
 
     def _load_prompt_template(self) -> str:
         """Load hop evaluation prompt from file and cache in memory."""
+        from src.services.llm.prompt_builder import strip_cache_markers
+
         with open(RAG_HOP_EVALUATION_PROMPT_PATH) as f:
-            return f.read()
+            return strip_cache_markers(f.read())
 
     def _load_structure_dict(self, file_path: str) -> dict[str, Any]:
         """Load YAML structure file as dictionary.

@@ -44,7 +44,9 @@ def load_summary_prompt() -> str:
             f"Expected location: {CHUNK_SUMMARY_PROMPT_PATH}"
         )
 
-    return prompt_file.read_text(encoding="utf-8")
+    from src.services.llm.prompt_builder import strip_cache_markers
+
+    return strip_cache_markers(prompt_file.read_text(encoding="utf-8"))
 
 
 class ChunkSummarizer:

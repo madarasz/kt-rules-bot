@@ -209,6 +209,7 @@ The answer was wrong because of the missing rule.  ❌ (This belongs in Explanat
 
 ---
 
+<!--CACHE_BREAK-->
 # Important Notes
 
 - **Exact wording doesn't matter for answers**: "Yes, you can shoot" and "Shooting is allowed" are semantically equivalent

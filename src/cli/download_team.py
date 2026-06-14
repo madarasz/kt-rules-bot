@@ -305,7 +305,9 @@ def download_team_internal(
         if not prompt_file.exists():
             raise FileNotFoundError(f"Extraction prompt not found: {prompt_file}")
 
-        extraction_prompt = prompt_file.read_text(encoding="utf-8")
+        from src.services.llm.prompt_builder import strip_cache_markers
+
+        extraction_prompt = strip_cache_markers(prompt_file.read_text(encoding="utf-8"))
         logger.info(f"Loaded extraction prompt from {prompt_file}")
     except Exception as e:
         logger.error(f"Failed to load extraction prompt: {e}", exc_info=True)

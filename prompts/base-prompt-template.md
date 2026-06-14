@@ -161,6 +161,7 @@ Hello!
 }
 ```
 
+<!--CACHE_BREAK-->
 ## User Prompt Template
 
 Context from Kill Team 3rd Edition rules:

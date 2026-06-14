@@ -73,8 +73,8 @@ pricing: dict[str, dict] = {
     "claude-4.5-haiku":          {"prompt": 0.001,  "completion": 0.005,  "cache_read": 0.0001,   "cache_write": 0.00125, "cache_mode": "anthropic"},
     # https://docs.x.ai/docs/models
     # Grok - OpenAI-compatible cache format, 50% discount
-    "grok-4-1-fast-reasoning":    {"prompt": 0.0002,  "completion": 0.0005,  "cache_read": 0.0001,   "cache_write": 0.0, "cache_mode": "openai"},
-    "grok-4-1-fast-non-reasoning":{"prompt": 0.0002,  "completion": 0.0005,  "cache_read": 0.0001,   "cache_write": 0.0, "cache_mode": "openai"},
+    "grok-4-1-fast-reasoning":    {"prompt": 0.0002,  "completion": 0.0005,  "cache_read": 0.00005,  "cache_write": 0.0, "cache_mode": "openai"},
+    "grok-4-1-fast-non-reasoning":{"prompt": 0.0002,  "completion": 0.0005,  "cache_read": 0.00005,  "cache_write": 0.0, "cache_mode": "openai"},
     "grok-4.3":                   {"prompt": 0.00125, "completion": 0.00250, "cache_read": 0.000625, "cache_write": 0.0, "cache_mode": "openai"},
     "grok-4.20-0309-reasoning":   {"prompt": 0.00125, "completion": 0.00250, "cache_read": 0.000625, "cache_write": 0.0, "cache_mode": "openai"},
     "grok-build-0.1":             {"prompt": 0.00100, "completion": 0.00200, "cache_read": 0.0005,   "cache_write": 0.0, "cache_mode": "openai"},
