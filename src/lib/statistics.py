@@ -93,7 +93,8 @@ class CostFormatter:
                 lines.append(f"    Prompt tokens: {prompt_tokens:,}")
                 lines.append(f"    Completion tokens: {completion_tokens:,}")
             if cache_savings != 0.0:
-                lines.append(f"    Cache savings:     ${cache_savings:.6f}")
+                sign = "-" if cache_savings < 0 else ""
+                lines.append(f"    Cache savings:     {sign}${abs(cache_savings):.6f}")
 
         return lines
 
