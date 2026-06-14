@@ -421,6 +421,7 @@ class TestProcessQuery:
                 rag_context=rag_context,
                 llm_provider=None,
                 generation_timeout=120,
+                use_cache=False,
             )
 
 

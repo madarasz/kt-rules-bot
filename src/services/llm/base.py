@@ -331,6 +331,7 @@ class GenerationConfig:
     include_citations: bool = True
     timeout_seconds: int = LLM_GENERATION_TIMEOUT  # Must respond within timeout
     structured_output_schema: str = "default"  # "default", "hop_evaluation", or "custom_judge"
+    use_cache: bool = True  # Claude only: enable system prompt cache_control blocks; other providers ignore this
 
 
 @dataclass

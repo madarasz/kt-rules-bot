@@ -40,13 +40,16 @@ def _init_system_cache() -> None:
     global _DEFAULT_STRIPPED, _DEFAULT_BLOCKS
     from src.services.llm.prompt_builder import build_claude_system_blocks, build_system_prompt
 
-    _DEFAULT_STRIPPED = build_system_prompt("default")
-    _DEFAULT_BLOCKS = build_claude_system_blocks("default")
+    stripped = build_system_prompt("default")
+    blocks = build_claude_system_blocks("default")
+    _DEFAULT_STRIPPED = stripped
+    _DEFAULT_BLOCKS = blocks
 
 
-def _get_system(system_prompt: str) -> str | list[dict]:
+def _get_system(system_prompt: str, use_cache: bool = True) -> str | list[dict]:
     """Return cache-control blocks for the default prompt; plain string otherwise."""
-    global _DEFAULT_STRIPPED, _DEFAULT_BLOCKS
+    if not use_cache:
+        return system_prompt
     if _DEFAULT_STRIPPED is None:
         _init_system_cache()
     if system_prompt == _DEFAULT_STRIPPED:
@@ -107,7 +110,7 @@ class ClaudeAdapter(LLMProvider):
             full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
 
         try:
-            system = _get_system(request.config.system_prompt)
+            system = _get_system(request.config.system_prompt, request.config.use_cache)
 
             # Select schema based on configuration
             schema_type = request.config.structured_output_schema

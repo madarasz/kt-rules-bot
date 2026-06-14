@@ -48,7 +48,7 @@ class HopEvaluation:
         cache_savings_usd: float = 0.0,
         retrieval_time_s: float = 0.0,
         evaluation_time_s: float = 0.0,
-        filled_prompt: str | None = None,
+        filled_prompt: str | list[dict[str, Any]] | None = None,
         filtered_teams_count: int = 0,
     ):
         self.can_answer = can_answer

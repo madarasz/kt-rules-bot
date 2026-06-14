@@ -159,7 +159,7 @@ def _render_metadata(query: dict) -> None:
     gross_total = total_cost + total_cache_savings
     cache_savings_pct = (total_cache_savings / gross_total * 100) if gross_total > 0 else 0.0
     st.write(f"**Total Cost:** {total_cost:.3f}¢")
-    if total_cache_savings > 0:
+    if total_cache_savings != 0:
         st.write(f"  - Cache Cost Saving: {total_cache_savings:.3f}¢ ({cache_savings_pct:.2f}%)")
     st.write(f"  - Hop Evaluation: {hop_eval_cost:.3f}¢")
     st.write(f"  - Main LLM: {main_llm_cost:.3f}¢")

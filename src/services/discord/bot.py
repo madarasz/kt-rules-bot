@@ -262,6 +262,7 @@ class KillTeamBotOrchestrator:
                 rag_context=rag_context,
                 llm_provider=llm_provider,
                 generation_timeout=LLM_GENERATION_TIMEOUT,
+                use_cache=False,
             )
 
         llm_response, chunk_ids = await retry_on_content_filter(

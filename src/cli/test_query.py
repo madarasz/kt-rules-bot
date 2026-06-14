@@ -239,6 +239,7 @@ async def _perform_llm_generation(services: TestQueryServices, query: str, rag_c
             rag_context=rag_context,
             llm_provider=services.llm_provider,
             generation_timeout=LLM_GENERATION_TIMEOUT,
+            use_cache=False,
         )
 
     llm_response, _chunk_ids = await retry_on_content_filter(

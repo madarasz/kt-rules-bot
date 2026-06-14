@@ -130,6 +130,7 @@ class QueryOrchestrator:
         rag_context: RAGContext,
         llm_provider=None,
         generation_timeout: int = LLM_GENERATION_TIMEOUT,
+        use_cache: bool = True,
     ) -> tuple[object, list[str]]:
         """Step 2: LLM generation with pre-retrieved RAG context.
 
@@ -175,7 +176,7 @@ class QueryOrchestrator:
             GenerationRequest(
                 prompt=query,
                 context=[chunk.text for chunk in rag_context.document_chunks],
-                config=GenerationConfig(timeout_seconds=generation_timeout),
+                config=GenerationConfig(timeout_seconds=generation_timeout, use_cache=use_cache),
                 chunk_ids=chunk_ids,
             )
         )
@@ -255,6 +256,7 @@ class QueryOrchestrator:
             rag_context=rag_context,
             llm_provider=llm_provider,
             generation_timeout=generation_timeout,
+            use_cache=False,
         )
 
         return llm_response, rag_context, hop_evaluations, chunk_hop_map, embedding_cost, retrieval_time_ms
