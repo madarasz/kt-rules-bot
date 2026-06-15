@@ -60,6 +60,8 @@ pricing: dict[str, dict] = {
     # Actual model IDs (returned by API) - cache_read/write SEPARATE from prompt_tokens
     "claude-sonnet-4-6":         {"prompt": 0.003,  "completion": 0.006,  "cache_read": 0.0003,   "cache_write": 0.00375, "cache_mode": "anthropic"},
     "claude-sonnet-4-5-20250929":{"prompt": 0.003,  "completion": 0.006,  "cache_read": 0.0003,   "cache_write": 0.00375, "cache_mode": "anthropic"},
+    "claude-opus-4-8":           {"prompt": 0.005,  "completion": 0.025,  "cache_read": 0.0005,   "cache_write": 0.00625, "cache_mode": "anthropic"},
+    "claude-opus-4-7":           {"prompt": 0.005,  "completion": 0.025,  "cache_read": 0.0005,   "cache_write": 0.00625, "cache_mode": "anthropic"},
     "claude-opus-4-6":           {"prompt": 0.005,  "completion": 0.025,  "cache_read": 0.0005,   "cache_write": 0.00625, "cache_mode": "anthropic"},
     "claude-opus-4-5-20251101":  {"prompt": 0.005,  "completion": 0.025,  "cache_read": 0.0005,   "cache_write": 0.00625, "cache_mode": "anthropic"},
     "claude-opus-4-1-20250805":  {"prompt": 0.015,  "completion": 0.075,  "cache_read": 0.0015,   "cache_write": 0.01875, "cache_mode": "anthropic"},

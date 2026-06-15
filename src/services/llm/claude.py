@@ -65,6 +65,12 @@ CLAUDE_MODELS_WITH_STRUCTURED_OUTPUTS = [
     # claude-haiku-4-5-20251001 not yet supported
 ]
 
+# temperature/top_p/top_k removed on these models (returns 400 if sent)
+CLAUDE_MODELS_WITHOUT_TEMPERATURE = {
+    "claude-opus-4-7",
+    "claude-opus-4-8",
+}
+
 class ClaudeAdapter(LLMProvider):
     """Anthropic Claude API integration."""
 
@@ -127,16 +133,18 @@ class ClaudeAdapter(LLMProvider):
             if supports_structured_outputs:
                 # NEW API: Use Pydantic structured output with beta.messages.parse()
                 logger.debug(f"Using structured outputs API for {self.model}")
+                parse_kwargs = dict(
+                    model=self.model,
+                    max_tokens=request.config.max_tokens,
+                    system=system,
+                    messages=[{"role": "user", "content": full_prompt}],
+                    betas=["structured-outputs-2025-11-13"],
+                    output_format=pydantic_model,
+                )
+                if self.model not in CLAUDE_MODELS_WITHOUT_TEMPERATURE:
+                    parse_kwargs["temperature"] = request.config.temperature
                 response = await asyncio.wait_for(
-                    self.client.beta.messages.parse(
-                        model=self.model,
-                        max_tokens=request.config.max_tokens,
-                        temperature=request.config.temperature,
-                        system=system,
-                        messages=[{"role": "user", "content": full_prompt}],
-                        betas=["structured-outputs-2025-11-13"],
-                        output_format=pydantic_model,
-                    ),
+                    self.client.beta.messages.parse(**parse_kwargs),
                     timeout=request.config.timeout_seconds,
                 )
 
@@ -160,23 +168,25 @@ class ClaudeAdapter(LLMProvider):
             else:
                 # FALLBACK: Use tool use for models without structured outputs support
                 logger.debug(f"Using tool use fallback for {self.model}")
+                create_kwargs = dict(
+                    model=self.model,
+                    max_tokens=request.config.max_tokens,
+                    system=system,
+                    messages=[{"role": "user", "content": full_prompt}],
+                    tools=[{
+                        "name": tool_name,
+                        "description": tool_description,
+                        "input_schema": json_schema
+                    }],
+                    tool_choice={
+                        "type": "tool",
+                        "name": tool_name
+                    },
+                )
+                if self.model not in CLAUDE_MODELS_WITHOUT_TEMPERATURE:
+                    create_kwargs["temperature"] = request.config.temperature
                 response = await asyncio.wait_for(
-                    self.client.messages.create(
-                        model=self.model,
-                        max_tokens=request.config.max_tokens,
-                        temperature=request.config.temperature,
-                        system=system,
-                        messages=[{"role": "user", "content": full_prompt}],
-                        tools=[{
-                            "name": tool_name,
-                            "description": tool_description,
-                            "input_schema": json_schema
-                        }],
-                        tool_choice={
-                            "type": "tool",
-                            "name": tool_name
-                        }
-                    ),
+                    self.client.messages.create(**create_kwargs),
                     timeout=request.config.timeout_seconds,
                 )
 
@@ -317,24 +327,26 @@ class ClaudeAdapter(LLMProvider):
                     logger.info(f"Uploaded PDF to Files API: {uploaded_file.id}")
 
                     # Use uploaded file in message
+                    pdf_kwargs = dict(
+                        model=self.model,
+                        max_tokens=request.config.max_tokens,
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "document",
+                                        "source": {"type": "file", "file_id": uploaded_file.id},
+                                    },
+                                    {"type": "text", "text": request.extraction_prompt},
+                                ],
+                            }
+                        ],
+                    )
+                    if self.model not in CLAUDE_MODELS_WITHOUT_TEMPERATURE:
+                        pdf_kwargs["temperature"] = request.config.temperature
                     response = await asyncio.wait_for(
-                        self.client.messages.create(
-                            model=self.model,
-                            max_tokens=request.config.max_tokens,
-                            temperature=request.config.temperature,
-                            messages=[
-                                {
-                                    "role": "user",
-                                    "content": [
-                                        {
-                                            "type": "document",
-                                            "source": {"type": "file", "file_id": uploaded_file.id},
-                                        },
-                                        {"type": "text", "text": request.extraction_prompt},
-                                    ],
-                                }
-                            ],
-                        ),
+                        self.client.messages.create(**pdf_kwargs),
                         timeout=request.config.timeout_seconds,
                     )
 

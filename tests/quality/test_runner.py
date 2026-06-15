@@ -82,7 +82,7 @@ class QualityTestRunner:
         logger.info(
             "quality_test_config",
             judging_mode=QUALITY_TEST_JUDGING,
-            judge_model=judge_model if QUALITY_TEST_JUDGING == "RAGAS" else "N/A",
+            judge_model=judge_model if QUALITY_TEST_JUDGING != "OFF" else "N/A",
         )
 
     def load_test_cases(self, test_id: str | None = None) -> list[TestCase]:
@@ -750,7 +750,7 @@ class QualityTestRunner:
             # Run custom judge (single LLM call) with semaphore
             from tests.quality.custom_judge import CustomJudge
 
-            judge = CustomJudge(model=QUALITY_TEST_JUDGE_MODEL)
+            judge = CustomJudge(model=self.judge_model)
 
             # Use semaphore to serialize judge evaluations
             async with self.ragas_semaphore:

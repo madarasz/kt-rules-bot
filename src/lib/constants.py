@@ -12,6 +12,8 @@ from typing import Literal, get_args
 
 # All available LLM providers (complete list)
 LLM_PROVIDERS_LITERAL = Literal[
+    "claude-4.8-opus",
+    "claude-4.7-opus",
     "claude-4.6-opus",
     "claude-4.6-sonnet",
     "claude-4.5-sonnet",

@@ -273,11 +273,11 @@ class RagasEvaluator:
                 use_custom_judge = False
 
             if use_custom_judge:
-                logger.debug(f"Running custom LLM judge (QUALITY_TEST_JUDGING=CUSTOM, model={QUALITY_TEST_JUDGE_MODEL})")
+                logger.debug(f"Running custom LLM judge (QUALITY_TEST_JUDGING=CUSTOM, model={self.llm_model})")
 
                 # Call unified custom judge (single LLM call for explanation faithfulness + answer correctness + feedback)
                 # Note: Quote faithfulness is evaluated separately using fuzzy string matching
-                custom_judge = CustomJudge(model=QUALITY_TEST_JUDGE_MODEL)
+                custom_judge = CustomJudge(model=self.llm_model)
                 judge_result = await custom_judge.evaluate(
                     query=query,
                     llm_response_text=llm_response.to_json(),  # Full structured response as JSON
@@ -464,7 +464,7 @@ class RagasEvaluator:
                 metrics.total_cost_usd = estimate_cost(
                     prompt_tokens=judge_prompt_tokens,
                     completion_tokens=judge_completion_tokens,
-                    model=QUALITY_TEST_JUDGE_MODEL,
+                    model=self.llm_model,
                 )
 
                 logger.debug(
@@ -472,7 +472,7 @@ class RagasEvaluator:
                     input_tokens=judge_prompt_tokens,
                     output_tokens=judge_completion_tokens,
                     cost_usd=metrics.total_cost_usd,
-                    judge_model=QUALITY_TEST_JUDGE_MODEL,
+                    judge_model=self.llm_model,
                 )
 
             elif not use_custom_judge and QUALITY_TEST_JUDGING == "RAGAS":
@@ -497,7 +497,7 @@ class RagasEvaluator:
                 metrics.total_cost_usd = estimate_cost(
                     prompt_tokens=total_input_tokens,
                     completion_tokens=total_output_tokens,
-                    model=QUALITY_TEST_JUDGE_MODEL,
+                    model=self.llm_model,
                 )
 
                 logger.debug(
@@ -505,7 +505,7 @@ class RagasEvaluator:
                     input_tokens=total_input_tokens,
                     output_tokens=total_output_tokens,
                     cost_usd=metrics.total_cost_usd,
-                    judge_model=QUALITY_TEST_JUDGE_MODEL,
+                    judge_model=self.llm_model,
                 )
             else:
                 # No LLM-based evaluation costs when judging is OFF
