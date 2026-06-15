@@ -153,7 +153,14 @@ def _render_metadata(query: dict) -> None:
     hop_eval_cost = query.get("hop_evaluation_cost", 0.0) * 100
     main_llm_cost = query.get("main_llm_cost", 0.0) * 100
     total_cost = query.get("cost", 0.0) * 100
+    main_llm_cache_savings = query.get("main_llm_cache_savings", 0.0) * 100
+    hop_eval_cache_savings = query.get("hop_evaluation_cache_savings", 0.0) * 100
+    total_cache_savings = main_llm_cache_savings + hop_eval_cache_savings
+    gross_total = total_cost + total_cache_savings
+    cache_savings_pct = (total_cache_savings / gross_total * 100) if gross_total > 0 else 0.0
     st.write(f"**Total Cost:** {total_cost:.3f}¢")
+    if total_cache_savings != 0:
+        st.write(f"  - Cache Cost Saving: {total_cache_savings:.3f}¢ ({cache_savings_pct:.2f}%)")
     st.write(f"  - Hop Evaluation: {hop_eval_cost:.3f}¢")
     st.write(f"  - Main LLM: {main_llm_cost:.3f}¢")
 

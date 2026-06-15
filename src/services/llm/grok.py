@@ -176,6 +176,8 @@ class GrokAdapter(LLMProvider):
             prompt_tokens = usage.get("prompt_tokens", 0)
             completion_tokens = usage.get("completion_tokens", 0)
             token_count = usage.get("total_tokens", 0)
+            prompt_details = usage.get("prompt_tokens_details", {})
+            cache_read_tokens = prompt_details.get("cached_tokens", 0) if prompt_details else 0
 
             logger.info(
                 "Grok generation completed",
@@ -199,6 +201,8 @@ class GrokAdapter(LLMProvider):
                 citations_included=citations_included,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
+                cache_read_tokens=cache_read_tokens,
+                cache_creation_tokens=0,
                 structured_output=structured_output_dict,
             )
 

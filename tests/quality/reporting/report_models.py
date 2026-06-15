@@ -51,6 +51,7 @@ class IndividualTestResult:
     multi_hop_cost_usd: float = 0.0
     ragas_cost_usd: float = 0.0
     embedding_cost_usd: float = 0.0
+    cache_savings_usd: float = 0.0
     json_formatted: bool = False  # True if response was valid JSON
     structured_quotes_count: int = 0  # Number of quotes in structured response
 
@@ -188,6 +189,20 @@ class ModelSummary:
         if not self.results:
             return 0.0
         return np.mean([r.embedding_cost_usd for r in self.results])
+
+    @property
+    def avg_gross_cost(self) -> float:
+        """Average gross (pre-cache) production cost per test."""
+        if not self.results:
+            return 0.0
+        return np.mean([r.cost_usd + r.cache_savings_usd for r in self.results])
+
+    @property
+    def std_dev_gross_cost(self) -> float:
+        """Standard deviation of gross (pre-cache) production cost."""
+        if len(self.results) < 2:
+            return 0.0
+        return np.std([r.cost_usd + r.cache_savings_usd for r in self.results])
 
     @property
     def avg_infrastructure(self) -> float:

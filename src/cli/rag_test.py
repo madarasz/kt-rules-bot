@@ -129,7 +129,10 @@ def rag_test(
         total_cost_with_hops = summary.total_cost_usd + summary.hop_evaluation_cost_usd
         print(f"Total Cost: ${total_cost_with_hops:.6f}")
         print(f"  ├─ Embeddings: ${summary.total_cost_usd:.6f}")
-        print(f"  └─ Hop Evaluations: ${summary.hop_evaluation_cost_usd:.6f}")
+        print(f"  ├─ Hop Evaluations: ${summary.hop_evaluation_cost_usd:.6f}")
+        gross_total = total_cost_with_hops + summary.hop_evaluation_cache_savings_usd
+        pct = summary.hop_evaluation_cache_savings_usd / gross_total * 100 if gross_total > 0 else 0.0
+        print(f"  └─ Cache savings: ${summary.hop_evaluation_cache_savings_usd:.6f} ({pct:.2f}%)")
         print("")
 
         # Generate report

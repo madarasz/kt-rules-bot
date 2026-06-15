@@ -156,6 +156,7 @@ Response:
 
 This is the second half of the Available Rules Reference — apply the same scanning guidance described above.
 
+<!--CACHE_BREAK-->
 <team_rules_reference>
 {team_structure}
 </team_rules_reference>

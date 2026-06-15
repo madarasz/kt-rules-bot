@@ -331,13 +331,14 @@ class GenerationConfig:
     include_citations: bool = True
     timeout_seconds: int = LLM_GENERATION_TIMEOUT  # Must respond within timeout
     structured_output_schema: str = "default"  # "default", "hop_evaluation", or "custom_judge"
+    use_cache: bool = True  # Claude only: enable system prompt cache_control blocks; other providers ignore this
 
 
 @dataclass
 class GenerationRequest:
     """Request for answer generation."""
 
-    prompt: str  # User query (sanitized)
+    prompt: str | list[dict]  # User query (str) or pre-built cache-control blocks (list[dict])
     context: list[str]  # Retrieved document chunks (up to 5)
     config: GenerationConfig
     chunk_ids: list[str] | None = None  # Optional chunk IDs for attribution (UUIDs)
@@ -357,6 +358,8 @@ class LLMResponse:
     citations_included: bool  # True if answer references context chunks
     prompt_tokens: int = 0  # Input/prompt tokens
     completion_tokens: int = 0  # Output/completion tokens
+    cache_read_tokens: int = 0       # Tokens served from cache
+    cache_creation_tokens: int = 0   # Tokens written to cache (Anthropic only)
     structured_output: dict | None = None  # Parsed Pydantic model as dict (for structured schemas)
 
 
@@ -392,6 +395,7 @@ class ExtractionResponse:
     validation_warnings: list[str]  # E.g., "Missing YAML frontmatter"
     prompt_tokens: int = 0  # Input tokens (PDF + prompt)
     completion_tokens: int = 0  # Output tokens (markdown)
+    cache_read_tokens: int = 0  # Tokens served from cache
 
 
 # Abstract base class

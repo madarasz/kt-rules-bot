@@ -222,9 +222,9 @@ class CustomJudge:
                 f"{i+1}. {strip_markdown(ctx)}" for i, ctx in enumerate(ground_truth_contexts)
             )
 
-            # Load and format prompt template
+            # Load and format prompt template (kept raw with cache markers)
             template = self._load_prompt_template()
-            prompt = template.format(
+            filled = template.format(
                 query=query,
                 ground_truth_answers=ground_truth_answers_formatted,
                 ground_truth_contexts=ground_truth_contexts_formatted,
@@ -232,8 +232,19 @@ class CustomJudge:
                 llm_quotes=llm_quotes_display,
             )
 
-            # Configure for structured output
+            # For Claude: split on CACHE_BREAK_MARKER → cache-control blocks.
+            # For all other providers: strip the marker and use plain string.
             provider = self._get_provider()
+            from src.services.llm.claude import ClaudeAdapter
+            from src.services.llm.prompt_builder import (
+                split_user_prompt_for_cache,
+                strip_cache_markers,
+            )
+
+            if isinstance(provider, ClaudeAdapter):
+                prompt = split_user_prompt_for_cache(filled)
+            else:
+                prompt = strip_cache_markers(filled)
             config = GenerationConfig(
                 max_tokens=2048,  # Hardcoded (sufficient for judge evaluation)
                 temperature=0,  # Hardcoded (deterministic for consistency)

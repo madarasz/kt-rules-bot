@@ -283,10 +283,12 @@ class GeminiAdapter(LLMProvider):
                 prompt_tokens = response.usage_metadata.prompt_token_count
                 completion_tokens = response.usage_metadata.candidates_token_count
                 token_count = response.usage_metadata.total_token_count
+                cache_read_tokens = getattr(response.usage_metadata, "cached_content_token_count", 0) or 0
             else:
                 prompt_tokens = 0
                 completion_tokens = 0
                 token_count = 0
+                cache_read_tokens = 0
 
             logger.info(
                 "Gemini generation completed",
@@ -295,6 +297,7 @@ class GeminiAdapter(LLMProvider):
                     "token_count": token_count,
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
+                    "cache_read_tokens": cache_read_tokens,
                     "confidence": confidence,
                 },
             )
@@ -310,6 +313,7 @@ class GeminiAdapter(LLMProvider):
                 citations_included=citations_included,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
+                cache_read_tokens=cache_read_tokens,
                 structured_output=structured_output_dict,  # Add parsed Pydantic model as dict
             )
 
@@ -405,10 +409,12 @@ class GeminiAdapter(LLMProvider):
                 prompt_tokens = response.usage_metadata.prompt_token_count
                 completion_tokens = response.usage_metadata.candidates_token_count
                 token_count = response.usage_metadata.total_token_count
+                cache_read_tokens = getattr(response.usage_metadata, "cached_content_token_count", 0) or 0
             else:
                 prompt_tokens = 0
                 completion_tokens = 0
                 token_count = 0
+                cache_read_tokens = 0
 
             # Validate extracted markdown
             validation_warnings = self._validate_extraction(markdown_content)
@@ -434,6 +440,7 @@ class GeminiAdapter(LLMProvider):
                 validation_warnings=validation_warnings,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
+                cache_read_tokens=cache_read_tokens,
             )
 
         except TimeoutError as e:

@@ -80,7 +80,7 @@ class ChartGenerator:
             model_test_data[result.model][result.test_id]["times"].append(
                 result.generation_time_seconds
             )
-            model_test_data[result.model][result.test_id]["costs"].append(result.cost_usd)
+            model_test_data[result.model][result.test_id]["costs"].append(result.cost_usd + result.cache_savings_usd)
             model_test_data[result.model][result.test_id]["chars"].append(result.output_char_count)
 
         # Calculate per-run averages, then overall averages and std devs
@@ -183,7 +183,7 @@ class ChartGenerator:
                 model_data[result.model] = {"scores": [], "times": [], "costs": [], "chars": []}
             model_data[result.model]["scores"].append(result.score_percentage)
             model_data[result.model]["times"].append(result.generation_time_seconds)
-            model_data[result.model]["costs"].append(result.cost_usd)
+            model_data[result.model]["costs"].append(result.cost_usd + result.cache_savings_usd)
             model_data[result.model]["chars"].append(result.output_char_count)
 
         models = list(model_data.keys())
@@ -537,7 +537,7 @@ class ChartGenerator:
                     elif metric == "times":
                         values.append(result.generation_time_seconds)
                     elif metric == "costs":
-                        values.append(result.cost_usd)
+                        values.append(result.cost_usd + result.cache_savings_usd)
                     elif metric == "chars":
                         values.append(result.output_char_count)
 

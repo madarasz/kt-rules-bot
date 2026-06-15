@@ -5,14 +5,14 @@ Uses actual prompt/completion token counts from LLM responses.
 """
 
 from src.lib.logging import get_logger
-from src.lib.tokens import estimate_cost
+from src.lib.tokens import LLMCostBreakdown, calculate_llm_cost
 from src.services.llm.base import LLMResponse
 
 logger = get_logger(__name__)
 
 
-def calculate_hop_evaluation_cost(response: LLMResponse, model: str) -> float:
-    """Calculate cost for hop evaluation LLM call using actual token counts.
+def calculate_hop_evaluation_cost(response: LLMResponse, model: str) -> LLMCostBreakdown:
+    """Calculate cost breakdown for hop evaluation LLM call using actual token counts.
 
     This is the single source of truth for hop evaluation cost calculation.
     Uses actual prompt_tokens and completion_tokens from the LLM response,
@@ -23,7 +23,7 @@ def calculate_hop_evaluation_cost(response: LLMResponse, model: str) -> float:
         model: Model identifier (e.g., "gpt-4.1-mini")
 
     Returns:
-        Cost in USD
+        LLMCostBreakdown with total_cost and cache_savings
 
     Raises:
         ValueError: If prompt_tokens or completion_tokens are missing
@@ -44,9 +44,12 @@ def calculate_hop_evaluation_cost(response: LLMResponse, model: str) -> float:
         prompt_tokens = response.prompt_tokens
         completion_tokens = response.completion_tokens
 
-    # Use centralized cost estimation from tokens.py
-    cost_usd = estimate_cost(
-        prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, model=model
+    breakdown = calculate_llm_cost(
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        model=model,
+        cache_read_tokens=response.cache_read_tokens,
+        cache_creation_tokens=response.cache_creation_tokens,
     )
 
     logger.debug(
@@ -55,7 +58,8 @@ def calculate_hop_evaluation_cost(response: LLMResponse, model: str) -> float:
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         total_tokens=response.token_count,
-        cost_usd=cost_usd,
+        cost_usd=breakdown.total_cost,
+        cache_savings_usd=breakdown.cache_savings,
     )
 
-    return cost_usd
+    return breakdown

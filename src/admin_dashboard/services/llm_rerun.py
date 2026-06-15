@@ -13,7 +13,7 @@ from uuid import UUID, uuid4
 
 from src.lib.constants import LLM_GENERATION_TIMEOUT, QUALITY_TEST_PROVIDERS, RAG_MAX_CHUNKS
 from src.lib.logging import get_logger
-from src.lib.tokens import estimate_cost
+from src.lib.tokens import calculate_llm_cost
 from src.models.rag_context import DocumentChunk, RAGContext
 from src.models.structured_response import StructuredLLMResponse
 from src.services.llm.factory import LLMProviderFactory
@@ -34,6 +34,7 @@ class RerunResult:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     cost_usd: float = 0.0
+    cache_savings_usd: float = 0.0
     rag_info: dict = field(default_factory=dict)
     error: str | None = None
 
@@ -179,6 +180,7 @@ async def _rerun_query_async(
                 rag_context=rag_context,
                 llm_provider=llm_provider,
                 generation_timeout=LLM_GENERATION_TIMEOUT,
+                use_cache=False,
             )
 
         llm_response, _chunk_ids = await retry_on_content_filter(
@@ -194,9 +196,15 @@ async def _rerun_query_async(
         result.token_count = llm_response.token_count
         result.prompt_tokens = llm_response.prompt_tokens
         result.completion_tokens = llm_response.completion_tokens
-        result.cost_usd = estimate_cost(
-            llm_response.prompt_tokens, llm_response.completion_tokens, model_name
+        llm_breakdown = calculate_llm_cost(
+            prompt_tokens=llm_response.prompt_tokens,
+            completion_tokens=llm_response.completion_tokens,
+            model=llm_response.model_version or model_name,
+            cache_read_tokens=llm_response.cache_read_tokens,
+            cache_creation_tokens=llm_response.cache_creation_tokens,
         )
+        result.cost_usd = llm_breakdown.total_cost
+        result.cache_savings_usd = llm_breakdown.cache_savings
 
         # Try to parse as structured response
         with contextlib.suppress(ValueError):

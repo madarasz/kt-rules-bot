@@ -167,6 +167,7 @@ class ReportGenerator:
         total_multi_hop = sum(r.multi_hop_cost_usd for r in self.report.results)
         total_judge = sum(r.ragas_cost_usd for r in self.report.results)
         total_embedding = sum(r.embedding_cost_usd for r in self.report.results)
+        total_cache_savings = sum(r.cache_savings_usd for r in self.report.results)
 
         header = [
             "# Quality Test Report",
@@ -182,6 +183,11 @@ class ReportGenerator:
                 f"  - Judge: ${total_judge:.4f} ({total_judge/self.report.total_cost_usd*100:.1f}%)",
                 f"  - Embeddings: ${total_embedding:.4f} ({total_embedding/self.report.total_cost_usd*100:.1f}%)",
             ])
+            if abs(total_cache_savings) > 1e-9:
+                sign = "-" if total_cache_savings < 0 else ""
+                gross = self.report.total_cost_usd + total_cache_savings
+                pct = (abs(total_cache_savings) / gross * 100) if gross > 1e-9 else 0.0
+                header.append(f"  - Cache net savings: {sign}${abs(total_cache_savings):.4f} ({pct:.1f}%)")
 
         header.append(f"- **Total queries**: {self.report.total_queries}")
         if self.report.is_multi_model or self.report.is_multi_run:
@@ -220,12 +226,12 @@ class ReportGenerator:
                 f" (±{summary.std_dev_score_pct:.1f})" if self.report.is_multi_run else ""
             )
             time_std_dev = f" (±{summary.std_dev_time:.2f})" if self.report.is_multi_run else ""
-            cost_std_dev = f" (±{summary.std_dev_cost:.4f})" if self.report.is_multi_run else ""
+            cost_std_dev = f" (±{summary.std_dev_gross_cost:.4f})" if self.report.is_multi_run else ""
             row = [
                 summary.model_name,
                 f"{summary.avg_score_pct:.1f}%{score_std_dev}",
                 f"{summary.avg_time:.2f}{time_std_dev}",
-                f"${summary.avg_cost:.4f}{cost_std_dev}",
+                f"${summary.avg_gross_cost:.4f}{cost_std_dev}",
             ]
             table.append("| " + " | ".join(row) + " |")
         return "\n".join(table)
@@ -594,6 +600,7 @@ class ReportGenerator:
         total_multi_hop = sum(r.multi_hop_cost_usd for r in self.report.results)
         total_judge = sum(r.ragas_cost_usd for r in self.report.results)
         total_embedding = sum(r.embedding_cost_usd for r in self.report.results)
+        total_cache_savings = sum(r.cache_savings_usd for r in self.report.results)
 
         content = []
         content.append("\n" + "=" * 60)
@@ -610,6 +617,11 @@ class ReportGenerator:
             content.append(f"  Multi-hop: ${total_multi_hop:.4f}")
             content.append(f"  Judge: ${total_judge:.4f}")
             content.append(f"  Embeddings: ${total_embedding:.4f}")
+            if abs(total_cache_savings) > 1e-9:
+                sign = "-" if total_cache_savings < 0 else ""
+                gross = self.report.total_cost_usd + total_cache_savings
+                pct = (abs(total_cache_savings) / gross * 100) if gross > 1e-9 else 0.0
+                content.append(f"  Cache net savings: {sign}${abs(total_cache_savings):.4f} ({pct:.1f}%)")
 
         # Calculate JSON formatting statistics
         json_formatted_count = sum(1 for r in self.report.results if r.json_formatted)
@@ -688,13 +700,13 @@ class ReportGenerator:
                 )
                 time_std_dev = f" (±{summary.std_dev_time:.2f})" if self.report.is_multi_run else ""
                 cost_std_dev = (
-                    f" (±${summary.std_dev_cost:.4f})" if self.report.is_multi_run else ""
+                    f" (±${summary.std_dev_gross_cost:.4f})" if self.report.is_multi_run else ""
                 )
                 row = [
                     summary.model_name,
                     f"{summary.avg_score_pct:.1f}%{score_std_dev}",
                     f"{summary.avg_time:.2f}s{time_std_dev}",
-                    f"${summary.avg_cost:.4f}{cost_std_dev}",
+                    f"${summary.avg_gross_cost:.4f}{cost_std_dev}",
                 ]
                 table.append(row)
 

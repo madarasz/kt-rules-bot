@@ -331,6 +331,7 @@ def download_all_teams(
     results_failed = []
     total_tokens = 0
     total_cost = 0.0
+    total_cache_savings = 0.0
 
     for idx, (hit, _reason) in enumerate(teams_to_download, 1):
         title = hit.get("id", {}).get("title", "Unknown")
@@ -372,6 +373,7 @@ def download_all_teams(
                 results_success.append(title)
                 total_tokens += result["tokens"]
                 total_cost += result["cost_usd"]
+                total_cache_savings += result["cache_savings"]
 
                 logger.info(
                     f"Downloaded {title}",
@@ -398,9 +400,13 @@ def download_all_teams(
     print(f"  Skipped: {len(teams_skipped)} teams (up-to-date)")
     print(f"  Failed: {len(results_failed)} teams")
     print(f"  Total time: {elapsed_mins}m {elapsed_secs}s")
-    print(f"  Total cost: ${total_cost:.2f}")
+    print(f"  Total cost: ${total_cost:.4f}")
     if total_tokens > 0:
         print(f"  Total tokens: {total_tokens:,}")
+    if total_cache_savings != 0:
+        gross_cost = total_cost + total_cache_savings
+        pct = (total_cache_savings / gross_cost * 100) if gross_cost != 0 else 0.0
+        print(f"  Cache savings: ${total_cache_savings:.4f} ({pct:.1f}%)")
     print("=" * 60)
 
     if results_failed:
@@ -417,6 +423,7 @@ def download_all_teams(
             "total_time_seconds": elapsed_time,
             "total_cost_usd": total_cost,
             "total_tokens": total_tokens,
+            "total_cache_savings": total_cache_savings,
         },
     )
 

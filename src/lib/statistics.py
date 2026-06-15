@@ -52,6 +52,7 @@ class CostFormatter:
         prompt_tokens: int,
         completion_tokens: int,
         hop_evals: list | None,
+        cache_savings: float = 0.0,
     ) -> list[str]:  # type: ignore[type-arg]
         """Format cost breakdown section."""
         # Calculate initial embedding cost if needed
@@ -91,6 +92,11 @@ class CostFormatter:
             if prompt_tokens > 0:
                 lines.append(f"    Prompt tokens: {prompt_tokens:,}")
                 lines.append(f"    Completion tokens: {completion_tokens:,}")
+            if cache_savings != 0.0:
+                sign = "-" if cache_savings < 0 else ""
+                full_cost = llm_cost + abs(cache_savings)
+                pct = (abs(cache_savings) / full_cost * 100) if full_cost > 0 else 0.0
+                lines.append(f"    Cache savings:     {sign}${abs(cache_savings):.6f} ({pct:.1f}%)")
 
         return lines
 
@@ -108,6 +114,7 @@ def format_statistics_summary(
     llm_prompt_tokens: int = 0,
     llm_completion_tokens: int = 0,
     llm_model: str = "",
+    cache_savings: float = 0.0,
 ) -> str:
     """Format statistics summary with time and cost breakdowns."""
     lines = [
@@ -135,6 +142,7 @@ def format_statistics_summary(
             llm_prompt_tokens,
             llm_completion_tokens,
             hop_evaluations,
+            cache_savings=cache_savings,
         )
     )
 

@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.services.llm.base import LLMResponse
+from src.services.llm.base import GenerationRequest, LLMResponse
 from src.services.llm.schemas import ChunkSummaries, ChunkSummary
 from src.services.rag.chunker import MarkdownChunk
 from src.services.rag.summarizer import ChunkSummarizer
@@ -267,6 +267,78 @@ class TestGenerateSummaries:
         assert result_chunks[0].summary == "Only first summary"
         # Second chunk should have empty summary (fallback)
         assert result_chunks[1].summary == ""
+
+
+class TestSummarizerCachingBehavior:
+    """Tests for Claude prompt-caching behavior in ChunkSummarizer."""
+
+    def _make_success_response(self):
+        return LLMResponse(
+            response_id=uuid4(),
+            answer_text="{}",
+            confidence_score=0.9,
+            token_count=150,
+            latency_ms=500,
+            provider="test",
+            model_version="test-model",
+            citations_included=False,
+            prompt_tokens=100,
+            completion_tokens=50,
+            structured_output={
+                "summaries": [
+                    {"chunk_number": 1, "summary": "Movement summary"},
+                    {"chunk_number": 2, "summary": "Shooting summary"},
+                ]
+            },
+        )
+
+    @pytest.mark.asyncio
+    @patch("src.services.rag.summarizer.LLMProviderFactory")
+    @patch("src.services.rag.summarizer.SUMMARY_ENABLED", True)
+    @patch("src.services.rag.summarizer.load_summary_prompt")
+    async def test_claude_provider_gets_list_prompt(
+        self, mock_load_prompt, mock_factory, sample_chunks
+    ):
+        """When provider is ClaudeAdapter, generate() receives list[dict] blocks."""
+        from src.services.llm.claude import ClaudeAdapter
+
+        mock_load_prompt.return_value = "Static summary instructions"
+
+        mock_provider = ClaudeAdapter(api_key="test-key", model="claude-sonnet-4-5-20250929")
+        mock_provider.generate = AsyncMock(return_value=self._make_success_response())
+        mock_factory.create.return_value = mock_provider
+
+        summarizer = ChunkSummarizer()
+        await summarizer.generate_summaries(sample_chunks)
+
+        call_args = mock_provider.generate.call_args
+        request: GenerationRequest = call_args.args[0]
+        assert isinstance(request.prompt, list), "Claude path should use list[dict] blocks"
+        assert all(isinstance(b, dict) and b.get("type") == "text" for b in request.prompt)
+        # First block(s) have cache_control, last does not
+        assert "cache_control" not in request.prompt[-1]
+        assert request.prompt[0].get("cache_control") == {"type": "ephemeral"}
+
+    @pytest.mark.asyncio
+    @patch("src.services.rag.summarizer.LLMProviderFactory")
+    @patch("src.services.rag.summarizer.SUMMARY_ENABLED", True)
+    @patch("src.services.rag.summarizer.load_summary_prompt")
+    async def test_non_claude_provider_gets_str_prompt(
+        self, mock_load_prompt, mock_factory, sample_chunks
+    ):
+        """When provider is not ClaudeAdapter, generate() receives plain str."""
+        mock_load_prompt.return_value = "Static summary instructions"
+
+        mock_provider = Mock()  # generic mock — not a ClaudeAdapter
+        mock_provider.generate = AsyncMock(return_value=self._make_success_response())
+        mock_factory.create.return_value = mock_provider
+
+        summarizer = ChunkSummarizer()
+        await summarizer.generate_summaries(sample_chunks)
+
+        call_args = mock_provider.generate.call_args
+        request: GenerationRequest = call_args.args[0]
+        assert isinstance(request.prompt, str), "Non-Claude path should use plain str"
 
 
 class TestLoadSummaryPrompt:

@@ -63,6 +63,9 @@ def migrate_analytics_db(db_path: str) -> None:
             ("queries", "total_latency_ms", "INTEGER DEFAULT 0"),
             # Fixed issue tracking (added 2026-02-12)
             ("queries", "fixed_issue", "INTEGER DEFAULT 0"),
+            # Cache cost savings (added 2026-06-14)
+            ("queries", "main_llm_cache_savings", "REAL DEFAULT 0.0"),
+            ("queries", "hop_evaluation_cache_savings", "REAL DEFAULT 0.0"),
         ]
 
         applied_count = 0

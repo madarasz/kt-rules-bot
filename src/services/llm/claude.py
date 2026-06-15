@@ -29,6 +29,34 @@ from src.services.llm.base import TimeoutError as LLMTimeoutError
 
 logger = get_logger(__name__)
 
+# Lazy-loaded system prompt cache.  On first use we build both the stripped default
+# (to detect when a caller has not overridden the system prompt) and the block list
+# with cache_control markers that Anthropic uses for prompt caching.
+_DEFAULT_STRIPPED: str | None = None
+_DEFAULT_BLOCKS: list[dict] | None = None
+
+
+def _init_system_cache() -> None:
+    global _DEFAULT_STRIPPED, _DEFAULT_BLOCKS
+    from src.services.llm.prompt_builder import build_claude_system_blocks, build_system_prompt
+
+    stripped = build_system_prompt("default")
+    blocks = build_claude_system_blocks("default")
+    _DEFAULT_STRIPPED = stripped
+    _DEFAULT_BLOCKS = blocks
+
+
+def _get_system(system_prompt: str, use_cache: bool = True) -> str | list[dict]:
+    """Return cache-control blocks for the default prompt; plain string otherwise."""
+    if not use_cache:
+        return system_prompt
+    if _DEFAULT_STRIPPED is None:
+        _init_system_cache()
+    if system_prompt == _DEFAULT_STRIPPED:
+        return _DEFAULT_BLOCKS  # type: ignore[return-value]
+    return system_prompt
+
+
 # Claude models that support structured outputs (beta.messages.parse)
 # Models not in this list use tool use fallback
 CLAUDE_MODELS_WITH_STRUCTURED_OUTPUTS = [
@@ -75,10 +103,15 @@ class ClaudeAdapter(LLMProvider):
         """
         start_time = time.time()
 
-        # Build prompt with context and optional chunk IDs
-        full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
+        # list[dict] prompt = pre-built cache-control blocks; str = normal path via _build_prompt
+        if isinstance(request.prompt, list):
+            full_prompt = request.prompt
+        else:
+            full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
 
         try:
+            system = _get_system(request.config.system_prompt, request.config.use_cache)
+
             # Select schema based on configuration
             schema_type = request.config.structured_output_schema
             schema_info = get_schema_info(schema_type)
@@ -99,7 +132,7 @@ class ClaudeAdapter(LLMProvider):
                         model=self.model,
                         max_tokens=request.config.max_tokens,
                         temperature=request.config.temperature,
-                        system=request.config.system_prompt,
+                        system=system,
                         messages=[{"role": "user", "content": full_prompt}],
                         betas=["structured-outputs-2025-11-13"],
                         output_format=pydantic_model,
@@ -132,7 +165,7 @@ class ClaudeAdapter(LLMProvider):
                         model=self.model,
                         max_tokens=request.config.max_tokens,
                         temperature=request.config.temperature,
-                        system=request.config.system_prompt,
+                        system=system,
                         messages=[{"role": "user", "content": full_prompt}],
                         tools=[{
                             "name": tool_name,
@@ -179,6 +212,8 @@ class ClaudeAdapter(LLMProvider):
             prompt_tokens = response.usage.input_tokens
             completion_tokens = response.usage.output_tokens
             token_count = prompt_tokens + completion_tokens
+            cache_read_tokens = getattr(response.usage, "cache_read_input_tokens", 0) or 0
+            cache_creation_tokens = getattr(response.usage, "cache_creation_input_tokens", 0) or 0
 
             # Get structured output as dict (same structure for both API paths)
             if supports_structured_outputs:
@@ -208,6 +243,8 @@ class ClaudeAdapter(LLMProvider):
                 citations_included=citations_included,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
+                cache_read_tokens=cache_read_tokens,
+                cache_creation_tokens=cache_creation_tokens,
                 structured_output=structured_output_dict,
             )
 

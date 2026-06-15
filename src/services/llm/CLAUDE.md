@@ -678,11 +678,16 @@ logger.error("llm_generation_failed", model=model, error=str(e))
 - Estimated cost calculated in [src/lib/tokens.py](../../lib/tokens.py)
 - Quality tests report total cost
 
+### Prompt Caching
+
+We use provider prompt caching for OpenAI, Claude, Grok and Gemini. Cost fields in [src/lib/tokens.py](../../lib/tokens.py): `cache_read` (discounted rate for cache hits) and `cache_write` (surcharge for writing to cache, Anthropic only).
+
+Claude charges a 1.25× write penalty on first cache population, so caching is **disabled for one-off queries** (CLI, Discord, admin rerun) via `GenerationConfig.use_cache=False`. It stays **enabled for repeated calls** — quality and RAG tests — where cache reads pay off.
+
 ### Optimization Tips
-1. Cache responses (via RAG cache) - NOT YET IMPLEMENTED
-2. Use mini/flash models for simple queries
-3. Reduce `max_tokens` for concise answers
-4. Batch PDF extractions to amortize latency
+1. Use mini/flash models for simple queries
+2. Reduce `max_tokens` for concise answers
+3. Batch PDF extractions to amortize latency
 
 ## Testing LLM Integration
 
