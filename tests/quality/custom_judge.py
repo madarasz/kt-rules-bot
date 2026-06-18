@@ -8,6 +8,7 @@ Note: Quote Faithfulness is evaluated separately using fuzzy string matching.
 Uses a single LLM call with structured output (Pydantic validation).
 """
 
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -65,6 +66,40 @@ def strip_markdown(text: str) -> str:
     text = re.sub(r'^[\*\-_]{3,}\s*$', '', text, flags=re.MULTILINE)
 
     return text
+
+
+# Dedicated persona fields in StructuredLLMResponse. These carry in-character
+# flair (e.g. "A trivial calculation", "The logic is unimpeachable") that must
+# NOT influence judge scoring. They are stripped from the judge input only;
+# the written output_*.md files keep persona intact for human reading + replay.
+# Note: residual persona *tone* the bot may weave into the `explanation` field
+# (see prompts/base-prompt-template.md) cannot be removed deterministically.
+PERSONA_FIELDS = ("persona_short_answer", "persona_afterword")
+
+
+def strip_persona(response_json_text: str) -> str:
+    """Remove dedicated persona fields from the bot's structured JSON response.
+
+    Non-mutating: only affects the string handed to the judge. Falls back to
+    returning the input unchanged if it is not valid JSON (e.g. a plain-text
+    response), so behaviour is safe for any input shape.
+
+    Args:
+        response_json_text: The bot's response as a JSON string.
+
+    Returns:
+        JSON string with persona fields removed, or the original text if it
+        could not be parsed as JSON.
+    """
+    try:
+        data = json.loads(response_json_text)
+    except (json.JSONDecodeError, TypeError):
+        return response_json_text
+    if not isinstance(data, dict):
+        return response_json_text
+    for field in PERSONA_FIELDS:
+        data.pop(field, None)
+    return json.dumps(data, indent=2)
 
 
 @dataclass
@@ -214,8 +249,9 @@ class CustomJudge:
                 for ans in ground_truth_answers
             )
 
-            # Strip markdown from LLM response text
-            llm_response_text_stripped = strip_markdown(llm_response_text)
+            # Strip persona fields (deterministic) then markdown from LLM response text.
+            # strip_persona must run first, while the text is still valid JSON.
+            llm_response_text_stripped = strip_markdown(strip_persona(llm_response_text))
 
             # Format ground truth contexts (strip markdown from each context)
             ground_truth_contexts_formatted = "\n".join(

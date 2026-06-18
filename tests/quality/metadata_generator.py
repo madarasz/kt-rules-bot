@@ -54,6 +54,12 @@ class OutputMetadata:
     #   ]
     # }
 
+    # Original bot response as a JSON string (StructuredLLMResponse). Stored so
+    # replay can reconstruct the EXACT judge input instead of heuristically
+    # re-parsing the human-readable markdown. Optional for backward
+    # compatibility with output files written before this field existed.
+    response_json: str | None = None
+
     def to_json(self) -> str:
         """Serialize to JSON for embedding in markdown."""
         return json.dumps(asdict(self), indent=2)
@@ -128,6 +134,8 @@ class MetadataGenerator:
                 "quote_faithfulness_details": metrics.quote_faithfulness_details,
                 "llm_quotes_structured": metrics.llm_quotes_structured,
             },
+            # Faithful copy of the bot's structured response for deterministic replay.
+            response_json=llm_response.answer_text,
         )
 
     @staticmethod

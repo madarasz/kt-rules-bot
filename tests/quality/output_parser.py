@@ -71,8 +71,15 @@ class OutputParser:
         # Extract query
         query = OutputParser._extract_query(content)
 
-        # Reconstruct LLM response
-        llm_response = OutputParser._reconstruct_llm_response(content, metadata)
+        # Reconstruct LLM response. Prefer the faithful response JSON stored in
+        # metadata (newer output files); fall back to heuristic markdown parsing
+        # for older files written before response_json was persisted.
+        if metadata.response_json:
+            llm_response = OutputParser._reconstruct_llm_response_from_json(
+                metadata.response_json, metadata
+            )
+        else:
+            llm_response = OutputParser._reconstruct_llm_response(content, metadata)
 
         return ParsedOutput(
             metadata=metadata, llm_response=llm_response, query=query, file_path=file_path
@@ -144,6 +151,43 @@ class OutputParser:
             ),  # Infer from model ID
             model_version=metadata.test_metadata["actual_model_id"],
             citations_included=len(quotes) > 0,
+            prompt_tokens=metadata.tokens["prompt"],
+            completion_tokens=metadata.tokens["completion"],
+        )
+
+    @staticmethod
+    def _reconstruct_llm_response_from_json(
+        response_json: str, metadata: OutputMetadata
+    ) -> LLMResponse:
+        """Reconstruct LLMResponse from the faithful response JSON stored in metadata.
+
+        This preserves the exact original structured response (including persona
+        fields), so the judge receives identical input on replay as on the live
+        run. Token/provider/latency come from metadata.
+
+        Args:
+            response_json: Original bot response as a JSON string.
+            metadata: Parsed metadata with token counts and model info.
+
+        Returns:
+            LLMResponse object with answer_text set to the stored JSON.
+        """
+        # Determine whether quotes were included (for citations flag).
+        try:
+            quotes = json.loads(response_json).get("quotes", [])
+            citations_included = bool(quotes)
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            citations_included = True
+
+        return LLMResponse(
+            response_id=__import__("uuid").uuid4(),
+            answer_text=response_json,
+            confidence_score=1.0,
+            token_count=metadata.tokens["total"],
+            latency_ms=int(metadata.latency["llm_generation_seconds"] * 1000),
+            provider=OutputParser._infer_provider(metadata.test_metadata["actual_model_id"]),
+            model_version=metadata.test_metadata["actual_model_id"],
+            citations_included=citations_included,
             prompt_tokens=metadata.tokens["prompt"],
             completion_tokens=metadata.tokens["completion"],
         )

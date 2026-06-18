@@ -105,7 +105,7 @@ PDF_EXTRACTION_PROVIDERS = [
 # Quality test providers (curated list for --all-models testing)
 QUALITY_TEST_PROVIDERS = [
     #"gpt-5.4",
-    "gpt-5.4-mini",
+    #"gpt-5.4-mini",
     #"gpt-5.4-nano",
     #"gpt-5.3-chat-latest",
     #"gpt-5.2",
@@ -114,7 +114,7 @@ QUALITY_TEST_PROVIDERS = [
     #"gpt-4.1",
     #"gpt-4o",
     # "gpt-4.1-mini",
-    #"claude-4.6-sonnet",
+    "claude-4.6-sonnet",
     #"claude-4.5-sonnet",
     #"claude-4.6-opus",
     #"claude-4.5-opus",

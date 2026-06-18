@@ -205,6 +205,14 @@ class ModelSummary:
         return np.std([r.cost_usd + r.cache_savings_usd for r in self.results])
 
     @property
+    def avg_cache_savings_pct(self) -> float:
+        """Average cache savings as % of gross (pre-cache) cost."""
+        if not self.results or self.avg_gross_cost == 0:
+            return 0.0
+        avg_savings = float(np.mean([r.cache_savings_usd for r in self.results]))
+        return avg_savings / self.avg_gross_cost * 100
+
+    @property
     def avg_infrastructure(self) -> float:
         """Average total infrastructure cost per test (multi-hop + judge + embeddings)."""
         return self.avg_multi_hop + self.avg_judge + self.avg_embedding

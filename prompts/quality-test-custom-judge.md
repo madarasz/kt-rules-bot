@@ -25,10 +25,10 @@ The bot must provide **accurate, complete, and trustworthy** answers because pla
 
 In order of priority:
 
-1. **Correctness** (30%): Getting the right answer matters most
-2. **Citation Completeness** (30%): Citing all critical rules (especially exceptions that change the answer)
-3. **Explanation Quality** (20%): Clear reasoning that connects rules to answer without hallucinating
-4. **Citation Accuracy** (15%): Quotes must be verbatim from official rules
+1. **Correctness** (50%): Getting the right answer matters most
+2. **Citation Completeness** (20%): Citing all critical rules (especially exceptions that change the answer)
+3. **Explanation Quality** (15%): Clear reasoning that connects rules to answer without hallucinating
+4. **Citation Accuracy** (10%): Quotes must be verbatim from official rules
 5. **Conciseness** (5%): Avoid citing irrelevant rules (nice to have, least important)
 
 **Critical insight**: Kill Team has many exceptions to baseline rules. Missing a faction-specific exception (e.g., "Space Marines can shoot while concealed") will produce a wrong answer even if baseline rules are cited correctly.
@@ -97,6 +97,17 @@ Evaluate the bot's response on two dimensions and provide actionable feedback fo
 ### 1. Explanation Faithfulness (0.0 - 1.0)
 **Question**: Is the bot's explanation grounded only in the cited quotes?
 
+**CRITICAL — faithfulness is INDEPENDENT of answer correctness. Read carefully:**
+- Faithfulness measures ONLY whether each claim is supported by the cited quotes. It does NOT measure whether the final answer is right or wrong — that is scored separately in Answer Correctness. Do not double-penalize.
+- A **WRONG** conclusion can still be **fully faithful** (high score) if every claim it makes follows from the quotes — e.g. the quotes were simply incomplete, so the bot reasoned correctly from what it had but reached the wrong answer.
+- A **CORRECT** conclusion can be **unfaithful** (low score) if it relies on facts not present in the quotes.
+- The ONE way a wrong answer loses faithfulness: a claim **contradicts, ignores, or misapplies a rule the bot itself quoted** (e.g. it quotes a "must be set up wholly within 2\"" restriction, then concludes the action is allowed without ever addressing that restriction). Penalize THAT specific unfaithful step — not the whole explanation, and not merely because the answer is wrong.
+
+**Worked anchors** (apply the same logic to converge on consistent scores):
+- *Wrong answer, every claim grounded in the (incomplete) quotes* → **0.9–1.0**. The reasoning faithfully follows the quotes; the quotes just didn't contain the overriding exception. Faithfulness is high even though Answer Correctness will be low.
+- *Wrong answer that QUOTES the controlling rule then ignores/misapplies it* → **~0.4**. One central claim is unfaithful (it skips a restriction the bot itself cited); other grounded claims keep partial credit. Not 0.0 — most claims are still grounded.
+- *Correct answer that rests on "no rule prohibits this" (argument from silence)* → **~0.8**. The conclusion is a reasonable inference from the absence of a restriction in the quotes, but it is an inference rather than an explicit statement, so dock slightly.
+
 **Evaluation approach**:
 - Identify each factual claim in the explanation
 - Verify each claim is supported by a cited quote
@@ -130,6 +141,12 @@ Evaluate the bot's response on two dimensions and provide actionable feedback fo
   - **0.5**: Weakly addresses or only implied
   - **0.0**: Doesn't address this point or contradicts it
 
+**Binary rule for Yes/No ruling components** (usually the "Final Answer"):
+- A component that states a **Yes/No / allowed-or-not ruling is BINARY**: score **1.0 if it matches** the ground truth ruling, **0.0 if it contradicts or inverts** it. Do NOT give 0.5–0.7 partial credit to a ruling component just because nearby sub-facts are described correctly. A confidently wrong ruling is dangerous for players and must score 0.0.
+- **Cascade rule**: if the ruling is wrong, every OTHER component whose correctness *depends on* that ruling also scores **0.0**. Components that describe **independent** facts (e.g. "how teleportation mechanically works", a definition) keep their own score on their own merit.
+- Reserve the 0.7 / 0.5 partial tiers for genuinely partial **non-ruling** components.
+- (The backend then weights every component by its priority — critical/important/supporting — so zeroing the critical ruling already drives the aggregate toward 0. You only provide the per-component scores.)
+
 **What you provide**:
 - For each ground truth answer, assign individual score in `answer_correctness_details`
 - The backend will calculate the priority-weighted aggregate (you don't need to)
@@ -146,6 +163,18 @@ Evaluate the bot's response on two dimensions and provide actionable feedback fo
 }}
 ```
 Backend calculates weighted average using priority weights
+
+**Example — INVERTED ruling** (bot answered "Yes, allowed" but the correct ruling is "No"). The ruling and everything depending on it are 0.0; an independent mechanical fact keeps its own score:
+```json
+{{
+  "answer_correctness_details": [
+    {{"answer_key": "Final Answer", "score": 0.0}},
+    {{"answer_key": "Distance requirement", "score": 0.0}},
+    {{"answer_key": "How teleportation works", "score": 1.0}}
+  ]
+}}
+```
+Here "Final Answer" (critical) and "Distance requirement" (depends on the ruling) are 0.0, while "How teleportation works" is an independent fact the bot described correctly. The priority-weighted aggregate stays near 0 because the critical ruling is 0.0.
 
 **Important**: The ground truth answers are provided with their keys and priorities in the "Ground Truth Answers" section above. Use those exact keys in your `answer_correctness_details`.
 
@@ -166,13 +195,15 @@ Write **concise bullet-point lists** organized into two sections using markdown 
 - Example bullet: "States 'counteract is always available' without grounding in cited Astartes rule"
 
 ### Style
-**What to evaluate**: Clarity, logical flow, conciseness, specificity (1-3 bullets maximum)
+**What to evaluate**: Clarity, logical flow, conciseness, specificity of the `short_answer` and `explanation` (1-3 bullets maximum).
+
+**Note**: In-character persona flair has already been removed from the response before you see it. Evaluate ONLY the factual `short_answer` and `explanation`. Do NOT comment on persona, tone, or in-character phrasing — and do not invent such criticism.
 
 **Format**: Brief bullets assessing presentation quality
 - **Good style indicators**: Short answer is specific/unambiguous, explanation follows logical flow, no superfluous wording
 - **Bad style indicators**: Vague answer, convoluted explanation, excessive verbosity, irrelevant details
 - Example bullet: "Clear logical structure connecting Astartes rule to conclusion"
-- Example bullet: "Overly verbose with unnecessary persona comments"
+- Example bullet: "Short answer is vague; could state the Yes/No ruling more directly"
 
 ---
 

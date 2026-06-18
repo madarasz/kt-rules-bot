@@ -216,7 +216,7 @@ class ReportGenerator:
         if summaries is None:
             summaries = list(self.report.per_model_summaries.values())
 
-        headers = ["Model", "Avg Score %", "Avg Time/Query (s)", "Avg Cost/Query ($)"]
+        headers = ["Model", "Avg Score %", "Avg Time/Query (s)", "Avg Cost/Query ($)", "Cache Saving %"]
         table = [
             "| " + " | ".join(headers) + " |",
             "|-" + "-|-".join(["-" * len(h) for h in headers]) + "-|",
@@ -232,6 +232,7 @@ class ReportGenerator:
                 f"{summary.avg_score_pct:.1f}%{score_std_dev}",
                 f"{summary.avg_time:.2f}{time_std_dev}",
                 f"${summary.avg_gross_cost:.4f}{cost_std_dev}",
+                f"{summary.avg_cache_savings_pct:.1f}%",
             ]
             table.append("| " + " | ".join(row) + " |")
         return "\n".join(table)
