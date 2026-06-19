@@ -21,7 +21,7 @@ from src.lib.constants import (
     RAG_MAX_HOPS,
 )
 from src.lib.logging import get_logger
-from src.lib.tokens import calculate_llm_cost, estimate_cost
+from src.lib.tokens import calculate_llm_cost
 from src.models.rag_context_serializer import RAGContextSerializationError, load_rag_context
 from src.models.structured_response import StructuredLLMResponse
 from src.services.llm.base import (
@@ -451,6 +451,7 @@ class QualityTestRunner:
             ragas_cost_usd=ragas_metrics.total_cost_usd,
             embedding_cost_usd=embedding_cost,
             cache_savings_usd=cache_savings,
+            judge_cache_savings_usd=ragas_metrics.cache_savings_usd,
             output_char_count=len(llm_response_markdown),
             generation_time_seconds=generation_time,
             output_filename=str(output_filename),
@@ -741,6 +742,7 @@ class QualityTestRunner:
 
         # Run judge evaluation based on QUALITY_TEST_JUDGING mode
         judge_cost = 0.0
+        judge_cache_savings = 0.0
 
         if QUALITY_TEST_JUDGING == "OFF":
             # No judge - use deterministic metrics only
@@ -773,12 +775,17 @@ class QualityTestRunner:
                     })
                     ragas_metrics = RagasMetrics(**deterministic_metrics)
 
-                    # Calculate judge cost from actual tokens
-                    judge_cost = estimate_cost(
+                    # Calculate judge cost from actual tokens, including prompt-cache
+                    # tokens so cached judge calls are costed and credited correctly.
+                    judge_breakdown = calculate_llm_cost(
                         prompt_tokens=judge_result.prompt_tokens,
                         completion_tokens=judge_result.completion_tokens,
-                        model=QUALITY_TEST_JUDGE_MODEL,
+                        model=self.judge_model,
+                        cache_read_tokens=judge_result.cache_read_tokens,
+                        cache_creation_tokens=judge_result.cache_creation_tokens,
                     )
+                    judge_cost = judge_breakdown.total_cost
+                    judge_cache_savings = judge_breakdown.cache_savings
 
                 except Exception as e:
                     logger.error(
@@ -810,6 +817,7 @@ class QualityTestRunner:
                     )
 
                     judge_cost = ragas_result.total_cost_usd
+                    judge_cache_savings = ragas_result.cache_savings_usd
 
                 except Exception as e:
                     logger.error(
@@ -839,6 +847,7 @@ class QualityTestRunner:
             embedding_cost_usd=metadata.costs["embedding_usd"],
             # NEW judge cost
             ragas_cost_usd=judge_cost,
+            judge_cache_savings_usd=judge_cache_savings,
             output_char_count=len(structured_llm_response.to_markdown()),
             # Original latency
             generation_time_seconds=metadata.latency["llm_generation_seconds"],

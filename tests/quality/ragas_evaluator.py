@@ -20,7 +20,7 @@ from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_JUDGING, RA
 from src.lib.logging import get_logger
 from src.lib.ragas_adapter import evaluate_retrieval
 from src.lib.text_utils import normalize_text_for_matching
-from src.lib.tokens import estimate_cost
+from src.lib.tokens import calculate_llm_cost, estimate_cost
 from src.models.structured_response import StructuredLLMResponse
 from tests.quality.custom_judge import CustomJudge
 from tests.quality.fuzzy_quote_evaluator import FuzzyQuoteEvaluator
@@ -121,6 +121,7 @@ class RagasMetrics:
 
     # Cost tracking (estimated based on judge model usage)
     total_cost_usd: float = 0.0
+    cache_savings_usd: float = 0.0  # Prompt-cache net savings on the judge call
 
     # Detailed per-quote/answer breakdowns from custom judge
     quote_faithfulness_details: dict[str, float] | None = None  # chunk_id -> score
@@ -296,6 +297,8 @@ class RagasEvaluator:
                     # No tokens consumed on error
                     judge_prompt_tokens = 0
                     judge_completion_tokens = 0
+                    judge_cache_read_tokens = 0
+                    judge_cache_creation_tokens = 0
                 else:
                     explanation_faithfulness_score = judge_result.explanation_faithfulness
                     answer_correctness_score = judge_result.answer_correctness
@@ -304,6 +307,8 @@ class RagasEvaluator:
                     # Capture actual token counts from LLM call
                     judge_prompt_tokens = judge_result.prompt_tokens
                     judge_completion_tokens = judge_result.completion_tokens
+                    judge_cache_read_tokens = judge_result.cache_read_tokens
+                    judge_cache_creation_tokens = judge_result.cache_creation_tokens
 
                 # Evaluate quote faithfulness using fuzzy string matching (deterministic, fast, cheap)
                 fuzzy_evaluator = FuzzyQuoteEvaluator()
@@ -460,18 +465,26 @@ class RagasEvaluator:
             # Calculate cost based on judge model usage (only if LLM-based metrics were run)
             if use_custom_judge:
                 # Custom judge makes 1 unified LLM call
-                # Use ACTUAL token counts from LLM response
-                metrics.total_cost_usd = estimate_cost(
+                # Use ACTUAL token counts from LLM response, including prompt-cache
+                # tokens so cost reflects (and savings are tracked for) cache hits.
+                judge_breakdown = calculate_llm_cost(
                     prompt_tokens=judge_prompt_tokens,
                     completion_tokens=judge_completion_tokens,
                     model=self.llm_model,
+                    cache_read_tokens=judge_cache_read_tokens,
+                    cache_creation_tokens=judge_cache_creation_tokens,
                 )
+                metrics.total_cost_usd = judge_breakdown.total_cost
+                metrics.cache_savings_usd = judge_breakdown.cache_savings
 
                 logger.debug(
                     "custom_judge_cost_actual",
                     input_tokens=judge_prompt_tokens,
                     output_tokens=judge_completion_tokens,
+                    cache_read_tokens=judge_cache_read_tokens,
+                    cache_creation_tokens=judge_cache_creation_tokens,
                     cost_usd=metrics.total_cost_usd,
+                    cache_savings_usd=metrics.cache_savings_usd,
                     judge_model=self.llm_model,
                 )
 

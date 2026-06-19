@@ -73,6 +73,7 @@ class LLMProviderFactory:
         "grok-3-mini": (GrokAdapter, "grok-3-mini", "x"),
         "deepseek-chat": (DeepSeekAdapter, "deepseek-chat", "deepseek"),
         "deepseek-reasoner": (DeepSeekAdapter, "deepseek-reasoner", "deepseek"),
+        "kimi-k2.6": (KimiAdapter, "kimi-k2.6", "moonshot"),
         "kimi-k2.5": (KimiAdapter, "kimi-k2.5", "moonshot"),
         "kimi-k2-0905-preview": (KimiAdapter, "kimi-k2-0905-preview", "moonshot"),
         "kimi-k2-turbo-preview": (KimiAdapter, "kimi-k2-turbo-preview", "moonshot"),

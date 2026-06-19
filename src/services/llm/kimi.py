@@ -92,19 +92,19 @@ class KimiAdapter(LLMProvider):
             )
             system_prompt_with_schema = request.config.system_prompt + schema_instruction
 
-            # Kimi K2.5 only supports temperature=1.0
-            # Other Kimi models may support different temperatures
+            # Kimi K2.x thinking models only support temperature=1.0
+            THINKING_MODELS = {"kimi-k2.5", "kimi-k2.6"}
             temperature = request.config.temperature
-            if self.model == "kimi-k2.5":
+            if self.model in THINKING_MODELS:
                 temperature = 1.0
 
-            # Kimi K2.5 has thinking mode enabled, which uses internal reasoning tokens
+            # Kimi K2.x thinking models use internal reasoning tokens
             # Multiply max_tokens by 3 to account for reasoning tokens (similar to GPT-5/o-series)
             max_tokens = request.config.max_tokens
-            if self.model == "kimi-k2.5":
+            if self.model in THINKING_MODELS:
                 max_tokens = request.config.max_tokens * 3
                 logger.debug(
-                    f"Kimi K2.5: Using max_tokens={max_tokens} "
+                    f"Kimi {self.model}: Using max_tokens={max_tokens} "
                     f"(3x {request.config.max_tokens} to account for thinking tokens)"
                 )
 

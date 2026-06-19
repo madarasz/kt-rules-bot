@@ -121,6 +121,8 @@ class CustomJudgeResult:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
+    cache_read_tokens: int = 0       # Tokens served from prompt cache
+    cache_creation_tokens: int = 0   # Tokens written to prompt cache (Anthropic only)
 
 
 class CustomJudge:
@@ -386,6 +388,8 @@ class CustomJudge:
                 prompt_tokens=response.prompt_tokens,
                 completion_tokens=response.completion_tokens,
                 total_tokens=response.token_count,
+                cache_read_tokens=response.cache_read_tokens,
+                cache_creation_tokens=response.cache_creation_tokens,
             )
 
         except Exception as e:

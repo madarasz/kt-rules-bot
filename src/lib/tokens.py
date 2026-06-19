@@ -69,6 +69,8 @@ pricing: dict[str, dict] = {
     # Friendly name aliases (used in constants/CLI)
     "claude-4.6-sonnet":         {"prompt": 0.003,  "completion": 0.006,  "cache_read": 0.0003,   "cache_write": 0.00375, "cache_mode": "anthropic"},
     "claude-4.5-sonnet":         {"prompt": 0.003,  "completion": 0.006,  "cache_read": 0.0003,   "cache_write": 0.00375, "cache_mode": "anthropic"},
+    "claude-4.8-opus":           {"prompt": 0.005,  "completion": 0.025,  "cache_read": 0.0005,   "cache_write": 0.00625, "cache_mode": "anthropic"},
+    "claude-4.7-opus":           {"prompt": 0.005,  "completion": 0.025,  "cache_read": 0.0005,   "cache_write": 0.00625, "cache_mode": "anthropic"},
     "claude-4.6-opus":           {"prompt": 0.005,  "completion": 0.025,  "cache_read": 0.0005,   "cache_write": 0.00625, "cache_mode": "anthropic"},
     "claude-4.5-opus":           {"prompt": 0.005,  "completion": 0.025,  "cache_read": 0.0005,   "cache_write": 0.00625, "cache_mode": "anthropic"},
     "claude-4.1-opus":           {"prompt": 0.015,  "completion": 0.075,  "cache_read": 0.0015,   "cache_write": 0.01875, "cache_mode": "anthropic"},
@@ -92,7 +94,8 @@ pricing: dict[str, dict] = {
     "deepseek-chat":    {"prompt": 0.00028, "completion": 0.00042, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
     "deepseek-reasoner":{"prompt": 0.00028, "completion": 0.00042, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
     # https://platform.moonshot.ai/docs/pricing/chat
-    "kimi-k2.5":             {"prompt": 0.0001,  "completion": 0.003,  "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
+    "kimi-k2.6":             {"prompt": 0.00095,  "completion": 0.004,  "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
+    "kimi-k2.5":             {"prompt": 0.0006,  "completion": 0.003,  "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
     "kimi-k2-0905-preview":  {"prompt": 0.00015, "completion": 0.0025, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
     "kimi-k2-turbo-preview": {"prompt": 0.00015, "completion": 0.008,  "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
     # https://mistral.ai/pricing#api-pricing

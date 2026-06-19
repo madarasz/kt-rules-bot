@@ -167,7 +167,9 @@ class ReportGenerator:
         total_multi_hop = sum(r.multi_hop_cost_usd for r in self.report.results)
         total_judge = sum(r.ragas_cost_usd for r in self.report.results)
         total_embedding = sum(r.embedding_cost_usd for r in self.report.results)
-        total_cache_savings = sum(r.cache_savings_usd for r in self.report.results)
+        total_main_cache_savings = sum(r.cache_savings_usd for r in self.report.results)
+        total_judge_cache_savings = sum(r.judge_cache_savings_usd for r in self.report.results)
+        total_cache_savings = total_main_cache_savings + total_judge_cache_savings
 
         header = [
             "# Quality Test Report",
@@ -188,6 +190,13 @@ class ReportGenerator:
                 gross = self.report.total_cost_usd + total_cache_savings
                 pct = (abs(total_cache_savings) / gross * 100) if gross > 1e-9 else 0.0
                 header.append(f"  - Cache net savings: {sign}${abs(total_cache_savings):.4f} ({pct:.1f}%)")
+                if abs(total_judge_cache_savings) > 1e-9:
+                    jsign = "-" if total_judge_cache_savings < 0 else ""
+                    gross_judge = total_judge + total_judge_cache_savings
+                    jpct = (abs(total_judge_cache_savings) / gross_judge * 100) if gross_judge > 1e-9 else 0.0
+                    header.append(
+                        f"    - of which Judge: {jsign}${abs(total_judge_cache_savings):.4f} ({jpct:.1f}%)"
+                    )
 
         header.append(f"- **Total queries**: {self.report.total_queries}")
         if self.report.is_multi_model or self.report.is_multi_run:
@@ -487,6 +496,11 @@ class ReportGenerator:
                             content.append(f"  - Multi-hop: ${result.multi_hop_cost_usd:.4f}")
                         if result.ragas_cost_usd > 0:
                             content.append(f"  - LLM Judge: ${result.ragas_cost_usd:.4f}")
+                            if abs(result.judge_cache_savings_usd) > 1e-9:
+                                jsign = "-" if result.judge_cache_savings_usd < 0 else ""
+                                content.append(
+                                    f"    - Judge cache savings: {jsign}${abs(result.judge_cache_savings_usd):.4f}"
+                                )
                         if result.embedding_cost_usd > 0:
                             content.append(f"  - Embeddings: ${result.embedding_cost_usd:.4f}")
                     content.append(f"- **Generation Time:** {result.generation_time_seconds:.2f}s")
@@ -601,7 +615,9 @@ class ReportGenerator:
         total_multi_hop = sum(r.multi_hop_cost_usd for r in self.report.results)
         total_judge = sum(r.ragas_cost_usd for r in self.report.results)
         total_embedding = sum(r.embedding_cost_usd for r in self.report.results)
-        total_cache_savings = sum(r.cache_savings_usd for r in self.report.results)
+        total_main_cache_savings = sum(r.cache_savings_usd for r in self.report.results)
+        total_judge_cache_savings = sum(r.judge_cache_savings_usd for r in self.report.results)
+        total_cache_savings = total_main_cache_savings + total_judge_cache_savings
 
         content = []
         content.append("\n" + "=" * 60)
@@ -623,6 +639,13 @@ class ReportGenerator:
                 gross = self.report.total_cost_usd + total_cache_savings
                 pct = (abs(total_cache_savings) / gross * 100) if gross > 1e-9 else 0.0
                 content.append(f"  Cache net savings: {sign}${abs(total_cache_savings):.4f} ({pct:.1f}%)")
+                if abs(total_judge_cache_savings) > 1e-9:
+                    jsign = "-" if total_judge_cache_savings < 0 else ""
+                    gross_judge = total_judge + total_judge_cache_savings
+                    jpct = (abs(total_judge_cache_savings) / gross_judge * 100) if gross_judge > 1e-9 else 0.0
+                    content.append(
+                        f"    of which Judge: {jsign}${abs(total_judge_cache_savings):.4f} ({jpct:.1f}%)"
+                    )
 
         # Calculate JSON formatting statistics
         json_formatted_count = sum(1 for r in self.report.results if r.json_formatted)

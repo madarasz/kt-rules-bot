@@ -142,10 +142,8 @@ def quality_test(
         if model:
             print(f"Filter by model: {model}")
             models_to_run = [model]
-        elif all_models:
-            print(f"Models: {', '.join(models_to_run)} (all available)")
         else:
-            models_to_run = None  # All models in output directory
+            models_to_run = None  # All models in output directory (QUALITY_TEST_PROVIDERS disregarded in replay mode)
             print("Models: All found in output directory")
         print("=" * 60)
 

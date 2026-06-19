@@ -51,7 +51,8 @@ class IndividualTestResult:
     multi_hop_cost_usd: float = 0.0
     ragas_cost_usd: float = 0.0
     embedding_cost_usd: float = 0.0
-    cache_savings_usd: float = 0.0
+    cache_savings_usd: float = 0.0  # Prompt-cache net savings on the main LLM call
+    judge_cache_savings_usd: float = 0.0  # Prompt-cache net savings on the judge call
     json_formatted: bool = False  # True if response was valid JSON
     structured_quotes_count: int = 0  # Number of quotes in structured response
 
