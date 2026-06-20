@@ -241,37 +241,9 @@ python -m src.cli quality-test --runs 10 --all-models
 - Variance analysis
 - Flaky test identification
 
-## Usage Tips for Agents
+## Caching
 
-### Evaluating Model Changes
-```bash
-# Baseline
-python -m src.cli quality-test --all-models --runs 5
-
-# Make changes to prompts/RAG/etc.
-
-# Compare
-python -m src.cli quality-test --all-models --runs 5
-
-# Compare reports in results/
-```
-
-### Tuning RAG Impact
-```bash
-# Edit RAG_MAX_CHUNKS in constants.py
-python -m src.cli quality-test --all-models
-
-# Check if more/fewer chunks improves scores
-```
-
-### Adding New Provider
-```bash
-# After implementing provider
-python -m src.cli quality-test --model my-new-provider
-
-# Compare against existing models
-python -m src.cli quality-test --all-models
-```
+Quality tests use the caching functionality of LLM APIs which can save up to 50% of costs. Savings metric is visible in the report.
 
 ## Best Practices
 

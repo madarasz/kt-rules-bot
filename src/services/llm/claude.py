@@ -133,14 +133,14 @@ class ClaudeAdapter(LLMProvider):
             if supports_structured_outputs:
                 # NEW API: Use Pydantic structured output with beta.messages.parse()
                 logger.debug(f"Using structured outputs API for {self.model}")
-                parse_kwargs = dict(
-                    model=self.model,
-                    max_tokens=request.config.max_tokens,
-                    system=system,
-                    messages=[{"role": "user", "content": full_prompt}],
-                    betas=["structured-outputs-2025-11-13"],
-                    output_format=pydantic_model,
-                )
+                parse_kwargs = {
+                    "model": self.model,
+                    "max_tokens": request.config.max_tokens,
+                    "system": system,
+                    "messages": [{"role": "user", "content": full_prompt}],
+                    "betas": ["structured-outputs-2025-11-13"],
+                    "output_format": pydantic_model,
+                }
                 if self.model not in CLAUDE_MODELS_WITHOUT_TEMPERATURE:
                     parse_kwargs["temperature"] = request.config.temperature
                 response = await asyncio.wait_for(
@@ -168,21 +168,21 @@ class ClaudeAdapter(LLMProvider):
             else:
                 # FALLBACK: Use tool use for models without structured outputs support
                 logger.debug(f"Using tool use fallback for {self.model}")
-                create_kwargs = dict(
-                    model=self.model,
-                    max_tokens=request.config.max_tokens,
-                    system=system,
-                    messages=[{"role": "user", "content": full_prompt}],
-                    tools=[{
+                create_kwargs = {
+                    "model": self.model,
+                    "max_tokens": request.config.max_tokens,
+                    "system": system,
+                    "messages": [{"role": "user", "content": full_prompt}],
+                    "tools": [{
                         "name": tool_name,
                         "description": tool_description,
                         "input_schema": json_schema
                     }],
-                    tool_choice={
+                    "tool_choice": {
                         "type": "tool",
                         "name": tool_name
                     },
-                )
+                }
                 if self.model not in CLAUDE_MODELS_WITHOUT_TEMPERATURE:
                     create_kwargs["temperature"] = request.config.temperature
                 response = await asyncio.wait_for(
@@ -327,10 +327,10 @@ class ClaudeAdapter(LLMProvider):
                     logger.info(f"Uploaded PDF to Files API: {uploaded_file.id}")
 
                     # Use uploaded file in message
-                    pdf_kwargs = dict(
-                        model=self.model,
-                        max_tokens=request.config.max_tokens,
-                        messages=[
+                    pdf_kwargs = {
+                        "model": self.model,
+                        "max_tokens": request.config.max_tokens,
+                        "messages": [
                             {
                                 "role": "user",
                                 "content": [
@@ -342,7 +342,7 @@ class ClaudeAdapter(LLMProvider):
                                 ],
                             }
                         ],
-                    )
+                    }
                     if self.model not in CLAUDE_MODELS_WITHOUT_TEMPERATURE:
                         pdf_kwargs["temperature"] = request.config.temperature
                     response = await asyncio.wait_for(
