@@ -14,9 +14,9 @@ def test_default_prompt_has_key_sections():
 
     # Key sections that must be present
     required_sections = [
-        "## Instructions",
+        "<role>",
         "## Quote Extraction Protocol",
-        "## Output Structure",
+        "<output_format>",
         "smalltalk",
         "short_answer",
         "persona_short_answer",
@@ -24,11 +24,11 @@ def test_default_prompt_has_key_sections():
         "explanation",
         "persona_afterword",
         "## Output rules, formatting",
-        "## Constraints",
+        "## Steps to Follow",
         "## Personality Application",
-        "## Persona description",
+        "<persona>",
         # Personality is now injected, not a placeholder
-        "## Examples",
+        "<examples>",
         "Example 1 - Rules Question",
         "Example 2 - Smalltalk",
     ]
@@ -44,16 +44,16 @@ def test_gemini_prompt_has_key_sections():
 
     # Key sections specific to Gemini
     required_sections = [
-        "## Instructions",
+        "<role>",
         "## Quote Extraction Protocol (Gemini-specific)",
         "RECITATION",
         "sentence_numbers",
         "chunk_id",
-        "## Output Structure",
+        "<output_format>",
         "**MUST BE EMPTY**",
-        "## Constraints",
+        "## Output rules, formatting",
         "## Personality Application",
-        "## Examples",
+        "<examples>",
     ]
 
     for section in required_sections:
@@ -88,8 +88,8 @@ def test_build_system_prompt_default():
 
     # Should have personality injected (not placeholders)
     assert "{{PERSONALITY_DESCRIPTION}}" not in prompt
-    assert "## Instructions" in prompt
-    assert "## Output Structure" in prompt
+    assert "<role>" in prompt
+    assert "<output_format>" in prompt
 
 
 def test_build_system_prompt_gemini():
@@ -108,7 +108,7 @@ def test_build_system_prompt_default_without_arg():
     prompt = build_system_prompt()
 
     # Should use default provider
-    assert "## Instructions" in prompt
+    assert "<role>" in prompt
     assert "Copy relevant chunk text verbatim" in prompt
     assert "sentence_numbers" not in prompt
 

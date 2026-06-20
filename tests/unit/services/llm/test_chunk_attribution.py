@@ -40,7 +40,7 @@ class TestChunkAttribution:
         assert "[CHUNK_90abcdef]:" in prompt  # Last 8 chars of first UUID
         assert "[CHUNK_34567890]:" in prompt  # Last 8 chars of second UUID (corrected)
         assert "[Context 1]:" not in prompt
-        assert "User Question: Can I shoot while concealed?" in prompt
+        assert "<question>\nCan I shoot while concealed?\n</question>" in prompt
         assert "reference the chunk ID in the chunk_id field" in prompt
 
     def test_build_prompt_preserves_context_content(self, provider):

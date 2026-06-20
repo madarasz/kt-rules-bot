@@ -13,6 +13,7 @@
 - `deepseek-chat` is OK, cheap, but slow. `grok-4.1-fast-reasoning` is similar, but with better results.
 
 ## Models for judging
+- scoring prompt has been refined, so `grok-4-1-fast-reasoning` (preferred) has almost the same result as `claude-4.8-opus`
 - `claude-4.5-opus` is great, but it is very expensive. `claude-4.5-haiku` is a good judge. `grok-4-1-fast-reasoning` is almost just as good, very cheap, but slow. `grok-4-1-fast-non-reasoning` is a bit worse, very cheap, but quick. Only use these four models for judging.
 - `claude-4.5-sonnet` is too permissive. `gtp-4o` is unsuitable as a judge, it has a lot of false negative judgements.
 

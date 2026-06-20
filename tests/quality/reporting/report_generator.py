@@ -744,7 +744,8 @@ class ReportGenerator:
                 )
 
         else:  # Single model view
-            for result in self.report.results:
+            # Group runs of the same test case together (stable sort keeps run order within a group)
+            for result in sorted(self.report.results, key=lambda r: r.test_id):
                 content.append(
                     f"{result.status_emoji} {result.test_id} [{result.model}]: "
                     f"{result.score}/{result.max_score} "

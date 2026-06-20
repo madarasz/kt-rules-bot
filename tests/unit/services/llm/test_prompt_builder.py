@@ -29,11 +29,11 @@ class TestPromptBuilder:
         prompt = build_system_prompt("default")
 
         # Check basic structure
-        assert "## Instructions" in prompt
-        assert "## Output Structure" in prompt
-        assert "## Constraints" in prompt
+        assert "<role>" in prompt
+        assert "<output_format>" in prompt
+        assert "## Output rules, formatting" in prompt
         assert "## Personality Application" in prompt
-        assert "## Examples" in prompt
+        assert "<examples>" in prompt
 
         # Check that default content is used
         assert "## Quote Extraction Protocol" in prompt
@@ -51,9 +51,9 @@ class TestPromptBuilder:
         prompt = build_system_prompt("gemini")
 
         # Check basic structure (same as default)
-        assert "## Instructions" in prompt
-        assert "## Output Structure" in prompt
-        assert "## Constraints" in prompt
+        assert "<role>" in prompt
+        assert "<output_format>" in prompt
+        assert "## Output rules, formatting" in prompt
 
         # Check that Gemini-specific content is used
         assert "## Quote Extraction Protocol (Gemini-specific)" in prompt
@@ -83,8 +83,8 @@ class TestPromptBuilder:
         assert "sentence_numbers" not in default_prompt
 
         # Both should have shared sections
-        assert "## Instructions" in default_prompt
-        assert "## Instructions" in gemini_prompt
+        assert "<role>" in default_prompt
+        assert "<role>" in gemini_prompt
 
     def test_caching_works(self):
         """Test that prompts are cached correctly."""
@@ -199,12 +199,12 @@ class TestPromptBuilder:
 
         # Both should have these major sections
         shared_sections = [
-            "## Instructions",
-            "## Output Structure",
+            "<role>",
+            "<output_format>",
             "## Output rules, formatting",
             "## Personality Application",
-            "## Persona description",
-            "## Examples",
+            "<persona>",
+            "<examples>",
         ]
 
         for section in shared_sections:
@@ -219,8 +219,8 @@ class TestPromptBuilder:
         # Should have personality replaced
         assert "{{PERSONALITY_DESCRIPTION}}" not in prompt
         # Should have basic structure
-        assert "## Instructions" in prompt
-        assert "## Output Structure" in prompt
+        assert "<role>" in prompt
+        assert "<output_format>" in prompt
 
     def test_gemini_vs_default_quote_fields(self):
         """Test that quote field definitions differ between providers."""
@@ -287,14 +287,14 @@ class TestDynamicPlaceholders:
         prompt = build_system_prompt("default")
 
         # Should have basic structure
-        assert "## Instructions" in prompt
-        assert "## Output Structure" in prompt
+        assert "<role>" in prompt
+        assert "<output_format>" in prompt
 
         # Should not have placeholder remaining
         assert "{{PERSONALITY_DESCRIPTION}}" not in prompt
 
         # Should have some personality content (varies by config)
-        assert "## Persona description" in prompt
+        assert "<persona>" in prompt
 
     def test_dynamic_placeholders_list_has_expected_values(self):
         """Test that DYNAMIC_PLACEHOLDERS contains expected placeholders."""
