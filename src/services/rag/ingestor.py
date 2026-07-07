@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 
 from src.lib.constants import SUMMARY_ENABLED
 from src.lib.logging import get_logger
-from src.lib.tokens import estimate_cost
+from src.lib.tokens import calculate_llm_cost
 from src.models.rule_document import RuleDocument
 from src.services.rag.chunker import MarkdownChunker
 from src.services.rag.embeddings import EmbeddingService
@@ -32,7 +32,8 @@ class IngestionResult:
     errors: list[str]  # Filenames that failed
     warnings: list[str]  # Non-fatal issues
     duration_seconds: float
-    summary_cost_usd: float = 0.0  # Total cost of summary generation (if enabled)
+    summary_cost_usd: float = 0.0  # Total cost of summary generation (discounted, if enabled)
+    summary_cache_savings_usd: float = 0.0  # Saved by prompt caching vs. full price
 
 
 class InvalidDocumentError(Exception):
@@ -112,7 +113,8 @@ class RAGIngestor:
         documents_processed = 0
         documents_failed = 0
         embedding_count = 0
-        total_summary_cost = 0.0  # Track summary generation costs
+        total_summary_cost = 0.0  # Track summary generation costs (discounted)
+        total_cache_savings = 0.0  # Track savings from prompt caching
         errors: list[str] = []
         warnings: list[str] = []
         all_chunks = []  # Collect all chunks for keyword extraction
@@ -148,17 +150,30 @@ class RAGIngestor:
 
                 # Generate summaries for chunks (if enabled)
                 if self.summarizer:
-                    chunks, prompt_tokens, completion_tokens, model = asyncio.run(
-                        self.summarizer.generate_summaries(chunks)
-                    )
+                    (
+                        chunks,
+                        prompt_tokens,
+                        completion_tokens,
+                        cache_read_tokens,
+                        cache_creation_tokens,
+                        model,
+                    ) = asyncio.run(self.summarizer.generate_summaries(chunks))
                     if prompt_tokens > 0:  # Only calculate cost if summary was generated
-                        summary_cost = estimate_cost(prompt_tokens, completion_tokens, model)
-                        total_summary_cost += summary_cost
+                        breakdown = calculate_llm_cost(
+                            prompt_tokens,
+                            completion_tokens,
+                            model,
+                            cache_read_tokens,
+                            cache_creation_tokens,
+                        )
+                        total_summary_cost += breakdown.total_cost
+                        total_cache_savings += breakdown.cache_savings
                         logger.debug(
                             "summaries_generated",
                             document_id=str(document.document_id),
                             chunk_count=len(chunks),
-                            cost_usd=f"${summary_cost:.4f}",
+                            cost_usd=f"${breakdown.total_cost:.4f}",
+                            cache_savings_usd=f"${breakdown.cache_savings:.4f}",
                         )
 
                 # Generate embeddings for chunks
@@ -254,6 +269,7 @@ class RAGIngestor:
             warnings=warnings,
             duration_seconds=duration,
             summary_cost_usd=total_summary_cost,
+            summary_cache_savings_usd=total_cache_savings,
         )
 
         logger.info(
@@ -264,6 +280,7 @@ class RAGIngestor:
             embeddings=embedding_count,
             duration=duration,
             summary_cost_usd=f"${total_summary_cost:.4f}",
+            summary_cache_savings_usd=f"${total_cache_savings:.4f}",
         )
 
         return result

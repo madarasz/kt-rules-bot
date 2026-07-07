@@ -118,6 +118,16 @@ class GrokAdapter(LLMProvider):
             # Parse response
             response_data = response.json()
 
+            # xAI echoes the actually-served model here (OpenAI-compatible field).
+            # It can differ from self.model when a base/alias name redirects to a
+            # newer stable model (e.g. grok-4-1-fast-reasoning -> grok-4.3).
+            served_model = response_data.get("model", self.model)
+            if served_model != self.model:
+                logger.warning(
+                    f"Grok served model '{served_model}' but '{self.model}' was requested "
+                    f"(alias/redirect)"
+                )
+
             # Extract structured JSON from response
             if not response_data.get("choices") or len(response_data["choices"]) == 0:
                 raise Exception("Grok returned no choices in response")
@@ -187,6 +197,8 @@ class GrokAdapter(LLMProvider):
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
                     "confidence": confidence,
+                    "requested_model": self.model,
+                    "served_model": served_model,
                 },
             )
 
@@ -197,7 +209,7 @@ class GrokAdapter(LLMProvider):
                 token_count=token_count,
                 latency_ms=latency_ms,
                 provider="grok",
-                model_version=self.model,
+                model_version=served_model,
                 citations_included=citations_included,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,

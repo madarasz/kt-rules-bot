@@ -74,6 +74,7 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
     validation_errors = 0
     total_chunks = 0
     total_summary_cost = 0.0
+    total_cache_savings = 0.0
 
     for md_file in md_files:
         try:
@@ -112,6 +113,7 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
             documents_processed += 1
             total_chunks += result.embedding_count
             total_summary_cost += result.summary_cost_usd
+            total_cache_savings += result.summary_cache_savings_usd
             print(
                 f"✓ {relative_path} - {result.documents_processed} docs, "
                 f"{result.embedding_count} embeddings"
@@ -123,13 +125,16 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
             documents_skipped += 1
 
     # Summary
+    full_price = total_summary_cost + total_cache_savings
+    pct_saved = (total_cache_savings / full_price * 100) if full_price > 0 else 0.0
     print(f"\n{'=' * 60}")
     print("Ingestion complete")
     print(f"  Documents processed: {documents_processed}")
     print(f"  Documents skipped: {documents_skipped}")
     print(f"  Validation errors: {validation_errors}")
     print(f"  Total chunks created: {total_chunks}")
-    print(f"  Summarization cost: ${total_summary_cost:.4f}")
+    print(f"  Summarization cost: ${total_summary_cost:.4f} (after cache discount)")
+    print(f"  Cache savings: ${total_cache_savings:.4f} ({pct_saved:.1f}% saved)")
     print(f"{'=' * 60}")
 
     logger.info(
@@ -140,6 +145,8 @@ def ingest_rules(source_dir: str, force: bool = False) -> None:
             "validation_errors": validation_errors,
             "total_chunks": total_chunks,
             "total_summary_cost_usd": f"${total_summary_cost:.4f}",
+            "total_cache_savings_usd": f"${total_cache_savings:.4f}",
+            "cache_savings_pct": f"{pct_saved:.1f}%",
         },
     )
 

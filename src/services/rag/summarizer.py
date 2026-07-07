@@ -71,7 +71,7 @@ class ChunkSummarizer:
 
     async def generate_summaries(
         self, chunks: list[MarkdownChunk]
-    ) -> tuple[list[MarkdownChunk], int, int, str]:
+    ) -> tuple[list[MarkdownChunk], int, int, int, int, str]:
         """Generate summaries for a batch of chunks from one markdown file.
 
         Makes a single LLM call to summarize all chunks efficiently.
@@ -81,10 +81,13 @@ class ChunkSummarizer:
             chunks: List of MarkdownChunk objects to summarize
 
         Returns:
-            Tuple of (chunks, prompt_tokens, completion_tokens, model_name)
+            Tuple of (chunks, prompt_tokens, completion_tokens,
+                      cache_read_tokens, cache_creation_tokens, model_name)
             - chunks: Same chunks list with summary field populated
             - prompt_tokens: Number of tokens in the prompt
             - completion_tokens: Number of tokens in the completion
+            - cache_read_tokens: Prompt tokens served from cache (discounted)
+            - cache_creation_tokens: Tokens written to cache (Anthropic only)
             - model_name: Model used for summary generation
 
         Raises:
@@ -92,15 +95,15 @@ class ChunkSummarizer:
         """
         if not SUMMARY_ENABLED:
             logger.debug("Summary generation disabled, returning chunks unchanged")
-            return (chunks, 0, 0, "")
+            return (chunks, 0, 0, 0, 0, "")
 
         if self.provider is None:
             logger.warning("No LLM provider available, returning chunks unchanged")
-            return (chunks, 0, 0, "")
+            return (chunks, 0, 0, 0, 0, "")
 
         if not chunks:
             logger.debug("No chunks to summarize")
-            return (chunks, 0, 0, "")
+            return (chunks, 0, 0, 0, 0, "")
 
         try:
             # Build input text with numbered chunks
@@ -157,6 +160,8 @@ class ChunkSummarizer:
 
             prompt_tokens = response.prompt_tokens
             completion_tokens = response.completion_tokens
+            cache_read_tokens = response.cache_read_tokens
+            cache_creation_tokens = response.cache_creation_tokens
 
             # Parse summaries from structured output
             summaries_dict = {}
@@ -174,16 +179,24 @@ class ChunkSummarizer:
 
             logger.info(
                 f"Successfully generated {len(summaries_dict)}/{len(chunks)} summaries "
-                f"(prompt: {prompt_tokens} tokens, completion: {completion_tokens} tokens, latency: {latency_ms}ms)"
+                f"(prompt: {prompt_tokens} tokens, completion: {completion_tokens} tokens, "
+                f"cache_read: {cache_read_tokens} tokens, latency: {latency_ms}ms)"
             )
-            return (chunks, prompt_tokens, completion_tokens, self.model)
+            return (
+                chunks,
+                prompt_tokens,
+                completion_tokens,
+                cache_read_tokens,
+                cache_creation_tokens,
+                self.model,
+            )
 
         except Exception as e:
             logger.warning(f"Failed to generate summaries: {e}", exc_info=True)
             # Fallback: set all summaries to empty string
             for chunk in chunks:
                 chunk.summary = ""
-            return (chunks, 0, 0, "")
+            return (chunks, 0, 0, 0, 0, "")
 
     def _format_chunks_for_llm(self, chunks: list[MarkdownChunk]) -> str:
         """Format chunks as numbered input for LLM.
@@ -202,4 +215,10 @@ class ChunkSummarizer:
                 f"Text: {chunk.text}\n"
             )
 
-        return "\n".join(formatted_chunks)
+        if not formatted_chunks:
+            return ""
+
+        # Wrap in an XML tag so the dynamically injected (uncached) rule data is
+        # clearly delimited from the static XML-structured prompt above the cache break.
+        body = "\n".join(formatted_chunks)
+        return f"<rules_chunks>\n{body}\n</rules_chunks>"

@@ -96,6 +96,7 @@ If the rules you found do not fully address the question:
 4. **Reasoning gap**: If your explanation would require citing a rule that isn't in the context, this is a sign you cannot answer fully. State "I cannot provide an answer" rather than inventing a rule reference.
 
 ## Output rules, formatting
+- **Deduplicate Tomb World / Gallowdark rules.** Tomb World and Gallowdark (Close Quarters) rules are frequently near-identical wordings of the same rule (e.g. **Hatchway Fight**). When both versions appear in context and say the same thing for the purpose of the question, quote **only the Tomb World version** — do not include the Gallowdark duplicate. Only quote both when they genuinely differ in a way that affects the answer.
 - Use **official Kill Team terminology** in the explanation field.
 - Use a simple, formal writing style.
 - Use markdown formatting in text fields:

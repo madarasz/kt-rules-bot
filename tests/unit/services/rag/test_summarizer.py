@@ -136,6 +136,7 @@ class TestGenerateSummaries:
             citations_included=False,
             prompt_tokens=100,
             completion_tokens=50,
+            cache_read_tokens=80,
             structured_output={
                 "summaries": [
                     {"chunk_number": 1, "summary": "Movement rules summary"},
@@ -149,17 +150,24 @@ class TestGenerateSummaries:
         summarizer = ChunkSummarizer()
 
         # Generate summaries
-        result_chunks, prompt_tokens, completion_tokens, model = await summarizer.generate_summaries(
-            sample_chunks
-        )
+        (
+            result_chunks,
+            prompt_tokens,
+            completion_tokens,
+            cache_read_tokens,
+            cache_creation_tokens,
+            model,
+        ) = await summarizer.generate_summaries(sample_chunks)
 
         # Verify summaries assigned
         assert result_chunks[0].summary == "Movement rules summary"
         assert result_chunks[1].summary == "Shooting rules summary"
 
-        # Verify token counts returned
+        # Verify token counts returned (including cache tokens)
         assert prompt_tokens == 100
         assert completion_tokens == 50
+        assert cache_read_tokens == 80
+        assert cache_creation_tokens == 0
 
         # Verify LLM provider called
         assert mock_provider.generate.called
@@ -180,15 +188,22 @@ class TestGenerateSummaries:
         summarizer = ChunkSummarizer()
 
         # Generate summaries (should not raise)
-        result_chunks, prompt_tokens, completion_tokens, model = await summarizer.generate_summaries(
-            sample_chunks
-        )
+        (
+            result_chunks,
+            prompt_tokens,
+            completion_tokens,
+            cache_read_tokens,
+            cache_creation_tokens,
+            model,
+        ) = await summarizer.generate_summaries(sample_chunks)
 
         # Should return empty summaries
         assert result_chunks[0].summary == ""
         assert result_chunks[1].summary == ""
         assert prompt_tokens == 0
         assert completion_tokens == 0
+        assert cache_read_tokens == 0
+        assert cache_creation_tokens == 0
         assert model == ""
 
     @pytest.mark.asyncio
@@ -197,15 +212,22 @@ class TestGenerateSummaries:
         """Test behavior when SUMMARY_ENABLED is False."""
         summarizer = ChunkSummarizer()
 
-        result_chunks, prompt_tokens, completion_tokens, model = await summarizer.generate_summaries(
-            sample_chunks
-        )
+        (
+            result_chunks,
+            prompt_tokens,
+            completion_tokens,
+            cache_read_tokens,
+            cache_creation_tokens,
+            model,
+        ) = await summarizer.generate_summaries(sample_chunks)
 
         # Should return unchanged chunks with no API calls
         assert result_chunks[0].summary == ""
         assert result_chunks[1].summary == ""
         assert prompt_tokens == 0
         assert completion_tokens == 0
+        assert cache_read_tokens == 0
+        assert cache_creation_tokens == 0
         assert model == ""
 
     @pytest.mark.asyncio
@@ -219,12 +241,21 @@ class TestGenerateSummaries:
 
         summarizer = ChunkSummarizer()
 
-        result_chunks, prompt_tokens, completion_tokens, model = await summarizer.generate_summaries([])
+        (
+            result_chunks,
+            prompt_tokens,
+            completion_tokens,
+            cache_read_tokens,
+            cache_creation_tokens,
+            model,
+        ) = await summarizer.generate_summaries([])
 
         # Should return empty list with no API calls
         assert result_chunks == []
         assert prompt_tokens == 0
         assert completion_tokens == 0
+        assert cache_read_tokens == 0
+        assert cache_creation_tokens == 0
 
     @pytest.mark.asyncio
     @patch("src.services.rag.summarizer.LLMProviderFactory")
@@ -261,7 +292,7 @@ class TestGenerateSummaries:
 
         summarizer = ChunkSummarizer()
 
-        result_chunks, _, _, _ = await summarizer.generate_summaries(sample_chunks)
+        result_chunks, *_ = await summarizer.generate_summaries(sample_chunks)
 
         # First chunk should have summary
         assert result_chunks[0].summary == "Only first summary"
