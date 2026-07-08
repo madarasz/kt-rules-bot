@@ -44,17 +44,23 @@ def calculate_hop_evaluation_cost(response: LLMResponse, model: str) -> LLMCostB
         prompt_tokens = response.prompt_tokens
         completion_tokens = response.completion_tokens
 
+    # Price by the model the provider actually served (model_version), which can
+    # differ from the requested `model` when a provider alias redirects (e.g.
+    # grok-4-1-fast-* -> grok-4.3). Fall back to requested model if unset.
+    priced_model = response.model_version or model
+
     breakdown = calculate_llm_cost(
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
-        model=model,
+        model=priced_model,
         cache_read_tokens=response.cache_read_tokens,
         cache_creation_tokens=response.cache_creation_tokens,
     )
 
     logger.debug(
         "hop_evaluation_cost_calculated",
-        model=model,
+        requested_model=model,
+        served_model=priced_model,
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         total_tokens=response.token_count,

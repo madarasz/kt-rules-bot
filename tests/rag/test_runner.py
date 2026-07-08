@@ -266,6 +266,13 @@ class RAGTestRunner:
             # Add Ragas metrics to result
             result = add_ragas_metrics_to_result(result, ragas_metrics)
 
+            # Capture non-fatal hop evaluation errors (after Ragas rebuild)
+            if (
+                self.retriever.multi_hop_retriever is not None
+                and self.retriever.multi_hop_retriever.last_hop_errors
+            ):
+                result.hop_errors = list(self.retriever.multi_hop_retriever.last_hop_errors)
+
         except TimeoutError as e:
             # Handle timeout gracefully - create failed result and continue
             retrieval_time = time.time() - start_time

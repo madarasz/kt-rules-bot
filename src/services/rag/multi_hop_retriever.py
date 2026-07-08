@@ -17,6 +17,7 @@ from src.lib.constants import (
     LLM_MAX_RETRIES,
     MAX_CHUNK_LENGTH_FOR_EVALUATION,
     RAG_HOP_CHUNK_LIMIT,
+    RAG_HOP_EVALUATION_MAX_TOKENS,
     RAG_HOP_EVALUATION_MODEL,
     RAG_HOP_EVALUATION_PROMPT_PATH,
     RAG_HOP_EVALUATION_TIMEOUT,
@@ -50,6 +51,7 @@ class HopEvaluation:
         evaluation_time_s: float = 0.0,
         filled_prompt: str | list[dict[str, Any]] | None = None,
         filtered_teams_count: int = 0,
+        served_model: str | None = None,
     ):
         self.can_answer = can_answer
         self.reasoning = reasoning
@@ -60,6 +62,7 @@ class HopEvaluation:
         self.evaluation_time_s = evaluation_time_s  # Time for LLM evaluation
         self.filled_prompt = filled_prompt  # Optional: filled prompt for verbose output
         self.filtered_teams_count = filtered_teams_count  # Number of teams after filtering
+        self.served_model = served_model  # Model provider actually served (alias may redirect)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for database storage."""
@@ -72,6 +75,7 @@ class HopEvaluation:
             "retrieval_time_s": self.retrieval_time_s,
             "evaluation_time_s": self.evaluation_time_s,
             "filtered_teams_count": self.filtered_teams_count,
+            "served_model": self.served_model,
         }
 
 
@@ -112,6 +116,9 @@ class MultiHopRetriever:
         self.team_filter = (
             TeamFilter(self.teams_structure_dict) if self.teams_structure_dict else None
         )
+
+        # Collects non-fatal errors from last retrieve_multi_hop call (test observability)
+        self.last_hop_errors: list[str] = []
 
         logger.info(
             "multi_hop_retriever_initialized",
@@ -171,6 +178,7 @@ class MultiHopRetriever:
         accumulated_chunks: list[DocumentChunk] = []
         hop_evaluations: list[HopEvaluation] = []
         chunk_hop_map: dict[UUID, int] = {}
+        self.last_hop_errors = []
 
         logger.info("multi_hop_started", query=query, max_hops=self.max_hops)
 
@@ -276,6 +284,7 @@ class MultiHopRetriever:
                     error=str(e),
                     error_type=type(e).__name__,
                 )
+                self.last_hop_errors.append(f"hop {hop_num}: {type(e).__name__}: {e}")
                 # Proceed with what we have
                 break
 
@@ -378,7 +387,7 @@ class MultiHopRetriever:
             context=[],
             chunk_ids=[],  # Empty list for hop evaluation (no RAG context)
             config=GenerationConfig(
-                max_tokens=300,
+                max_tokens=RAG_HOP_EVALUATION_MAX_TOKENS,
                 temperature=0.0,  # Deterministic
                 timeout_seconds=self.evaluation_timeout,
                 system_prompt="",  # Empty system prompt for hop evaluation
@@ -437,6 +446,7 @@ class MultiHopRetriever:
                     evaluation_time_s=evaluation_time_s,
                     filled_prompt=prompt if verbose else None,
                     filtered_teams_count=len(relevant_teams),
+                    served_model=response.model_version or RAG_HOP_EVALUATION_MODEL,
                 )
 
             except RateLimitError as e:

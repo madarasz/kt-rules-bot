@@ -91,6 +91,10 @@ def add_ragas_metrics_to_result(
         "retrieval_time_seconds": base_result.retrieval_time_seconds,
         "embedding_cost_usd": base_result.embedding_cost_usd,
         "run_number": base_result.run_number,
+        # Error tracking
+        "error_type": base_result.error_type,
+        "error_message": base_result.error_message,
+        "hop_errors": base_result.hop_errors,
         # Multi-hop fields
         "hops_used": base_result.hops_used,
         "hop_evaluations": base_result.hop_evaluations,

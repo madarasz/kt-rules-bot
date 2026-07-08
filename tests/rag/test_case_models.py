@@ -118,6 +118,7 @@ class RAGTestResult:
     # Error tracking (for graceful failure handling)
     error_type: str | None = None  # Type of error that occurred (e.g., "TimeoutError", "ValueError")
     error_message: str | None = None  # Error message if test failed
+    hop_errors: list[str] = None  # Non-fatal errors during hop evaluation (e.g., LLM truncation)
 
     # Ragas Metrics (optional, calculated if ground_truth_contexts provided)
     ragas_context_precision: float | None = None  # Ragas context precision (0-1)

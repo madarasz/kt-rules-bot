@@ -82,7 +82,10 @@ class RAGReportGenerator:
 
         # Calculate total cost including hop evaluations (used in multiple places)
         total_cost_with_hops = summary.total_cost_usd + summary.hop_evaluation_cost_usd
-        avg_retrieval_cost_cents = (total_cost_with_hops / summary.total_tests) * 100
+        # Avg uses gross cost (without caching discount) — cache hits are prominent during tests
+        # but not during real usage, so gross better represents expected production cost
+        gross_cost_with_hops = total_cost_with_hops + summary.hop_evaluation_cache_savings_usd
+        avg_retrieval_cost_cents = (gross_cost_with_hops / summary.total_tests) * 100
 
         # Test set metadata
         if summary.test_set_codename:
@@ -99,6 +102,11 @@ class RAGReportGenerator:
         content.append(rf" └─ **Embeddings**: ¢{(summary.total_cost_usd * 100):.6f}")
         if summary.rag_max_hops > 0:
             content.append(rf" └─ **Hop Evaluations**: \${summary.hop_evaluation_cost_usd:.6f}")
+            gross = total_cost_with_hops + summary.hop_evaluation_cache_savings_usd
+            savings_pct = (summary.hop_evaluation_cache_savings_usd / gross * 100) if gross > 0 else 0.0
+            content.append(
+                rf" └─ **Cache savings**: \${summary.hop_evaluation_cache_savings_usd:.6f} ({savings_pct:.1f}%)"
+            )
             content.append(f"**Avg Hops Used**: {summary.avg_hops_used:.2f}")
         content.append("")
 
@@ -179,6 +187,7 @@ class RAGReportGenerator:
 
         # Collect all errors
         errors = [(r.test_id, r.run_number, r.error_type, r.error_message) for r in results if r.error_type]
+        hop_errors = [(r.test_id, r.run_number, e) for r in results if r.hop_errors for e in r.hop_errors]
 
         if errors:
             content.append("The following tests failed with errors:")
@@ -186,8 +195,15 @@ class RAGReportGenerator:
             for test_id, run_number, error_type, error_message in errors:
                 content.append(f"- **{test_id}** (run {run_number}): `{error_type}`")
                 content.append(f"  - {error_message}")
-        else:
+        elif not hop_errors:
             content.append("✅ No errors - all tests completed successfully!")
+
+        if hop_errors:
+            content.append("")
+            content.append("⚠️ The following tests had non-fatal hop evaluation errors (retrieval still completed):")
+            content.append("")
+            for test_id, run_number, error in hop_errors:
+                content.append(f"- **{test_id}** (run {run_number}): {error}")
 
         content.append("")
 

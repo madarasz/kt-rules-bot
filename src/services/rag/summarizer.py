@@ -188,7 +188,7 @@ class ChunkSummarizer:
                 completion_tokens,
                 cache_read_tokens,
                 cache_creation_tokens,
-                self.model,
+                response.model_version or self.model,  # served model (alias may redirect)
             )
 
         except Exception as e:

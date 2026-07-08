@@ -25,6 +25,12 @@ class TestCalculateLlmCost:
         assert result.total_cost == pytest.approx(0.001 + 0.0005 + 0.0016)
         assert result.cache_savings == pytest.approx(0.0005)
 
+    def test_mistral_cache_savings(self):
+        result = calculate_llm_cost(1000, 200, "mistral-large-2512", cache_read_tokens=500)
+        # 500 cached tokens billed @ 0.00005 vs 0.0005 full prompt rate
+        assert result.cache_savings == pytest.approx((500 / 1000) * (0.0005 - 0.00005))
+        assert result.has_cache_activity
+
     def test_anthropic_cache_savings_reads(self):
         result = calculate_llm_cost(
             prompt_tokens=500,

@@ -286,12 +286,13 @@ def _render_test_run_row(run: dict, db: AnalyticsDatabase) -> None:
     # Timestamp
     with col_timestamp:
         timestamp = run.get("timestamp", "")
+        error_suffix = " 💀" if run.get("was_error") else ""
         if timestamp:
             # Format timestamp for display
-            timestamp_display = timestamp.split(".")[0].replace("T", " ")
+            timestamp_display = timestamp.split(".")[0].replace("T", " ") + error_suffix
             st.text(timestamp_display)
         else:
-            st.text("-")
+            st.text("-" + error_suffix)
 
     # Run name (clickable)
     with col_name:

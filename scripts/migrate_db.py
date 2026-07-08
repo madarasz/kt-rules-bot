@@ -66,6 +66,8 @@ def migrate_analytics_db(db_path: str) -> None:
             # Cache cost savings (added 2026-06-14)
             ("queries", "main_llm_cache_savings", "REAL DEFAULT 0.0"),
             ("queries", "hop_evaluation_cache_savings", "REAL DEFAULT 0.0"),
+            # Error flag for RAG test runs (added 2026-07-08)
+            ("rag_test_runs", "was_error", "INTEGER DEFAULT 0"),
         ]
 
         applied_count = 0

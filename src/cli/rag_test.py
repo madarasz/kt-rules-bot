@@ -152,7 +152,7 @@ def rag_test(
         print("")
 
         # Save to analytics database if enabled
-        _save_to_database(timestamp, summary, report_path)
+        _save_to_database(timestamp, summary, report_path, results)
 
         print("")
 
@@ -176,13 +176,14 @@ def rag_test(
         sys.exit(1)
 
 
-def _save_to_database(timestamp: str, summary, report_path: Path) -> None:
+def _save_to_database(timestamp: str, summary, report_path: Path, results: list) -> None:
     """Save RAG test run to analytics database.
 
     Args:
         timestamp: Timestamp string for run_id
         summary: RAGTestSummary object
         report_path: Path to the generated report markdown file
+        results: List of RAGTestResult objects
     """
     try:
         # Initialize database
@@ -201,6 +202,10 @@ def _save_to_database(timestamp: str, summary, report_path: Path) -> None:
         # Calculate total cost including hop evaluations (matches report generator)
         total_cost_with_hops = summary.total_cost_usd + summary.hop_evaluation_cost_usd
 
+        was_error = any(
+            r.error_type or (r.hop_errors and len(r.hop_errors) > 0) for r in results
+        )
+
         run_data = {
             "run_id": timestamp,  # Use timestamp as unique run ID
             "timestamp": datetime.now().isoformat(),
@@ -213,6 +218,7 @@ def _save_to_database(timestamp: str, summary, report_path: Path) -> None:
             "avg_hops_used": summary.avg_hops_used,
             "can_answer_recall": summary.hop_can_answer_recall,
             "full_report_md": full_report_md,
+            "was_error": was_error,
         }
 
         # Insert into database

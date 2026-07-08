@@ -390,7 +390,7 @@ class AnalyticsDatabase:
                             1 if evaluation["can_answer"] else 0,
                             evaluation["reasoning"],
                             evaluation.get("missing_query"),
-                            evaluation_model,
+                            evaluation.get("served_model") or evaluation_model,
                             now,
                         ),
                     )
@@ -1123,8 +1123,8 @@ class AnalyticsDatabase:
                         run_id, timestamp, test_set, runs_per_test,
                         avg_retrieval_time, avg_retrieval_cost, context_recall,
                         avg_hops_used, can_answer_recall, full_report_md,
-                        run_name, comments, favorite, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        run_name, comments, favorite, was_error, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
                         run_data["run_id"],
@@ -1140,6 +1140,7 @@ class AnalyticsDatabase:
                         run_data.get("run_name", ""),
                         run_data.get("comments", ""),
                         0,  # favorite (default False)
+                        1 if run_data.get("was_error") else 0,
                         now,
                     ),
                 )
