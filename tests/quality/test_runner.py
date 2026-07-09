@@ -8,8 +8,12 @@ import json
 import os
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
+
+if TYPE_CHECKING:
+    from tests.quality.batch.manifest import BatchManifest
 
 from src.lib.config import get_config
 from src.lib.constants import (
@@ -28,6 +32,7 @@ from src.services.llm.base import (
     AuthenticationError,
     ContentFilterError,
     GenerationConfig,
+    GenerationRequest,
     RateLimitError,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
@@ -585,6 +590,393 @@ class QualityTestRunner:
 
         results = await asyncio.gather(*tasks)
         return results
+
+    # ------------------------------------------------------------------
+    # Batch API: two-phase submit/collect state machine
+    # ------------------------------------------------------------------
+
+    async def _retrieve_rag_for_test(self, test_case, query_id, force_rag):
+        """Retrieve (or load cached) RAG context for one test. Mirrors the live
+        path's cached-context handling. Returns (rag_context, hop_evaluations,
+        embedding_cost)."""
+        if test_case.context_file and not force_rag:
+            rag_context, hop_evaluations, _, _cached = load_rag_context(test_case.context_file)
+            return rag_context, [], 0.0
+        rag_context, hop_evaluations, _, embedding_cost = await self.orchestrator.retrieve_rag(
+            query=test_case.query,
+            query_id=query_id,
+            max_chunks=RAG_MAX_CHUNKS,
+            context_key="quality_test",
+            use_multi_hop=RAG_MAX_HOPS > 0,
+        )
+        return rag_context, hop_evaluations, embedding_cost
+
+    async def submit_batch_run(
+        self,
+        report_dir: Path,
+        test_id: str | None,
+        models: list[str],
+        runs: int,
+        judge_model: str,
+        force_rag: bool = False,
+    ) -> "BatchManifest":
+        """Build generation requests, submit batchable ones, run non-batch models
+        live now, and persist batch_state.json (phase=generation_submitted)."""
+        from uuid import uuid4
+
+        from tests.quality.batch.backends import resolve_backend
+        from tests.quality.batch.manifest import BatchManifest
+
+        test_cases = self.load_test_cases(test_id)
+        if not test_cases:
+            raise ValueError(f"No test cases found for test_id: {test_id}")
+        models_to_run = models or [self.config.default_llm_provider]
+
+        gen_config = GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT)
+        self._save_prompt(report_dir / "prompt.md", gen_config.system_prompt)
+
+        backend_lines: dict[str, list] = {}
+        backends_by_name: dict[str, object] = {}
+        live_tasks = []
+        requests_meta: list[dict] = []
+        live_done: list[str] = []
+
+        for run_num in range(1, runs + 1):
+            for test_case in test_cases:
+                query_id = uuid4()
+                rag_context, hop_evaluations, embedding_cost = await self._retrieve_rag_for_test(
+                    test_case, query_id, force_rag
+                )
+                multi_hop_cost = sum(h.cost_usd for h in hop_evaluations) if hop_evaluations else 0.0
+                context_texts = [c.text for c in rag_context.document_chunks]
+                chunk_ids = [str(c.chunk_id) for c in rag_context.document_chunks]
+
+                for model in models_to_run:
+                    custom_id = BatchManifest.make_custom_id("gen", test_case.test_id, model, run_num)
+                    backend = resolve_backend(model)
+                    requests_meta.append({
+                        "custom_id": custom_id,
+                        "test_id": test_case.test_id,
+                        "model": model,
+                        "run_num": run_num,
+                        "kind": "gen",
+                        "backend": backend.name if backend else None,
+                        "batchable": backend is not None,
+                        "embedding_cost": embedding_cost,
+                        "multi_hop_cost": multi_hop_cost,
+                    })
+                    if backend is not None:
+                        provider = LLMProviderFactory.create(model)
+                        req = GenerationRequest(
+                            prompt=test_case.query,
+                            context=context_texts,
+                            config=gen_config,
+                            chunk_ids=chunk_ids,
+                        )
+                        backend_lines.setdefault(backend.name, []).append(
+                            provider.build_batch_request(req, custom_id)
+                        )
+                        backends_by_name[backend.name] = backend
+                    else:
+                        live_tasks.append(
+                            self.run_test(
+                                test_case, model, run_num, report_dir, rag_context,
+                                hop_evaluations, embedding_cost, query_id, no_eval=False,
+                            )
+                        )
+                        live_done.append(custom_id)
+
+        if live_tasks:
+            logger.info(f"Running {len(live_tasks)} non-batch model(s) live at submit...")
+            await asyncio.gather(*live_tasks)
+
+        generation: dict[str, dict] = {}
+        for name, lines in backend_lines.items():
+            batch_id = backends_by_name[name].submit(lines)
+            generation[name] = {"batch_id": batch_id, "status": "in_progress"}
+
+        manifest = BatchManifest(
+            phase="generation_submitted",
+            created_at=datetime.now(UTC).isoformat(),
+            models=models_to_run,
+            judge_model=judge_model,
+            runs=runs,
+            test_ids=[tc.test_id for tc in test_cases],
+            report_dir=str(report_dir),
+            generation=generation,
+            judge={},
+            requests=requests_meta,
+            live_done=live_done,
+        )
+        manifest.save()
+        return manifest
+
+    async def collect_batch_run(self, report_dir: Path | str) -> str:
+        """Single-pass advance of the batch state machine. Returns the new phase."""
+        from tests.quality.batch.manifest import BatchManifest
+
+        manifest = BatchManifest.load(report_dir)
+        if manifest.phase == "generation_submitted":
+            return await self._collect_generation(manifest)
+        if manifest.phase == "judge_submitted":
+            return await self._collect_judge(manifest)
+        print("Batch run already complete (phase=done).")
+        return manifest.phase
+
+    async def _collect_generation(self, manifest) -> str:
+        from tests.quality.batch.backends import make_backend, resolve_backend
+        from tests.quality.output_parser import parse_output_directory
+
+        report_dir = Path(manifest.report_dir)
+
+        # Poll every generation backend once.
+        all_ended = True
+        for name, info in manifest.generation.items():
+            status = make_backend(name).poll(info["batch_id"])
+            info["status"] = status
+            if status == "failed":
+                manifest.save()
+                raise RuntimeError(f"Generation batch {info['batch_id']} ({name}) failed")
+            if status != "ended":
+                all_ended = False
+        manifest.save()
+        if not all_ended:
+            statuses = {n: i["status"] for n, i in manifest.generation.items()}
+            print(f"Generation batches not ready: {statuses} — re-run batch-collect later.")
+            return "generation_submitted"
+
+        # Fetch results and write output_*.md for batched generations.
+        gen_meta = {
+            r["custom_id"]: r
+            for r in manifest.requests
+            if r["kind"] == "gen" and r["batchable"]
+        }
+        for name, info in manifest.generation.items():
+            for cid, item in make_backend(name).fetch(info["batch_id"]).items():
+                self._write_batch_generation_output(report_dir, gen_meta[cid], item)
+
+        # Judge: batch if the judge model is batchable, else run live now.
+        parsed = parse_output_directory(report_dir)
+        test_cases_map = self._load_test_cases_for_outputs(parsed)
+        judge_backend = resolve_backend(manifest.judge_model)
+        if judge_backend is not None:
+            self._submit_judge_batch(manifest, parsed, test_cases_map, judge_backend)
+            manifest.phase = "judge_submitted"
+            manifest.save()
+            print(f"Judge batch submitted ({judge_backend.name}) — re-run batch-collect later.")
+            return "judge_submitted"
+
+        results = await self._judge_parsed_outputs(parsed, test_cases_map)
+        self._finalize_report(results, report_dir, manifest)
+        manifest.phase = "done"
+        manifest.save()
+        print(f"Batch run complete: report at {report_dir}/report.md")
+        return "done"
+
+    def _write_batch_generation_output(self, report_dir: Path, meta: dict, item: dict) -> None:
+        """Parse a batch gen item into an LLMResponse and write output_*.md
+        (no-eval style: metadata only, judging happens later)."""
+        from tests.quality.ragas_evaluator import RagasMetrics
+
+        model = meta["model"]
+        adapter_class = LLMProviderFactory._model_registry[model][0]
+        try:
+            llm_response = adapter_class.parse_batch_result(item)
+        except Exception as e:
+            logger.error(f"Batch gen item {meta['custom_id']} failed to parse: {e} — skipping")
+            return
+        if not llm_response.model_version:
+            llm_response.model_version = LLMProviderFactory._model_registry[model][1]
+
+        breakdown = calculate_llm_cost(
+            prompt_tokens=llm_response.prompt_tokens,
+            completion_tokens=llm_response.completion_tokens,
+            model=llm_response.model_version,
+            cache_read_tokens=llm_response.cache_read_tokens,
+            cache_creation_tokens=llm_response.cache_creation_tokens,
+            batch=True,
+        )
+        try:
+            markdown = StructuredLLMResponse.from_json(llm_response.answer_text).to_markdown()
+        except Exception:
+            markdown = llm_response.answer_text
+
+        test_case = self.load_test_cases(meta["test_id"])[0]
+        output_filename = report_dir / f"output_{meta['test_id']}_{model}_{meta['run_num']}.md"
+        self._save_output(
+            output_filename,
+            test_case.query,
+            markdown,
+            ragas_metrics=RagasMetrics(),
+            test_id=meta["test_id"],
+            model=model,
+            run_num=meta["run_num"],
+            llm_response=llm_response,
+            cost_usd=breakdown.total_cost,
+            multi_hop_cost_usd=meta.get("multi_hop_cost", 0.0),
+            embedding_cost_usd=meta.get("embedding_cost", 0.0),
+            generation_time_seconds=0.0,
+            batch=True,
+            batch_savings_usd=breakdown.batch_savings,
+        )
+
+    def _submit_judge_batch(self, manifest, parsed, test_cases_map, judge_backend) -> None:
+        """Build + submit a judge batch for all parsed outputs (batchable judge)."""
+        from tests.quality.batch.manifest import BatchManifest
+        from tests.quality.custom_judge import CustomJudge
+
+        judge = CustomJudge(model=manifest.judge_model)
+        provider = LLMProviderFactory.create(manifest.judge_model)
+        deterministic_by_cid: dict[str, dict] = {}
+        lines = []
+        for po in parsed:
+            meta = po.metadata
+            test_id = meta.test_metadata["test_id"]
+            if test_id not in test_cases_map:
+                continue
+            test_case = test_cases_map[test_id]
+            dm = MetadataGenerator.extract_deterministic_metrics_from_metadata(meta)
+            structured = StructuredLLMResponse.from_json(po.llm_response.answer_text)
+            gen_req = judge.build_judge_request(
+                query=po.query,
+                llm_response_text=structured.to_json(),
+                llm_quotes_structured=dm["llm_quotes_structured"],
+                ground_truth_answers=test_case.ground_truth_answers,
+                ground_truth_contexts=[c.text for c in test_case.ground_truth_contexts],
+            )
+            cid = BatchManifest.make_custom_id(
+                "judge", test_id, meta.test_metadata["model"], meta.test_metadata["run_num"]
+            )
+            lines.append(provider.build_batch_request(gen_req, cid))
+            deterministic_by_cid[cid] = {"test_id": test_id}
+        batch_id = judge_backend.submit(lines)
+        manifest.judge[judge_backend.name] = {"batch_id": batch_id, "status": "in_progress"}
+
+    async def _collect_judge(self, manifest) -> str:
+        from tests.quality.batch.backends import make_backend
+
+        report_dir = Path(manifest.report_dir)
+        name, info = next(iter(manifest.judge.items()))
+        status = make_backend(name).poll(info["batch_id"])
+        info["status"] = status
+        manifest.save()
+        if status == "failed":
+            raise RuntimeError(f"Judge batch {info['batch_id']} ({name}) failed")
+        if status != "ended":
+            print(f"Judge batch not ready ({status}) — re-run batch-collect later.")
+            return "judge_submitted"
+
+        judge_items = make_backend(name).fetch(info["batch_id"])
+        results = self._score_from_judge_batch(manifest, judge_items)
+        self._finalize_report(results, report_dir, manifest)
+        manifest.phase = "done"
+        manifest.save()
+        print(f"Batch run complete: report at {report_dir}/report.md")
+        return "done"
+
+    def _score_from_judge_batch(self, manifest, judge_items: dict) -> list[IndividualTestResult]:
+        """Build results from batched judge outputs + saved generation metadata."""
+        from tests.quality.batch.manifest import BatchManifest
+        from tests.quality.custom_judge import CustomJudge
+        from tests.quality.output_parser import parse_output_directory
+        from tests.quality.ragas_evaluator import RagasMetrics
+
+        report_dir = Path(manifest.report_dir)
+        parsed = parse_output_directory(report_dir)
+        test_cases_map = self._load_test_cases_for_outputs(parsed)
+        judge = CustomJudge(model=manifest.judge_model)
+        judge_adapter = LLMProviderFactory._model_registry[manifest.judge_model][0]
+
+        results = []
+        for po in parsed:
+            meta = po.metadata
+            test_id = meta.test_metadata["test_id"]
+            if test_id not in test_cases_map:
+                continue
+            test_case = test_cases_map[test_id]
+            cid = BatchManifest.make_custom_id(
+                "judge", test_id, meta.test_metadata["model"], meta.test_metadata["run_num"]
+            )
+            dm = MetadataGenerator.extract_deterministic_metrics_from_metadata(meta)
+            judge_cost = 0.0
+            judge_batch_savings = 0.0
+            try:
+                judge_response = judge_adapter.parse_batch_result(judge_items[cid])
+                jr = judge.parse_result(judge_response, test_case.ground_truth_answers)
+                dm.update({
+                    "explanation_faithfulness": jr.explanation_faithfulness,
+                    "answer_correctness": jr.answer_correctness,
+                    "answer_correctness_details": jr.answer_correctness_details,
+                    "feedback": jr.feedback,
+                })
+                metrics = RagasMetrics(**dm)
+                jb = calculate_llm_cost(
+                    prompt_tokens=jr.prompt_tokens,
+                    completion_tokens=jr.completion_tokens,
+                    model=manifest.judge_model,
+                    cache_read_tokens=jr.cache_read_tokens,
+                    cache_creation_tokens=jr.cache_creation_tokens,
+                    batch=True,
+                )
+                judge_cost = jb.total_cost
+                judge_batch_savings = jb.batch_savings
+            except Exception as e:
+                logger.error(f"Batch judge scoring failed for {cid}: {e}")
+                metrics = RagasMetrics(**dm, error=f"Judge error: {e}")
+
+            score = self.ragas_evaluator.calculate_aggregate_score(metrics)
+            results.append(IndividualTestResult(
+                test_id=test_id,
+                query=po.query,
+                model=meta.test_metadata["model"],
+                score=int(score),
+                max_score=test_case.max_score,
+                passed=score >= 80.0,
+                tokens=meta.tokens["total"],
+                cost_usd=meta.costs["llm_generation_usd"],
+                multi_hop_cost_usd=meta.costs["multi_hop_usd"],
+                embedding_cost_usd=meta.costs["embedding_usd"],
+                ragas_cost_usd=judge_cost,
+                output_char_count=0,
+                generation_time_seconds=meta.latency["llm_generation_seconds"],
+                output_filename=str(po.file_path),
+                error=None,
+                json_formatted=True,
+                quote_precision=metrics.quote_precision,
+                quote_recall=metrics.quote_recall,
+                quote_faithfulness=metrics.quote_faithfulness,
+                explanation_faithfulness=metrics.explanation_faithfulness,
+                answer_correctness=metrics.answer_correctness,
+                ragas_error=metrics.error,
+                feedback=metrics.feedback,
+                ragas_evaluation_error=metrics.error is not None,
+                answer_correctness_details=metrics.answer_correctness_details,
+                llm_quotes_structured=metrics.llm_quotes_structured,
+                batch_savings_usd=getattr(meta, "batch_savings_usd", 0.0),
+                judge_batch_savings_usd=judge_batch_savings,
+            ))
+        return results
+
+    def _finalize_report(self, results, report_dir: Path, manifest) -> None:
+        """Aggregate results and generate the report into report_dir."""
+        from tests.quality.reporting.aggregator import aggregate_results
+        from tests.quality.reporting.report_generator import ReportGenerator
+        from tests.quality.reporting.report_models import QualityReport
+
+        total_cost = sum(r.total_cost_usd for r in results)
+        report = QualityReport(
+            results=results,
+            total_time_seconds=0.0,
+            total_cost_usd=total_cost,
+            runs=manifest.runs,
+            models=manifest.models,
+            test_cases=manifest.test_ids,
+            report_dir=str(report_dir),
+            judge_model=manifest.judge_model,
+            prompt_path=str(report_dir / "prompt.md"),
+        )
+        aggregate_results(report)
+        ReportGenerator(report).generate_all_reports()
 
     async def replay_tests_from_outputs(
         self,

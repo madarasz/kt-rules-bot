@@ -146,6 +146,26 @@ class OpenAICompatBatchBackend:
         return out
 
 
+# api_key_type (factory registry) -> batch backend name. Only wired backends here.
+_API_KEY_TYPE_TO_BACKEND = {"anthropic": "anthropic", "openai": "openai"}
+
+
+def make_backend(name: str) -> BatchBackend | None:
+    """Construct a batch backend by its name (used to rebuild it at collect time)."""
+    config = get_config()
+    if name == "anthropic":
+        return AnthropicBatchBackend(api_key=config.anthropic_api_key)
+    if name == "openai":
+        return OpenAICompatBatchBackend(
+            api_key=config.openai_api_key,
+            base_url="https://api.openai.com/v1",
+            name="openai",
+        )
+    # Kimi/Qwen would reuse OpenAICompatBatchBackend with their base_url/key here,
+    # but their adapters keep supports_batch=False until the discount is verified.
+    return None
+
+
 def resolve_backend(model: str) -> BatchBackend | None:
     """Map a friendly model name to a batch backend, or None for live fallback.
 
@@ -160,16 +180,4 @@ def resolve_backend(model: str) -> BatchBackend | None:
     adapter_class, _model_id, api_key_type = entry
     if not getattr(adapter_class, "supports_batch", False):
         return None
-
-    config = get_config()
-    if api_key_type == "anthropic":
-        return AnthropicBatchBackend(api_key=config.anthropic_api_key)
-    if api_key_type == "openai":
-        return OpenAICompatBatchBackend(
-            api_key=config.openai_api_key,
-            base_url="https://api.openai.com/v1",
-            name="openai",
-        )
-    # Kimi/Qwen would reuse OpenAICompatBatchBackend with their base_url/key here,
-    # but their adapters keep supports_batch=False until the discount is verified.
-    return None
+    return make_backend(_API_KEY_TYPE_TO_BACKEND.get(api_key_type))
