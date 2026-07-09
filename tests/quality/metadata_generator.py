@@ -60,6 +60,12 @@ class OutputMetadata:
     # compatibility with output files written before this field existed.
     response_json: str | None = None
 
+    # Batch-API attribution. True if this generation came from a batch submit;
+    # batch_savings_usd is the 50%-discount saving on the main LLM call. Both
+    # optional/defaulted for files written before batch support existed.
+    batch: bool = False
+    batch_savings_usd: float = 0.0
+
     def to_json(self) -> str:
         """Serialize to JSON for embedding in markdown."""
         return json.dumps(asdict(self), indent=2)
@@ -86,6 +92,7 @@ class MetadataGenerator:
         llm_response: LLMResponse,
         result: IndividualTestResult,
         metrics: "RagasMetrics",
+        batch: bool = False,
     ) -> OutputMetadata:
         """
         Generate complete metadata from test result.
@@ -97,6 +104,7 @@ class MetadataGenerator:
             llm_response: Raw LLM response object
             result: Test result with costs and timing
             metrics: Evaluation metrics including deterministic scores
+            batch: True if this generation came from a batch submit
 
         Returns:
             OutputMetadata ready for serialization
@@ -136,6 +144,8 @@ class MetadataGenerator:
             },
             # Faithful copy of the bot's structured response for deterministic replay.
             response_json=llm_response.answer_text,
+            batch=batch,
+            batch_savings_usd=result.batch_savings_usd,
         )
 
     @staticmethod

@@ -911,6 +911,8 @@ class QualityTestRunner:
         multi_hop_cost_usd: float | None = None,
         embedding_cost_usd: float | None = None,
         generation_time_seconds: float | None = None,
+        batch: bool = False,
+        batch_savings_usd: float = 0.0,
     ):
         """Saves the query and response to a file with quality metrics and metadata.
 
@@ -1022,6 +1024,7 @@ class QualityTestRunner:
                 output_char_count=0,  # Not needed for metadata
                 generation_time_seconds=generation_time_seconds,
                 output_filename="",  # Not needed for metadata
+                batch_savings_usd=batch_savings_usd,
             )
 
             metadata = MetadataGenerator.generate_metadata(
@@ -1031,6 +1034,7 @@ class QualityTestRunner:
                 llm_response=llm_response,
                 result=result,
                 metrics=ragas_metrics,
+                batch=batch,
             )
 
             metadata_block = MetadataFormatter.format_metadata_block(metadata)
