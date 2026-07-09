@@ -441,6 +441,7 @@ class QualityTestRunner:
             multi_hop_cost_usd=multi_hop_cost,
             embedding_cost_usd=embedding_cost,
             generation_time_seconds=generation_time,
+            cache_savings_usd=cache_savings,
         )
 
         return IndividualTestResult(
@@ -818,6 +819,7 @@ class QualityTestRunner:
             generation_time_seconds=0.0,
             batch=True,
             batch_savings_usd=breakdown.batch_savings,
+            cache_savings_usd=breakdown.cache_savings,
         )
 
     def _submit_judge_batch(self, manifest, parsed, test_cases_map, judge_backend) -> None:
@@ -953,6 +955,7 @@ class QualityTestRunner:
                 answer_correctness_details=metrics.answer_correctness_details,
                 llm_quotes_structured=metrics.llm_quotes_structured,
                 batch_savings_usd=getattr(meta, "batch_savings_usd", 0.0),
+                cache_savings_usd=getattr(meta, "cache_savings_usd", 0.0),
                 judge_batch_savings_usd=judge_batch_savings,
             ))
         return results
@@ -1270,8 +1273,9 @@ class QualityTestRunner:
             quote_faithfulness_details=ragas_metrics.quote_faithfulness_details,
             answer_correctness_details=ragas_metrics.answer_correctness_details,
             llm_quotes_structured=ragas_metrics.llm_quotes_structured,
-            # Batch-API savings attributed at generation time, carried through metadata.
+            # Generation-time savings attributed at submit, carried through metadata.
             batch_savings_usd=getattr(metadata, "batch_savings_usd", 0.0),
+            cache_savings_usd=getattr(metadata, "cache_savings_usd", 0.0),
         )
 
     def _create_error_result(
@@ -1295,6 +1299,7 @@ class QualityTestRunner:
             output_filename="",
             error=error_msg,
             batch_savings_usd=getattr(metadata, "batch_savings_usd", 0.0),
+            cache_savings_usd=getattr(metadata, "cache_savings_usd", 0.0),
         )
 
     def _save_output(
@@ -1314,6 +1319,7 @@ class QualityTestRunner:
         generation_time_seconds: float | None = None,
         batch: bool = False,
         batch_savings_usd: float = 0.0,
+        cache_savings_usd: float = 0.0,
     ):
         """Saves the query and response to a file with quality metrics and metadata.
 
@@ -1426,6 +1432,7 @@ class QualityTestRunner:
                 generation_time_seconds=generation_time_seconds,
                 output_filename="",  # Not needed for metadata
                 batch_savings_usd=batch_savings_usd,
+                cache_savings_usd=cache_savings_usd,
             )
 
             metadata = MetadataGenerator.generate_metadata(

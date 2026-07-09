@@ -66,6 +66,11 @@ class OutputMetadata:
     batch: bool = False
     batch_savings_usd: float = 0.0
 
+    # Prompt-cache net saving on the main LLM call, persisted so replay/batch
+    # scoring can re-surface it (it stacks with batch_savings). Defaulted for
+    # older output files.
+    cache_savings_usd: float = 0.0
+
     def to_json(self) -> str:
         """Serialize to JSON for embedding in markdown."""
         return json.dumps(asdict(self), indent=2)
@@ -146,6 +151,7 @@ class MetadataGenerator:
             response_json=llm_response.answer_text,
             batch=batch,
             batch_savings_usd=result.batch_savings_usd,
+            cache_savings_usd=result.cache_savings_usd,
         )
 
     @staticmethod

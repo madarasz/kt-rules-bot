@@ -29,6 +29,7 @@ def _result():
         test_id="t1", query="q", model="claude-4.6-sonnet", score=0, max_score=0,
         passed=False, tokens=120, cost_usd=0.01, output_char_count=0,
         generation_time_seconds=1.0, output_filename="", batch_savings_usd=0.03,
+        cache_savings_usd=0.05,
     )
 
 
@@ -40,11 +41,13 @@ def test_batch_metadata_roundtrips():
     )
     assert meta.batch is True
     assert meta.batch_savings_usd == 0.03
+    assert meta.cache_savings_usd == 0.05
 
     block = MetadataFormatter.format_metadata_block(meta)
     parsed = MetadataFormatter.extract_metadata_from_markdown(f"# Query\n\nq\n\n---\n{block}")
     assert parsed.batch is True
     assert parsed.batch_savings_usd == 0.03
+    assert parsed.cache_savings_usd == 0.05  # stacks with batch, both re-surfaced
 
 
 def test_old_metadata_without_batch_defaults_false():
