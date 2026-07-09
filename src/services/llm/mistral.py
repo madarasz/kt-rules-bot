@@ -79,6 +79,7 @@ class MistralAdapter(LLMProvider):
             # Mistral supports OpenAI-compatible response_format for structured outputs
             payload = {
                 "model": self.model,
+                "prompt_cache_key": schema_type,  # one cache key per prompt type
                 "messages": [
                     {"role": "system", "content": request.config.system_prompt},
                     {"role": "user", "content": full_prompt},
@@ -174,6 +175,8 @@ class MistralAdapter(LLMProvider):
             prompt_tokens = usage.get("prompt_tokens", 0)
             completion_tokens = usage.get("completion_tokens", 0)
             token_count = usage.get("total_tokens", 0)
+            prompt_details = usage.get("prompt_tokens_details", {})
+            cache_read_tokens = prompt_details.get("cached_tokens", 0) if prompt_details else 0
 
             logger.info(
                 "Mistral generation completed",
@@ -182,6 +185,7 @@ class MistralAdapter(LLMProvider):
                     "token_count": token_count,
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
+                    "cache_read_tokens": cache_read_tokens,
                     "confidence": confidence,
                 },
             )
@@ -197,6 +201,8 @@ class MistralAdapter(LLMProvider):
                 citations_included=citations_included,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
+                cache_read_tokens=cache_read_tokens,
+                cache_creation_tokens=0,
             )
 
         except Exception as e:

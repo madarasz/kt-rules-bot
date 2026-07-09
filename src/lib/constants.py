@@ -45,25 +45,23 @@ LLM_PROVIDERS_LITERAL = Literal[
     # "o3", --- does not support JSON output
     "o3-mini",
     "o4-mini",
-    "grok-4-1-fast-reasoning",
-    "grok-4-1-fast-non-reasoning",
-    "grok-4-fast-reasoning",
-    "grok-4-0709",
     "grok-4.3",
     "grok-4.20-0309-reasoning",
+    "grok-4.20-0309-non-reasoning",
     "grok-build-0.1",
     "grok-3",
     "grok-3-mini",
-    "deepseek-chat",
-    "deepseek-reasoner",
+    "deepseek-v4-flash",
+    "deepseek-v4-pro",
+    "kimi-k2.7-code",
     "kimi-k2.6",
     "kimi-k2.5",
-    "kimi-k2-0905-preview",
-    "kimi-k2-turbo-preview",
-    "mistral-large",
-    "mistral-medium",
-    "mistral-small",
-    "magistral-medium-latest",
+    "moonshot-v1-8k",
+    "mistral-medium-3-5",
+    "mistral-small-4",
+    "mistral-large-3",
+    "ministral-3-14-b",
+    "ministral-3-8-b",
     "dial-gpt-4o",
     "dial-gpt-4.1",
     "dial-gpt-5",
@@ -79,9 +77,9 @@ LLM_PROVIDERS_LITERAL = Literal[
     "dial-gemini-2.5-pro",
     "dial-gemini-2.5-flash",
     # Qwen models (Alibaba Cloud)
-    "qwen3-max-2026-01-23",
-    "qwen3.5-plus",
-    "qwen3-coder-next",
+    "qwen3.6-flash",
+    "qwen-turbo",
+    "qwen3-coder-flash",
     "qwen3-coder-plus",
     # GLM models (Z.AI)
     "glm-5",
@@ -100,7 +98,7 @@ PDF_EXTRACTION_PROVIDERS = [
     "gemini-2.5-flash",  # Recommended: Fast and reliable
     "claude-4.5-sonnet",
     "claude-4.1-opus",
-    "grok-4-1-fast-reasoning"
+    "grok-4.3"
 ]
 
 # Quality test providers (curated list for --all-models testing)
@@ -132,8 +130,6 @@ QUALITY_TEST_PROVIDERS = [
     #"grok-4.3",
     #"grok-4.20-0309-reasoning",
     #"grok-build-0.1",
-    "grok-4-1-fast-reasoning",
-    #"grok-4-1-fast-non-reasoning",
     #"mistral-large",
     #"mistral-medium",
     # "grok-3",
@@ -155,7 +151,7 @@ QUALITY_TEST_PROVIDERS = [
 ]
 
 # Default LLM provider for generation
-DEFAULT_LLM_PROVIDER = "grok-4-1-fast-reasoning"  # Default model for Discord bot and CLI
+DEFAULT_LLM_PROVIDER = "grok-4.3"  # Default model for Discord bot and CLI
 
 # LLM retry configuration
 LLM_MAX_RETRIES = 2  # Number of retry attempts on ContentFilterError
@@ -179,7 +175,7 @@ LLM_EXTRACTION_TEMPERATURE = 0  # Low temperature for consistent structure
 # ============================================================================
 
 # Default judge model for quality tests (used by both Ragas and custom judge)
-QUALITY_TEST_JUDGE_MODEL = "grok-4-1-fast-reasoning"
+QUALITY_TEST_JUDGE_MODEL = "grok-4.3"
 
 # Quality test judging mode
 # - "RAGAS": Enable LLM-based metrics (Quote Faithfulness, Explanation Faithfulness, Answer Correctness) using Ragas library
@@ -300,7 +296,7 @@ PROMPT_OVERRIDES_DIR = "prompts/overrides"
 SUMMARY_ENABLED = True
 
 # LLM model to use for summary generation (use cheap/fast model)
-SUMMARY_LLM_MODEL = "grok-4-1-fast-non-reasoning"
+SUMMARY_LLM_MODEL = "grok-4.3"
 
 # Path to summary generation prompt template
 CHUNK_SUMMARY_PROMPT_PATH = "prompts/chunk-summary-prompt.md"
@@ -348,7 +344,7 @@ RAG_MAX_HOPS = 1
 RAG_HOP_CHUNK_LIMIT = 5
 
 # LLM model for hop context evaluation
-RAG_HOP_EVALUATION_MODEL = "grok-4-1-fast-non-reasoning"
+RAG_HOP_EVALUATION_MODEL = "ministral-3-14-b"
 
 # Hop evaluation timeout in seconds
 RAG_HOP_EVALUATION_TIMEOUT = 20
@@ -366,6 +362,9 @@ TEAMS_STRUCTURE_PATH = "extracted-rules/teams-structure.yml"
 
 # Max length of chunk text for hop evaluation formatting
 MAX_CHUNK_LENGTH_FOR_EVALUATION = 500
+
+# Max tokens for hop evaluation LLM response
+RAG_HOP_EVALUATION_MAX_TOKENS = 300
 
 # ============================================================================
 # Maintenance Mode Constants

@@ -93,7 +93,7 @@ class KimiAdapter(LLMProvider):
             system_prompt_with_schema = request.config.system_prompt + schema_instruction
 
             # Kimi K2.x thinking models only support temperature=1.0
-            THINKING_MODELS = {"kimi-k2.5", "kimi-k2.6"}
+            THINKING_MODELS = {"kimi-k2.5", "kimi-k2.6", "kimi-k2.7-code"}
             temperature = request.config.temperature
             if self.model in THINKING_MODELS:
                 temperature = 1.0

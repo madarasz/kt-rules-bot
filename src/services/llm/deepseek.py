@@ -1,10 +1,14 @@
 """DeepSeek LLM adapter using OpenAI-compatible API.
 
-Implements LLMProvider interface for DeepSeek models (deepseek-chat, deepseek-reasoner).
+Implements LLMProvider interface for DeepSeek models (deepseek-v4-flash, deepseek-v4-pro).
 Based on specs/001-we-are-building/contracts/llm-adapter.md
+
+Note: deepseek-v4-flash and deepseek-v4-pro have thinking mode enabled by default,
+which is incompatible with tool_choice. We use JSON mode with schema in prompt instead.
 """
 
 import asyncio
+import json
 import time
 from uuid import uuid4
 
@@ -21,11 +25,18 @@ from src.services.llm.base import (
     LLMResponse,
     RateLimitError,
     TokenLimitError,
+    get_pydantic_model,
     get_schema_info,
 )
 from src.services.llm.base import TimeoutError as LLMTimeoutError
 
 logger = get_logger(__name__)
+
+# These models have thinking mode enabled by default — incompatible with tool_choice
+THINKING_MODELS = {"deepseek-v4-flash", "deepseek-v4-pro"}
+
+# Set False to disable thinking-mode path (uses function calling instead — will fail on thinking models)
+USE_DEEPSEEK_THINKING = False
 
 
 class DeepSeekAdapter(LLMProvider):
@@ -33,12 +44,12 @@ class DeepSeekAdapter(LLMProvider):
 
     DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
-    def __init__(self, api_key: str, model: str = "deepseek-chat"):
+    def __init__(self, api_key: str, model: str = "deepseek-v4-flash"):
         """Initialize DeepSeek adapter.
 
         Args:
             api_key: DeepSeek API key
-            model: DeepSeek model identifier (deepseek-chat or deepseek-reasoner)
+            model: DeepSeek model identifier (deepseek-v4-flash or deepseek-v4-pro)
         """
         super().__init__(api_key, model)
 
@@ -48,8 +59,7 @@ class DeepSeekAdapter(LLMProvider):
         # DeepSeek API is OpenAI-compatible, use custom base URL
         self.client = AsyncOpenAI(api_key=api_key, base_url=self.DEEPSEEK_BASE_URL)
 
-        # deepseek-reasoner uses chain-of-thought reasoning
-        self.is_reasoning_model = model == "deepseek-reasoner"
+        self.is_reasoning_model = model in THINKING_MODELS
 
         logger.info(f"Initialized DeepSeek adapter with model {model}")
 
@@ -72,43 +82,68 @@ class DeepSeekAdapter(LLMProvider):
 
         # Build prompt with context and optional chunk IDs
         full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
+
+        # Thinking models use internal reasoning tokens — multiply budget to avoid truncation
         token_limit = (
             request.config.max_tokens * 3
-            if self.model == "deepseek-reasoner"
+            if USE_DEEPSEEK_THINKING and self.model in THINKING_MODELS
             else request.config.max_tokens
         )
 
         try:
-            # Select schema based on configuration
             schema_type = request.config.structured_output_schema
-            schema_info = get_schema_info(schema_type)
-            pydantic_model = schema_info.pydantic_model
-            function_name = schema_info.tool_name
-            function_description = schema_info.tool_description
-            logger.debug(f"Using {schema_type} schema (Pydantic)")
 
-            # Build API call parameters with function calling (DeepSeek doesn't support parse method yet)
-            # Use Pydantic model for schema generation and validation
-            api_params = {
-                "model": self.model,
-                "messages": [
-                    {"role": "system", "content": request.config.system_prompt},
-                    {"role": "user", "content": full_prompt},
-                ],
-                "max_tokens": token_limit,
-                "temperature": request.config.temperature,
-                "tools": [
-                    {
-                        "type": "function",
-                        "function": {
-                            "name": function_name,
-                            "description": function_description,
-                            "parameters": pydantic_model.model_json_schema(),
-                        },
-                    }
-                ],
-                "tool_choice": {"type": "function", "function": {"name": function_name}},
-            }
+            if USE_DEEPSEEK_THINKING and self.model in THINKING_MODELS:
+                # Thinking mode is incompatible with tool_choice — use JSON mode + schema in prompt
+                pydantic_model = get_pydantic_model(schema_type)
+                logger.debug(f"Using {schema_type} schema (JSON mode, thinking model)")
+
+                json_schema = pydantic_model.model_json_schema()
+                schema_instruction = (
+                    "\n\nIMPORTANT: You MUST respond with valid JSON matching this exact schema:\n"
+                    f"```json\n{json.dumps(json_schema, indent=2)}\n```\n"
+                    "Do not include any text before or after the JSON object."
+                )
+                system_prompt = request.config.system_prompt + schema_instruction
+
+                api_params = {
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": full_prompt},
+                    ],
+                    "max_tokens": token_limit,
+                    "response_format": {"type": "json_object"},
+                }
+            else:
+                # Non-thinking models: use function calling for structured output
+                schema_info = get_schema_info(schema_type)
+                pydantic_model = schema_info.pydantic_model
+                function_name = schema_info.tool_name
+                function_description = schema_info.tool_description
+                logger.debug(f"Using {schema_type} schema (function calling)")
+
+                api_params = {
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": request.config.system_prompt},
+                        {"role": "user", "content": full_prompt},
+                    ],
+                    "max_tokens": token_limit,
+                    "temperature": request.config.temperature,
+                    "extra_body": {"thinking": {"type": "enabled" if USE_DEEPSEEK_THINKING else "disabled"}},
+                    "tools": [
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": function_name,
+                                "description": function_description,
+                                "parameters": pydantic_model.model_json_schema(),
+                            },
+                        }
+                    ],
+                    "tool_choice": {"type": "function", "function": {"name": function_name}},
+                }
 
             # Call DeepSeek API with timeout
             response = await asyncio.wait_for(
@@ -117,11 +152,9 @@ class DeepSeekAdapter(LLMProvider):
             )
 
             latency_ms = int((time.time() - start_time) * 1000)
-
-            # Extract structured JSON from tool calls
             choice = response.choices[0]
 
-            # For deepseek-reasoner, also extract reasoning content if available
+            # Extract reasoning content if available (thinking models)
             reasoning_content = None
             if self.is_reasoning_model and hasattr(choice.message, "reasoning_content"):
                 reasoning_content = choice.message.reasoning_content
@@ -130,53 +163,59 @@ class DeepSeekAdapter(LLMProvider):
                         f"DeepSeek reasoning chain-of-thought: {reasoning_content[:200]}..."
                     )
 
-            # Check for tool calls (structured output)
-            if not choice.message.tool_calls:
-                logger.warning(
-                    f"DeepSeek returned no tool calls. Finish reason: {choice.finish_reason}"
-                )
-                # Check if there's a refusal
-                refusal = getattr(choice.message, "refusal", None)
-                if refusal:
-                    raise ContentFilterError(f"DeepSeek refused to respond: {refusal}")
-                elif choice.finish_reason == "length":
-                    raise TokenLimitError("DeepSeek output was truncated due to max_tokens limit")
-                else:
+            # Extract raw JSON depending on output mode
+            if USE_DEEPSEEK_THINKING and self.model in THINKING_MODELS:
+                raw_json = choice.message.content
+                if not raw_json:
+                    if choice.finish_reason == "length":
+                        raise TokenLimitError(
+                            "DeepSeek output was truncated due to max_tokens limit"
+                        )
+                    refusal = getattr(choice.message, "refusal", None)
+                    if refusal:
+                        raise ContentFilterError(f"DeepSeek refused to respond: {refusal}")
                     raise Exception(
-                        f"Expected tool calls but none returned (finish_reason: {choice.finish_reason})"
+                        f"DeepSeek returned empty content (finish_reason: {choice.finish_reason})"
                     )
-
-            # Extract JSON from tool call
-            tool_call = choice.message.tool_calls[0]
-            function_args = tool_call.function.arguments
-
-            if not function_args:
-                raise Exception("DeepSeek tool call has empty arguments")
+            else:
+                if not choice.message.tool_calls:
+                    logger.warning(
+                        f"DeepSeek returned no tool calls. Finish reason: {choice.finish_reason}"
+                    )
+                    refusal = getattr(choice.message, "refusal", None)
+                    if refusal:
+                        raise ContentFilterError(f"DeepSeek refused to respond: {refusal}")
+                    elif choice.finish_reason == "length":
+                        raise TokenLimitError(
+                            "DeepSeek output was truncated due to max_tokens limit"
+                        )
+                    else:
+                        raise Exception(
+                            f"Expected tool calls but none returned (finish_reason: {choice.finish_reason})"
+                        )
+                tool_call = choice.message.tool_calls[0]
+                raw_json = tool_call.function.arguments
+                if not raw_json:
+                    raise Exception("DeepSeek tool call has empty arguments")
 
             # Validate with Pydantic for type safety
             try:
-                parsed_output = pydantic_model.model_validate_json(function_args)
+                parsed_output = pydantic_model.model_validate_json(raw_json)
                 answer_text = parsed_output.model_dump_json()
                 logger.debug(
                     f"Extracted structured JSON from DeepSeek (Pydantic): {len(answer_text)} chars"
                 )
             except Exception as e:
                 logger.error(f"DeepSeek returned JSON that failed Pydantic validation: {e}")
-                # Include the raw response in the error message for debugging
                 error_msg = (
                     f"DeepSeek JSON validation error: {e}\n\n"
-                    f"RAW RESPONSE:\n{function_args}"
+                    f"RAW RESPONSE:\n{raw_json}"
                 )
                 raise ValueError(error_msg) from e
 
-            # Check if citations are included (always true for structured output with quotes)
             citations_included = request.config.include_citations
-
-            # Calculate confidence (DeepSeek doesn't provide logprobs, use default)
-            # Reasoning models get slightly higher confidence due to chain-of-thought
             confidence = 0.85 if self.is_reasoning_model else 0.8
 
-            # Token count
             prompt_tokens = response.usage.prompt_tokens
             completion_tokens = response.usage.completion_tokens
             token_count = response.usage.total_tokens

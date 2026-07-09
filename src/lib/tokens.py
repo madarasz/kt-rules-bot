@@ -77,10 +77,9 @@ pricing: dict[str, dict] = {
     "claude-4.5-haiku":          {"prompt": 0.001,  "completion": 0.005,  "cache_read": 0.0001,   "cache_write": 0.00125, "cache_mode": "anthropic"},
     # https://docs.x.ai/docs/models
     # Grok - OpenAI-compatible cache format, 50% discount
-    "grok-4-1-fast-reasoning":    {"prompt": 0.0002,  "completion": 0.0005,  "cache_read": 0.00005,  "cache_write": 0.0, "cache_mode": "openai"},
-    "grok-4-1-fast-non-reasoning":{"prompt": 0.0002,  "completion": 0.0005,  "cache_read": 0.00005,  "cache_write": 0.0, "cache_mode": "openai"},
     "grok-4.3":                   {"prompt": 0.00125, "completion": 0.00250, "cache_read": 0.000625, "cache_write": 0.0, "cache_mode": "openai"},
     "grok-4.20-0309-reasoning":   {"prompt": 0.00125, "completion": 0.00250, "cache_read": 0.000625, "cache_write": 0.0, "cache_mode": "openai"},
+    "grok-4.20-0309-non-reasoning":   {"prompt": 0.00125, "completion": 0.00250, "cache_read": 0.000625, "cache_write": 0.0, "cache_mode": "openai"},
     "grok-build-0.1":             {"prompt": 0.00100, "completion": 0.00200, "cache_read": 0.0005,   "cache_write": 0.0, "cache_mode": "openai"},
     # https://ai.google.dev/gemini-api/docs/pricing
     # Gemini - implicit caching on by default for 2.5+ models (cached_content_token_count subset of prompt_token_count)
@@ -91,26 +90,25 @@ pricing: dict[str, dict] = {
     "gemini-3.5-flash":        {"prompt": 0.0015,  "completion": 0.009,  "cache_read": 0.00015,  "cache_write": 0.0, "cache_mode": "openai"},
     "gemini-2.5-flash":        {"prompt": 0.0003,  "completion": 0.0025, "cache_read": 0.00003,  "cache_write": 0.0, "cache_mode": "openai"},
     # https://api-docs.deepseek.com/quick_start/pricing
-    "deepseek-chat":    {"prompt": 0.00028, "completion": 0.00042, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
-    "deepseek-reasoner":{"prompt": 0.00028, "completion": 0.00042, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
+    "deepseek-v4-flash":    {"prompt": 0.00014, "completion": 0.00028, "cache_read": 0.000028, "cache_write": 0.0, "cache_mode": "openai"},
+    "deepseek-v4-pro":{"prompt": 0.000435, "completion": 0.00087, "cache_read": 0.00003625, "cache_write": 0.0, "cache_mode": "openai"},
     # https://platform.moonshot.ai/docs/pricing/chat
-    "kimi-k2.6":             {"prompt": 0.00095,  "completion": 0.004,  "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
-    "kimi-k2.5":             {"prompt": 0.0006,  "completion": 0.003,  "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
-    "kimi-k2-0905-preview":  {"prompt": 0.00015, "completion": 0.0025, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
-    "kimi-k2-turbo-preview": {"prompt": 0.00015, "completion": 0.008,  "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
+    "kimi-k2.7-code":          {"prompt": 0.00095,  "completion": 0.004,  "cache_read": 0.000019,  "cache_write": 0.0, "cache_mode": "openai"},
+    "kimi-k2.6":             {"prompt": 0.00095,  "completion": 0.004,  "cache_read": 0.00016, "cache_write": 0.0, "cache_mode": "openai"},
+    "kimi-k2.5":             {"prompt": 0.0006,  "completion": 0.003,  "cache_read": 0.00001, "cache_write": 0.0, "cache_mode": "openai"},
+    "moonshot-v1-8k":          {"prompt": 0.0002,  "completion": 0.002,  "cache_read": 0.00002, "cache_write": 0.0, "cache_mode": "openai"},
     # https://mistral.ai/pricing#api-pricing
-    "mistral-large":          {"prompt": 0.0005, "completion": 0.0015, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
-    "mistral-medium":         {"prompt": 0.0004, "completion": 0.002,  "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
-    "mistral-small":          {"prompt": 0.0001, "completion": 0.0003, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
-    "mistral-large-latest":   {"prompt": 0.0005, "completion": 0.0015, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
-    "mistral-medium-2505":    {"prompt": 0.0004, "completion": 0.002,  "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
-    "mistral-small-latest":   {"prompt": 0.0001, "completion": 0.0003, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
-    "magistral-medium-latest":{"prompt": 0.002,  "completion": 0.005,  "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},
+    # Mistral - opt-in caching via prompt_cache_key; cached reads billed at 10% of prompt rate (OpenAI-style)
+    "mistral-medium-3-5":          {"prompt": 0.0015, "completion": 0.0075, "cache_read": 0.00015, "cache_write": 0.0, "cache_mode": "openai"},
+    "mistral-small-2603":          {"prompt": 0.00015, "completion": 0.0006, "cache_read": 0.000015, "cache_write": 0.0, "cache_mode": "openai"}, # mistral small 4
+    "mistral-large-2512":          {"prompt": 0.0005, "completion": 0.0015, "cache_read": 0.00005, "cache_write": 0.0, "cache_mode": "openai"}, # mistral large 3
+    "ministral-14b-2512":          {"prompt": 0.0002, "completion": 0.0002, "cache_read": 0.00002, "cache_write": 0.0, "cache_mode": "openai"}, # ministral 3-14-b
+    "ministral-8b-2512":              {"prompt": 0.00015, "completion": 0.0015, "cache_read": 0.000015, "cache_write": 0.0, "cache_mode": "openai"}, # ministral 3-8-b
     # Qwen models (Alibaba Cloud) - https://help.aliyun.com/zh/model-studio/pricing
-    "qwen3.5-plus":         {"prompt": 0.00040, "completion": 0.00240, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},  # $0.40/$2.40 per 1M tokens
-    "qwen3-max-2026-01-23": {"prompt": 0.00120, "completion": 0.00600, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},  # $1.20/$6.00 per 1M tokens
-    "qwen3-coder-plus":     {"prompt": 0.00100, "completion": 0.00500, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},  # $1.00/$5.00 per 1M tokens
-    "qwen3-coder-next":     {"prompt": 0.00030, "completion": 0.00150, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},  # $0.30/$1.50 per 1M tokens
+    "qwen3.6-flash-2026-04-16":         {"prompt": 0.00025, "completion": 0.0015, "cache_read": 0.00005, "cache_write": 0.0, "cache_mode": "openai"}, 
+    "qwen3-turbo":                      {"prompt": 0.00005, "completion": 0.0002, "cache_read": 0.000001, "cache_write": 0.0, "cache_mode": "openai"}, # non-thinking price
+    "qwen3-coder-plus-2025-09-23":     {"prompt": 0.00100, "completion": 0.00500, "cache_read": 0.0002, "cache_write": 0.0, "cache_mode": "openai"},
+    "qwen3-coder-flash-2025-07-28":     {"prompt": 0.00030, "completion": 0.00150, "cache_read": 0.00006, "cache_write": 0.0, "cache_mode": "openai"},
     # GLM models (Z.AI) - https://platform.z.ai/pricing
     "glm-5":   {"prompt": 0.00050, "completion": 0.00250, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},  # $0.50/$2.50 per 1M tokens
     "glm-4.7": {"prompt": 0.00050, "completion": 0.00250, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"},  # $0.50/$2.50 per 1M tokens
