@@ -195,6 +195,64 @@ python -m src.cli health --wait-for-discord
 
 ---
 
+### `quality-test` - Evaluate RAG + LLM Answer Quality
+
+Run test queries, judge the answers with an LLM, and produce a scored report with cost breakdown. **Costs real money** (each run makes generation + judge LLM calls).
+
+**Usage:**
+```bash
+python -m src.cli quality-test [--test ID] [--model M | --all-models] [--runs N]
+                               [--judge-model M] [--force-rag] [--from-output DIR]
+                               [--batch-submit | --batch-collect DIR] [-y]
+```
+
+**Options:**
+- `--test`, `-t` - Specific test ID to run (default: all test cases)
+- `--model`, `-m` - Single model to test (default: from config)
+- `--all-models` - Test every model in `QUALITY_TEST_PROVIDERS`
+- `--runs`, `-n` - Runs per test (for variance/consistency, default: 1)
+- `--judge-model` - Model used for LLM judging (default: `grok-4-1-fast-reasoning`)
+- `--force-rag` - Ignore cached `context_file` and run RAG retrieval
+- `--from-output DIR` - Replay judging over saved `output_*.md` (skips RAG + generation)
+- `--batch-submit` / `--batch-collect DIR` - Batch-API mode (see below), mutually exclusive
+- `--yes`, `-y` - Skip the confirmation prompt
+
+**Examples:**
+```bash
+# One test, default model
+python -m src.cli quality-test --test eliminator-concealed-counteract
+
+# Compare all models, 5 runs each
+python -m src.cli quality-test --all-models --runs 5
+
+# Re-judge saved outputs with a different judge (cheap, no regeneration)
+python -m src.cli quality-test --from-output tests/quality/results/2026-07-09_12-00-00 --judge-model gpt-4.1-mini
+```
+
+**Output:** `tests/quality/results/<timestamp>/` — `report.md` (scores + cost breakdown), per-run `output_*.md`, `prompt.md`, charts.
+
+#### Batch-API mode (opt-in, ~50% cheaper)
+
+Runs generation (and the judge, if the judge model supports batch) through the provider **Batch APIs** at 50% token cost (≤24h turnaround each). Two split commands; `batch-collect` is single-pass and re-run by hand until the report is produced. State persists in `<dir>/batch_state.json` (idempotent, resumable).
+
+```bash
+# 1. Submit — prints batch IDs, runs any non-batch models live now, then exits
+python -m src.cli quality-test --batch-submit --test eliminator-concealed-counteract \
+  --model claude-4.6-sonnet
+
+# 2. Collect — one status check + one step; re-run the SAME command until "Phase: done"
+python -m src.cli quality-test --batch-collect tests/quality/results/<timestamp>
+```
+
+- **Batchable:** `claude-*` (Anthropic), `gpt-*`/`o3*` (OpenAI). Every other model — Gemini, Mistral, Kimi, Qwen, Grok, DeepSeek — runs **live at submit time** and lands in the same report.
+- **Judge:** batches only when the judge model is batchable (e.g. `--judge-model gpt-4.1-mini` → two collects: gen batch, then judge batch). The default grok judge runs live, so a single collect finishes the run.
+- **Savings:** `report.md` shows a **Batch net savings** line plus the existing **Cache net savings** line and a combined total. For Anthropic the two **stack** — cache accounting first, then the 50% batch discount on top.
+- **When:** cost-sensitive CI where a multi-hour (worst case ~48h over two rounds) turnaround is fine. Not for interactive iteration — use the default live path there.
+
+See [tests/quality/CLAUDE.md](tests/quality/CLAUDE.md) for the full quality-testing framework and test-case format.
+
+---
+
 ### `maintenance` - Maintenance mode
 
 ```bash
