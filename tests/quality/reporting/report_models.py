@@ -53,6 +53,8 @@ class IndividualTestResult:
     embedding_cost_usd: float = 0.0
     cache_savings_usd: float = 0.0  # Prompt-cache net savings on the main LLM call
     judge_cache_savings_usd: float = 0.0  # Prompt-cache net savings on the judge call
+    batch_savings_usd: float = 0.0  # Batch-API net savings on the main LLM call
+    judge_batch_savings_usd: float = 0.0  # Batch-API net savings on the judge call
     json_formatted: bool = False  # True if response was valid JSON
     structured_quotes_count: int = 0  # Number of quotes in structured response
 
@@ -212,6 +214,13 @@ class ModelSummary:
             return 0.0
         avg_savings = float(np.mean([r.cache_savings_usd for r in self.results]))
         return avg_savings / self.avg_gross_cost * 100
+
+    @property
+    def avg_batch_savings(self) -> float:
+        """Average Batch-API net savings on the main LLM call per test."""
+        if not self.results:
+            return 0.0
+        return float(np.mean([r.batch_savings_usd for r in self.results]))
 
     @property
     def avg_infrastructure(self) -> float:

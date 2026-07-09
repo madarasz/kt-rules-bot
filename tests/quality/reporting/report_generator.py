@@ -170,6 +170,9 @@ class ReportGenerator:
         total_main_cache_savings = sum(r.cache_savings_usd for r in self.report.results)
         total_judge_cache_savings = sum(r.judge_cache_savings_usd for r in self.report.results)
         total_cache_savings = total_main_cache_savings + total_judge_cache_savings
+        total_batch_savings = sum(
+            r.batch_savings_usd + r.judge_batch_savings_usd for r in self.report.results
+        )
 
         header = [
             "# Quality Test Report",
@@ -197,6 +200,15 @@ class ReportGenerator:
                     header.append(
                         f"    - of which Judge: {jsign}${abs(total_judge_cache_savings):.4f} ({jpct:.1f}%)"
                     )
+            if abs(total_batch_savings) > 1e-9:
+                gross_batch = self.report.total_cost_usd + total_batch_savings
+                bpct = (total_batch_savings / gross_batch * 100) if gross_batch > 1e-9 else 0.0
+                header.append(
+                    f"  - Batch net savings: ${total_batch_savings:.4f} ({bpct:.1f}%)"
+                )
+            if abs(total_cache_savings) > 1e-9 or abs(total_batch_savings) > 1e-9:
+                combined = total_cache_savings + total_batch_savings
+                header.append(f"  - **Total savings (cache + batch)**: ${combined:.4f}")
 
         header.append(f"- **Total queries**: {self.report.total_queries}")
         if self.report.is_multi_model or self.report.is_multi_run:
@@ -618,6 +630,9 @@ class ReportGenerator:
         total_main_cache_savings = sum(r.cache_savings_usd for r in self.report.results)
         total_judge_cache_savings = sum(r.judge_cache_savings_usd for r in self.report.results)
         total_cache_savings = total_main_cache_savings + total_judge_cache_savings
+        total_batch_savings = sum(
+            r.batch_savings_usd + r.judge_batch_savings_usd for r in self.report.results
+        )
 
         content = []
         content.append("\n" + "=" * 60)
@@ -646,6 +661,10 @@ class ReportGenerator:
                     content.append(
                         f"    of which Judge: {jsign}${abs(total_judge_cache_savings):.4f} ({jpct:.1f}%)"
                     )
+            if abs(total_batch_savings) > 1e-9:
+                gross_batch = self.report.total_cost_usd + total_batch_savings
+                bpct = (total_batch_savings / gross_batch * 100) if gross_batch > 1e-9 else 0.0
+                content.append(f"  Batch net savings: ${total_batch_savings:.4f} ({bpct:.1f}%)")
 
         # Calculate JSON formatting statistics
         json_formatted_count = sum(1 for r in self.report.results if r.json_formatted)
