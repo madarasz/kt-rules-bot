@@ -28,6 +28,7 @@ class LLMCostBreakdown:
     cache_creation_cost: float
     total_cost: float
     cache_savings: float
+    batch_savings: float = 0.0
 
     @property
     def has_cache_activity(self) -> bool:
@@ -105,7 +106,7 @@ pricing: dict[str, dict] = {
     "ministral-14b-2512":          {"prompt": 0.0002, "completion": 0.0002, "cache_read": 0.00002, "cache_write": 0.0, "cache_mode": "openai"}, # ministral 3-14-b
     "ministral-8b-2512":              {"prompt": 0.00015, "completion": 0.0015, "cache_read": 0.000015, "cache_write": 0.0, "cache_mode": "openai"}, # ministral 3-8-b
     # Qwen models (Alibaba Cloud) - https://help.aliyun.com/zh/model-studio/pricing
-    "qwen3.6-flash-2026-04-16":         {"prompt": 0.00025, "completion": 0.0015, "cache_read": 0.00005, "cache_write": 0.0, "cache_mode": "openai"}, 
+    "qwen3.6-flash-2026-04-16":         {"prompt": 0.00025, "completion": 0.0015, "cache_read": 0.00005, "cache_write": 0.0, "cache_mode": "openai"},
     "qwen3-turbo":                      {"prompt": 0.00005, "completion": 0.0002, "cache_read": 0.000001, "cache_write": 0.0, "cache_mode": "openai"}, # non-thinking price
     "qwen3-coder-plus-2025-09-23":     {"prompt": 0.00100, "completion": 0.00500, "cache_read": 0.0002, "cache_write": 0.0, "cache_mode": "openai"},
     "qwen3-coder-flash-2025-07-28":     {"prompt": 0.00030, "completion": 0.00150, "cache_read": 0.00006, "cache_write": 0.0, "cache_mode": "openai"},
@@ -117,12 +118,19 @@ pricing: dict[str, dict] = {
 }
 
 
+# Batch API discount per backend. Both Anthropic and OpenAI batch = 50% off.
+# Keyed by pricing cache_mode for now; make per-provider if a backend differs
+# (e.g. Kimi/Grok publish "reduced" rates without a confirmed percentage).
+BATCH_DISCOUNT = 0.5
+
+
 def calculate_llm_cost(
     prompt_tokens: int,
     completion_tokens: int,
     model: str,
     cache_read_tokens: int = 0,
     cache_creation_tokens: int = 0,
+    batch: bool = False,
 ) -> LLMCostBreakdown:
     """Calculate detailed cost breakdown for an LLM call, including cache savings.
 
@@ -132,6 +140,8 @@ def calculate_llm_cost(
         model: Model name
         cache_read_tokens: Tokens served from cache (default: 0)
         cache_creation_tokens: Tokens written to cache (default: 0, anthropic only)
+        batch: If True, apply the 50% Batch-API discount on top of cache accounting
+               and report the delta as batch_savings.
 
     Returns:
         LLMCostBreakdown with full cost and savings breakdown
@@ -173,6 +183,19 @@ def calculate_llm_cost(
         total_cost = prompt_cost + completion_cost
         cache_savings = 0.0
 
+    # Batch discount stacks on top of cache accounting. cache_savings stays computed
+    # on the live (pre-discount) numbers above so the two savings never double-count.
+    if batch:
+        factor = 1.0 - BATCH_DISCOUNT
+        batch_savings = total_cost * BATCH_DISCOUNT
+        prompt_cost *= factor
+        completion_cost *= factor
+        cache_read_cost *= factor
+        cache_creation_cost *= factor
+        total_cost *= factor
+    else:
+        batch_savings = 0.0
+
     return LLMCostBreakdown(
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
@@ -184,6 +207,7 @@ def calculate_llm_cost(
         cache_creation_cost=cache_creation_cost,
         total_cost=total_cost,
         cache_savings=cache_savings,
+        batch_savings=batch_savings,
     )
 
 
