@@ -90,6 +90,8 @@ def quality_test(
     no_eval: bool = False,
     force_rag: bool = False,
     from_output: str | None = None,
+    batch_submit: bool = False,
+    batch_collect: str | None = None,
 ) -> None:
     """Run quality tests for RAG + LLM pipeline, or replay from saved outputs.
 
@@ -104,7 +106,23 @@ def quality_test(
         no_eval: Skip Ragas evaluation (only generate outputs)
         force_rag: Ignore cached context files and run RAG
         from_output: Path to existing output folder for replay mode (skips RAG + LLM generation)
+        batch_submit: Submit generation through provider Batch APIs, then exit
+        batch_collect: Advance an existing batch run one step (single pass)
     """
+    if batch_collect:
+        _batch_collect(batch_collect, judge_model)
+        return
+    if batch_submit:
+        _batch_submit(
+            test_id=test_id,
+            model=model,
+            all_models=all_models,
+            judge_model=judge_model,
+            skip_confirm=skip_confirm,
+            runs=runs,
+            force_rag=force_rag,
+        )
+        return
     # Suppress event loop cleanup errors from Ragas (only if we're running eval)
     if not no_eval:
         _suppress_event_loop_closed_errors()
@@ -294,6 +312,79 @@ def quality_test(
         if original_max_hops is not None:
             constants.RAG_MAX_HOPS = original_max_hops
             logger.info(f"Restored RAG_MAX_HOPS to {original_max_hops}")
+
+
+def _batch_submit(test_id, model, all_models, judge_model, skip_confirm, runs, force_rag) -> None:
+    """Build + submit a batch quality run, then print the collect command and exit."""
+    from src.lib.constants import QUALITY_TEST_PROVIDERS
+
+    if all_models:
+        models_to_run = QUALITY_TEST_PROVIDERS
+    elif model:
+        models_to_run = [model]
+    else:
+        models_to_run = [get_config().default_llm_provider]
+
+    runner = QualityTestRunner(judge_model=judge_model)
+    try:
+        test_cases = runner.load_test_cases(test_id)
+    except Exception as e:
+        print(f"❌ Failed to load test cases: {e}")
+        sys.exit(1)
+    if not test_cases:
+        print("❌ No test cases found" + (f" for test ID: {test_id}" if test_id else ""))
+        sys.exit(1)
+
+    _print_configuration(test_cases, models_to_run, runs, judge_model)
+    print("Mode: BATCH SUBMIT (generation via Batch APIs, ~50% cheaper)")
+    if not skip_confirm and input("\nProceed with batch submit? (y/N): ").lower() not in ["y", "yes"]:
+        print("Cancelled.")
+        sys.exit(0)
+
+    timestamp_str = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
+    report_dir = Path(f"tests/quality/results/{timestamp_str}").absolute()
+    report_dir.mkdir(parents=True, exist_ok=True)
+
+    manifest = asyncio.run(
+        runner.submit_batch_run(
+            report_dir=report_dir,
+            test_id=test_id,
+            models=models_to_run,
+            runs=runs,
+            judge_model=judge_model,
+            force_rag=force_rag,
+        )
+    )
+
+    print("\n✅ Batch submitted.")
+    for backend, info in manifest.generation.items():
+        print(f"  generation[{backend}]: {info['batch_id']}")
+    if manifest.live_done:
+        print(f"  live (non-batch) generations completed: {len(manifest.live_done)}")
+    print(f"\nState: {report_dir / 'batch_state.json'}")
+    print("Re-run this until the report is produced:")
+    print(f"  python -m src.cli quality-test --batch-collect {report_dir}")
+
+
+def _batch_collect(results_dir: str, judge_model: str) -> None:
+    """Advance a batch run one step and print the current phase."""
+    report_dir = Path(results_dir)
+    if not (report_dir / "batch_state.json").exists():
+        print(f"❌ No batch_state.json in {report_dir}")
+        sys.exit(1)
+
+    runner = QualityTestRunner(judge_model=judge_model)
+    try:
+        phase = asyncio.run(runner.collect_batch_run(report_dir))
+    except Exception as e:
+        logger.error(f"Batch collect failed: {e}", exc_info=True)
+        print(f"\n❌ Batch collect failed: {e}")
+        sys.exit(1)
+
+    print(f"\nPhase: {phase}")
+    if phase != "done":
+        print("Not finished — re-run the same batch-collect command later:")
+        print(f"  python -m src.cli quality-test --batch-collect {report_dir}")
 
 
 def _print_configuration(test_cases, models, runs, judge_model, no_eval=False):

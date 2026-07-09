@@ -273,3 +273,44 @@ def test_main_routes_gdpr_delete_command(mock_delete):
 
         # Verify delete_user_data was called
         mock_delete.assert_called_once_with(user_id="123456", confirm=True)
+
+
+@patch("src.cli.__main__.quality_test")
+def test_main_routes_quality_test_batch_submit(mock_quality):
+    """quality-test --batch-submit routes with batch_submit=True."""
+    with patch("sys.argv", ["cli", "quality-test", "--batch-submit", "--test", "t1",
+                            "--model", "claude-4.6-sonnet"]):
+        from src.cli.__main__ import main
+
+        with contextlib.suppress(SystemExit):
+            main()
+
+    assert mock_quality.call_count == 1
+    kwargs = mock_quality.call_args.kwargs
+    assert kwargs["batch_submit"] is True
+    assert kwargs["batch_collect"] is None
+    assert kwargs["test_id"] == "t1"
+
+
+@patch("src.cli.__main__.quality_test")
+def test_main_routes_quality_test_batch_collect(mock_quality):
+    """quality-test --batch-collect routes with the results dir."""
+    with patch("sys.argv", ["cli", "quality-test", "--batch-collect", "tests/quality/results/x"]):
+        from src.cli.__main__ import main
+
+        with contextlib.suppress(SystemExit):
+            main()
+
+    kwargs = mock_quality.call_args.kwargs
+    assert kwargs["batch_collect"] == "tests/quality/results/x"
+    assert kwargs["batch_submit"] is False
+
+
+def test_quality_test_batch_flags_mutually_exclusive():
+    """--batch-submit and --batch-collect cannot be combined."""
+    with patch("sys.argv", ["cli", "quality-test", "--batch-submit",
+                            "--batch-collect", "some/dir"]):
+        from src.cli.__main__ import main
+
+        with pytest.raises(SystemExit):
+            main()

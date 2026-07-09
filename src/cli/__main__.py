@@ -182,6 +182,18 @@ def create_parser() -> argparse.ArgumentParser:
         metavar="PATH",
         help="Replay from existing output folder (skips RAG + LLM generation, re-runs judge only)",
     )
+    batch_group = quality_parser.add_mutually_exclusive_group()
+    batch_group.add_argument(
+        "--batch-submit",
+        action="store_true",
+        help="Submit generation via provider Batch APIs (50%% cheaper); prints batch IDs and exits",
+    )
+    batch_group.add_argument(
+        "--batch-collect",
+        type=str,
+        metavar="RESULTS_DIR",
+        help="Advance a batch run one step (single pass; re-run until the report is produced)",
+    )
 
     # Command: rag-test
     rag_parser = subparsers.add_parser(
@@ -356,6 +368,8 @@ def main() -> None:
                 no_eval=args.no_eval,
                 force_rag=args.force_rag,
                 from_output=args.from_output,
+                batch_submit=args.batch_submit,
+                batch_collect=args.batch_collect,
             )
 
         elif args.command == "rag-test":
