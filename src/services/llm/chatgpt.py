@@ -33,6 +33,76 @@ logger = get_logger(__name__)
 class ChatGPTAdapter(LLMProvider):
     """OpenAI ChatGPT API integration."""
 
+    supports_batch = True
+
+    def build_batch_request(self, request: GenerationRequest, custom_id: str) -> dict:
+        """Build an OpenAI /v1/batches JSONL line for this request.
+
+        Emits a response_format json_schema body replicating what
+        beta.chat.completions.parse builds under the hood (strict=True keeps the
+        same validation), since the batch endpoint has no .parse helper.
+        """
+        full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
+        model_cls = get_pydantic_model(request.config.structured_output_schema)
+        body: dict = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": request.config.system_prompt},
+                {"role": "user", "content": full_prompt},
+            ],
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": model_cls.__name__,
+                    "schema": model_cls.model_json_schema(),
+                    "strict": True,
+                },
+            },
+        }
+        if self.uses_completion_tokens:
+            body["max_completion_tokens"] = request.config.max_tokens * 3
+        else:
+            body["max_tokens"] = request.config.max_tokens
+        if self.supports_temperature:
+            body["temperature"] = request.config.temperature
+        return {
+            "custom_id": custom_id,
+            "method": "POST",
+            "url": "/v1/chat/completions",
+            "body": body,
+        }
+
+    @classmethod
+    def parse_batch_result(cls, raw: dict) -> LLMResponse:
+        """Convert an OpenAI batch output line into an LLMResponse."""
+        import json as _json
+
+        if raw.get("status_code") not in (200, None):
+            raise RuntimeError(
+                f"batch item {raw.get('custom_id')} status {raw.get('status_code')}"
+            )
+        body = raw["body"]
+        content = body["choices"][0]["message"]["content"]
+        usage = body.get("usage", {})
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0) or 0
+        return LLMResponse(
+            response_id=uuid4(),
+            answer_text=content,
+            confidence_score=0.8,
+            token_count=usage.get("total_tokens", prompt_tokens + completion_tokens),
+            latency_ms=0,
+            provider="chatgpt",
+            model_version=body.get("model", ""),
+            citations_included=True,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cache_read_tokens=cached,
+            cache_creation_tokens=0,
+            structured_output=_json.loads(content),
+        )
+
     def __init__(self, api_key: str, model: str = "gpt-4-turbo"):
         """Initialize ChatGPT adapter.
 
