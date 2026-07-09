@@ -643,37 +643,43 @@ class QualityTestRunner:
         # 4. Load test cases
         test_cases_map = self._load_test_cases_for_outputs(parsed_outputs)
 
-        # 5. Evaluate parsed outputs in parallel (with semaphore for judge evaluation)
+        # 5. Evaluate parsed outputs with the live judge (shared with batch-collect).
+        valid_results = await self._judge_parsed_outputs(parsed_outputs, test_cases_map)
+
+        logger.info(f"✅ Replay complete: {len(valid_results)}/{len(parsed_outputs)} successful")
+        logger.info(f"Results saved to: {new_results_dir}")
+
+        return valid_results, new_results_dir
+
+    async def _judge_parsed_outputs(
+        self, parsed_outputs: list, test_cases_map: dict[str, TestCase]
+    ) -> list[IndividualTestResult]:
+        """Run the live judge over parsed outputs, in parallel with a semaphore.
+
+        Shared by replay_tests_from_outputs and the batch-collect scoring step so
+        the live-judge path is identical in both. Skips outputs whose test case is
+        not in the suite; drops (and logs) any evaluation that raised.
+        """
         tasks = []
         for po in parsed_outputs:
             test_id = po.metadata.test_metadata["test_id"]
-
             if test_id not in test_cases_map:
                 logger.warning(
                     f"Test case '{test_id}' not found in test suite, skipping {po.file_path.name}"
                 )
                 continue
-
-            test_case = test_cases_map[test_id]
-
-            # Create evaluation task
-            tasks.append(self._evaluate_parsed_output(po, test_case))
+            tasks.append(self._evaluate_parsed_output(po, test_cases_map[test_id]))
 
         logger.info(f"Evaluating {len(tasks)} outputs with judge...")
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Filter out exceptions and log errors
         valid_results = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 logger.error(f"Evaluation failed for output {i}: {result}")
             else:
                 valid_results.append(result)
-
-        logger.info(f"✅ Replay complete: {len(valid_results)}/{len(results)} successful")
-        logger.info(f"Results saved to: {new_results_dir}")
-
-        return valid_results, new_results_dir
+        return valid_results
 
     def _load_test_cases_for_outputs(
         self, parsed_outputs: list
@@ -872,6 +878,8 @@ class QualityTestRunner:
             quote_faithfulness_details=ragas_metrics.quote_faithfulness_details,
             answer_correctness_details=ragas_metrics.answer_correctness_details,
             llm_quotes_structured=ragas_metrics.llm_quotes_structured,
+            # Batch-API savings attributed at generation time, carried through metadata.
+            batch_savings_usd=getattr(metadata, "batch_savings_usd", 0.0),
         )
 
     def _create_error_result(
@@ -894,6 +902,7 @@ class QualityTestRunner:
             generation_time_seconds=metadata.latency["llm_generation_seconds"],
             output_filename="",
             error=error_msg,
+            batch_savings_usd=getattr(metadata, "batch_savings_usd", 0.0),
         )
 
     def _save_output(
