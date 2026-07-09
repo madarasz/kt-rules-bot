@@ -4,19 +4,19 @@ from tests.quality.reporting.report_models import IndividualTestResult, ModelSum
 
 
 def _result(**kw):
-    base = dict(
-        test_id="t",
-        query="q",
-        model="m",
-        score=80,
-        max_score=100,
-        passed=True,
-        tokens=10,
-        cost_usd=0.01,
-        output_char_count=1,
-        generation_time_seconds=1.0,
-        output_filename="f",
-    )
+    base = {
+        "test_id": "t",
+        "query": "q",
+        "model": "m",
+        "score": 80,
+        "max_score": 100,
+        "passed": True,
+        "tokens": 10,
+        "cost_usd": 0.01,
+        "output_char_count": 1,
+        "generation_time_seconds": 1.0,
+        "output_filename": "f",
+    }
     base.update(kw)
     return IndividualTestResult(**base)
 
