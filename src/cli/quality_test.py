@@ -345,16 +345,21 @@ def _batch_submit(test_id, model, all_models, judge_model, skip_confirm, runs, f
     report_dir = Path(f"tests/quality/results/{timestamp_str}").absolute()
     report_dir.mkdir(parents=True, exist_ok=True)
 
-    manifest = asyncio.run(
-        runner.submit_batch_run(
-            report_dir=report_dir,
-            test_id=test_id,
-            models=models_to_run,
-            runs=runs,
-            judge_model=judge_model,
-            force_rag=force_rag,
+    try:
+        manifest = asyncio.run(
+            runner.submit_batch_run(
+                report_dir=report_dir,
+                test_id=test_id,
+                models=models_to_run,
+                runs=runs,
+                judge_model=judge_model,
+                force_rag=force_rag,
+            )
         )
-    )
+    except Exception as e:
+        logger.error(f"Batch submit failed: {e}", exc_info=True)
+        print(f"\n❌ Batch submit failed: {e}", file=sys.stderr)
+        sys.exit(1)
 
     print("\n✅ Batch submitted.")
     for backend, info in manifest.generation.items():

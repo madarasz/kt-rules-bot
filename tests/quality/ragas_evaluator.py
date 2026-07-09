@@ -531,6 +531,75 @@ class RagasEvaluator:
             logger.error(f"Ragas evaluation failed: {e}", exc_info=True)
             return RagasMetrics(error=str(e))
 
+    def compute_deterministic_metrics(
+        self,
+        llm_response: StructuredLLMResponse,
+        context_texts: list[str],
+        chunk_ids: list[str],
+        ground_truth_contexts: list[GroundTruthContext],
+    ) -> RagasMetrics:
+        """Compute the judge-free metrics (quote precision/recall/faithfulness)
+        from a structured response and its retrieval context.
+
+        Mirrors the deterministic half of evaluate() so the batch generation-write
+        path can persist the same quote metrics the live path produces, instead of
+        writing an empty RagasMetrics(). Judge fields (explanation_faithfulness,
+        answer_correctness) are left None and filled in later during scoring.
+
+        Args:
+            llm_response: Parsed structured response with cited quotes
+            context_texts: Retrieved RAG chunk texts (for faithfulness)
+            chunk_ids: Chunk ids aligned with context_texts
+            ground_truth_contexts: Expected contexts (for precision/recall)
+        """
+        from src.models.rag_context import DocumentChunk
+
+        quotes_text = [
+            self._normalize_text(f"{q.quote_title} {q.quote_text}")
+            for q in llm_response.quotes
+        ]
+        llm_quotes_structured = [
+            {"chunk_id": q.chunk_id, "quote_title": q.quote_title, "quote_text": q.quote_text}
+            for q in llm_response.quotes
+        ]
+
+        retrieval_metrics = evaluate_retrieval(
+            retrieved_contexts=quotes_text,
+            ground_truth_contexts=ground_truth_contexts,
+        )
+
+        # ponytail: FuzzyQuoteEvaluator only reads .text/.chunk_id off each chunk,
+        # so the other DocumentChunk fields are unused placeholders here.
+        chunks = [
+            DocumentChunk(
+                chunk_id=cid, document_id="", text=text, header="",
+                header_level=2, metadata={}, relevance_score=0.0, position_in_doc=0,
+            )
+            for cid, text in zip(chunk_ids, context_texts, strict=False)
+        ]
+        fuzzy_result = FuzzyQuoteEvaluator().evaluate(
+            llm_quotes_structured=llm_quotes_structured,
+            rag_context_chunks=chunks,
+        )
+
+        metrics = RagasMetrics(
+            quote_precision=retrieval_metrics.context_precision,
+            quote_recall=retrieval_metrics.context_recall,
+            quote_faithfulness=fuzzy_result.quote_faithfulness,
+            quote_faithfulness_details={
+                s["chunk_id"]: s["similarity"] for s in fuzzy_result.quote_scores
+            },
+            llm_quotes_structured=llm_quotes_structured,
+        )
+        metrics.quote_recall_feedback = self._generate_quote_recall_feedback(
+            metrics.quote_recall,
+            quotes_text,
+            [self._normalize_text(c.text) for c in ground_truth_contexts],
+            [c.text for c in ground_truth_contexts],
+            ground_truth_contexts,
+        )
+        return metrics
+
     def _normalize_text(self, text: str) -> str:
         """Normalize text for comparison.
         Removes asterisks, lowercases, and strips whitespace.

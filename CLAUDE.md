@@ -164,8 +164,7 @@ python -m src.cli quality-test          # RAG+LLM quality
 
 **Before committing**:
 1. `pytest`
-2. `ruff check .`
-3. `python -m src.cli quality-test` (if changed RAG/LLM)
+2. `ruff check src tests`
 
 ## Analytics Database (Optional)
 

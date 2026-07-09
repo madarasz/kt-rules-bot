@@ -16,7 +16,7 @@ from src.services.llm.factory import LLMProviderFactory
 from src.services.llm.schemas import Answer, CustomJudgeResponse, HopEvaluation
 
 # All providers that must support structured output
-PROVIDERS_TO_TEST = ["claude-4.5-sonnet", "gpt-4.1", "gemini-2.5-flash", "grok-3", "deepseek-chat"]
+PROVIDERS_TO_TEST = ["claude-4.6-sonnet", "gpt-4.1", "gemini-2.5-flash", "grok-4.3", "deepseek-v4-flash"]
 
 # Pydantic-native providers use beta.parse() and populate structured_output field
 PYDANTIC_NATIVE_PROVIDERS = ["claude-4.5-sonnet", "gpt-4.1"]

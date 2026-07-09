@@ -10,6 +10,7 @@ from math import exp
 from uuid import uuid4
 
 from openai import AsyncOpenAI
+from openai.lib._pydantic import to_strict_json_schema
 
 from src.lib.logging import get_logger
 from src.services.llm.base import (
@@ -54,7 +55,7 @@ class ChatGPTAdapter(LLMProvider):
                 "type": "json_schema",
                 "json_schema": {
                     "name": model_cls.__name__,
-                    "schema": model_cls.model_json_schema(),
+                    "schema": to_strict_json_schema(model_cls),
                     "strict": True,
                 },
             },

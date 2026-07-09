@@ -665,9 +665,20 @@ class QualityTestRunner:
                         "batchable": backend is not None,
                         "embedding_cost": embedding_cost,
                         "multi_hop_cost": multi_hop_cost,
+                        # Retrieval context persisted so collect can recompute the
+                        # deterministic quote metrics (precision/recall need the GT
+                        # contexts, faithfulness needs these chunks) hours later.
+                        "context": context_texts,
+                        "chunk_ids": chunk_ids,
                     })
                     if backend is not None:
                         provider = LLMProviderFactory.create(model)
+                        if provider is None:
+                            raise ValueError(
+                                f"Cannot build batch request for {model!r}: "
+                                f"LLMProviderFactory.create returned None (missing API key). "
+                                f"Set the required API key before submitting a batch run."
+                            )
                         req = GenerationRequest(
                             prompt=test_case.query,
                             context=context_texts,
@@ -689,13 +700,18 @@ class QualityTestRunner:
 
         if live_tasks:
             logger.info(f"Running {len(live_tasks)} non-batch model(s) live at submit...")
-            await asyncio.gather(*live_tasks)
+            # Tolerate individual live-run failures like _judge_parsed_outputs: a
+            # single non-batch model raising must not abort the whole submit and
+            # lose the batch work built above.
+            live_results = await asyncio.gather(*live_tasks, return_exceptions=True)
+            for cid, res in zip(live_done, live_results, strict=True):
+                if isinstance(res, Exception):
+                    logger.error(f"Live generation for {cid} failed at submit: {res}")
 
+        # generation is shared by reference with manifest.generation below, so
+        # each successful submit is persisted before the next backend is tried —
+        # a later submit failure can't orphan an already-submitted (billed) batch.
         generation: dict[str, dict] = {}
-        for name, lines in backend_lines.items():
-            batch_id = backends_by_name[name].submit(lines)
-            generation[name] = {"batch_id": batch_id, "status": "in_progress"}
-
         manifest = BatchManifest(
             phase="generation_submitted",
             created_at=datetime.now(UTC).isoformat(),
@@ -709,7 +725,12 @@ class QualityTestRunner:
             requests=requests_meta,
             live_done=live_done,
         )
-        manifest.save()
+        try:
+            for name, lines in backend_lines.items():
+                batch_id = backends_by_name[name].submit(lines)
+                generation[name] = {"batch_id": batch_id, "status": "in_progress"}
+        finally:
+            manifest.save()
         return manifest
 
     async def collect_batch_run(self, report_dir: Path | str) -> str:
@@ -798,17 +819,31 @@ class QualityTestRunner:
             batch=True,
         )
         try:
-            markdown = StructuredLLMResponse.from_json(llm_response.answer_text).to_markdown()
+            structured = StructuredLLMResponse.from_json(llm_response.answer_text)
+            markdown = structured.to_markdown()
         except Exception:
+            structured = None
             markdown = llm_response.answer_text
 
         test_case = self.load_test_cases(meta["test_id"])[0]
+        # Recompute the deterministic quote metrics now (from the persisted
+        # retrieval context) so they land in this output's metadata; scoring
+        # later reads them from there rather than an empty RagasMetrics().
+        if structured is not None:
+            ragas_metrics = self.ragas_evaluator.compute_deterministic_metrics(
+                llm_response=structured,
+                context_texts=meta.get("context", []),
+                chunk_ids=meta.get("chunk_ids", []),
+                ground_truth_contexts=test_case.ground_truth_contexts,
+            )
+        else:
+            ragas_metrics = RagasMetrics()
         output_filename = report_dir / f"output_{meta['test_id']}_{model}_{meta['run_num']}.md"
         self._save_output(
             output_filename,
             test_case.query,
             markdown,
-            ragas_metrics=RagasMetrics(),
+            ragas_metrics=ragas_metrics,
             test_id=meta["test_id"],
             model=model,
             run_num=meta["run_num"],
@@ -837,19 +872,24 @@ class QualityTestRunner:
             if test_id not in test_cases_map:
                 continue
             test_case = test_cases_map[test_id]
-            dm = MetadataGenerator.extract_deterministic_metrics_from_metadata(meta)
-            structured = StructuredLLMResponse.from_json(po.llm_response.answer_text)
-            gen_req = judge.build_judge_request(
-                query=po.query,
-                llm_response_text=structured.to_json(),
-                llm_quotes_structured=dm["llm_quotes_structured"],
-                ground_truth_answers=test_case.ground_truth_answers,
-                ground_truth_contexts=[c.text for c in test_case.ground_truth_contexts],
-            )
-            cid = BatchManifest.make_custom_id(
-                "judge", test_id, meta.test_metadata["model"], meta.test_metadata["run_num"]
-            )
-            lines.append(provider.build_batch_request(gen_req, cid))
+            try:
+                dm = MetadataGenerator.extract_deterministic_metrics_from_metadata(meta)
+                structured = StructuredLLMResponse.from_json(po.llm_response.answer_text)
+                gen_req = judge.build_judge_request(
+                    query=po.query,
+                    llm_response_text=structured.to_json(),
+                    llm_quotes_structured=dm["llm_quotes_structured"],
+                    ground_truth_answers=test_case.ground_truth_answers,
+                    ground_truth_contexts=[c.text for c in test_case.ground_truth_contexts],
+                )
+                cid = BatchManifest.make_custom_id(
+                    "judge", test_id, meta.test_metadata["model"], meta.test_metadata["run_num"]
+                )
+                request_line = provider.build_batch_request(gen_req, cid)
+            except Exception as e:
+                logger.error(f"Judge batch item for {test_id} failed to build: {e} — skipping")
+                continue
+            lines.append(request_line)
             deterministic_by_cid[cid] = {"test_id": test_id}
         batch_id = judge_backend.submit(lines)
         manifest.judge[judge_backend.name] = {"batch_id": batch_id, "status": "in_progress"}
