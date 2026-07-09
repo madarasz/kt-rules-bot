@@ -3,10 +3,7 @@
 from uuid import uuid4
 
 from src.services.llm.base import LLMResponse
-from tests.quality.metadata_generator import (
-    MetadataFormatter,
-    MetadataGenerator,
-)
+from tests.quality.metadata_generator import MetadataFormatter, MetadataGenerator
 from tests.quality.ragas_evaluator import RagasMetrics
 from tests.quality.reporting.report_models import IndividualTestResult
 
