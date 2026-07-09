@@ -245,6 +245,38 @@ python -m src.cli quality-test --runs 10 --all-models
 
 Quality tests use the caching functionality of LLM APIs which can save up to 50% of costs. Savings metric is visible in the report.
 
+## Batch API workflow (opt-in, ~50% cheaper)
+
+For large matrices (`--all-models --runs 10`) you can run generation through the
+provider **Batch APIs** at 50% token cost (≤24h turnaround). Split into two
+commands; `batch-collect` is single-pass and re-run by hand until the report is
+produced. State lives in `batch_state.json` in the results dir (idempotent, resumable).
+
+```bash
+# 1. Submit — returns batch IDs, runs any non-batch models live now, then exits
+python -m src.cli quality-test --batch-submit --test eliminator-concealed-counteract \
+  --model claude-4.6-sonnet --judge-model gpt-4.1-mini
+
+# 2. Collect — one status check + one step; re-run until "Phase: done"
+python -m src.cli quality-test --batch-collect tests/quality/results/<timestamp>
+```
+
+**Coverage (base scope):** Anthropic (`claude-*`) and OpenAI (`gpt-*`, `o3*`)
+generate via batch. Every other model — Gemini, Mistral, Kimi, Qwen, **Grok**,
+DeepSeek — falls back to **live async at submit time** and lands in the same report.
+
+**Judge round:** batches only when the judge model is batchable (e.g.
+`gpt-4.1-mini`) — then reaching `done` takes two collects (gen batch, then judge
+batch). The default judge (`grok-4-1-fast-reasoning`) is not batchable, so it runs
+live inside the first collect and a single collect finishes the run.
+
+**Reporting:** `report.md` gains a **Batch net savings** line next to the existing
+cache-savings line, plus a combined total. Per-result savings are stored in each
+`output_*.md` metadata (`batch`, `batch_savings_usd`) and re-derived on collect.
+
+**When to use:** cost-sensitive CI where a multi-hour (worst case ~48h, two rounds)
+turnaround is fine. Not for interactive iteration — use the live path (default) there.
+
 ## Best Practices
 
 ✅ **Do**:

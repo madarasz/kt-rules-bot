@@ -75,6 +75,17 @@ Run quality tests for response evaluation.
 python -m src.cli quality-test --all-models --runs 5
 ```
 
+**Batch API mode** (opt-in, ~50% cheaper via provider Batch APIs, ≤24h turnaround):
+```bash
+# Submit (returns batch IDs, runs non-batch models live, exits):
+python -m src.cli quality-test --batch-submit --test <id> --model claude-4.6-sonnet
+# Collect (single pass; re-run until "Phase: done"):
+python -m src.cli quality-test --batch-collect tests/quality/results/<timestamp>
+```
+- `--batch-submit` / `--batch-collect <dir>` are mutually exclusive.
+- Batchable: `claude-*`, `gpt-*`/`o3*`. Everything else runs live at submit.
+- State persists in `<dir>/batch_state.json` (resumable). See [tests/quality/CLAUDE.md](../../tests/quality/CLAUDE.md#batch-api-workflow-opt-in-50-cheaper).
+
 ### `download-team`
 Download and extract a single team rule PDF.
 ```bash
