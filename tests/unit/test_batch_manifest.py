@@ -1,5 +1,6 @@
 """Tests for the batch run manifest (batch_state.json)."""
 
+import re
 from pathlib import Path
 
 from tests.quality.batch.manifest import BatchManifest
@@ -37,15 +38,25 @@ def test_save_load_roundtrip(tmp_path: Path):
     assert loaded.requests[0]["run_num"] == 1
 
 
-def test_parse_custom_id():
-    assert BatchManifest.parse_custom_id("judge__t1__gpt-4.1__run3") == (
-        "judge",
-        "t1",
-        "gpt-4.1",
-        3,
-    )
+CUSTOM_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 
 
-def test_make_custom_id_roundtrips():
-    cid = BatchManifest.make_custom_id("gen", "t1", "claude-4.6-sonnet", 2)
-    assert BatchManifest.parse_custom_id(cid) == ("gen", "t1", "claude-4.6-sonnet", 2)
+def test_make_custom_id_is_anthropic_safe():
+    # Dotted model name (the live-smoke failure) must sanitize to a valid id.
+    cid = BatchManifest.make_custom_id("gen", "teleport-counteract", "claude-4.6-sonnet", 1)
+    assert CUSTOM_ID_PATTERN.match(cid), cid
+    assert "." not in cid
+
+
+def test_make_custom_id_caps_length_and_stays_unique():
+    long_test = "a" * 80
+    a = BatchManifest.make_custom_id("gen", long_test, "gemini-3.1-pro-preview", 10)
+    b = BatchManifest.make_custom_id("gen", long_test, "gemini-3.1-pro-preview", 11)
+    assert CUSTOM_ID_PATTERN.match(a) and len(a) <= 64
+    assert a != b  # different run -> different id even after truncation
+
+
+def test_make_custom_id_deterministic():
+    # Judge round rebuilds the id from metadata; must match the submitted one.
+    args = ("judge", "t1", "claude-4.6-sonnet", 3)
+    assert BatchManifest.make_custom_id(*args) == BatchManifest.make_custom_id(*args)

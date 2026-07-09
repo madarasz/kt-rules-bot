@@ -4,11 +4,21 @@ Persisted as `batch_state.json` in the results dir. `batch-collect` reads the
 `phase` field, advances it at most one step per invocation, and saves.
 """
 
+import hashlib
 import json
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 MANIFEST_FILENAME = "batch_state.json"
+
+# Providers constrain custom_id. Anthropic is the strictest: ^[a-zA-Z0-9_-]{1,64}$
+# (no dots, ≤64 chars) — so model names like "claude-4.6-sonnet" and long test ids
+# must be sanitized/capped. Nothing round-trips the model back out of the id at
+# runtime (gen maps via the manifest, judge recomputes deterministically), so the
+# id only needs to be safe, deterministic, and unique per (kind, test, model, run).
+_CUSTOM_ID_MAX = 64
+_DISALLOWED = re.compile(r"[^a-zA-Z0-9_-]")
 
 
 @dataclass
@@ -36,14 +46,18 @@ class BatchManifest:
 
     @staticmethod
     def make_custom_id(kind: str, test_id: str, model: str, run_num: int) -> str:
-        """Encode a custom_id for round-trip mapping (kind__test__model__runN)."""
-        return f"{kind}__{test_id}__{model}__run{run_num}"
+        """Deterministic, provider-safe custom_id for (kind, test_id, model, run_num).
 
-    @staticmethod
-    def parse_custom_id(custom_id: str) -> tuple[str, str, str, int]:
-        """Decode a custom_id back into (kind, test_id, model, run_num)."""
-        kind, test_id, model, run_token = custom_id.split("__")
-        return kind, test_id, model, int(run_token.removeprefix("run"))
+        Matches Anthropic's ^[a-zA-Z0-9_-]{1,64}$: disallowed chars (e.g. the dot in
+        "claude-4.6-sonnet") become '-', and over-long ids are truncated with a hash
+        suffix that preserves uniqueness from the full raw string.
+        """
+        raw = f"{kind}__{test_id}__{model}__run{run_num}"
+        safe = _DISALLOWED.sub("-", raw)
+        if len(safe) <= _CUSTOM_ID_MAX:
+            return safe
+        digest = hashlib.sha1(raw.encode()).hexdigest()[:10]
+        return f"{safe[: _CUSTOM_ID_MAX - 11]}-{digest}"
 
     def save(self) -> None:
         path = Path(self.report_dir) / MANIFEST_FILENAME
