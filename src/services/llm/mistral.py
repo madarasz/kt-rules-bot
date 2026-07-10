@@ -32,6 +32,59 @@ logger = get_logger(__name__)
 class MistralAdapter(LLMProvider):
     """Mistral AI API integration."""
 
+    supports_batch = True
+
+    def build_batch_request(self, request: GenerationRequest, custom_id: str) -> dict:
+        """Mistral batch JSONL line ({custom_id, body}); body mirrors generate()'s
+        OpenAI-compatible json_schema request."""
+        full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
+        model_cls = get_pydantic_model(request.config.structured_output_schema)
+        body = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": request.config.system_prompt},
+                {"role": "user", "content": full_prompt},
+            ],
+            "max_tokens": request.config.max_tokens,
+            "temperature": request.config.temperature,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": model_cls.__name__,
+                    "schema": model_cls.model_json_schema(),
+                    "strict": True,
+                },
+            },
+        }
+        return {"custom_id": custom_id, "body": body}
+
+    @classmethod
+    def parse_batch_result(cls, raw: dict) -> LLMResponse:
+        body = raw.get("body")
+        if raw.get("status_code") not in (200, None) or body is None:
+            raise RuntimeError(
+                f"batch item {raw.get('custom_id')} status {raw.get('status_code')} (no body)"
+            )
+        content = body["choices"][0]["message"]["content"]
+        usage = body.get("usage", {})
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0) or 0
+        return LLMResponse(
+            response_id=uuid4(),
+            answer_text=content,
+            confidence_score=0.8,
+            token_count=usage.get("total_tokens", prompt_tokens + completion_tokens),
+            latency_ms=0,
+            provider="mistral",
+            model_version=body.get("model", ""),
+            citations_included=True,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cache_read_tokens=cached,
+            cache_creation_tokens=0,
+        )
+
     def __init__(self, api_key: str, model: str = "mistral-large-latest"):
         """Initialize Mistral adapter.
 
