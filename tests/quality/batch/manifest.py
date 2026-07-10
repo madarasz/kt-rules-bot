@@ -43,6 +43,9 @@ class BatchManifest:
     judge: dict[str, dict] = field(default_factory=dict)
     requests: list[dict] = field(default_factory=list)
     live_done: list[str] = field(default_factory=list)
+    # Retrieval context keyed by f"{test_id}__run{run_num}" (shared across the
+    # run's models) so batch-collect can recompute deterministic quote metrics.
+    contexts: dict[str, dict] = field(default_factory=dict)
 
     @staticmethod
     def make_custom_id(kind: str, test_id: str, model: str, run_num: int) -> str:

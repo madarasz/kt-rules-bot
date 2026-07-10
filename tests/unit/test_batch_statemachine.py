@@ -62,7 +62,7 @@ def test_collect_generation_ended_runs_live_judge_and_finishes(tmp_path, monkeyp
 
     writes = []
     monkeypatch.setattr(runner, "_write_batch_generation_output",
-                        lambda _rd, meta, _item: writes.append(meta["custom_id"]))
+                        lambda _rd, meta, _item, _ctx: writes.append(meta["custom_id"]))
     monkeypatch.setattr("tests.quality.output_parser.parse_output_directory", lambda _d: ["PO"])
     monkeypatch.setattr(runner, "_load_test_cases_for_outputs", lambda _parsed: {})
 

@@ -208,7 +208,9 @@ class ReportGenerator:
                 )
             if abs(total_cache_savings) > 1e-9 or abs(total_batch_savings) > 1e-9:
                 combined = total_cache_savings + total_batch_savings
-                header.append(f"  - **Total savings (cache + batch)**: ${combined:.4f}")
+                gross_combined = self.report.total_cost_usd + combined
+                cpct = (combined / gross_combined * 100) if gross_combined > 1e-9 else 0.0
+                header.append(f"  - **Total savings (cache + batch)**: ${combined:.4f} ({cpct:.1f}%)")
 
         header.append(f"- **Total queries**: {self.report.total_queries}")
         if self.report.is_multi_model or self.report.is_multi_run:

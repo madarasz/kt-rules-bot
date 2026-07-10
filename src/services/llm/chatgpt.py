@@ -78,11 +78,12 @@ class ChatGPTAdapter(LLMProvider):
         """Convert an OpenAI batch output line into an LLMResponse."""
         import json as _json
 
-        if raw.get("status_code") not in (200, None):
+        body = raw.get("body")
+        if raw.get("status_code") not in (200, None) or body is None:
             raise RuntimeError(
-                f"batch item {raw.get('custom_id')} status {raw.get('status_code')}"
+                f"batch item {raw.get('custom_id')} status {raw.get('status_code')} "
+                f"(no response body)"
             )
-        body = raw["body"]
         content = body["choices"][0]["message"]["content"]
         usage = body.get("usage", {})
         prompt_tokens = usage.get("prompt_tokens", 0)

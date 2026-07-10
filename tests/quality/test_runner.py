@@ -184,6 +184,7 @@ class QualityTestRunner:
         embedding_cost=0.0,
         query_id=None,
         no_eval: bool = False,
+        defer_judge: bool = False,
     ) -> IndividualTestResult:
         """Run a single test case.
 
@@ -197,8 +198,11 @@ class QualityTestRunner:
             embedding_cost: Pre-calculated embedding cost (optional)
             query_id: Query UUID for correlation (optional)
             no_eval: If True, skip Ragas evaluation (only generate outputs)
+            defer_judge: If True, compute the deterministic quote metrics but skip
+                the LLM judge, persisting metrics so a later pass (batch-collect)
+                judges once. Used for the live fallback of batch-submit.
         """
-        eval_mode = " (no-eval)" if no_eval else ""
+        eval_mode = " (no-eval)" if no_eval else " (defer-judge)" if defer_judge else ""
         logger.info(
             f"Running test '{test_case.test_id}' with model '{model}' (Run #{run_num}){eval_mode}"
         )
@@ -339,6 +343,23 @@ class QualityTestRunner:
             ragas_metrics = RagasMetrics()
             score = 0.0
             passed = False
+        elif defer_judge:
+            # Compute the deterministic (non-LLM) quote metrics now and skip the
+            # judge; the deferred scoring pass runs the judge exactly once. Same
+            # persisted shape as the batch-generation path.
+            from tests.quality.ragas_evaluator import RagasMetrics
+
+            if structured_llm_response is not None:
+                ragas_metrics = self.ragas_evaluator.compute_deterministic_metrics(
+                    llm_response=structured_llm_response,
+                    context_texts=[c.text for c in rag_context.document_chunks],
+                    chunk_ids=[str(c.chunk_id) for c in rag_context.document_chunks],
+                    ground_truth_contexts=test_case.ground_truth_contexts,
+                )
+            else:
+                ragas_metrics = RagasMetrics()
+            score = 0.0
+            passed = False
         else:
             # Use semaphore to serialize Ragas evaluations (Ragas is not thread-safe)
             async with self.ragas_semaphore:
@@ -362,6 +383,7 @@ class QualityTestRunner:
         # Only flag as error if judging mode is RAGAS (otherwise None is expected)
         if (
             not no_eval
+            and not defer_judge
             and structured_llm_response is not None
             and QUALITY_TEST_JUDGING == "RAGAS"
             and (
@@ -641,6 +663,10 @@ class QualityTestRunner:
         live_tasks = []
         requests_meta: list[dict] = []
         live_done: list[str] = []
+        # Retrieval context is shared by every model of a (test, run); persist it
+        # once here (keyed by test+run) so collect can recompute the deterministic
+        # quote metrics hours later without bloating the state file per-request.
+        contexts: dict[str, dict] = {}
 
         for run_num in range(1, runs + 1):
             for test_case in test_cases:
@@ -651,6 +677,10 @@ class QualityTestRunner:
                 multi_hop_cost = sum(h.cost_usd for h in hop_evaluations) if hop_evaluations else 0.0
                 context_texts = [c.text for c in rag_context.document_chunks]
                 chunk_ids = [str(c.chunk_id) for c in rag_context.document_chunks]
+                contexts[f"{test_case.test_id}__run{run_num}"] = {
+                    "context": context_texts,
+                    "chunk_ids": chunk_ids,
+                }
 
                 for model in models_to_run:
                     custom_id = BatchManifest.make_custom_id("gen", test_case.test_id, model, run_num)
@@ -665,11 +695,6 @@ class QualityTestRunner:
                         "batchable": backend is not None,
                         "embedding_cost": embedding_cost,
                         "multi_hop_cost": multi_hop_cost,
-                        # Retrieval context persisted so collect can recompute the
-                        # deterministic quote metrics (precision/recall need the GT
-                        # contexts, faithfulness needs these chunks) hours later.
-                        "context": context_texts,
-                        "chunk_ids": chunk_ids,
                     })
                     if backend is not None:
                         provider = LLMProviderFactory.create(model)
@@ -693,7 +718,8 @@ class QualityTestRunner:
                         live_tasks.append(
                             self.run_test(
                                 test_case, model, run_num, report_dir, rag_context,
-                                hop_evaluations, embedding_cost, query_id, no_eval=False,
+                                hop_evaluations, embedding_cost, query_id,
+                                defer_judge=True,
                             )
                         )
                         live_done.append(custom_id)
@@ -724,6 +750,7 @@ class QualityTestRunner:
             judge={},
             requests=requests_meta,
             live_done=live_done,
+            contexts=contexts,
         )
         try:
             for name, lines in backend_lines.items():
@@ -750,11 +777,12 @@ class QualityTestRunner:
         from tests.quality.output_parser import parse_output_directory
 
         report_dir = Path(manifest.report_dir)
+        gen_backends = {name: make_backend(name) for name in manifest.generation}
 
         # Poll every generation backend once.
         all_ended = True
         for name, info in manifest.generation.items():
-            status = make_backend(name).poll(info["batch_id"])
+            status = gen_backends[name].poll(info["batch_id"])
             info["status"] = status
             if status == "failed":
                 manifest.save()
@@ -774,15 +802,19 @@ class QualityTestRunner:
             if r["kind"] == "gen" and r["batchable"]
         }
         for name, info in manifest.generation.items():
-            for cid, item in make_backend(name).fetch(info["batch_id"]).items():
-                self._write_batch_generation_output(report_dir, gen_meta[cid], item)
+            for cid, item in gen_backends[name].fetch(info["batch_id"]).items():
+                self._write_batch_generation_output(
+                    report_dir, gen_meta[cid], item, manifest.contexts
+                )
 
-        # Judge: batch if the judge model is batchable, else run live now.
+        # Judge: batch if the judge model is batchable and produced any items,
+        # else run live now.
         parsed = parse_output_directory(report_dir)
         test_cases_map = self._load_test_cases_for_outputs(parsed)
         judge_backend = resolve_backend(manifest.judge_model)
-        if judge_backend is not None:
-            self._submit_judge_batch(manifest, parsed, test_cases_map, judge_backend)
+        if judge_backend is not None and self._submit_judge_batch(
+            manifest, parsed, test_cases_map, judge_backend
+        ):
             manifest.phase = "judge_submitted"
             manifest.save()
             print(f"Judge batch submitted ({judge_backend.name}) — re-run batch-collect later.")
@@ -795,7 +827,9 @@ class QualityTestRunner:
         print(f"Batch run complete: report at {report_dir}/report.md")
         return "done"
 
-    def _write_batch_generation_output(self, report_dir: Path, meta: dict, item: dict) -> None:
+    def _write_batch_generation_output(
+        self, report_dir: Path, meta: dict, item: dict, contexts: dict[str, dict]
+    ) -> None:
         """Parse a batch gen item into an LLMResponse and write output_*.md
         (no-eval style: metadata only, judging happens later)."""
         from tests.quality.ragas_evaluator import RagasMetrics
@@ -830,10 +864,11 @@ class QualityTestRunner:
         # retrieval context) so they land in this output's metadata; scoring
         # later reads them from there rather than an empty RagasMetrics().
         if structured is not None:
+            ctx = contexts.get(f"{meta['test_id']}__run{meta['run_num']}", {})
             ragas_metrics = self.ragas_evaluator.compute_deterministic_metrics(
                 llm_response=structured,
-                context_texts=meta.get("context", []),
-                chunk_ids=meta.get("chunk_ids", []),
+                context_texts=ctx.get("context", []),
+                chunk_ids=ctx.get("chunk_ids", []),
                 ground_truth_contexts=test_case.ground_truth_contexts,
             )
         else:
@@ -857,14 +892,24 @@ class QualityTestRunner:
             cache_savings_usd=breakdown.cache_savings,
         )
 
-    def _submit_judge_batch(self, manifest, parsed, test_cases_map, judge_backend) -> None:
-        """Build + submit a judge batch for all parsed outputs (batchable judge)."""
+    def _submit_judge_batch(self, manifest, parsed, test_cases_map, judge_backend) -> bool:
+        """Build + submit a judge batch for all parsed outputs (batchable judge).
+
+        Returns True if a batch was submitted, False if there was nothing to submit
+        (no judge provider / every item failed to build) so the caller can fall
+        back to the live judge instead of submitting an empty batch.
+        """
         from tests.quality.batch.manifest import BatchManifest
         from tests.quality.custom_judge import CustomJudge
 
         judge = CustomJudge(model=manifest.judge_model)
         provider = LLMProviderFactory.create(manifest.judge_model)
-        deterministic_by_cid: dict[str, dict] = {}
+        if provider is None:
+            logger.error(
+                f"Judge provider {manifest.judge_model!r} unavailable (missing API key) "
+                f"— falling back to live judge."
+            )
+            return False
         lines = []
         for po in parsed:
             meta = po.metadata
@@ -890,16 +935,20 @@ class QualityTestRunner:
                 logger.error(f"Judge batch item for {test_id} failed to build: {e} — skipping")
                 continue
             lines.append(request_line)
-            deterministic_by_cid[cid] = {"test_id": test_id}
+        if not lines:
+            logger.error("No judge batch items built — falling back to live judge.")
+            return False
         batch_id = judge_backend.submit(lines)
         manifest.judge[judge_backend.name] = {"batch_id": batch_id, "status": "in_progress"}
+        return True
 
     async def _collect_judge(self, manifest) -> str:
         from tests.quality.batch.backends import make_backend
 
         report_dir = Path(manifest.report_dir)
         name, info = next(iter(manifest.judge.items()))
-        status = make_backend(name).poll(info["batch_id"])
+        backend = make_backend(name)
+        status = backend.poll(info["batch_id"])
         info["status"] = status
         manifest.save()
         if status == "failed":
@@ -908,7 +957,7 @@ class QualityTestRunner:
             print(f"Judge batch not ready ({status}) — re-run batch-collect later.")
             return "judge_submitted"
 
-        judge_items = make_backend(name).fetch(info["batch_id"])
+        judge_items = backend.fetch(info["batch_id"])
         results = self._score_from_judge_batch(manifest, judge_items)
         self._finalize_report(results, report_dir, manifest)
         manifest.phase = "done"
