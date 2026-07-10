@@ -118,10 +118,26 @@ pricing: dict[str, dict] = {
 }
 
 
-# Batch API discount per backend. Both Anthropic and OpenAI batch = 50% off.
-# Keyed by pricing cache_mode for now; make per-provider if a backend differs
-# (e.g. Kimi/Grok publish "reduced" rates without a confirmed percentage).
-BATCH_DISCOUNT = 0.5
+# Batch API discount per backend (fraction off the live, post-cache cost).
+# Anthropic, OpenAI, Mistral, Qwen/DashScope, Gemini confirmed 50%.
+# ponytail: moonshot (Kimi) and x (Grok) publish "reduced pricing" without a
+# confirmed %, defaulted to 0.5 — confirm against their pricing page and correct
+# here if different; batch_savings_usd for those two is an estimate until then.
+DEFAULT_BATCH_DISCOUNT = 0.5
+BATCH_DISCOUNT: dict[str, float] = {
+    "anthropic": 0.5,
+    "openai": 0.5,
+    "mistral": 0.5,
+    "alibaba": 0.5,   # Qwen / DashScope
+    "google": 0.5,    # Gemini
+    "moonshot": 0.5,  # Kimi — estimate, confirm
+    "x": 0.5,         # Grok — estimate, confirm
+}
+
+
+def batch_discount_for(backend: str | None) -> float:
+    """Return the batch discount fraction for a backend name (default 0.5)."""
+    return BATCH_DISCOUNT.get(backend or "", DEFAULT_BATCH_DISCOUNT)
 
 
 def calculate_llm_cost(
@@ -131,6 +147,7 @@ def calculate_llm_cost(
     cache_read_tokens: int = 0,
     cache_creation_tokens: int = 0,
     batch: bool = False,
+    batch_backend: str | None = None,
 ) -> LLMCostBreakdown:
     """Calculate detailed cost breakdown for an LLM call, including cache savings.
 
@@ -140,8 +157,10 @@ def calculate_llm_cost(
         model: Model name
         cache_read_tokens: Tokens served from cache (default: 0)
         cache_creation_tokens: Tokens written to cache (default: 0, anthropic only)
-        batch: If True, apply the 50% Batch-API discount on top of cache accounting
+        batch: If True, apply the Batch-API discount on top of cache accounting
                and report the delta as batch_savings.
+        batch_backend: Backend name selecting the discount rate (see BATCH_DISCOUNT);
+               None falls back to DEFAULT_BATCH_DISCOUNT (0.5).
 
     Returns:
         LLMCostBreakdown with full cost and savings breakdown
@@ -186,8 +205,9 @@ def calculate_llm_cost(
     # Batch discount stacks on top of cache accounting. cache_savings stays computed
     # on the live (pre-discount) numbers above so the two savings never double-count.
     if batch:
-        factor = 1.0 - BATCH_DISCOUNT
-        batch_savings = total_cost * BATCH_DISCOUNT
+        discount = batch_discount_for(batch_backend)
+        factor = 1.0 - discount
+        batch_savings = total_cost * discount
         prompt_cost *= factor
         completion_cost *= factor
         cache_read_cost *= factor

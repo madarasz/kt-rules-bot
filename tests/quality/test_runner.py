@@ -851,6 +851,7 @@ class QualityTestRunner:
             cache_read_tokens=llm_response.cache_read_tokens,
             cache_creation_tokens=llm_response.cache_creation_tokens,
             batch=True,
+            batch_backend=meta.get("backend"),
         )
         try:
             structured = StructuredLLMResponse.from_json(llm_response.answer_text)
@@ -1008,6 +1009,7 @@ class QualityTestRunner:
                     cache_read_tokens=jr.cache_read_tokens,
                     cache_creation_tokens=jr.cache_creation_tokens,
                     batch=True,
+                    batch_backend=next(iter(manifest.judge), None),
                 )
                 judge_cost = jb.total_cost
                 judge_batch_savings = jb.batch_savings
