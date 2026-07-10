@@ -125,7 +125,9 @@ class OpenAICompatBatchBackend:
         status = self.client.batches.retrieve(batch_id).status
         if status == "completed":
             return "ended"
-        if status in ("failed", "expired", "cancelled", "canceled"):
+        if status == "expired":
+            return "expired"
+        if status in ("failed", "cancelled", "canceled"):
             return "failed"
         return "in_progress"
 

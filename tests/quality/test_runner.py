@@ -760,6 +760,29 @@ class QualityTestRunner:
             manifest.save()
         return manifest
 
+    def _rebuild_gen_lines_for_backend(self, manifest, backend_name: str) -> list[dict]:
+        """Rebuild generation batch lines for one backend from persisted manifest
+        state (used to resubmit an expired batch). RAG context is persisted in
+        manifest.contexts, so lines are byte-for-byte what submit_batch_run built."""
+        gen_config = GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT)
+        lines: list[dict] = []
+        for row in manifest.requests:
+            if row["kind"] != "gen" or row.get("backend") != backend_name:
+                continue
+            if row["custom_id"] in manifest.live_done:
+                continue
+            ctx = manifest.contexts[f"{row['test_id']}__run{row['run_num']}"]
+            query = self.load_test_cases(row["test_id"])[0].query
+            provider = LLMProviderFactory.create(row["model"])
+            req = GenerationRequest(
+                prompt=query,
+                context=ctx["context"],
+                config=gen_config,
+                chunk_ids=ctx["chunk_ids"],
+            )
+            lines.append(provider.build_batch_request(req, row["custom_id"]))
+        return lines
+
     async def collect_batch_run(self, report_dir: Path | str) -> str:
         """Single-pass advance of the batch state machine. Returns the new phase."""
         from tests.quality.batch.manifest import BatchManifest
@@ -787,7 +810,15 @@ class QualityTestRunner:
             if status == "failed":
                 manifest.save()
                 raise RuntimeError(f"Generation batch {info['batch_id']} ({name}) failed")
-            if status != "ended":
+            if status == "expired":
+                # Whole batch expired before completing — resubmit its still-unfetched
+                # requests (deterministic: RAG context is persisted) and keep waiting.
+                lines = self._rebuild_gen_lines_for_backend(manifest, name)
+                new_id = gen_backends[name].submit(lines)
+                info.update({"batch_id": new_id, "status": "in_progress"})
+                print(f"Generation batch {name} expired — resubmitted as {new_id}.")
+                all_ended = False
+            elif status != "ended":
                 all_ended = False
         manifest.save()
         if not all_ended:
