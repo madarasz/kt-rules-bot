@@ -66,7 +66,7 @@ def test_gemini_backend_poll_mapping():
         def __init__(self, state):
             self._state = state
 
-        def get(self, name=None):
+        def get(self, name=None):  # noqa: ARG002 - matches google-genai batches.get(name=...)
             return _Job(self._state)
 
     class _Client:
