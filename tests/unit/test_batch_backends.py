@@ -11,6 +11,7 @@ def test_resolve_backend_routing():
     assert resolve_backend("qwen3-turbo").name == "alibaba"
     assert resolve_backend("mistral-medium-3-5").name == "mistral"
     assert resolve_backend("gemini-2.5-flash").name == "google"
+    assert resolve_backend("grok-4-1-fast-reasoning").name == "x"
     assert resolve_backend("deepseek-v4-flash") is None  # DeepSeek stays live-only
 
 

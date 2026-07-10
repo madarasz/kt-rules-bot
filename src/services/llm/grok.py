@@ -32,6 +32,77 @@ logger = get_logger(__name__)
 class GrokAdapter(LLMProvider):
     """X/Twitter Grok API integration."""
 
+    supports_batch = True
+
+    def build_batch_request(self, request: GenerationRequest, custom_id: str) -> dict:
+        """xAI batch line (Responses-API shape) for GrokBatchBackend.
+
+        # ponytail: xAI Responses-API batch shape from the REST docs; smoke-confirm
+        # the exact `input` / `text.format` fields against a live run before trusting
+        # output. The batch endpoint is not the OpenAI-compatible /chat/completions
+        # path the live generate() uses.
+        """
+        full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
+        model_cls = get_pydantic_model(request.config.structured_output_schema)
+        return {
+            "custom_id": custom_id,
+            "batch_request_id": custom_id,
+            "batch_request": {
+                "responses": {
+                    "model": self.model,
+                    "input": [
+                        {"role": "system", "content": request.config.system_prompt},
+                        {"role": "user", "content": full_prompt},
+                    ],
+                    "max_output_tokens": request.config.max_tokens,
+                    "temperature": request.config.temperature,
+                    "text": {
+                        "format": {
+                            "type": "json_schema",
+                            "name": model_cls.__name__,
+                            "schema": model_cls.model_json_schema(),
+                            "strict": True,
+                        }
+                    },
+                }
+            },
+        }
+
+    @classmethod
+    def parse_batch_result(cls, raw: dict) -> LLMResponse:
+        # ponytail: smoke-confirm the Responses output path (output_text vs
+        # output[].content[].text) against a live xAI batch result.
+        resp = raw.get("response")
+        if resp is None:
+            raise RuntimeError(f"grok batch item {raw.get('custom_id')} has no response")
+        content = resp.get("output_text")
+        if content is None:
+            out = resp.get("output") or []
+            content = next(
+                c["text"]
+                for o in out
+                for c in o.get("content", [])
+                if c.get("type") == "output_text"
+            )
+        usage = resp.get("usage", {})
+        prompt_tokens = usage.get("input_tokens", usage.get("prompt_tokens", 0))
+        completion_tokens = usage.get("output_tokens", usage.get("completion_tokens", 0))
+        cached = (usage.get("input_tokens_details") or {}).get("cached_tokens", 0) or 0
+        return LLMResponse(
+            response_id=uuid4(),
+            answer_text=content,
+            confidence_score=0.8,
+            token_count=prompt_tokens + completion_tokens,
+            latency_ms=0,
+            provider="grok",
+            model_version=resp.get("model", ""),
+            citations_included=True,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cache_read_tokens=cached,
+            cache_creation_tokens=0,
+        )
+
     def __init__(self, api_key: str, model: str = "grok-3"):
         """Initialize Grok adapter.
 
