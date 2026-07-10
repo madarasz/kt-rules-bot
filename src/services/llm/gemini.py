@@ -38,6 +38,99 @@ logger = get_logger(__name__)
 class GeminiAdapter(LLMProvider):
     """Google Gemini API integration."""
 
+    supports_batch = True
+
+    @staticmethod
+    def _number_context(context, chunk_ids):
+        """Number sentences across chunks for quote extraction.
+
+        Returns (numbered_chunks, synthetic_chunk_ids, chunk_id_to_sentences).
+        Shared by generate() and the batch hook so the two never drift.
+        """
+        numbered_chunks, chunk_id_to_sentences, synthetic_chunk_ids = [], {}, []
+        for i, chunk in enumerate(context):
+            if chunk_ids and i < len(chunk_ids):
+                full = chunk_ids[i]
+                chunk_id = full[-8:] if len(full) > 8 else full
+            else:
+                chunk_id = str(i)
+            numbered_chunk, sentences = number_sentences_in_chunk(chunk)
+            numbered_chunks.append(numbered_chunk)
+            chunk_id_to_sentences[chunk_id] = sentences
+            synthetic_chunk_ids.append(chunk_id)
+        return numbered_chunks, synthetic_chunk_ids, chunk_id_to_sentences
+
+    def build_batch_request(self, request: GenerationRequest, custom_id: str) -> dict:
+        """Gemini batch line for inline google-genai submission.
+
+        For the default schema, replicate generate()'s sentence-numbering +
+        GeminiAnswer schema and carry the sentence map out-of-band
+        (`_gemini_sentences`) so batch-collect can reconstruct verbatim quotes
+        (parse_batch_result is a stateless classmethod in a later process).
+        """
+        schema_type = request.config.structured_output_schema
+        max_tokens = request.config.max_tokens * 3 if self.uses_completion_tokens else request.config.max_tokens
+        if schema_type == "default":
+            numbered, synthetic_ids, sentence_map = self._number_context(
+                request.context, request.chunk_ids
+            )
+            gemini_system_prompt = build_system_prompt("gemini")
+            full_prompt = (
+                f"{gemini_system_prompt}\n\n"
+                f"{self._build_prompt(request.prompt, numbered, synthetic_ids)}"
+            )
+            model_cls = get_pydantic_model(schema_type, use_gemini_answer=True)
+        else:
+            # Judge / hop-eval schemas do not use sentence numbering.
+            full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
+            model_cls = get_pydantic_model(schema_type)
+            sentence_map = {}
+        return {
+            "custom_id": custom_id,
+            "model": self.model,
+            "request": {
+                "contents": [{"role": "user", "parts": [{"text": full_prompt}]}],
+                "config": {
+                    "max_output_tokens": max_tokens,
+                    "temperature": request.config.temperature,
+                    "response_mime_type": "application/json",
+                    "response_schema": model_cls.model_json_schema(),
+                },
+            },
+            "_gemini_sentences": sentence_map,
+        }
+
+    @classmethod
+    def parse_batch_result(cls, raw: dict) -> LLMResponse:
+        """Gemini batch item -> LLMResponse. For the default schema the returned
+        answer_text is GeminiAnswer JSON (sentence_numbers, empty quote_text); the
+        collect step fills quote_text via post_process_gemini_response."""
+        resp = raw.get("response")
+        if resp is None:
+            raise RuntimeError(f"batch item {raw.get('custom_id')} has no response")
+        candidates = resp.get("candidates") or []
+        if not candidates:
+            raise RuntimeError(f"batch item {raw.get('custom_id')} returned no candidates")
+        text = candidates[0]["content"]["parts"][0]["text"]
+        usage = resp.get("usage_metadata", {})
+        prompt_tokens = usage.get("prompt_token_count", 0)
+        completion_tokens = usage.get("candidates_token_count", 0)
+        cached = usage.get("cached_content_token_count", 0) or 0
+        return LLMResponse(
+            response_id=uuid4(),
+            answer_text=text,
+            confidence_score=0.8,
+            token_count=usage.get("total_token_count", prompt_tokens + completion_tokens),
+            latency_ms=0,
+            provider="gemini",
+            model_version=resp.get("model_version", ""),
+            citations_included=True,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cache_read_tokens=cached,
+            cache_creation_tokens=0,
+        )
+
     def __init__(self, api_key: str, model: str = "gemini-2.5-pro"):
         """Initialize Gemini adapter.
 
@@ -82,30 +175,9 @@ class GeminiAdapter(LLMProvider):
         gemini_system_prompt = build_system_prompt("gemini")
 
         # PRE-PROCESSING: Number sentences in chunks to enable quote extraction
-        numbered_chunks = []
-        chunk_id_to_sentences = {}  # Store sentence lists for post-processing
-        synthetic_chunk_ids = []  # Chunk IDs that match what we store
-
-        for i, chunk in enumerate(request.context):
-            # Get chunk ID (last 8 chars of UUID, or index-based fallback)
-            if request.chunk_ids and i < len(request.chunk_ids):
-                full_chunk_id = request.chunk_ids[i]
-                chunk_id = full_chunk_id[-8:] if len(full_chunk_id) > 8 else full_chunk_id
-            else:
-                chunk_id = str(i)  # Use index as fallback
-
-            # Number sentences in this chunk
-            numbered_chunk, sentences = number_sentences_in_chunk(chunk)
-            numbered_chunks.append(numbered_chunk)
-
-            # Store with the chunk_id that will appear in the response
-            chunk_id_to_sentences[chunk_id] = sentences
-            synthetic_chunk_ids.append(chunk_id)
-
-            logger.info(
-                f"Pre-processing chunk: ID='{chunk_id}', sentences={len(sentences)}",
-                extra={"chunk_id": chunk_id, "sentence_count": len(sentences)},
-            )
+        numbered_chunks, synthetic_chunk_ids, chunk_id_to_sentences = self._number_context(
+            request.context, request.chunk_ids
+        )
 
         # Build prompt with NUMBERED chunks
         # Use synthetic_chunk_ids to ensure consistency with what we stored

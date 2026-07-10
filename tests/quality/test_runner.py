@@ -710,9 +710,12 @@ class QualityTestRunner:
                             config=gen_config,
                             chunk_ids=chunk_ids,
                         )
-                        backend_lines.setdefault(backend.name, []).append(
-                            provider.build_batch_request(req, custom_id)
-                        )
+                        line = provider.build_batch_request(req, custom_id)
+                        # Gemini carries a sentence map for collect-time quote
+                        # reconstruction; persist it on the request row.
+                        if line.get("_gemini_sentences"):
+                            requests_meta[-1]["gemini_sentences"] = line["_gemini_sentences"]
+                        backend_lines.setdefault(backend.name, []).append(line)
                         backends_by_name[backend.name] = backend
                     else:
                         live_tasks.append(
@@ -874,6 +877,25 @@ class QualityTestRunner:
             return
         if not llm_response.model_version:
             llm_response.model_version = LLMProviderFactory._model_registry[model][1]
+
+        # Gemini quote reconstruction: parse_batch_result returns GeminiAnswer JSON
+        # with sentence_numbers and empty quote_text; fill it here using the sentence
+        # map persisted at submit + the retrieval context (mirrors generate()).
+        if llm_response.provider == "gemini" and meta.get("gemini_sentences"):
+            import json as _json
+
+            from src.services.llm.gemini_quote_extractor import post_process_gemini_response
+
+            ctx = contexts.get(f"{meta['test_id']}__run{meta['run_num']}", {})
+            answer_dict = _json.loads(llm_response.answer_text)
+            answer_dict = post_process_gemini_response(
+                answer_dict,
+                ctx.get("context", []),
+                ctx.get("chunk_ids", []),
+                meta["gemini_sentences"],
+            )
+            llm_response.answer_text = _json.dumps(answer_dict)
+            llm_response.structured_output = answer_dict
 
         breakdown = calculate_llm_cost(
             prompt_tokens=llm_response.prompt_tokens,

@@ -228,6 +228,65 @@ class MistralBatchBackend:
         return out
 
 
+def _genai_to_dict(resp) -> dict:
+    """Normalize a google-genai GenerateContentResponse into the dict shape
+    GeminiAdapter.parse_batch_result reads (candidates/usage_metadata/model_version)."""
+    if resp is None:
+        return {"candidates": []}
+    if hasattr(resp, "model_dump"):
+        try:
+            return resp.model_dump()
+        except Exception:  # pragma: no cover - defensive
+            pass
+    return resp  # already a dict
+
+
+class GeminiBatchBackend:
+    """Gemini batch via google-genai inline requests (no file upload)."""
+
+    name = "google"
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self._client = None
+
+    @property
+    def client(self):
+        if self._client is None:
+            from google import genai
+
+            self._client = genai.Client(api_key=self.api_key)
+        return self._client
+
+    def submit(self, lines: list[dict]) -> str:
+        # lines: [{custom_id, model, request:{contents, config}, _gemini_sentences}]
+        model = lines[0]["model"]
+        src = [{"key": x["custom_id"], "request": x["request"]} for x in lines]
+        job = self.client.batches.create(model=model, src=src)
+        logger.info(f"Submitted Gemini batch {job.name} ({len(lines)} requests)")
+        return job.name
+
+    def poll(self, batch_id: str) -> str:
+        state = self.client.batches.get(name=batch_id).state.name
+        if state == "JOB_STATE_SUCCEEDED":
+            return "ended"
+        if state == "JOB_STATE_EXPIRED":
+            return "expired"
+        if state in ("JOB_STATE_FAILED", "JOB_STATE_CANCELLED"):
+            return "failed"
+        return "in_progress"
+
+    def fetch(self, batch_id: str) -> dict[str, dict]:
+        job = self.client.batches.get(name=batch_id)
+        out: dict[str, dict] = {}
+        # ponytail: inline result surface (dest.inlined_responses, item.key/.response)
+        # is smoke-confirmable — adjust after the first live Gemini batch if needed.
+        for item in job.dest.inlined_responses:
+            key = getattr(item, "key", None) or getattr(item, "custom_id", None)
+            out[key] = {"custom_id": key, "response": _genai_to_dict(getattr(item, "response", None))}
+        return out
+
+
 # api_key_type (factory registry) -> batch backend name. Only wired backends here.
 _API_KEY_TYPE_TO_BACKEND = {
     "anthropic": "anthropic",
@@ -235,6 +294,7 @@ _API_KEY_TYPE_TO_BACKEND = {
     "moonshot": "moonshot",
     "alibaba": "alibaba",
     "mistral": "mistral",
+    "google": "google",
 }
 
 
@@ -268,6 +328,8 @@ def make_backend(name: str) -> BatchBackend | None:
         return OpenAICompatBatchBackend(api_key=key, base_url=base_url, name="alibaba")
     if name == "mistral":
         return MistralBatchBackend(api_key=config.mistral_api_key)
+    if name == "google":
+        return GeminiBatchBackend(api_key=config.google_api_key)
     return None
 
 
