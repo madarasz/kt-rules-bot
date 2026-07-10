@@ -1,0 +1,73 @@
+"""Batch run manifest — the single source of truth for a batch quality-test run.
+
+Persisted as `batch_state.json` in the results dir. `batch-collect` reads the
+`phase` field, advances it at most one step per invocation, and saves.
+"""
+
+import hashlib
+import json
+import re
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+
+MANIFEST_FILENAME = "batch_state.json"
+
+# Providers constrain custom_id. Anthropic is the strictest: ^[a-zA-Z0-9_-]{1,64}$
+# (no dots, ≤64 chars) — so model names like "claude-4.6-sonnet" and long test ids
+# must be sanitized/capped. Nothing round-trips the model back out of the id at
+# runtime (gen maps via the manifest, judge recomputes deterministically), so the
+# id only needs to be safe, deterministic, and unique per (kind, test, model, run).
+_CUSTOM_ID_MAX = 64
+_DISALLOWED = re.compile(r"[^a-zA-Z0-9_-]")
+
+
+@dataclass
+class BatchManifest:
+    """State of a two-phase batch run.
+
+    phase: "generation_submitted" -> "judge_submitted" -> "scoring" -> "done".
+    generation / judge: backend name -> {"batch_id": str, "status": str}.
+    requests: one row per test x model x run x kind (gen|judge), carrying the
+        custom_id used to map results back and whether it went to a batch.
+    live_done: custom_ids that were run live (non-batch models) at submit time.
+    """
+
+    phase: str
+    created_at: str
+    models: list[str]
+    judge_model: str
+    runs: int
+    test_ids: list[str]
+    report_dir: str
+    generation: dict[str, dict] = field(default_factory=dict)
+    judge: dict[str, dict] = field(default_factory=dict)
+    requests: list[dict] = field(default_factory=list)
+    live_done: list[str] = field(default_factory=list)
+    # Retrieval context keyed by f"{test_id}__run{run_num}" (shared across the
+    # run's models) so batch-collect can recompute deterministic quote metrics.
+    contexts: dict[str, dict] = field(default_factory=dict)
+
+    @staticmethod
+    def make_custom_id(kind: str, test_id: str, model: str, run_num: int) -> str:
+        """Deterministic, provider-safe custom_id for (kind, test_id, model, run_num).
+
+        Matches Anthropic's ^[a-zA-Z0-9_-]{1,64}$: disallowed chars (e.g. the dot in
+        "claude-4.6-sonnet") become '-', and over-long ids are truncated with a hash
+        suffix that preserves uniqueness from the full raw string.
+        """
+        raw = f"{kind}__{test_id}__{model}__run{run_num}"
+        safe = _DISALLOWED.sub("-", raw)
+        if len(safe) <= _CUSTOM_ID_MAX:
+            return safe
+        digest = hashlib.sha1(raw.encode()).hexdigest()[:10]
+        return f"{safe[: _CUSTOM_ID_MAX - 11]}-{digest}"
+
+    def save(self) -> None:
+        path = Path(self.report_dir) / MANIFEST_FILENAME
+        path.write_text(json.dumps(asdict(self), indent=2), encoding="utf-8")
+
+    @classmethod
+    def load(cls, report_dir: Path | str) -> "BatchManifest":
+        path = Path(report_dir) / MANIFEST_FILENAME
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return cls(**data)

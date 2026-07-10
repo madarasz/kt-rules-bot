@@ -74,6 +74,74 @@ CLAUDE_MODELS_WITHOUT_TEMPERATURE = {
 class ClaudeAdapter(LLMProvider):
     """Anthropic Claude API integration."""
 
+    supports_batch = True
+
+    def build_batch_request(self, request: GenerationRequest, custom_id: str) -> dict:
+        """Build an Anthropic Messages Batch line for this request.
+
+        Uses the proven tool-use JSON path (same as generate()'s fallback) rather
+        than the structured-outputs beta, so parse_batch_result can read the
+        tool_use block. cache_control blocks and the schema tool ride along.
+        # ponytail: tool-use JSON in batch; switch to output_config.format only
+        # if a model drops tool support.
+        """
+        if isinstance(request.prompt, list):
+            full_prompt = request.prompt
+        else:
+            full_prompt = self._build_prompt(
+                request.prompt, request.context, request.chunk_ids
+            )
+        system = _get_system(request.config.system_prompt, request.config.use_cache)
+        info = get_schema_info(request.config.structured_output_schema)
+        params: dict = {
+            "model": self.model,
+            "max_tokens": request.config.max_tokens,
+            "system": system,
+            "messages": [{"role": "user", "content": full_prompt}],
+            "tools": [
+                {
+                    "name": info.tool_name,
+                    "description": info.tool_description,
+                    "input_schema": info.json_schema,
+                }
+            ],
+            "tool_choice": {"type": "tool", "name": info.tool_name},
+        }
+        if self.model not in CLAUDE_MODELS_WITHOUT_TEMPERATURE:
+            params["temperature"] = request.config.temperature
+        return {"custom_id": custom_id, "params": params}
+
+    @classmethod
+    def parse_batch_result(cls, raw: dict) -> LLMResponse:
+        """Convert an Anthropic batch result item into an LLMResponse."""
+        if raw.get("result_type") != "succeeded":
+            raise RuntimeError(
+                f"batch item {raw.get('custom_id')} {raw.get('result_type')}"
+            )
+        msg = raw["message"]
+        tool_block = next(
+            b for b in msg.content if getattr(b, "type", None) == "tool_use"
+        )
+        answer_text = json.dumps(tool_block.input)
+        u = msg.usage
+        prompt_tokens = u.input_tokens
+        completion_tokens = u.output_tokens
+        return LLMResponse(
+            response_id=uuid4(),
+            answer_text=answer_text,
+            confidence_score=0.8,
+            token_count=prompt_tokens + completion_tokens,
+            latency_ms=0,
+            provider="claude",
+            model_version=getattr(msg, "model", None) or "",
+            citations_included=True,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cache_read_tokens=getattr(u, "cache_read_input_tokens", 0) or 0,
+            cache_creation_tokens=getattr(u, "cache_creation_input_tokens", 0) or 0,
+            structured_output=tool_block.input,
+        )
+
     def __init__(self, api_key: str, model: str = "claude-sonnet-4-5-20250929"):
         """Initialize Claude adapter.
 

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from src.lib.logging import get_logger
 from src.services.llm.base import LLMResponse
+from src.services.llm.factory import LLMProviderFactory
 from tests.quality.metadata_generator import MetadataFormatter, OutputMetadata
 
 logger = get_logger(__name__)
@@ -322,10 +323,25 @@ class OutputParser:
         """Generate deterministic quote ID from text (last 8 chars of MD5 hash)."""
         return hashlib.md5(quote_text.encode()).hexdigest()[-8:]
 
+    # Adapter class -> provider string, matching each adapter's own `provider=` field
+    _ADAPTER_PROVIDER_NAMES = {
+        "ClaudeAdapter": "claude",
+        "ChatGPTAdapter": "chatgpt",
+        "GeminiAdapter": "gemini",
+        "GrokAdapter": "grok",
+        "DeepSeekAdapter": "deepseek",
+        "DialAdapter": "dial",
+        "MistralAdapter": "mistral",
+        "KimiAdapter": "moonshot",
+        "GLMAdapter": "alibaba",
+        "MiniMaxAdapter": "alibaba",
+        "QwenAdapter": "alibaba",
+    }
+
     @staticmethod
     def _infer_provider(model_id: str) -> str:
         """
-        Infer provider name from model ID.
+        Infer provider name from actual model ID via factory's model registry.
 
         Args:
             model_id: Actual model ID (e.g., "claude-sonnet-4-5-20250929")
@@ -333,21 +349,12 @@ class OutputParser:
         Returns:
             Provider name ("claude", "gemini", "chatgpt", etc.)
         """
-        model_lower = model_id.lower()
+        for adapter_class, actual_model_id, _api_key_type in LLMProviderFactory._model_registry.values():
+            if actual_model_id == model_id:
+                return OutputParser._ADAPTER_PROVIDER_NAMES[adapter_class.__name__]
 
-        if "claude" in model_lower:
-            return "claude"
-        elif "gemini" in model_lower:
-            return "gemini"
-        elif "gpt" in model_lower or "o1" in model_lower or "o3" in model_lower:
-            return "chatgpt"
-        elif "grok" in model_lower:
-            return "grok"
-        elif "deepseek" in model_lower:
-            return "deepseek"
-        else:
-            logger.warning(f"Could not infer provider from model ID: {model_id}, defaulting to 'unknown'")
-            return "unknown"
+        logger.warning(f"Could not infer provider from model ID: {model_id}, defaulting to 'unknown'")
+        return "unknown"
 
 
 # Convenience function for batch parsing

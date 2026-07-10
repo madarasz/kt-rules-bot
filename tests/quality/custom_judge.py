@@ -214,6 +214,121 @@ class CustomJudge:
 
         return weighted_sum / total_weight
 
+    def build_judge_request(
+        self,
+        query: str,
+        llm_response_text: str,
+        llm_quotes_structured: list[dict],
+        ground_truth_answers: list[GroundTruthAnswer],
+        ground_truth_contexts: list[str],
+    ) -> GenerationRequest:
+        """Build the judge GenerationRequest (prompt + config) without calling the LLM.
+
+        Shared by the live path (evaluate) and the batch path (batch-collect judge
+        round), so both send byte-identical judge prompts. Claude gets cache-control
+        blocks; other providers get the marker stripped.
+        """
+        # Format llm_quotes for display (strip markdown BEFORE formatting to avoid breaking markdown syntax)
+        llm_quotes_display = "\n".join(
+            f"{i+1}. [{q.get('chunk_id', 'no-id')}] {q.get('quote_title', 'Unknown')}: {strip_markdown(q.get('quote_text', ''))}"
+            for i, q in enumerate(llm_quotes_structured)
+        ) if llm_quotes_structured else "(none)"
+
+        # Format ground truth answers with keys for judge
+        ground_truth_answers_formatted = "\n".join(
+            f"Key: '{ans.key}' (priority: {ans.priority})\nText: {ans.text}"
+            for ans in ground_truth_answers
+        )
+
+        # Strip persona fields (deterministic) then markdown from LLM response text.
+        # strip_persona must run first, while the text is still valid JSON.
+        llm_response_text_stripped = strip_markdown(strip_persona(llm_response_text))
+
+        # Format ground truth contexts (strip markdown from each context)
+        ground_truth_contexts_formatted = "\n".join(
+            f"{i+1}. {strip_markdown(ctx)}" for i, ctx in enumerate(ground_truth_contexts)
+        )
+
+        # Load and format prompt template (kept raw with cache markers)
+        template = self._load_prompt_template()
+        filled = template.format(
+            query=query,
+            ground_truth_answers=ground_truth_answers_formatted,
+            ground_truth_contexts=ground_truth_contexts_formatted,
+            llm_response_text=llm_response_text_stripped,
+            llm_quotes=llm_quotes_display,
+        )
+
+        # For Claude: split on CACHE_BREAK_MARKER → cache-control blocks.
+        # For all other providers: strip the marker and use plain string.
+        provider = self._get_provider()
+        from src.services.llm.claude import ClaudeAdapter
+        from src.services.llm.prompt_builder import split_user_prompt_for_cache, strip_cache_markers
+
+        if isinstance(provider, ClaudeAdapter):
+            prompt = split_user_prompt_for_cache(filled)
+        else:
+            prompt = strip_cache_markers(filled)
+        config = GenerationConfig(
+            max_tokens=2048,  # Hardcoded (sufficient for judge evaluation)
+            temperature=0,  # Hardcoded (deterministic for consistency)
+            system_prompt="You are an expert evaluator for a Kill Team rules bot. Provide structured JSON evaluation with per-item scoring.",
+            include_citations=False,
+            structured_output_schema="custom_judge",  # Use CustomJudgeResponse Pydantic model
+        )
+        return GenerationRequest(prompt=prompt, context=[], chunk_ids=[], config=config)
+
+    def parse_result(
+        self, response, ground_truth_answers: list[GroundTruthAnswer]
+    ) -> CustomJudgeResult:
+        """Convert a judge LLMResponse into a CustomJudgeResult.
+
+        Shared by the live path (evaluate) and the batch path (which builds the
+        LLMResponse from a batch result item). Raises on missing fields; callers
+        wrap in try/except to fall back to deterministic-only metrics.
+        """
+        # Parse JSON response (provider handles validation via Pydantic)
+        if not response.structured_output:
+            raise Exception(
+                f"Custom judge response missing structured_output field. "
+                f"Raw response: {response.answer_text[:500]}"
+            )
+
+        result_data = response.structured_output
+
+        # Extract detailed scores from judge response with explicit error handling
+        # Note: The LLM returns arrays of {answer_key, score}; convert to dicts.
+        answer_correctness_list = result_data.get("answer_correctness_details", [])
+        answer_correctness_details = {
+            item["answer_key"]: item["score"] for item in answer_correctness_list
+        }
+
+        # Calculate aggregate (override judge's value with backend calculation)
+        answer_correctness_agg = self._calculate_answer_correctness_aggregate(
+            answer_correctness_details, ground_truth_answers
+        )
+
+        explanation_faithfulness = result_data["explanation_faithfulness"]
+        feedback = result_data["feedback"]
+
+        logger.info(
+            f"Custom judge evaluation completed: "
+            f"explanation_faithfulness={explanation_faithfulness:.2f}, "
+            f"answer_correctness={answer_correctness_agg:.2f} (from {len(answer_correctness_details)} answers)"
+        )
+
+        return CustomJudgeResult(
+            explanation_faithfulness=explanation_faithfulness,
+            answer_correctness=answer_correctness_agg,
+            feedback=feedback,
+            answer_correctness_details=answer_correctness_details,
+            prompt_tokens=response.prompt_tokens,
+            completion_tokens=response.completion_tokens,
+            total_tokens=response.token_count,
+            cache_read_tokens=response.cache_read_tokens,
+            cache_creation_tokens=response.cache_creation_tokens,
+        )
+
     async def evaluate(
         self,
         query: str,
@@ -222,175 +337,30 @@ class CustomJudge:
         ground_truth_answers: list[GroundTruthAnswer],
         ground_truth_contexts: list[str],
     ) -> CustomJudgeResult:
-        """Run unified judge evaluation with structured JSON output and per-item scoring.
+        """Run the judge live (build request -> generate -> parse).
 
-        Args:
-            query: User's question
-            llm_response_text: Full LLM response (structured JSON string)
-            llm_quotes_structured: List of dicts with chunk_id, quote_title, quote_text
-            _rag_context_chunks: Full list of DocumentChunk objects from RAG (unused but kept for interface)
-            ground_truth_answers: List of GroundTruthAnswer objects with keys and priorities
-            ground_truth_contexts: Rules that should be cited (text only)
-
-        Returns:
-            CustomJudgeResult with aggregate scores, detailed breakdowns, and textual feedback
-
-        Raises:
-            Exception: If LLM call fails or response parsing fails
+        Returns a CustomJudgeResult; on any failure returns an error result so
+        the caller falls back to deterministic-only metrics.
         """
         try:
-            # Format llm_quotes for display (strip markdown BEFORE formatting to avoid breaking markdown syntax)
-            llm_quotes_display = "\n".join(
-                f"{i+1}. [{q.get('chunk_id', 'no-id')}] {q.get('quote_title', 'Unknown')}: {strip_markdown(q.get('quote_text', ''))}"
-                for i, q in enumerate(llm_quotes_structured)
-            ) if llm_quotes_structured else "(none)"
-
-            # Format ground truth answers with keys for judge
-            ground_truth_answers_formatted = "\n".join(
-                f"Key: '{ans.key}' (priority: {ans.priority})\nText: {ans.text}"
-                for ans in ground_truth_answers
-            )
-
-            # Strip persona fields (deterministic) then markdown from LLM response text.
-            # strip_persona must run first, while the text is still valid JSON.
-            llm_response_text_stripped = strip_markdown(strip_persona(llm_response_text))
-
-            # Format ground truth contexts (strip markdown from each context)
-            ground_truth_contexts_formatted = "\n".join(
-                f"{i+1}. {strip_markdown(ctx)}" for i, ctx in enumerate(ground_truth_contexts)
-            )
-
-            # Load and format prompt template (kept raw with cache markers)
-            template = self._load_prompt_template()
-            filled = template.format(
-                query=query,
-                ground_truth_answers=ground_truth_answers_formatted,
-                ground_truth_contexts=ground_truth_contexts_formatted,
-                llm_response_text=llm_response_text_stripped,
-                llm_quotes=llm_quotes_display,
-            )
-
-            # For Claude: split on CACHE_BREAK_MARKER → cache-control blocks.
-            # For all other providers: strip the marker and use plain string.
             provider = self._get_provider()
-            from src.services.llm.claude import ClaudeAdapter
-            from src.services.llm.prompt_builder import (
-                split_user_prompt_for_cache,
-                strip_cache_markers,
+            request = self.build_judge_request(
+                query=query,
+                llm_response_text=llm_response_text,
+                llm_quotes_structured=llm_quotes_structured,
+                ground_truth_answers=ground_truth_answers,
+                ground_truth_contexts=ground_truth_contexts,
             )
+            logger.debug(f"Custom judge: Evaluating with {self.model} (query: '{query[:50]}...')")
 
-            if isinstance(provider, ClaudeAdapter):
-                prompt = split_user_prompt_for_cache(filled)
-            else:
-                prompt = strip_cache_markers(filled)
-            config = GenerationConfig(
-                max_tokens=2048,  # Hardcoded (sufficient for judge evaluation)
-                temperature=0,  # Hardcoded (deterministic for consistency)
-                system_prompt="You are an expert evaluator for a Kill Team rules bot. Provide structured JSON evaluation with per-item scoring.",
-                include_citations=False,
-                structured_output_schema="custom_judge",  # Use CustomJudgeResponse Pydantic model
-            )
-
-            logger.debug(
-                f"Custom judge: Evaluating with {self.model} (query: '{query[:50]}...')"
-            )
-
-            # Generate response with retry logic for 429/529 errors
             async def generate_judge_evaluation():
-                return await provider.generate(
-                    GenerationRequest(prompt=prompt, context=[], chunk_ids=[], config=config)
-                )
+                return await provider.generate(request)
 
             response = await retry_with_rate_limit_backoff(
                 generate_judge_evaluation,
                 timeout_seconds=LLM_GENERATION_TIMEOUT,
             )
-
-            # Debug: Log raw response
-            logger.debug(f"Raw LLM response (answer_text, first 1000 chars): {response.answer_text[:1000]}")
-
-            # Parse JSON response (provider handles validation via Pydantic)
-            if not response.structured_output:
-                raise Exception(
-                    f"Custom judge response missing structured_output field. "
-                    f"Raw response: {response.answer_text[:500]}"
-                )
-
-            result_data = response.structured_output
-
-            # Debug: Log the actual keys in result_data
-            logger.debug(f"result_data type: {type(result_data)}")
-            if isinstance(result_data, dict):
-                logger.debug(f"result_data keys: {list(result_data.keys())}")
-                # Check for malformed keys
-                for key in result_data:
-                    if '\n' in key or '"' in key:
-                        logger.error(
-                            f"MALFORMED KEY DETECTED: {repr(key)} - "
-                            f"contains whitespace or quotes"
-                        )
-            else:
-                logger.debug(f"result_data is not a dict: {type(result_data)}")
-
-            logger.debug(f"result_data content (first 500 chars): {str(result_data)[:500]}")
-
-            # Extract detailed scores from judge response with explicit error handling
-            # Note: The LLM returns arrays of {answer_key, score}
-            # Convert these to dicts for the backend
-            try:
-                answer_correctness_list = result_data.get("answer_correctness_details", [])
-                # Convert from [{answer_key: "Final Answer", score: 1.0}] to {"Final Answer": 1.0}
-                answer_correctness_details = {
-                    item["answer_key"]: item["score"] for item in answer_correctness_list
-                }
-            except (KeyError, AttributeError, TypeError) as e:
-                logger.error(
-                    f"Failed to convert answer_correctness_details: {e}. "
-                    f"Data: {result_data.get('answer_correctness_details', 'N/A')}"
-                )
-                raise
-
-            # Calculate aggregate (override judge's value with backend calculation)
-            answer_correctness_agg = self._calculate_answer_correctness_aggregate(
-                answer_correctness_details, ground_truth_answers
-            )
-
-            # Extract remaining fields with explicit error handling
-            try:
-                explanation_faithfulness = result_data["explanation_faithfulness"]
-            except KeyError as e:
-                logger.error(
-                    f"Failed to get explanation_faithfulness: {e}. "
-                    f"Available keys: {list(result_data.keys()) if isinstance(result_data, dict) else 'N/A'}"
-                )
-                raise
-
-            try:
-                feedback = result_data["feedback"]
-            except KeyError as e:
-                logger.error(
-                    f"Failed to get feedback: {e}. "
-                    f"Available keys: {list(result_data.keys()) if isinstance(result_data, dict) else 'N/A'}"
-                )
-                raise
-
-            logger.info(
-                f"Custom judge evaluation completed: "
-                f"explanation_faithfulness={explanation_faithfulness:.2f}, "
-                f"answer_correctness={answer_correctness_agg:.2f} (from {len(answer_correctness_details)} answers)"
-            )
-
-            return CustomJudgeResult(
-                explanation_faithfulness=explanation_faithfulness,
-                answer_correctness=answer_correctness_agg,
-                feedback=feedback,
-                answer_correctness_details=answer_correctness_details,
-                prompt_tokens=response.prompt_tokens,
-                completion_tokens=response.completion_tokens,
-                total_tokens=response.token_count,
-                cache_read_tokens=response.cache_read_tokens,
-                cache_creation_tokens=response.cache_creation_tokens,
-            )
+            return self.parse_result(response, ground_truth_answers)
 
         except Exception as e:
             logger.error(f"Custom judge evaluation failed: {e}", exc_info=True)

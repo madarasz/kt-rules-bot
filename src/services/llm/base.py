@@ -406,6 +406,11 @@ class LLMProvider(ABC):
     All LLM adapters must implement this interface.
     """
 
+    # Batch-API support. Adapters that can submit through a provider Batch API
+    # override this to True and implement the two hooks below. Keeps all
+    # provider-specific batch knowledge inside src/services/llm/.
+    supports_batch: bool = False
+
     def __init__(self, api_key: str, model: str):
         """Initialize LLM provider.
 
@@ -415,6 +420,25 @@ class LLMProvider(ABC):
         """
         self.api_key = api_key
         self.model = model
+
+    def build_batch_request(self, request: "GenerationRequest", custom_id: str) -> dict:
+        """Build a backend-ready batch line for this generation request.
+
+        Override in batch-capable adapters. Returns a dict the matching batch
+        backend can submit verbatim (Anthropic: {custom_id, params}; OpenAI:
+        {custom_id, method, url, body}).
+        """
+        raise NotImplementedError(f"{type(self).__name__} does not support batch")
+
+    @classmethod
+    def parse_batch_result(cls, raw: dict) -> "LLMResponse":
+        """Convert a normalized batch result item into an LLMResponse.
+
+        Override in batch-capable adapters. `raw` is the backend-normalized item
+        (see the backend's fetch()); the returned LLMResponse must be
+        indistinguishable from a live generate() response.
+        """
+        raise NotImplementedError(f"{cls.__name__} does not support batch")
 
     @abstractmethod
     async def generate(self, request: GenerationRequest) -> LLMResponse:

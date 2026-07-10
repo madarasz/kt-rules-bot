@@ -1,5 +1,37 @@
 # Batch API for Quality Tests — Design Plan
 
+## Implementation status (2026-07-09)
+
+**Base scope SHIPPED** on branch `feat/batch-api-quality-tests` (impl plan: [docs/superpowers/plans/2026-07-09-batch-api-quality-tests.md](superpowers/plans/2026-07-09-batch-api-quality-tests.md)). Anthropic + OpenAI batch backends, everything else live fallback.
+
+**✅ Done (base scope):**
+- `src/lib/tokens.py` — `calculate_llm_cost(..., batch=True)` + `batch_savings`; batch discount **stacks on top of cache** accounting (both computed independently).
+- `src/services/llm/base.py` — `supports_batch` + `build_batch_request` + `parse_batch_result` hooks.
+- `src/services/llm/claude.py`, `chatgpt.py` — hooks implemented; `supports_batch = True`.
+- `tests/quality/batch/manifest.py` — `BatchManifest` (state file).
+- `tests/quality/batch/backends.py` — `AnthropicBatchBackend`, `OpenAICompatBatchBackend`, `resolve_backend`/`make_backend`.
+- `tests/quality/reporting/` — `batch_savings_usd`/`judge_batch_savings_usd` fields, `avg_batch_savings`, report + console "Batch net savings" line + combined total.
+- `tests/quality/metadata_generator.py` + `output_parser.py` — persist/read back `batch`, `batch_savings_usd`, **and `cache_savings_usd`** per output.
+- `tests/quality/test_runner.py` — `submit_batch_run` / `collect_batch_run` state machine; judge core factored (`build_judge_request`/`parse_result`/`_judge_parsed_outputs`) and shared with `replay_tests_from_outputs`.
+- `src/cli/quality_test.py` + `__main__.py` — `--batch-submit` / `--batch-collect` (mutually exclusive).
+- Docs: `tests/quality/CLAUDE.md`, `src/cli/CLAUDE.md`, `CLI_USAGE.md`.
+- Verified: unit suite green + faked-network end-to-end `batch-collect` (real parse→save→report), report shows **both** cache + batch savings.
+
+**🟡 Intentional divergences from this plan** (see impl plan "Scope decisions"):
+- No separate `request_builder.py` / `result_parser.py` — that logic lives in the adapter hooks (keeps provider code inside `src/services/llm/`).
+- Claude batch uses the **tool-use JSON** path, not `output_config.format` (reuses the proven fallback).
+- `OpenAIBatchBackend` shipped as the parameterized `OpenAICompatBatchBackend` (base_url/api_key) — OpenAI wired + verified.
+- Batch discount is a global `0.5` (both shipped backends are 50%), **not** yet a per-backend dict.
+
+**❌ Missing / deferred** (out of base scope — the [Extension](#extension-batch-support-for-gemini-mistral-kimi-qwen-deepseek) section):
+- Gemini, Mistral batch backends (bespoke shapes).
+- Kimi & Qwen: adapters keep `supports_batch = False` until their batch discount is confirmed (json_object vs json_schema; unconfirmed %). The OpenAI-compat backend can already target their base_urls.
+- Grok judge-batch backend (default judge runs live — by design).
+- DeepSeek batch — stays live-async (no native batch API; as designed).
+- Per-backend configurable discount dict in `tokens.py`.
+- `expired` per-item re-submission on a later `batch-collect`.
+- **Live smoke** (Verification §2/§3 — costs money): to be run by the user.
+
 ## Context
 
 Quality tests (`python -m src.cli quality-test`) make **two LLM calls per result**:
@@ -14,7 +46,7 @@ Today both run live/async with a concurrency semaphore (`QUALITY_TEST_MAX_CONCUR
 - **Scope:** batch **both** generation and judge, as **two sequential batch rounds** (gen batch finishes → judge batch submitted).
 - **CLI UX:** **split commands** — `batch-submit` returns batch IDs and exits; `batch-collect <dir>` is **single-pass** (checks batch status once, advances if ready, else prints "not ready, re-run later" and exits — **no internal polling/backoff**). The user re-runs `batch-collect` manually until the final report is produced. Resumable via persisted state. Fits CI / multi-hour waits.
 - **Cost tracking:** **batch savings** (50% discount on batched calls) must be tracked and reported **alongside the existing cache savings** — both surfaced per-result and in the aggregate report.
-- **Mixed runs:** models without a batch API (grok, gemini, kimi, deepseek, mistral, etc.) **fall back to live async**, run alongside the batched models, one unified report.
+- **Mixed runs:** models without a batch API **fall back to live async**, run alongside the batched models, one unified report. Per research (see [Extension](#extension-batch-support-for-gemini-mistral-kimi-qwen-deepseek)), the only provider here with **no** native batch API is **DeepSeek** (on `api.deepseek.com`); Gemini, Mistral, Kimi, Qwen — and even Grok — all support batch. So the batchable set is much larger than this plan originally assumed.
 
 ## Batch API mechanics (reference)
 
@@ -28,7 +60,7 @@ Today both run live/async with a concurrency semaphore (`QUALITY_TEST_MAX_CONCUR
 | Discount | 50% | 50% |
 | Eligible models here | `claude-*` (`ClaudeAdapter`) | `gpt-*`, `o3*` (`ChatGPTAdapter`) |
 
-**Note:** default judge is `grok-4-1-fast-reasoning` (no batch API) → judge round falls back to live unless the user selects a claude/openai judge.
+**Note:** default judge is `grok-4-1-fast-reasoning`. This plan originally assumed Grok has no batch API and the judge round always falls back to live — **that assumption is wrong**: xAI does offer a batch API (own SDK shape, see [Extension](#extension-batch-support-for-gemini-mistral-kimi-qwen-deepseek)). The judge round can still run live for simplicity, but batching the default judge is now possible.
 
 ## Architecture — two-phase state machine
 
@@ -123,3 +155,85 @@ Reuse the existing `tests/quality/results/{timestamp}/` convention. The batch ru
 - **Structured outputs in batch:** Claude batch cannot use `beta.messages.parse()`; must hand-build `output_config.format` and parse the returned JSON. Validate the schema matches `StructuredLLMResponse` / `CustomJudgeResponse`.
 - **Per-key API config:** batch backends must resolve the same API keys the factory uses (global `.env`; per-guild not relevant for quality tests).
 - **Token-count fidelity:** ensure batch result usage fields (incl. cache read/creation) are read so cost + savings stay accurate.
+
+---
+
+## Extension: batch support for Gemini, Mistral, Kimi, Qwen, DeepSeek
+
+> **❌ NOT IMPLEMENTED — deferred beyond base scope.** These providers all run on the **live-async fallback** today. See [Implementation status](#implementation-status-2026-07-09).
+
+Research (July 2026) into each provider's batch offering. The headline: batch coverage is far wider than the base plan assumed. Instead of two batch backends (Anthropic, OpenAI) with everything else live, there are **three backend families** and only **one** provider (DeepSeek) that genuinely has no batch path.
+
+### Provider matrix
+
+| Provider | Adapter (this repo) | Native batch? | API shape | custom-id field | Poll → done state | Structured output in batch | Cache in batch | Discount |
+|---|---|---|---|---|---|---|---|---|
+| Anthropic | `ClaudeAdapter` | Yes | `messages.batches` | `custom_id` | `processing_status == "ended"` | `output_config.format` | `cache_control` | 50% |
+| OpenAI | `ChatGPTAdapter` | Yes | `/v1/batches` (JSONL files) | `custom_id` | `status == "completed"` | `response_format` json_schema | automatic | 50% |
+| **Gemini** | `GeminiAdapter` | Yes | own SDK `client.batches.create` | `key` (JSONL) / list order (inline) | `state.name == "JOB_STATE_SUCCEEDED"` | `response_mime_type`+`response_schema` | `cached_content` | 50% |
+| **Mistral** | (new `MistralAdapter`) | Yes | own SDK `client.batch.jobs` | `custom_id` | `status == "SUCCESS"` | `response_format` in body | n/a | 50% |
+| **Kimi/Moonshot** | `KimiAdapter` | Yes | **OpenAI-compatible `/v1/batches`** | `custom_id` | `status == "completed"` | `response_format` json_schema | automatic | unconfirmed¹ |
+| **Qwen/DashScope** | (new `QwenAdapter`) | Yes | **OpenAI-compatible `/v1/batches`** (compatible-mode base_url) | `custom_id` | `status == "completed"`² | `response_format` json_schema | automatic | 50% |
+| **DeepSeek** | `DeepSeekAdapter` | **No** (on `api.deepseek.com`) | — 3rd-party only (SiliconCloud/Together/Novita) | — | — | — | — | n/a → **live fallback** |
+| Grok/xAI | `GrokAdapter` | Yes | own SDK `client.batch.create`/`.add` | `custom_id` → `batch_request_id` | `status == "succeeded"` (per-item) | `response_format` json_schema | n/a | reduced¹ |
+
+¹ Kimi and Grok docs state "reduced pricing" but don't publish the exact percentage — **verify against their pricing pages before trusting savings numbers**. Make the discount rate **per-backend configurable** rather than hardcoding `0.5` (see tokens.py change below).
+² DashScope status flow: `validating → in_progress → finalizing → completed`.
+
+### Three backend families (the lazy structural win)
+
+The base plan's `backends.py` had two impls. This extension groups the additions so we write **three** new backends, not five:
+
+1. **`OpenAICompatBatchBackend(base_url, api_key_env)`** — one parameterized class covering **OpenAI, Kimi, and Qwen**. All three use the identical `/v1/batches` flow: `files.create(purpose="batch")` → `batches.create(input_file_id, endpoint="/v1/chat/completions", completion_window="24h")` → poll `.status == "completed"` → download `output_file_id` JSONL. Only base_url + api-key env var differ. Point the stock `openai` SDK at each base_url:
+   - OpenAI: `https://api.openai.com/v1`
+   - Kimi: `https://api.moonshot.ai/v1` (`MOONSHOT_API_KEY`, models `kimi-k2.5`/`kimi-k2.6`)
+   - Qwen: `https://dashscope.aliyuncs.com/compatible-mode/v1` (intl: `…ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1`)
+   This collapses the base plan's separate `OpenAIBatchBackend` into the parameterized one — net simpler.
+2. **`GeminiBatchBackend`** — `google-genai` SDK. Distinct request/result shapes (see below).
+3. **`MistralBatchBackend`** — `mistralai` SDK. `client.batch.jobs.create(input_files=[...], endpoint="/v1/chat/completions", model=...)`, inline `requests=[...]` allowed <10k, poll `client.batch.jobs.get(job_id).status`, download `job.output_file`.
+
+Grok's batch (own `client.batch.create/.add` shape) would be a 4th native backend — **defer it**; keeping Grok (incl. the default judge) on the live path is the simplest correct option and the base plan already handles live judge. Add `GrokBatchBackend` only if judge-batch savings prove worth it.
+
+DeepSeek: **no code** — stays on the existing live-async fallback path. (Batch would require routing to a 3rd-party host with a different key/base_url — out of scope.)
+
+### Per-provider mechanics (implementation notes)
+
+**Gemini** — most divergent, needs the most bespoke code in `request_builder`/`result_parser`:
+- Submit: `client.batches.create(model=..., src=...)`. `src` = inline list of request dicts (<20 MB) **or** an uploaded JSONL file name (`client.files.upload(..., config=UploadFileConfig(mime_type='jsonl'))`).
+- JSONL line shape is **not** OpenAI's: `{"key": "<custom_id>", "request": {"contents": [...], "config": {...}}}`.
+- Structured output: `config.response_mime_type='application/json'` + `config.response_schema=<schema>` (not the `response_format`/`json_schema` wrapper). Validate the schema round-trips `CustomJudgeResponse` / `StructuredLLMResponse`.
+- Poll: `client.batches.get(name).state.name` → `JOB_STATE_SUCCEEDED` / `JOB_STATE_RUNNING` / `JOB_STATE_PENDING` / `JOB_STATE_FAILED` / `JOB_STATE_EXPIRED` (48 h) / `JOB_STATE_CANCELLED`.
+- Results: inline → `batch_job.dest.inlined_responses`; file → `batch_job.dest.file_name` then `client.files.download`. Each line a `GenerateContentResponse` or an error object. Reuse `GeminiAdapter`'s existing response→`LLMResponse` mapping.
+
+**Mistral**:
+- Upload: `client.files.upload(purpose="batch")`, JSONL lines `{"custom_id": "0", "body": {model, messages, max_tokens, response_format, …}}`.
+- Poll states: `QUEUED / RUNNING / SUCCESS / FAILED / TIMEOUT_EXCEEDED / CANCELLATION_REQUESTED / CANCELLED`. Failed items land in a separate error file (`job.error_file`).
+- Structured output via `body.response_format` (json_schema). Up to 1M requests/batch.
+
+**Kimi/Moonshot & Qwen/DashScope** — the OpenAI-compatible pair:
+- JSONL line is OpenAI-identical: `{"custom_id", "method": "POST", "url": "/v1/chat/completions", "body": {...}}`. Same `request_builder` output as OpenAI, same `result_parser`. This is why `OpenAICompatBatchBackend` handles all three with no shape-specific branches.
+- Qwen caveat: results/limits are regional (50k req / 500 MB / 6 MB per line); embeddings use `text-embedding-v4`. Judge/gen only need `/v1/chat/completions`.
+
+### Deltas to the base plan's "New components" / "Changes to existing files"
+
+- **`backends.py`** — implement `OpenAICompatBatchBackend` (parameterized, replaces the base plan's `OpenAIBatchBackend`), `GeminiBatchBackend`, `MistralBatchBackend`. Map model→backend via `LLMProviderFactory._model_registry` adapter class (Kimi/Qwen adapters resolve to the OpenAI-compat backend with their base_url/key).
+- **`request_builder.py` / `result_parser.py`** — add a Gemini variant (`key`+`request` envelope, `response_schema`, `dest.*` results) and a Mistral variant. Kimi/Qwen reuse the OpenAI path verbatim.
+- **`src/services/llm/base.py` hooks** — implement `supports_batch` + `build_batch_request` + `parse_batch_result` in `GeminiAdapter`, `KimiAdapter`, and new `MistralAdapter`/`QwenAdapter`. `DeepSeekAdapter` leaves `supports_batch = False`.
+- **`src/lib/tokens.py`** — make the batch discount **per-backend** (dict/lookup), default `0.5`, so Kimi/Grok can be corrected once their real rate is confirmed without a code change. Don't hardcode `0.5` globally.
+- **Deps** — `mistralai` and `google-genai` SDKs (google-genai may already be present via `GeminiAdapter`; Kimi/Qwen need only the existing `openai` SDK, no new dep). Add `mistralai` to `requirements.txt` only if a `MistralAdapter` doesn't already pull it.
+- **Config** — batch backends resolve keys from global `.env` (`MOONSHOT_API_KEY`, `DASHSCOPE_API_KEY`/`x_api_key` equivalents, `MISTRAL_API_KEY`, `GOOGLE_API_KEY`), same as the factory.
+
+### Verification additions
+
+- Unit: `request_builder` emits a valid **Gemini** `{key, request}` line with `response_schema`, and a valid **Mistral** `{custom_id, body}` line; `result_parser` round-trips one sample `GenerateContentResponse` and one Mistral output line into an `LLMResponse` equal to the live shape.
+- Smoke (costs money, run once each): a `--batch-submit` with `--model gemini-2.5-flash`, and one with `--model kimi-k2.5` (exercises the OpenAI-compat path against a non-OpenAI base_url). Confirm `report.md` shows a Batch-savings line and outputs match live format.
+- Discount audit: for Kimi and Grok, cross-check the reported `batch_savings_usd` against their published pricing before relying on the number; adjust the per-backend rate in tokens.py if not 50%.
+
+### Sources
+
+- [Gemini Batch API](https://ai.google.dev/gemini-api/docs/batch-api) · [batch-api.md.txt](https://ai.google.dev/gemini-api/docs/batch-api.md.txt)
+- [Mistral Batch Processing](https://docs.mistral.ai/studio-api/batch-processing) · [Batch endpoints](https://docs.mistral.ai/api/endpoint/batch)
+- [Kimi Batch API guide](https://platform.kimi.ai/docs/guide/use-batch-api) · [Migrating from OpenAI to Kimi](https://platform.moonshot.ai/docs/guide/migrating-from-openai-to-kimi)
+- [DashScope/Qwen OpenAI-compatible batch](https://www.alibabacloud.com/help/en/model-studio/batch-interfaces-compatible-with-openai)
+- [DeepSeek API docs](https://api-docs.deepseek.com/) (no native batch) · [SiliconCloud batch for DeepSeek](https://news.aibase.com/news/16228)
+- [xAI Batch API](https://docs.x.ai/developers/advanced-api-usage/batch-api)
