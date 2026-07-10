@@ -147,7 +147,12 @@ class OpenAICompatBatchBackend:
 
 
 # api_key_type (factory registry) -> batch backend name. Only wired backends here.
-_API_KEY_TYPE_TO_BACKEND = {"anthropic": "anthropic", "openai": "openai"}
+_API_KEY_TYPE_TO_BACKEND = {
+    "anthropic": "anthropic",
+    "openai": "openai",
+    "moonshot": "moonshot",
+    "alibaba": "alibaba",
+}
 
 
 def make_backend(name: str) -> BatchBackend | None:
@@ -161,8 +166,23 @@ def make_backend(name: str) -> BatchBackend | None:
             base_url="https://api.openai.com/v1",
             name="openai",
         )
-    # Kimi/Qwen would reuse OpenAICompatBatchBackend with their base_url/key here,
-    # but their adapters keep supports_batch=False until the discount is verified.
+    if name == "moonshot":
+        # Kimi — OpenAI-compatible /v1/batches at the Moonshot base_url.
+        return OpenAICompatBatchBackend(
+            api_key=config.moonshot_api_key,
+            base_url="https://api.moonshot.ai/v1",
+            name="moonshot",
+        )
+    if name == "alibaba":
+        # Qwen/DashScope — OpenAI-compatible /v1/batches. sk-sp-* keys use the
+        # Coding Plan host (matches QwenAdapter.__init__).
+        key = config.alibaba_api_key or ""
+        base_url = (
+            "https://coding.dashscope.aliyuncs.com/v1"
+            if key.startswith("sk-sp-")
+            else "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        )
+        return OpenAICompatBatchBackend(api_key=key, base_url=base_url, name="alibaba")
     return None
 
 
