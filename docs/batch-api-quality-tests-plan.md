@@ -23,14 +23,19 @@
 - `OpenAIBatchBackend` shipped as the parameterized `OpenAICompatBatchBackend` (base_url/api_key) — OpenAI wired + verified.
 - Batch discount is a global `0.5` (both shipped backends are 50%), **not** yet a per-backend dict.
 
-**❌ Missing / deferred** (out of base scope — the [Extension](#extension-batch-support-for-gemini-mistral-kimi-qwen-deepseek) section):
-- Gemini, Mistral batch backends (bespoke shapes).
-- Kimi & Qwen: adapters keep `supports_batch = False` until their batch discount is confirmed (json_object vs json_schema; unconfirmed %). The OpenAI-compat backend can already target their base_urls.
-- Grok judge-batch backend (default judge runs live — by design).
-- DeepSeek batch — stays live-async (no native batch API; as designed).
-- Per-backend configurable discount dict in `tokens.py`.
-- `expired` per-item re-submission on a later `batch-collect`.
-- **Live smoke** (Verification §2/§3 — costs money): to be run by the user.
+**✅ Extension SHIPPED (2026-07-10)** on branch `feat/batch-api-extension`
+(impl plan: [docs/superpowers/plans/2026-07-10-batch-api-extension.md](superpowers/plans/2026-07-10-batch-api-extension.md)):
+- **Kimi & Qwen** — `supports_batch = True`; reuse the OpenAI-compat backend at the Moonshot / DashScope base_url (json_object + schema-in-prompt, matching each adapter's `generate()`).
+- **Mistral** — `MistralBatchBackend` via httpx REST (`/v1/batch/jobs` + file upload); OpenAI-compatible json_schema body. No `mistralai` dep.
+- **Gemini** — `GeminiBatchBackend` via `google-genai` inline batches; sentence map persisted per-request in the manifest so verbatim quote extraction survives into `batch-collect`.
+- **Grok** — `GrokBatchBackend` via httpx REST (Responses-API batch shape). The default judge (`grok-4-1-fast-reasoning`) is now batchable → judge round batches (two collects). No `xai_sdk` dep.
+- **Per-backend discount dict** in `tokens.py` (`BATCH_DISCOUNT` keyed by backend; `batch_discount_for`); `calculate_llm_cost(..., batch_backend=...)`.
+- **`expired` whole-batch resubmission** on `batch-collect` (deterministic rebuild from persisted RAG context).
+
+**❌ Still missing / by design:**
+- DeepSeek batch — stays live-async (no native batch API on `api.deepseek.com`; as designed).
+- **Live smoke** (Verification §2/§3 — costs money): to be run by the user. Mistral/Grok result-line shapes and the Gemini inline-result surface are `# ponytail:`-flagged as smoke-confirmable.
+- **Discount confirmation:** Kimi (`moonshot`) and Grok (`x`) default to 50% in `BATCH_DISCOUNT` but publish only "reduced pricing" — confirm the real % and correct the dict; their `batch_savings_usd` is an estimate until then.
 
 ## Context
 
@@ -160,7 +165,7 @@ Reuse the existing `tests/quality/results/{timestamp}/` convention. The batch ru
 
 ## Extension: batch support for Gemini, Mistral, Kimi, Qwen, DeepSeek
 
-> **❌ NOT IMPLEMENTED — deferred beyond base scope.** These providers all run on the **live-async fallback** today. See [Implementation status](#implementation-status-2026-07-09).
+> **✅ IMPLEMENTED (2026-07-10)** — Kimi, Qwen, Mistral, Gemini, and Grok now batch. Only **DeepSeek** remains on the live-async fallback. See [Implementation status](#implementation-status-2026-07-09). The notes below are the design reference the implementation followed.
 
 Research (July 2026) into each provider's batch offering. The headline: batch coverage is far wider than the base plan assumed. Instead of two batch backends (Anthropic, OpenAI) with everything else live, there are **three backend families** and only **one** provider (DeepSeek) that genuinely has no batch path.
 

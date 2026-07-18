@@ -22,10 +22,12 @@ LLM_PROVIDERS_LITERAL = Literal[
     "claude-4.5-haiku",
     "gemini-3.1-pro-preview",
     "gemini-3-pro-preview",
+    "gemini-3.1-flash-lite",
     "gemini-3-flash-preview",
     "gemini-3.5-flash",
     "gemini-2.5-pro",
     "gemini-2.5-flash",
+    "gpt-5.6-luna",
     "gpt-5.5",
     "gpt-5.4",
     "gpt-5.4-mini",
@@ -103,6 +105,7 @@ PDF_EXTRACTION_PROVIDERS = [
 
 # Quality test providers (curated list for --all-models testing)
 QUALITY_TEST_PROVIDERS = [
+    "gpt-5.6-luna",
     #"gpt-5.4",
     #"gpt-5.4-mini",
     #"gpt-5.4-nano",
@@ -117,7 +120,8 @@ QUALITY_TEST_PROVIDERS = [
     #"claude-4.5-sonnet",
     #"claude-4.6-opus",
     #"claude-4.5-opus",
-    #"gemini-3.5-flash"
+    #"gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
     #"gemini-3.1-pro-preview",
     #"gemini-3-flash-preview",
     #"gemini-2.5-flash",
@@ -127,14 +131,14 @@ QUALITY_TEST_PROVIDERS = [
     #"kimi-k2-turbo-preview",
     #"gemini-2.5-pro",
     #"deepseek-chat",
-    #"grok-4.3",
-    #"grok-4.20-0309-reasoning",
+    "grok-4.3",
+    "grok-4.20-0309-reasoning",
     #"grok-build-0.1",
     #"mistral-large",
-    #"mistral-medium",
+    "mistral-medium-3-5",
     # "grok-3",
     # "grok-3-mini",
-    # "deepseek-reasoner"
+    "deepseek-v4-flash"
     # "dial-gpt-4.1",  # denied WHY??
     # "dial-gpt-5",    # denied
     # "dial-gpt-5-chat",  # denied

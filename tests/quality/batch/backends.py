@@ -125,7 +125,9 @@ class OpenAICompatBatchBackend:
         status = self.client.batches.retrieve(batch_id).status
         if status == "completed":
             return "ended"
-        if status in ("failed", "expired", "cancelled", "canceled"):
+        if status == "expired":
+            return "expired"
+        if status in ("failed", "cancelled", "canceled"):
             return "failed"
         return "in_progress"
 
@@ -146,8 +148,254 @@ class OpenAICompatBatchBackend:
         return out
 
 
+class MistralBatchBackend:
+    """Mistral batch via httpx REST against api.mistral.ai (no mistralai SDK dep).
+
+    Flow: upload JSONL (POST /files, purpose=batch) -> create job
+    (POST /batch/jobs) -> poll (GET /batch/jobs/{id}) SUCCESS -> download
+    output_file (GET /files/{id}/content)."""
+
+    name = "mistral"
+    BASE_URL = "https://api.mistral.ai/v1"
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self._http = None
+
+    @property
+    def http(self):
+        if self._http is None:
+            import httpx
+
+            self._http = httpx.Client(
+                base_url=self.BASE_URL,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                timeout=60.0,
+            )
+        return self._http
+
+    def submit(self, lines: list[dict]) -> str:
+        import io
+
+        model = lines[0]["body"]["model"]
+        buf = io.BytesIO(("\n".join(json.dumps(x) for x in lines)).encode("utf-8"))
+        up = self.http.post(
+            "/files",
+            files={"file": ("batch.jsonl", buf, "application/jsonl")},
+            data={"purpose": "batch"},
+        )
+        up.raise_for_status()
+        file_id = up.json()["id"]
+        job = self.http.post(
+            "/batch/jobs",
+            json={"input_files": [file_id], "endpoint": "/v1/chat/completions", "model": model},
+        )
+        job.raise_for_status()
+        job_id = job.json()["id"]
+        logger.info(f"Submitted Mistral batch {job_id} ({len(lines)} requests)")
+        return job_id
+
+    def poll(self, batch_id: str) -> str:
+        r = self.http.get(f"/batch/jobs/{batch_id}")
+        r.raise_for_status()
+        status = r.json()["status"]
+        if status == "SUCCESS":
+            return "ended"
+        if status == "TIMEOUT_EXCEEDED":
+            return "expired"
+        if status in ("FAILED", "CANCELLED", "CANCELLATION_REQUESTED"):
+            return "failed"
+        return "in_progress"
+
+    def fetch(self, batch_id: str) -> dict[str, dict]:
+        r = self.http.get(f"/batch/jobs/{batch_id}")
+        r.raise_for_status()
+        output_file = r.json()["output_file"]
+        content = self.http.get(f"/files/{output_file}/content").text
+        out: dict[str, dict] = {}
+        for raw_line in content.splitlines():
+            if not raw_line.strip():
+                continue
+            line = json.loads(raw_line)
+            # ponytail: output line shape (response.body) is smoke-confirmable — adjust
+            # this mapping after the first live Mistral batch if it nests differently.
+            response = line.get("response") or {}
+            out[line["custom_id"]] = {
+                "custom_id": line["custom_id"],
+                "status_code": response.get("status_code", 200),
+                "body": response.get("body"),
+            }
+        return out
+
+
+def _genai_to_dict(resp) -> dict:
+    """Normalize a google-genai GenerateContentResponse into the dict shape
+    GeminiAdapter.parse_batch_result reads (candidates/usage_metadata/model_version)."""
+    if resp is None:
+        return {"candidates": []}
+    if hasattr(resp, "model_dump"):
+        try:
+            return resp.model_dump()
+        except Exception:  # pragma: no cover - defensive
+            pass
+    return resp  # already a dict
+
+
+class GeminiBatchBackend:
+    """Gemini batch via google-genai inline requests (no file upload)."""
+
+    name = "google"
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self._client = None
+
+    @property
+    def client(self):
+        if self._client is None:
+            from google import genai
+
+            self._client = genai.Client(api_key=self.api_key)
+        return self._client
+
+    def submit(self, lines: list[dict]) -> str:
+        # lines: [{custom_id, model, request:{contents, config}, _gemini_sentences}]
+        # google-genai inline batch validates each src item as an InlinedRequest
+        # (fields: model/contents/metadata/config) — NOT the file-JSONL
+        # {key, request} shape. The custom_id rides out-of-band in metadata["key"]
+        # and is echoed back on each InlinedResponse (see fetch()).
+        model = lines[0]["model"]
+        src = [
+            {
+                "contents": x["request"]["contents"],
+                "config": x["request"]["config"],
+                "metadata": {"key": x["custom_id"]},
+            }
+            for x in lines
+        ]
+        job = self.client.batches.create(model=model, src=src)
+        logger.info(f"Submitted Gemini batch {job.name} ({len(lines)} requests)")
+        return job.name
+
+    def poll(self, batch_id: str) -> str:
+        state = self.client.batches.get(name=batch_id).state.name
+        if state == "JOB_STATE_SUCCEEDED":
+            return "ended"
+        if state == "JOB_STATE_EXPIRED":
+            return "expired"
+        if state in ("JOB_STATE_FAILED", "JOB_STATE_CANCELLED"):
+            return "failed"
+        return "in_progress"
+
+    def fetch(self, batch_id: str) -> dict[str, dict]:
+        job = self.client.batches.get(name=batch_id)
+        out: dict[str, dict] = {}
+        # InlinedResponse echoes the request metadata (google-genai >= 2.x), so we
+        # correlate by metadata["key"]. Fail loud if it's ever absent rather than
+        # risk silently mis-correlating a response to the wrong custom_id.
+        dest = getattr(job, "dest", None)
+        responses = dest.inlined_responses if dest else []
+        for idx, item in enumerate(responses):
+            meta = getattr(item, "metadata", None) or {}
+            key = meta.get("key")
+            if key is None:
+                raise RuntimeError(
+                    f"Gemini batch {batch_id} response #{idx} has no metadata['key']; "
+                    f"cannot correlate to a custom_id (google-genai too old?)"
+                )
+            out[key] = {"custom_id": key, "response": _genai_to_dict(getattr(item, "response", None))}
+        return out
+
+
+class GrokBatchBackend:
+    """xAI Grok batch via httpx REST (Responses-API batch; no xai_sdk dep).
+
+    Flow: POST /batches (name) -> POST /batches/{id}/requests (batch_requests)
+    -> poll GET /batches/{id} (num_pending==0) -> GET /batches/{id}/results
+    (paginated succeeded/failed)."""
+
+    name = "x"
+    BASE_URL = "https://api.x.ai/v1"
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self._http = None
+
+    @property
+    def http(self):
+        if self._http is None:
+            import httpx
+
+            self._http = httpx.Client(
+                base_url=self.BASE_URL,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                timeout=60.0,
+            )
+        return self._http
+
+    def submit(self, lines: list[dict]) -> str:
+        created = self.http.post("/batches", json={"name": "quality-test"})
+        created.raise_for_status()
+        batch_id = created.json()["batch_id"]
+        payload = {
+            "batch_requests": [
+                {"batch_request_id": x["batch_request_id"], "batch_request": x["batch_request"]}
+                for x in lines
+            ]
+        }
+        added = self.http.post(f"/batches/{batch_id}/requests", json=payload)
+        added.raise_for_status()
+        logger.info(f"Submitted Grok batch {batch_id} ({len(lines)} requests)")
+        return batch_id
+
+    def poll(self, batch_id: str) -> str:
+        r = self.http.get(f"/batches/{batch_id}")
+        r.raise_for_status()
+        state = r.json().get("state", {})
+        if state.get("num_pending", 1) == 0:
+            return "ended"
+        return "in_progress"
+
+    def fetch(self, batch_id: str) -> dict[str, dict]:
+        out: dict[str, dict] = {}
+        token = None
+        while True:
+            params = {"limit": 100}
+            if token:
+                params["pagination_token"] = token
+            r = self.http.get(f"/batches/{batch_id}/results", params=params)
+            r.raise_for_status()
+            data = r.json()
+            # xAI returns every item (success or error) under "results"; each has
+            # a "batch_request_id" and a "batch_result" that wraps the served
+            # completion under a typed key (chat_get_completion for the
+            # chat.completions endpoint, get_response for the responses endpoint).
+            for item in data.get("results", []):
+                cid = item["batch_request_id"]
+                result = item.get("batch_result") or {}
+                response = result.get("response") or {}
+                completion = (
+                    response.get("chat_get_completion")
+                    or response.get("get_response")
+                    or (response if response else None)
+                )
+                out[cid] = {"custom_id": cid, "response": completion}
+            token = data.get("pagination_token")
+            if not token:
+                break
+        return out
+
+
 # api_key_type (factory registry) -> batch backend name. Only wired backends here.
-_API_KEY_TYPE_TO_BACKEND = {"anthropic": "anthropic", "openai": "openai"}
+_API_KEY_TYPE_TO_BACKEND = {
+    "anthropic": "anthropic",
+    "openai": "openai",
+    "moonshot": "moonshot",
+    "alibaba": "alibaba",
+    "mistral": "mistral",
+    "google": "google",
+    "x": "x",
+}
 
 
 def make_backend(name: str) -> BatchBackend | None:
@@ -161,8 +409,29 @@ def make_backend(name: str) -> BatchBackend | None:
             base_url="https://api.openai.com/v1",
             name="openai",
         )
-    # Kimi/Qwen would reuse OpenAICompatBatchBackend with their base_url/key here,
-    # but their adapters keep supports_batch=False until the discount is verified.
+    if name == "moonshot":
+        # Kimi — OpenAI-compatible /v1/batches at the Moonshot base_url.
+        return OpenAICompatBatchBackend(
+            api_key=config.moonshot_api_key,
+            base_url="https://api.moonshot.ai/v1",
+            name="moonshot",
+        )
+    if name == "alibaba":
+        # Qwen/DashScope — OpenAI-compatible /v1/batches. sk-sp-* keys use the
+        # Coding Plan host (matches QwenAdapter.__init__).
+        key = config.alibaba_api_key or ""
+        base_url = (
+            "https://coding.dashscope.aliyuncs.com/v1"
+            if key.startswith("sk-sp-")
+            else "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        )
+        return OpenAICompatBatchBackend(api_key=key, base_url=base_url, name="alibaba")
+    if name == "mistral":
+        return MistralBatchBackend(api_key=config.mistral_api_key)
+    if name == "google":
+        return GeminiBatchBackend(api_key=config.google_api_key)
+    if name == "x":
+        return GrokBatchBackend(api_key=config.x_api_key)
     return None
 
 

@@ -37,6 +37,83 @@ class KimiAdapter(LLMProvider):
 
     KIMI_BASE_URL = "https://api.moonshot.ai/v1"
 
+    # K2.x thinking models force temperature=1.0 and use 3x max_tokens (reasoning).
+    THINKING_MODELS = {"kimi-k2.5", "kimi-k2.6", "kimi-k2.7-code"}
+
+    supports_batch = True
+
+    def _batch_params(self, request: GenerationRequest) -> tuple[float, int]:
+        """Temperature + max_tokens exactly as generate() computes them."""
+        temperature = 1.0 if self.model in self.THINKING_MODELS else request.config.temperature
+        max_tokens = (
+            request.config.max_tokens * 3
+            if self.model in self.THINKING_MODELS
+            else request.config.max_tokens
+        )
+        return temperature, max_tokens
+
+    def build_batch_request(self, request: GenerationRequest, custom_id: str) -> dict:
+        """OpenAI-compatible /v1/batches line using Kimi's json_object mode.
+
+        Kimi has thinking mode on by default (incompatible with tool_choice), so
+        the live path appends the JSON schema to the system prompt and uses
+        response_format={"type":"json_object"}. Batch matches that exactly.
+        """
+        full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
+        json_schema = get_pydantic_model(request.config.structured_output_schema).model_json_schema()
+        system_with_schema = (
+            request.config.system_prompt
+            + "\n\nIMPORTANT: You MUST respond with valid JSON matching this exact schema:\n"
+            + f"```json\n{json.dumps(json_schema, indent=2)}\n```\n"
+            + "Do not include any text before or after the JSON object."
+        )
+        temperature, max_tokens = self._batch_params(request)
+        body = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_with_schema},
+                {"role": "user", "content": full_prompt},
+            ],
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "response_format": {"type": "json_object"},
+        }
+        return {"custom_id": custom_id, "method": "POST", "url": "/v1/chat/completions", "body": body}
+
+    @classmethod
+    def parse_batch_result(cls, raw: dict) -> LLMResponse:
+        body = raw.get("body")
+        if raw.get("status_code") not in (200, None) or body is None:
+            raise RuntimeError(
+                f"batch item {raw.get('custom_id')} status {raw.get('status_code')} (no body)"
+            )
+        content = body["choices"][0]["message"]["content"]
+        usage = body.get("usage", {})
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0) or 0
+        # Populate structured_output so consumers such as the custom judge can
+        # read it directly (mirrors the live generate() path).
+        try:
+            structured_output = json.loads(content)
+        except (json.JSONDecodeError, TypeError):
+            structured_output = None
+        return LLMResponse(
+            response_id=uuid4(),
+            answer_text=content,
+            confidence_score=0.8,
+            token_count=usage.get("total_tokens", prompt_tokens + completion_tokens),
+            latency_ms=0,
+            provider="moonshot",
+            model_version=body.get("model", ""),
+            citations_included=True,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cache_read_tokens=cached,
+            cache_creation_tokens=0,
+            structured_output=structured_output,
+        )
+
     def __init__(self, api_key: str, model: str = "kimi-k2.5"):
         """Initialize Kimi adapter.
 
@@ -92,17 +169,10 @@ class KimiAdapter(LLMProvider):
             )
             system_prompt_with_schema = request.config.system_prompt + schema_instruction
 
-            # Kimi K2.x thinking models only support temperature=1.0
-            THINKING_MODELS = {"kimi-k2.5", "kimi-k2.6", "kimi-k2.7-code"}
-            temperature = request.config.temperature
-            if self.model in THINKING_MODELS:
-                temperature = 1.0
-
-            # Kimi K2.x thinking models use internal reasoning tokens
-            # Multiply max_tokens by 3 to account for reasoning tokens (similar to GPT-5/o-series)
-            max_tokens = request.config.max_tokens
-            if self.model in THINKING_MODELS:
-                max_tokens = request.config.max_tokens * 3
+            # Kimi K2.x thinking models: temperature forced to 1.0 and 3x max_tokens
+            # (reasoning tokens). Shared with the batch hook via _batch_params.
+            temperature, max_tokens = self._batch_params(request)
+            if self.model in self.THINKING_MODELS:
                 logger.debug(
                     f"Kimi {self.model}: Using max_tokens={max_tokens} "
                     f"(3x {request.config.max_tokens} to account for thinking tokens)"

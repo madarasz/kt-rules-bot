@@ -6,11 +6,12 @@ from types import SimpleNamespace
 from src.services.llm.base import GenerationConfig, GenerationRequest
 from src.services.llm.chatgpt import ChatGPTAdapter
 from src.services.llm.claude import ClaudeAdapter
-from src.services.llm.gemini import GeminiAdapter
+from src.services.llm.deepseek import DeepSeekAdapter
 
 
 def test_non_batch_adapter_defaults_false():
-    assert GeminiAdapter.supports_batch is False
+    # DeepSeek has no native batch API and stays on the live-async fallback.
+    assert DeepSeekAdapter.supports_batch is False
 
 
 def test_batchable_adapters_opt_in():

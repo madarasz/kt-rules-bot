@@ -83,7 +83,9 @@ python -m src.cli quality-test --batch-submit --test <id> --model claude-4.6-son
 python -m src.cli quality-test --batch-collect tests/quality/results/<timestamp>
 ```
 - `--batch-submit` / `--batch-collect <dir>` are mutually exclusive.
-- Batchable: `claude-*`, `gpt-*`/`o3*`. Everything else runs live at submit.
+- Batchable: `claude-*`, `gpt-*`/`o3*`, `kimi-*`, `qwen*`, `mistral*`, `gemini-*`, `grok-*`. Only DeepSeek runs live at submit (no native batch API).
+- The default `grok-4-1-fast-reasoning` judge is batchable, so a full run is typically two `--batch-collect` passes (gen batch, then judge batch).
+- Kimi/Grok batch discounts are estimated at 50% (unconfirmed reduced pricing) in `src/lib/tokens.py`; savings for those two are approximate until confirmed.
 - State persists in `<dir>/batch_state.json` (resumable). See [tests/quality/CLAUDE.md](../../tests/quality/CLAUDE.md#batch-api-workflow-opt-in-50-cheaper).
 
 ### `download-team`

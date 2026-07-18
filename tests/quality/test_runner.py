@@ -710,9 +710,12 @@ class QualityTestRunner:
                             config=gen_config,
                             chunk_ids=chunk_ids,
                         )
-                        backend_lines.setdefault(backend.name, []).append(
-                            provider.build_batch_request(req, custom_id)
-                        )
+                        line = provider.build_batch_request(req, custom_id)
+                        # Gemini carries a sentence map for collect-time quote
+                        # reconstruction; persist it on the request row.
+                        if line.get("_gemini_sentences"):
+                            requests_meta[-1]["gemini_sentences"] = line["_gemini_sentences"]
+                        backend_lines.setdefault(backend.name, []).append(line)
                         backends_by_name[backend.name] = backend
                     else:
                         live_tasks.append(
@@ -760,6 +763,29 @@ class QualityTestRunner:
             manifest.save()
         return manifest
 
+    def _rebuild_gen_lines_for_backend(self, manifest, backend_name: str) -> list[dict]:
+        """Rebuild generation batch lines for one backend from persisted manifest
+        state (used to resubmit an expired batch). RAG context is persisted in
+        manifest.contexts, so lines are byte-for-byte what submit_batch_run built."""
+        gen_config = GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT)
+        lines: list[dict] = []
+        for row in manifest.requests:
+            if row["kind"] != "gen" or row.get("backend") != backend_name:
+                continue
+            if row["custom_id"] in manifest.live_done:
+                continue
+            ctx = manifest.contexts[f"{row['test_id']}__run{row['run_num']}"]
+            query = self.load_test_cases(row["test_id"])[0].query
+            provider = LLMProviderFactory.create(row["model"])
+            req = GenerationRequest(
+                prompt=query,
+                context=ctx["context"],
+                config=gen_config,
+                chunk_ids=ctx["chunk_ids"],
+            )
+            lines.append(provider.build_batch_request(req, row["custom_id"]))
+        return lines
+
     async def collect_batch_run(self, report_dir: Path | str) -> str:
         """Single-pass advance of the batch state machine. Returns the new phase."""
         from tests.quality.batch.manifest import BatchManifest
@@ -787,7 +813,15 @@ class QualityTestRunner:
             if status == "failed":
                 manifest.save()
                 raise RuntimeError(f"Generation batch {info['batch_id']} ({name}) failed")
-            if status != "ended":
+            if status == "expired":
+                # Whole batch expired before completing — resubmit its still-unfetched
+                # requests (deterministic: RAG context is persisted) and keep waiting.
+                lines = self._rebuild_gen_lines_for_backend(manifest, name)
+                new_id = gen_backends[name].submit(lines)
+                info.update({"batch_id": new_id, "status": "in_progress"})
+                print(f"Generation batch {name} expired — resubmitted as {new_id}.")
+                all_ended = False
+            elif status != "ended":
                 all_ended = False
         manifest.save()
         if not all_ended:
@@ -844,6 +878,28 @@ class QualityTestRunner:
         if not llm_response.model_version:
             llm_response.model_version = LLMProviderFactory._model_registry[model][1]
 
+        # Gemini quote reconstruction: parse_batch_result returns GeminiAnswer JSON
+        # with sentence_numbers and empty quote_text; fill it here using the sentence
+        # map persisted at submit + the retrieval context (mirrors generate()).
+        if llm_response.provider == "gemini" and meta.get("gemini_sentences"):
+            import json as _json
+
+            from src.services.llm.gemini_quote_extractor import post_process_gemini_response
+
+            ctx = contexts.get(f"{meta['test_id']}__run{meta['run_num']}", {})
+            try:
+                answer_dict = _json.loads(llm_response.answer_text)
+                answer_dict = post_process_gemini_response(
+                    answer_dict,
+                    ctx.get("context", []),
+                    ctx.get("chunk_ids", []),
+                    meta["gemini_sentences"],
+                )
+                llm_response.answer_text = _json.dumps(answer_dict)
+                llm_response.structured_output = answer_dict
+            except Exception as e:
+                logger.error(f"Failed to post-process Gemini response for {meta['custom_id']}: {e}")
+
         breakdown = calculate_llm_cost(
             prompt_tokens=llm_response.prompt_tokens,
             completion_tokens=llm_response.completion_tokens,
@@ -851,6 +907,7 @@ class QualityTestRunner:
             cache_read_tokens=llm_response.cache_read_tokens,
             cache_creation_tokens=llm_response.cache_creation_tokens,
             batch=True,
+            batch_backend=meta.get("backend"),
         )
         try:
             structured = StructuredLLMResponse.from_json(llm_response.answer_text)
@@ -1008,6 +1065,7 @@ class QualityTestRunner:
                     cache_read_tokens=jr.cache_read_tokens,
                     cache_creation_tokens=jr.cache_creation_tokens,
                     batch=True,
+                    batch_backend=next(iter(manifest.judge), None),
                 )
                 judge_cost = jb.total_cost
                 judge_batch_savings = jb.batch_savings

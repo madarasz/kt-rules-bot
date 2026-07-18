@@ -261,18 +261,32 @@ python -m src.cli quality-test --batch-submit --test eliminator-concealed-counte
 python -m src.cli quality-test --batch-collect tests/quality/results/<timestamp>
 ```
 
-**Coverage (base scope):** Anthropic (`claude-*`) and OpenAI (`gpt-*`, `o3*`)
-generate via batch. Every other model — Gemini, Mistral, Kimi, Qwen, **Grok**,
-DeepSeek — falls back to **live async at submit time** and lands in the same report.
+**Coverage:** Anthropic (`claude-*`), OpenAI (`gpt-*`, `o3*`), **Kimi**
+(`moonshot`), **Qwen** (`alibaba`/DashScope), **Mistral**, **Gemini**, and
+**Grok** (`x`) generate via batch. Only **DeepSeek** — which has no native batch
+API — falls back to **live async at submit time** and lands in the same report.
+Kimi/Qwen reuse the OpenAI-compatible `/v1/batches` backend; Mistral and Grok use
+httpx REST (no new SDK deps); Gemini uses `google-genai` inline batches with a
+persisted sentence map so verbatim quote extraction survives into `batch-collect`.
 
-**Judge round:** batches only when the judge model is batchable (e.g.
-`gpt-4.1-mini`) — then reaching `done` takes two collects (gen batch, then judge
-batch). The default judge (`grok-4-1-fast-reasoning`) is not batchable, so it runs
-live inside the first collect and a single collect finishes the run.
+**Judge round:** batches whenever the judge model is batchable — including the
+default `grok-4-1-fast-reasoning` — so reaching `done` normally takes **two
+collects** (gen batch, then judge batch). A non-batchable judge (e.g. DeepSeek)
+runs live inside the first collect and a single collect finishes the run.
+
+**Discounts:** per-backend in `src/lib/tokens.py` (`BATCH_DISCOUNT`). All default
+to 50%; **Kimi (`moonshot`) and Grok (`x`) publish "reduced pricing" without a
+confirmed percentage** — their `batch_savings_usd` is an estimate until the rate
+is confirmed against the provider pricing page and corrected in `BATCH_DISCOUNT`.
 
 **Reporting:** `report.md` gains a **Batch net savings** line next to the existing
 cache-savings line, plus a combined total. Per-result savings are stored in each
 `output_*.md` metadata (`batch`, `batch_savings_usd`) and re-derived on collect.
+
+> **Live fidelity note:** the Mistral/Grok result-line shapes and the Gemini
+> inline-result surface are marked `# ponytail:` in the code — they are exercised
+> offline (transport/poll/scaffold) but confirmed against a live run only by the
+> paid smoke test.
 
 **When to use:** cost-sensitive CI where a multi-hour (worst case ~48h, two rounds)
 turnaround is fine. Not for interactive iteration — use the live path (default) there.

@@ -37,6 +37,67 @@ class QwenAdapter(LLMProvider):
     DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     CODING_PLAN_BASE_URL = "https://coding.dashscope.aliyuncs.com/v1"
 
+    supports_batch = True
+
+    def build_batch_request(self, request: GenerationRequest, custom_id: str) -> dict:
+        """OpenAI-compatible /v1/batches line using Qwen's json_object mode.
+
+        Mirrors generate(): schema appended to the system prompt,
+        response_format={"type":"json_object"}, no thinking-token multiplier.
+        """
+        full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
+        json_schema = get_pydantic_model(request.config.structured_output_schema).model_json_schema()
+        system_with_schema = (
+            request.config.system_prompt
+            + "\n\nIMPORTANT: You MUST respond with valid JSON matching this exact schema:\n"
+            + f"```json\n{json.dumps(json_schema, indent=2)}\n```\n"
+            + "Do not include any text before or after the JSON object."
+        )
+        body = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_with_schema},
+                {"role": "user", "content": full_prompt},
+            ],
+            "max_tokens": request.config.max_tokens,
+            "temperature": request.config.temperature,
+            "response_format": {"type": "json_object"},
+        }
+        return {"custom_id": custom_id, "method": "POST", "url": "/v1/chat/completions", "body": body}
+
+    @classmethod
+    def parse_batch_result(cls, raw: dict) -> LLMResponse:
+        body = raw.get("body")
+        if raw.get("status_code") not in (200, None) or body is None:
+            raise RuntimeError(
+                f"batch item {raw.get('custom_id')} status {raw.get('status_code')} (no body)"
+            )
+        content = body["choices"][0]["message"]["content"]
+        usage = body.get("usage", {})
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        # Populate structured_output so consumers such as the custom judge can
+        # read it directly (mirrors the live generate() path).
+        try:
+            structured_output = json.loads(content)
+        except (json.JSONDecodeError, TypeError):
+            structured_output = None
+        return LLMResponse(
+            response_id=uuid4(),
+            answer_text=content,
+            confidence_score=0.8,
+            token_count=usage.get("total_tokens", prompt_tokens + completion_tokens),
+            latency_ms=0,
+            provider="alibaba",
+            model_version=body.get("model", ""),
+            citations_included=True,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cache_read_tokens=0,
+            cache_creation_tokens=0,
+            structured_output=structured_output,
+        )
+
     def __init__(self, api_key: str, model: str = "qwen3.5-plus"):
         """Initialize Qwen adapter.
 

@@ -41,6 +41,7 @@ class LLMCostBreakdown:
 #             "none" = no caching support
 pricing: dict[str, dict] = {
     # https://platform.openai.com/docs/pricing
+    "gpt-5.6-luna":        {"prompt": 0.00100, "completion": 0.060,  "cache_read": 0.0001,   "cache_write": 0.0, "cache_mode": "openai"},
     "gpt-5.5":             {"prompt": 0.00500, "completion": 0.030,  "cache_read": 0.00250,  "cache_write": 0.0, "cache_mode": "openai"},
     "gpt-5.4":             {"prompt": 0.00250, "completion": 0.015,  "cache_read": 0.00125,  "cache_write": 0.0, "cache_mode": "openai"},
     "gpt-5.4-mini":        {"prompt": 0.00075, "completion": 0.0045, "cache_read": 0.000375, "cache_write": 0.0, "cache_mode": "openai"},
@@ -88,6 +89,7 @@ pricing: dict[str, dict] = {
     "gemini-3-pro-preview":    {"prompt": 0.002,   "completion": 0.012,  "cache_read": 0.0002,   "cache_write": 0.0, "cache_mode": "openai"},
     "gemini-2.5-pro":          {"prompt": 0.00125, "completion": 0.01,   "cache_read": 0.000125, "cache_write": 0.0, "cache_mode": "openai"},
     "gemini-3-flash-preview":  {"prompt": 0.0005,  "completion": 0.003,  "cache_read": 0.00005,  "cache_write": 0.0, "cache_mode": "openai"},
+    "gemini-3.1-flash-lite":    {"prompt": 0.00025,  "completion": 0.0015,  "cache_read": 0.000025,  "cache_write": 0.0, "cache_mode": "openai"},
     "gemini-3.5-flash":        {"prompt": 0.0015,  "completion": 0.009,  "cache_read": 0.00015,  "cache_write": 0.0, "cache_mode": "openai"},
     "gemini-2.5-flash":        {"prompt": 0.0003,  "completion": 0.0025, "cache_read": 0.00003,  "cache_write": 0.0, "cache_mode": "openai"},
     # https://api-docs.deepseek.com/quick_start/pricing
@@ -118,10 +120,26 @@ pricing: dict[str, dict] = {
 }
 
 
-# Batch API discount per backend. Both Anthropic and OpenAI batch = 50% off.
-# Keyed by pricing cache_mode for now; make per-provider if a backend differs
-# (e.g. Kimi/Grok publish "reduced" rates without a confirmed percentage).
-BATCH_DISCOUNT = 0.5
+# Batch API discount per backend (fraction off the live, post-cache cost).
+# Anthropic, OpenAI, Mistral, Qwen/DashScope, Gemini confirmed 50%.
+# ponytail: moonshot (Kimi) and x (Grok) publish "reduced pricing" without a
+# confirmed %, defaulted to 0.5 — confirm against their pricing page and correct
+# here if different; batch_savings_usd for those two is an estimate until then.
+DEFAULT_BATCH_DISCOUNT = 0.5
+BATCH_DISCOUNT: dict[str, float] = {
+    "anthropic": 0.5,
+    "openai": 0.5,
+    "mistral": 0.5,
+    "alibaba": 0.5,   # Qwen / DashScope
+    "google": 0.5,    # Gemini
+    "moonshot": 0.5,  # Kimi — estimate, confirm
+    "x": 0.2,         # Grok — estimate, confirm
+}
+
+
+def batch_discount_for(backend: str | None) -> float:
+    """Return the batch discount fraction for a backend name (default 0.5)."""
+    return BATCH_DISCOUNT.get(backend or "", DEFAULT_BATCH_DISCOUNT)
 
 
 def calculate_llm_cost(
@@ -131,6 +149,7 @@ def calculate_llm_cost(
     cache_read_tokens: int = 0,
     cache_creation_tokens: int = 0,
     batch: bool = False,
+    batch_backend: str | None = None,
 ) -> LLMCostBreakdown:
     """Calculate detailed cost breakdown for an LLM call, including cache savings.
 
@@ -140,8 +159,10 @@ def calculate_llm_cost(
         model: Model name
         cache_read_tokens: Tokens served from cache (default: 0)
         cache_creation_tokens: Tokens written to cache (default: 0, anthropic only)
-        batch: If True, apply the 50% Batch-API discount on top of cache accounting
+        batch: If True, apply the Batch-API discount on top of cache accounting
                and report the delta as batch_savings.
+        batch_backend: Backend name selecting the discount rate (see BATCH_DISCOUNT);
+               None falls back to DEFAULT_BATCH_DISCOUNT (0.5).
 
     Returns:
         LLMCostBreakdown with full cost and savings breakdown
@@ -186,8 +207,9 @@ def calculate_llm_cost(
     # Batch discount stacks on top of cache accounting. cache_savings stays computed
     # on the live (pre-discount) numbers above so the two savings never double-count.
     if batch:
-        factor = 1.0 - BATCH_DISCOUNT
-        batch_savings = total_cost * BATCH_DISCOUNT
+        discount = batch_discount_for(batch_backend)
+        factor = 1.0 - discount
+        batch_savings = total_cost * discount
         prompt_cost *= factor
         completion_cost *= factor
         cache_read_cost *= factor
