@@ -44,6 +44,7 @@ class LLMProviderFactory:
         "gemini-3.1-flash-lite": (GeminiAdapter, "gemini-3.1-flash-lite", "google"),
         "gemini-3.5-flash": (GeminiAdapter, "gemini-3.5-flash", "google"),
         "gemini-2.5-flash": (GeminiAdapter, "gemini-2.5-flash", "google"),
+        "gpt-5.6-luna": (ChatGPTAdapter, "gpt-5.6-luna", "openai"),
         "gpt-5.5": (ChatGPTAdapter, "gpt-5.5", "openai"),
         "gpt-5.4": (ChatGPTAdapter, "gpt-5.4", "openai"),
         "gpt-5.4-mini": (ChatGPTAdapter, "gpt-5.4-mini", "openai"),

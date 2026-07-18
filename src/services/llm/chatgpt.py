@@ -121,6 +121,7 @@ class ChatGPTAdapter(LLMProvider):
 
         # GPT-5 and O-series models have limited parameter support and use reasoning tokens
         reasoning_models = [
+            "gpt-5.6-luna",
             "gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano",
             "gpt-5.3-chat-latest",
             "gpt-5.2", "gpt-5.2-chat-latest",

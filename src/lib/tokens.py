@@ -41,6 +41,7 @@ class LLMCostBreakdown:
 #             "none" = no caching support
 pricing: dict[str, dict] = {
     # https://platform.openai.com/docs/pricing
+    "gpt-5.6-luna":        {"prompt": 0.00100, "completion": 0.060,  "cache_read": 0.0001,   "cache_write": 0.0, "cache_mode": "openai"},
     "gpt-5.5":             {"prompt": 0.00500, "completion": 0.030,  "cache_read": 0.00250,  "cache_write": 0.0, "cache_mode": "openai"},
     "gpt-5.4":             {"prompt": 0.00250, "completion": 0.015,  "cache_read": 0.00125,  "cache_write": 0.0, "cache_mode": "openai"},
     "gpt-5.4-mini":        {"prompt": 0.00075, "completion": 0.0045, "cache_read": 0.000375, "cache_write": 0.0, "cache_mode": "openai"},
