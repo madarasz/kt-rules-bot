@@ -4,6 +4,7 @@ Implements LLMProvider interface for Grok models.
 Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
+import json
 import time
 from uuid import uuid4
 
@@ -70,24 +71,40 @@ class GrokAdapter(LLMProvider):
 
     @classmethod
     def parse_batch_result(cls, raw: dict) -> LLMResponse:
-        # ponytail: smoke-confirm the Responses output path (output_text vs
-        # output[].content[].text) against a live xAI batch result.
         resp = raw.get("response")
         if resp is None:
             raise RuntimeError(f"grok batch item {raw.get('custom_id')} has no response")
-        content = resp.get("output_text")
-        if content is None:
-            out = resp.get("output") or []
-            content = next(
-                c["text"]
-                for o in out
-                for c in o.get("content", [])
-                if c.get("type") == "output_text"
-            )
+        # xAI batch serves the chat.completions endpoint: content lives at
+        # choices[0].message.content. Fall back to the Responses-API shape
+        # (output_text / output[].content[].text) for forward compatibility.
+        choices = resp.get("choices")
+        if choices:
+            content = choices[0]["message"]["content"]
+        else:
+            content = resp.get("output_text")
+            if content is None:
+                out = resp.get("output") or []
+                content = next(
+                    c["text"]
+                    for o in out
+                    for c in o.get("content", [])
+                    if c.get("type") == "output_text"
+                )
         usage = resp.get("usage", {})
-        prompt_tokens = usage.get("input_tokens", usage.get("prompt_tokens", 0))
-        completion_tokens = usage.get("output_tokens", usage.get("completion_tokens", 0))
-        cached = (usage.get("input_tokens_details") or {}).get("cached_tokens", 0) or 0
+        prompt_tokens = usage.get("prompt_tokens", usage.get("input_tokens", 0))
+        completion_tokens = usage.get("completion_tokens", usage.get("output_tokens", 0))
+        cached = (
+            (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0)
+            or (usage.get("input_tokens_details") or {}).get("cached_tokens", 0)
+            or 0
+        )
+        # Populate structured_output from the JSON content, mirroring the live
+        # generate() path. Consumers such as the custom judge read this field
+        # directly (rather than re-parsing answer_text).
+        try:
+            structured_output = json.loads(content)
+        except (json.JSONDecodeError, TypeError):
+            structured_output = None
         return LLMResponse(
             response_id=uuid4(),
             answer_text=content,
@@ -101,6 +118,7 @@ class GrokAdapter(LLMProvider):
             completion_tokens=completion_tokens,
             cache_read_tokens=cached,
             cache_creation_tokens=0,
+            structured_output=structured_output,
         )
 
     def __init__(self, api_key: str, model: str = "grok-3"):

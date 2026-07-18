@@ -293,7 +293,9 @@ class GeminiBatchBackend:
         # InlinedResponse echoes the request metadata (google-genai >= 2.x), so we
         # correlate by metadata["key"]. Fail loud if it's ever absent rather than
         # risk silently mis-correlating a response to the wrong custom_id.
-        for idx, item in enumerate(job.dest.inlined_responses):
+        dest = getattr(job, "dest", None)
+        responses = dest.inlined_responses if dest else []
+        for idx, item in enumerate(responses):
             meta = getattr(item, "metadata", None) or {}
             key = meta.get("key")
             if key is None:
@@ -364,13 +366,20 @@ class GrokBatchBackend:
             r = self.http.get(f"/batches/{batch_id}/results", params=params)
             r.raise_for_status()
             data = r.json()
-            # ponytail: succeeded/failed item shape is smoke-confirmable.
-            for item in data.get("succeeded", []):
+            # xAI returns every item (success or error) under "results"; each has
+            # a "batch_request_id" and a "batch_result" that wraps the served
+            # completion under a typed key (chat_get_completion for the
+            # chat.completions endpoint, get_response for the responses endpoint).
+            for item in data.get("results", []):
                 cid = item["batch_request_id"]
-                out[cid] = {"custom_id": cid, "response": item.get("response") or item.get("batch_response")}
-            for item in data.get("failed", []):
-                cid = item["batch_request_id"]
-                out[cid] = {"custom_id": cid, "response": None}
+                result = item.get("batch_result") or {}
+                response = result.get("response") or {}
+                completion = (
+                    response.get("chat_get_completion")
+                    or response.get("get_response")
+                    or (response if response else None)
+                )
+                out[cid] = {"custom_id": cid, "response": completion}
             token = data.get("pagination_token")
             if not token:
                 break

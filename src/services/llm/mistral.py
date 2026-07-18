@@ -4,6 +4,7 @@ Implements LLMProvider interface for Mistral models.
 Based on specs/001-we-are-building/contracts/llm-adapter.md
 """
 
+import json
 import time
 from uuid import uuid4
 
@@ -70,6 +71,12 @@ class MistralAdapter(LLMProvider):
         prompt_tokens = usage.get("prompt_tokens", 0)
         completion_tokens = usage.get("completion_tokens", 0)
         cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0) or 0
+        # Populate structured_output so consumers such as the custom judge can
+        # read it directly (mirrors the live generate() path).
+        try:
+            structured_output = json.loads(content)
+        except (json.JSONDecodeError, TypeError):
+            structured_output = None
         return LLMResponse(
             response_id=uuid4(),
             answer_text=content,
@@ -83,6 +90,7 @@ class MistralAdapter(LLMProvider):
             completion_tokens=completion_tokens,
             cache_read_tokens=cached,
             cache_creation_tokens=0,
+            structured_output=structured_output,
         )
 
     def __init__(self, api_key: str, model: str = "mistral-large-latest"):

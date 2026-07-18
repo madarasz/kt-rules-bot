@@ -887,15 +887,18 @@ class QualityTestRunner:
             from src.services.llm.gemini_quote_extractor import post_process_gemini_response
 
             ctx = contexts.get(f"{meta['test_id']}__run{meta['run_num']}", {})
-            answer_dict = _json.loads(llm_response.answer_text)
-            answer_dict = post_process_gemini_response(
-                answer_dict,
-                ctx.get("context", []),
-                ctx.get("chunk_ids", []),
-                meta["gemini_sentences"],
-            )
-            llm_response.answer_text = _json.dumps(answer_dict)
-            llm_response.structured_output = answer_dict
+            try:
+                answer_dict = _json.loads(llm_response.answer_text)
+                answer_dict = post_process_gemini_response(
+                    answer_dict,
+                    ctx.get("context", []),
+                    ctx.get("chunk_ids", []),
+                    meta["gemini_sentences"],
+                )
+                llm_response.answer_text = _json.dumps(answer_dict)
+                llm_response.structured_output = answer_dict
+            except Exception as e:
+                logger.error(f"Failed to post-process Gemini response for {meta['custom_id']}: {e}")
 
         breakdown = calculate_llm_cost(
             prompt_tokens=llm_response.prompt_tokens,

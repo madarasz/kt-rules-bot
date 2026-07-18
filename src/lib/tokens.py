@@ -132,7 +132,7 @@ BATCH_DISCOUNT: dict[str, float] = {
     "alibaba": 0.5,   # Qwen / DashScope
     "google": 0.5,    # Gemini
     "moonshot": 0.5,  # Kimi — estimate, confirm
-    "x": 0.5,         # Grok — estimate, confirm
+    "x": 0.2,         # Grok — estimate, confirm
 }
 
 

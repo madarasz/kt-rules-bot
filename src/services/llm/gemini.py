@@ -41,7 +41,10 @@ class GeminiAdapter(LLMProvider):
     supports_batch = True
 
     @staticmethod
-    def _number_context(context, chunk_ids):
+    def _number_context(
+        context: list[str],
+        chunk_ids: list[str] | None,
+    ) -> tuple[list[str], list[str], dict[str, list[str]]]:
         """Number sentences across chunks for quote extraction.
 
         Returns (numbered_chunks, synthetic_chunk_ids, chunk_id_to_sentences).
@@ -81,8 +84,13 @@ class GeminiAdapter(LLMProvider):
             )
             model_cls = get_pydantic_model(schema_type, use_gemini_answer=True)
         else:
-            # Judge / hop-eval schemas do not use sentence numbering.
-            full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
+            # Judge / hop-eval schemas do not use sentence numbering, but the live
+            # generate() path still prepends the gemini system prompt for every
+            # schema — replicate that here so batch and live prompts stay identical.
+            full_prompt = (
+                f"{build_system_prompt('gemini')}\n\n"
+                f"{self._build_prompt(request.prompt, request.context, request.chunk_ids)}"
+            )
             model_cls = get_pydantic_model(schema_type)
             sentence_map = {}
         return {
@@ -116,6 +124,13 @@ class GeminiAdapter(LLMProvider):
         prompt_tokens = usage.get("prompt_token_count", 0)
         completion_tokens = usage.get("candidates_token_count", 0)
         cached = usage.get("cached_content_token_count", 0) or 0
+        # Populate structured_output so consumers such as the custom judge can
+        # read it directly (the default-schema generation path overwrites this
+        # after quote_text post-processing in _write_batch_generation_output).
+        try:
+            structured_output = json.loads(text)
+        except (json.JSONDecodeError, TypeError):
+            structured_output = None
         return LLMResponse(
             response_id=uuid4(),
             answer_text=text,
@@ -129,6 +144,7 @@ class GeminiAdapter(LLMProvider):
             completion_tokens=completion_tokens,
             cache_read_tokens=cached,
             cache_creation_tokens=0,
+            structured_output=structured_output,
         )
 
     def __init__(self, api_key: str, model: str = "gemini-2.5-pro"):
@@ -149,7 +165,7 @@ class GeminiAdapter(LLMProvider):
         self.model = model
 
         # Gemini 2.5+ models with thinking capabilities use reasoning tokens
-        reasoning_models = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-pro-preview", "gemini-3-flash-preview"]
+        reasoning_models = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-pro-preview", "gemini-3-flash-preview", "gemini-3.1-flash-lite"]
         self.uses_completion_tokens = model in reasoning_models
 
         logger.info(f"Initialized Gemini adapter with model {model}")
