@@ -88,6 +88,7 @@ pricing: dict[str, dict] = {
     "gemini-3-pro-preview":    {"prompt": 0.002,   "completion": 0.012,  "cache_read": 0.0002,   "cache_write": 0.0, "cache_mode": "openai"},
     "gemini-2.5-pro":          {"prompt": 0.00125, "completion": 0.01,   "cache_read": 0.000125, "cache_write": 0.0, "cache_mode": "openai"},
     "gemini-3-flash-preview":  {"prompt": 0.0005,  "completion": 0.003,  "cache_read": 0.00005,  "cache_write": 0.0, "cache_mode": "openai"},
+    "gemini-3.1-flash-lite":    {"prompt": 0.00025,  "completion": 0.0015,  "cache_read": 0.000025,  "cache_write": 0.0, "cache_mode": "openai"},
     "gemini-3.5-flash":        {"prompt": 0.0015,  "completion": 0.009,  "cache_read": 0.00015,  "cache_write": 0.0, "cache_mode": "openai"},
     "gemini-2.5-flash":        {"prompt": 0.0003,  "completion": 0.0025, "cache_read": 0.00003,  "cache_write": 0.0, "cache_mode": "openai"},
     # https://api-docs.deepseek.com/quick_start/pricing

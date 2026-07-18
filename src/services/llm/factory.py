@@ -41,6 +41,7 @@ class LLMProviderFactory:
         "gemini-3-pro-preview": (GeminiAdapter, "gemini-3-pro-preview", "google"),
         "gemini-2.5-pro": (GeminiAdapter, "gemini-2.5-pro", "google"),
         "gemini-3-flash-preview": (GeminiAdapter, "gemini-3-flash-preview", "google"),
+        "gemini-3.1-flash-lite": (GeminiAdapter, "gemini-3.1-flash-lite", "google"),
         "gemini-3.5-flash": (GeminiAdapter, "gemini-3.5-flash", "google"),
         "gemini-2.5-flash": (GeminiAdapter, "gemini-2.5-flash", "google"),
         "gpt-5.5": (ChatGPTAdapter, "gpt-5.5", "openai"),

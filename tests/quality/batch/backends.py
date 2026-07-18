@@ -260,8 +260,19 @@ class GeminiBatchBackend:
 
     def submit(self, lines: list[dict]) -> str:
         # lines: [{custom_id, model, request:{contents, config}, _gemini_sentences}]
+        # google-genai inline batch validates each src item as an InlinedRequest
+        # (fields: model/contents/metadata/config) — NOT the file-JSONL
+        # {key, request} shape. The custom_id rides out-of-band in metadata["key"]
+        # and is echoed back on each InlinedResponse (see fetch()).
         model = lines[0]["model"]
-        src = [{"key": x["custom_id"], "request": x["request"]} for x in lines]
+        src = [
+            {
+                "contents": x["request"]["contents"],
+                "config": x["request"]["config"],
+                "metadata": {"key": x["custom_id"]},
+            }
+            for x in lines
+        ]
         job = self.client.batches.create(model=model, src=src)
         logger.info(f"Submitted Gemini batch {job.name} ({len(lines)} requests)")
         return job.name
@@ -279,10 +290,17 @@ class GeminiBatchBackend:
     def fetch(self, batch_id: str) -> dict[str, dict]:
         job = self.client.batches.get(name=batch_id)
         out: dict[str, dict] = {}
-        # ponytail: inline result surface (dest.inlined_responses, item.key/.response)
-        # is smoke-confirmable — adjust after the first live Gemini batch if needed.
-        for item in job.dest.inlined_responses:
-            key = getattr(item, "key", None) or getattr(item, "custom_id", None)
+        # InlinedResponse echoes the request metadata (google-genai >= 2.x), so we
+        # correlate by metadata["key"]. Fail loud if it's ever absent rather than
+        # risk silently mis-correlating a response to the wrong custom_id.
+        for idx, item in enumerate(job.dest.inlined_responses):
+            meta = getattr(item, "metadata", None) or {}
+            key = meta.get("key")
+            if key is None:
+                raise RuntimeError(
+                    f"Gemini batch {batch_id} response #{idx} has no metadata['key']; "
+                    f"cannot correlate to a custom_id (google-genai too old?)"
+                )
             out[key] = {"custom_id": key, "response": _genai_to_dict(getattr(item, "response", None))}
         return out
 
