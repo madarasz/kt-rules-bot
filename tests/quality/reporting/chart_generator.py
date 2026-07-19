@@ -18,6 +18,11 @@ except ImportError:
 
 from tests.quality.reporting.report_models import IndividualTestResult, QualityReport
 
+# Score-bar segment colors (single source of truth for the stacked score bar).
+COLOR_EARNED = "#2ecc71"  # Green — score earned on runs that never errored
+COLOR_RECOVERED = "#f1c40f"  # Gold — score recovered by re-requesting a failed batch item
+COLOR_ERROR = "#95a5a6"  # Grey — score lost to unrecoverable (LLM + Ragas) errors
+
 
 class ChartGenerator:
     """Generates visualization charts for quality test reports."""
@@ -254,34 +259,54 @@ class ChartGenerator:
         # Determine if we should show error bars (multi-run scenario)
         show_error_bars = self.report.is_multi_run
 
-        # Calculate LLM error percentages and earned scores
-        earned_scores, llm_error_scores = self._calculate_score_breakdown(models)
+        # Calculate earned / recovered / error percentages for the stacked score bar
+        earned_scores, recovered_scores, llm_error_scores = self._calculate_score_breakdown(models)
 
         # Colors
-        color_earned = "#2ecc71"  # Green for earned points
-        color_llm_error = "#95a5a6"  # Grey for evaluation errors (LLM + Ragas)
+        color_earned = COLOR_EARNED  # Green for earned points
+        color_recovered = COLOR_RECOVERED  # Gold for score recovered by re-request
+        color_llm_error = COLOR_ERROR  # Grey for evaluation errors (LLM + Ragas)
         color_time = "#3498db"  # Blue
         color_cost = "#e74c3c"  # Red
         color_chars = "#8B4513"  # Brown
 
-        # Plot score % on primary axis - use stacked bars like the old visualization
+        # Plot score % on primary axis — stack green (earned) + gold (recovered by
+        # re-request) + grey (lost to unrecoverable errors).
         ax1.bar(pos1, earned_scores, width, label="Score % (earned)", color=color_earned, alpha=0.8)
+        recovered_label = (
+            "Score % (recovered)" if any(r > 0 for r in recovered_scores) else None
+        )
+        ax1.bar(
+            pos1,
+            recovered_scores,
+            width,
+            bottom=earned_scores,
+            label=recovered_label,
+            color=color_recovered,
+            alpha=0.8,
+        )
+        earned_plus_recovered = [
+            e + rv for e, rv in zip(earned_scores, recovered_scores, strict=False)
+        ]
         # Only add error label to legend if there are actual errors
         error_label = "Evaluation Error % (LLM + Ragas)" if any(e > 0 for e in llm_error_scores) else None
         ax1.bar(
             pos1,
             llm_error_scores,
             width,
-            bottom=earned_scores,
+            bottom=earned_plus_recovered,
             label=error_label,
             color=color_llm_error,
             alpha=0.8,
         )
 
-        # Add error bars to the total (earned + LLM error) if multi-run
+        # Add error bars to the total (earned + recovered + LLM error) if multi-run
         if show_error_bars:
             total_scores = [
-                e + llm_val for e, llm_val in zip(earned_scores, llm_error_scores, strict=False)
+                e + rv + llm_val
+                for e, rv, llm_val in zip(
+                    earned_scores, recovered_scores, llm_error_scores, strict=False
+                )
             ]
             ax1.errorbar(
                 pos1,
@@ -399,43 +424,54 @@ class ChartGenerator:
         return chart_path
 
     def _calculate_score_breakdown(self, models: list[str]) -> tuple:
-        """Calculate earned scores and evaluation error scores for each model.
+        """Calculate earned / recovered / error score percentages per model.
 
-        Evaluation errors include:
-        - LLM generation errors (timeouts, rate limits, content filters)
-        - Ragas evaluation errors (metric calculation failures returning NaN)
+        Three stacked segments (green + gold + grey), chosen so the total bar
+        height and the grey portion are identical to the pre-recovery chart —
+        recovered work is only recolored, not added:
+        - earned (green): score of runs that did NOT recover from an error.
+        - recovered (gold): score of runs that succeeded only after a batch
+          re-request (recovered_from_error=True).
+        - error (grey): score lost (max_score - score) on any run that still
+          carries an LLM/Ragas error — including the rare double-fault where a
+          recovered generation was followed by a permanent judge error, whose
+          earned portion lands in gold and whose lost portion lands in grey.
         """
         earned_scores = []
-        llm_error_scores = []
+        recovered_scores = []
+        error_scores = []
 
         for model in models:
             model_results = [r for r in self.report.results if r.model == model]
             if not model_results:
                 earned_scores.append(0.0)
-                llm_error_scores.append(0.0)
+                recovered_scores.append(0.0)
+                error_scores.append(0.0)
                 continue
 
-            total_score = sum(r.score for r in model_results)
             total_max = sum(r.max_score for r in model_results)
-
-            # Calculate evaluation errors - look for results with LLM or Ragas errors
-            total_eval_error = 0
+            earned = 0
+            recovered = 0
+            error_lost = 0
             for result in model_results:
-                # LLM generation failed (timeout, rate limit, content filter, etc.)
+                if getattr(result, "recovered_from_error", False):
+                    recovered += result.score
+                else:
+                    earned += result.score
+                # Score lost to an unrecoverable error (grey), unchanged semantics.
                 if result.error or result.ragas_evaluation_error:
-                    total_eval_error += result.max_score - result.score
+                    error_lost += result.max_score - result.score
 
             if total_max > 0:
-                earned_pct = (total_score / total_max) * 100
-                llm_error_pct = (total_eval_error / total_max) * 100
+                earned_scores.append((earned / total_max) * 100)
+                recovered_scores.append((recovered / total_max) * 100)
+                error_scores.append((error_lost / total_max) * 100)
             else:
-                earned_pct = 0.0
-                llm_error_pct = 0.0
+                earned_scores.append(0.0)
+                recovered_scores.append(0.0)
+                error_scores.append(0.0)
 
-            earned_scores.append(earned_pct)
-            llm_error_scores.append(llm_error_pct)
-
-        return earned_scores, llm_error_scores
+        return earned_scores, recovered_scores, error_scores
 
     def _calculate_ragas_metric_breakdown(
         self, models: list[str], metric_name: str

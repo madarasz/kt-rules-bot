@@ -44,6 +44,7 @@ pricing: dict[str, dict] = {
     "gpt-5.6-luna":        {"prompt": 0.00100, "completion": 0.060,  "cache_read": 0.0001,   "cache_write": 0.0, "cache_mode": "openai"},
     "gpt-5.5":             {"prompt": 0.00500, "completion": 0.030,  "cache_read": 0.00250,  "cache_write": 0.0, "cache_mode": "openai"},
     "gpt-5.4":             {"prompt": 0.00250, "completion": 0.015,  "cache_read": 0.00125,  "cache_write": 0.0, "cache_mode": "openai"},
+    "gpt-5.4-mini-2026-03-17":        {"prompt": 0.00075, "completion": 0.0045, "cache_read": 0.000375, "cache_write": 0.0, "cache_mode": "openai"},
     "gpt-5.4-mini":        {"prompt": 0.00075, "completion": 0.0045, "cache_read": 0.000375, "cache_write": 0.0, "cache_mode": "openai"},
     "gpt-5.4-nano":        {"prompt": 0.00020, "completion": 0.00125,"cache_read": 0.00010,  "cache_write": 0.0, "cache_mode": "openai"},
     "gpt-5.3-chat-latest": {"prompt": 0.00175, "completion": 0.014,  "cache_read": 0.000875, "cache_write": 0.0, "cache_mode": "openai"},

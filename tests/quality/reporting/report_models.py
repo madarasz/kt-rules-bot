@@ -46,6 +46,7 @@ class IndividualTestResult:
     generation_time_seconds: float
     output_filename: str
     error: str | None = None
+    run_num: int | None = None  # 1-based run number (for matching batch manifest rows)
 
     # Detailed cost breakdown
     multi_hop_cost_usd: float = 0.0
@@ -76,6 +77,11 @@ class IndividualTestResult:
 
     # Ragas evaluation error tracking (for grey bar visualization)
     ragas_evaluation_error: bool = False
+
+    # Batch error-tolerance tracking (populated by the batch finalize enrichment)
+    recovered_from_error: bool = False  # True if this run succeeded only after a re-request
+    recovery_attempts: int = 0  # Number of batch re-requests before it succeeded
+    error_class: str | None = None  # "transient" | "permanent" for the error log
 
     # Detailed per-quote/answer breakdowns from custom judge
     quote_faithfulness_details: dict[str, float] | None = None  # chunk_id -> score

@@ -36,6 +36,12 @@ class ChatGPTAdapter(LLMProvider):
 
     supports_batch = True
 
+    @classmethod
+    def batch_supports_model(cls, model_id: str) -> bool:
+        """OpenAI's Batch API does not support the `*-chat-latest` aliases
+        (`model_not_found` from /v1/batches); route those to the live path."""
+        return not model_id.endswith("-chat-latest")
+
     def build_batch_request(self, request: GenerationRequest, custom_id: str) -> dict:
         """Build an OpenAI /v1/batches JSONL line for this request.
 
