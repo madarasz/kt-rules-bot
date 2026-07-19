@@ -117,4 +117,7 @@ def resolve_backend(model: str) -> BatchBackend | None:
     # *-chat-latest aliases) — those fall back to the live path.
     if not adapter_class.batch_supports_model(_model_id):
         return None
-    return make_backend(_API_KEY_TYPE_TO_BACKEND.get(api_key_type))
+    backend_name = _API_KEY_TYPE_TO_BACKEND.get(api_key_type)
+    if not backend_name:
+        return None
+    return make_backend(backend_name)
