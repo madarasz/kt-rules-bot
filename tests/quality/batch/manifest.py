@@ -26,9 +26,17 @@ class BatchManifest:
     """State of a two-phase batch run.
 
     phase: "generation_submitted" -> "judge_submitted" -> "scoring" -> "done".
-    generation / judge: backend name -> {"batch_id": str, "status": str}.
+    generation / judge: backend name -> {"batch_id": str, "status": str,
+        "attempts": int (backend-level resubmits), "collected": bool (all its rows
+        terminal — skip re-poll/re-fetch)}.
     requests: one row per test x model x run x kind (gen|judge), carrying the
-        custom_id used to map results back and whether it went to a batch.
+        custom_id used to map results back and whether it went to a batch. Error
+        tolerance adds per-row fields, all optional (a missing "status" == pending):
+            status: "pending" | "succeeded" | "failed_retryable" | "failed_permanent"
+            attempts: int  # per-item re-requests so far
+            error: str | None  # last error text
+            error_class: str | None  # "transient" | "permanent"
+        A row is considered "recovered" when status == "succeeded" and attempts > 0.
     live_done: custom_ids that were run live (non-batch models) at submit time.
     """
 
@@ -61,6 +69,29 @@ class BatchManifest:
             return safe
         digest = hashlib.sha1(raw.encode()).hexdigest()[:10]
         return f"{safe[: _CUSTOM_ID_MAX - 11]}-{digest}"
+
+    def rows_by_custom_id(self, kind: str | None = None) -> dict[str, dict]:
+        """Index request rows by custom_id, optionally filtered to one kind."""
+        return {
+            r["custom_id"]: r
+            for r in self.requests
+            if kind is None or r.get("kind") == kind
+        }
+
+    def retryable_custom_ids(self, kind: str, backend: str) -> set[str]:
+        """custom_ids of a kind/backend still marked failed_retryable."""
+        return {
+            r["custom_id"]
+            for r in self.requests
+            if r.get("kind") == kind
+            and r.get("backend") == backend
+            and r.get("status") == "failed_retryable"
+        }
+
+    @staticmethod
+    def is_recovered(row: dict) -> bool:
+        """A row recovered if it eventually succeeded after >=1 re-request."""
+        return row.get("status") == "succeeded" and row.get("attempts", 0) > 0
 
     def save(self) -> None:
         path = Path(self.report_dir) / MANIFEST_FILENAME

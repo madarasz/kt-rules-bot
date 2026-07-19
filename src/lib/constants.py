@@ -107,9 +107,9 @@ PDF_EXTRACTION_PROVIDERS = [
 QUALITY_TEST_PROVIDERS = [
     "gpt-5.6-luna",
     #"gpt-5.4",
-    #"gpt-5.4-mini",
+    "gpt-5.4-mini",
     #"gpt-5.4-nano",
-    #"gpt-5.3-chat-latest",
+    "gpt-5.3-chat-latest",
     #"gpt-5.2",
     #"gpt-5.2-chat-latest",
     #"gpt-5.1-chat-latest",
@@ -226,6 +226,12 @@ QUOTE_MERGE_SEPARATOR = "[...]"  # Separator for merged quotes from the same chu
 QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS = 2  # Max parallel LLM requests
 QUALITY_TEST_MAX_RETRIES_ON_RATE_LIMIT = 2  # Retries when rate limited
 QUALITY_TEST_RATE_LIMIT_INITIAL_DELAY = 10.0  # Initial retry delay in seconds (doubles each retry)
+
+# Batch-API error tolerance: how many times a single failed batch item (generation
+# or judge) may be re-requested before it is treated as a permanent failure. Each
+# re-request is a fresh small batch picked up on the next `batch-collect` pass, so
+# the effective backoff is the (hours-long) gap between manual collects.
+QUALITY_TEST_MAX_BATCH_ITEM_RETRIES = 2
 
 # ============================================================================
 # RAG Retrieval Constants

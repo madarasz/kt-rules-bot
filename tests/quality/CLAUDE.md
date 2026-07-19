@@ -269,6 +269,16 @@ Kimi/Qwen reuse the OpenAI-compatible `/v1/batches` backend; Mistral and Grok us
 httpx REST (no new SDK deps); Gemini uses `google-genai` inline batches with a
 persisted sentence map so verbatim quote extraction survives into `batch-collect`.
 
+**One model per OpenAI-compat batch:** OpenAI's `/v1/batches` (and the compat hosts
+Kimi/Qwen) reject a batch mixing models (`mismatched_model`), so those backends
+submit **one batch per model** — the manifest groups them by a `name::model` key
+(`batch_group_key`, `tests/quality/batch/backends.py`), not the bare backend name.
+Mixed-model batches are fine on Anthropic/Gemini/Grok/Mistral (one batch per backend).
+OpenAI also rejects its own `*-chat-latest` aliases from the Batch API
+(`model_not_found`); `ChatGPTAdapter.batch_supports_model` excludes them so they route
+to the **live path** instead. A batch-capable provider can exclude specific models via
+`LLMProvider.batch_supports_model`; `resolve_backend` returns `None` for excluded ones.
+
 **Judge round:** batches whenever the judge model is batchable — including the
 default `grok-4-1-fast-reasoning` — so reaching `done` normally takes **two
 collects** (gen batch, then judge batch). A non-batchable judge (e.g. DeepSeek)
@@ -282,6 +292,28 @@ is confirmed against the provider pricing page and corrected in `BATCH_DISCOUNT`
 **Reporting:** `report.md` gains a **Batch net savings** line next to the existing
 cache-savings line, plus a combined total. Per-result savings are stored in each
 `output_*.md` metadata (`batch`, `batch_savings_usd`) and re-derived on collect.
+
+**Error tolerance:** individual batch items (generation **and** judge) that fail are
+classified transient vs permanent (`tests/quality/batch/errors.py`) and the transient
+ones are **re-requested**, bounded by `QUALITY_TEST_MAX_BATCH_ITEM_RETRIES` (default 2,
+in `src/lib/constants.py`). Each re-request is a fresh small batch picked up on the next
+`batch-collect`, so the backoff is the gap between collect passes (no in-process sleep).
+
+- **Transient (retried):** rate limit / 429, overloaded / 529 / 503, other 5xx, timeouts,
+  item `expired`, and insufficient-credits / quota / billing (credits are retried because
+  you can top up between collects). An unrecognized error also defaults to transient.
+- **Permanent (not retried):** auth / 401, permission / 403, invalid_request / 400,
+  content filter / blocked / recitation / refusal, not_found / 404, canceled.
+
+Per-item state (`status`, `attempts`, `error`, `error_class`) lives on each
+`batch_state.json` request row; a whole-backend `failed` status is resubmitted once then
+salvaged (succeeded items kept) instead of aborting the run. A permanently-failed item
+becomes a score-0 `💀` result rather than silently vanishing.
+
+`report.md` gains an **Error & Recovery Log** table (test / model / run / class / attempts /
+recovered? / message) plus an **Errors** summary line in the header. In the score chart the
+stacked bar is now **green** (earned) + **gold** (score recovered by re-request) + **grey**
+(score lost to unrecoverable errors); green+gold equals the old earned total, grey unchanged.
 
 > **Live fidelity note:** the Mistral/Grok result-line shapes and the Gemini
 > inline-result surface are marked `# ponytail:` in the code — they are exercised

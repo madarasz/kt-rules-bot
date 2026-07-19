@@ -47,7 +47,7 @@ class LLMProviderFactory:
         "gpt-5.6-luna": (ChatGPTAdapter, "gpt-5.6-luna", "openai"),
         "gpt-5.5": (ChatGPTAdapter, "gpt-5.5", "openai"),
         "gpt-5.4": (ChatGPTAdapter, "gpt-5.4", "openai"),
-        "gpt-5.4-mini": (ChatGPTAdapter, "gpt-5.4-mini", "openai"),
+        "gpt-5.4-mini": (ChatGPTAdapter, "gpt-5.4-mini-2026-03-17", "openai"),
         "gpt-5.4-nano": (ChatGPTAdapter, "gpt-5.4-nano", "openai"),
         "gpt-5.3-chat-latest": (ChatGPTAdapter, "gpt-5.3-chat-latest", "openai"),
         "gpt-5.2": (ChatGPTAdapter, "gpt-5.2", "openai"),

@@ -19,6 +19,16 @@ def test_batchable_adapters_opt_in():
     assert ChatGPTAdapter.supports_batch is True
 
 
+def test_chatgpt_batch_excludes_chat_latest():
+    # OpenAI's Batch API rejects the *-chat-latest aliases (model_not_found);
+    # everything else batches.
+    assert ChatGPTAdapter.batch_supports_model("gpt-5.3-chat-latest") is False
+    assert ChatGPTAdapter.batch_supports_model("gpt-5.4-mini") is True
+    assert ChatGPTAdapter.batch_supports_model("gpt-5") is True
+    # Base default is permissive.
+    assert ClaudeAdapter.batch_supports_model("claude-4.6-sonnet") is True
+
+
 # ---- Claude ----------------------------------------------------------------
 
 def _fake_claude_msg():

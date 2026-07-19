@@ -61,8 +61,12 @@ def test_collect_generation_ended_runs_live_judge_and_finishes(tmp_path, monkeyp
     monkeypatch.setattr(backends_mod, "resolve_backend", lambda _model: None)  # judge live
 
     writes = []
-    monkeypatch.setattr(runner, "_write_batch_generation_output",
-                        lambda _rd, meta, _item, _ctx: writes.append(meta["custom_id"]))
+
+    def _fake_write(_rd, meta, _item, _ctx):
+        writes.append(meta["custom_id"])
+        return ("succeeded", None)
+
+    monkeypatch.setattr(runner, "_write_batch_generation_output", _fake_write)
     monkeypatch.setattr("tests.quality.output_parser.parse_output_directory", lambda _d: ["PO"])
     monkeypatch.setattr(runner, "_load_test_cases_for_outputs", lambda _parsed: {})
 

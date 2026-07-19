@@ -470,6 +470,7 @@ class QualityTestRunner:
             test_id=test_case.test_id,
             query=test_case.query,
             model=model,
+            run_num=run_num,
             score=int(score),
             max_score=test_case.max_score,
             passed=passed,
@@ -647,7 +648,7 @@ class QualityTestRunner:
         live now, and persist batch_state.json (phase=generation_submitted)."""
         from uuid import uuid4
 
-        from tests.quality.batch.backends import resolve_backend
+        from tests.quality.batch.backends import batch_group_key, resolve_backend
         from tests.quality.batch.manifest import BatchManifest
 
         test_cases = self.load_test_cases(test_id)
@@ -685,16 +686,23 @@ class QualityTestRunner:
                 for model in models_to_run:
                     custom_id = BatchManifest.make_custom_id("gen", test_case.test_id, model, run_num)
                     backend = resolve_backend(model)
+                    # Group key, not bare backend name: OpenAI-compat backends need
+                    # one batch per model (see batch_group_key). Every downstream
+                    # lookup (manifest.generation, row["backend"], resubmit/retry)
+                    # keys off this same value.
+                    group_key = batch_group_key(backend, model) if backend else None
                     requests_meta.append({
                         "custom_id": custom_id,
                         "test_id": test_case.test_id,
                         "model": model,
                         "run_num": run_num,
                         "kind": "gen",
-                        "backend": backend.name if backend else None,
+                        "backend": group_key,
                         "batchable": backend is not None,
                         "embedding_cost": embedding_cost,
                         "multi_hop_cost": multi_hop_cost,
+                        "status": "pending",
+                        "attempts": 0,
                     })
                     if backend is not None:
                         provider = LLMProviderFactory.create(model)
@@ -715,8 +723,8 @@ class QualityTestRunner:
                         # reconstruction; persist it on the request row.
                         if line.get("_gemini_sentences"):
                             requests_meta[-1]["gemini_sentences"] = line["_gemini_sentences"]
-                        backend_lines.setdefault(backend.name, []).append(line)
-                        backends_by_name[backend.name] = backend
+                        backend_lines.setdefault(group_key, []).append(line)
+                        backends_by_name[group_key] = backend
                     else:
                         live_tasks.append(
                             self.run_test(
@@ -758,14 +766,22 @@ class QualityTestRunner:
         try:
             for name, lines in backend_lines.items():
                 batch_id = backends_by_name[name].submit(lines)
-                generation[name] = {"batch_id": batch_id, "status": "in_progress"}
+                generation[name] = {
+                    "batch_id": batch_id,
+                    "status": "in_progress",
+                    "attempts": 0,
+                    "collected": False,
+                }
         finally:
             manifest.save()
         return manifest
 
-    def _rebuild_gen_lines_for_backend(self, manifest, backend_name: str) -> list[dict]:
+    def _rebuild_gen_lines_for_backend(
+        self, manifest, backend_name: str, custom_ids: set[str] | None = None
+    ) -> list[dict]:
         """Rebuild generation batch lines for one backend from persisted manifest
-        state (used to resubmit an expired batch). RAG context is persisted in
+        state (used to resubmit an expired batch, or just the failed_retryable
+        items when custom_ids is given). RAG context is persisted in
         manifest.contexts, so lines are byte-for-byte what submit_batch_run built."""
         gen_config = GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT)
         lines: list[dict] = []
@@ -773,6 +789,8 @@ class QualityTestRunner:
             if row["kind"] != "gen" or row.get("backend") != backend_name:
                 continue
             if row["custom_id"] in manifest.live_done:
+                continue
+            if custom_ids is not None and row["custom_id"] not in custom_ids:
                 continue
             ctx = manifest.contexts[f"{row['test_id']}__run{row['run_num']}"]
             query = self.load_test_cases(row["test_id"])[0].query
@@ -799,20 +817,34 @@ class QualityTestRunner:
         return manifest.phase
 
     async def _collect_generation(self, manifest) -> str:
+        from src.lib.constants import QUALITY_TEST_MAX_BATCH_ITEM_RETRIES
         from tests.quality.batch.backends import make_backend, resolve_backend
+        from tests.quality.batch.errors import classify_batch_error
         from tests.quality.output_parser import parse_output_directory
 
         report_dir = Path(manifest.report_dir)
         gen_backends = {name: make_backend(name) for name in manifest.generation}
+        gen_meta = {
+            r["custom_id"]: r
+            for r in manifest.requests
+            if r["kind"] == "gen" and r["batchable"]
+        }
 
-        # Poll every generation backend once.
-        all_ended = True
+        # Advance each generation backend independently. A backend is "collected"
+        # once all its rows are terminal (succeeded / failed_permanent); collected
+        # backends are skipped so they aren't re-polled/re-fetched while another
+        # backend is still retrying its items.
+        all_collected = True
         for name, info in manifest.generation.items():
+            if info.get("collected"):
+                continue
             status = gen_backends[name].poll(info["batch_id"])
             info["status"] = status
-            if status == "failed":
-                manifest.save()
-                raise RuntimeError(f"Generation batch {info['batch_id']} ({name}) failed")
+
+            if status == "in_progress":
+                all_collected = False
+                continue
+
             if status == "expired":
                 # Whole batch expired before completing — resubmit its still-unfetched
                 # requests (deterministic: RAG context is persisted) and keep waiting.
@@ -820,26 +852,81 @@ class QualityTestRunner:
                 new_id = gen_backends[name].submit(lines)
                 info.update({"batch_id": new_id, "status": "in_progress"})
                 print(f"Generation batch {name} expired — resubmitted as {new_id}.")
-                all_ended = False
-            elif status != "ended":
-                all_ended = False
+                all_collected = False
+                continue
+
+            if status == "failed":
+                # Whole-batch failure: resubmit once (transient), then salvage the
+                # succeeded items and mark the rest permanent instead of aborting.
+                if info.get("attempts", 0) < 1:
+                    lines = self._rebuild_gen_lines_for_backend(manifest, name)
+                    try:
+                        new_id = gen_backends[name].submit(lines)
+                        info.update({
+                            "batch_id": new_id,
+                            "status": "in_progress",
+                            "attempts": info.get("attempts", 0) + 1,
+                        })
+                        print(f"Generation batch {name} failed — resubmitted as {new_id}.")
+                    except Exception as e:
+                        logger.error(f"Resubmit of failed batch {name} raised: {e}")
+                    all_collected = False
+                    continue
+                for row in manifest.requests:
+                    if (
+                        row.get("kind") == "gen"
+                        and row.get("backend") == name
+                        and row.get("status") in (None, "pending", "failed_retryable")
+                    ):
+                        row["status"] = "failed_permanent"
+                        row.setdefault("error", f"backend batch {name} failed")
+                        row["error_class"] = "permanent"
+                info["collected"] = True
+                print(f"Generation batch {name} failed twice — salvaging succeeded items.")
+                continue
+
+            # status == "ended": fetch + write each item, classifying failures.
+            for cid, item in gen_backends[name].fetch(info["batch_id"]).items():
+                row = gen_meta.get(cid)
+                if row is None or row.get("status") in ("succeeded", "failed_permanent"):
+                    continue
+                outcome, error_text = self._write_batch_generation_output(
+                    report_dir, row, item, manifest.contexts
+                )
+                if outcome == "succeeded":
+                    row["status"] = "succeeded"
+                    continue
+                error_class, _reason = classify_batch_error(error_text)
+                row["error"] = error_text
+                row["error_class"] = error_class
+                if (
+                    error_class == "transient"
+                    and row.get("attempts", 0) < QUALITY_TEST_MAX_BATCH_ITEM_RETRIES
+                ):
+                    row["status"] = "failed_retryable"
+                else:
+                    row["status"] = "failed_permanent"
+
+            # Re-request this backend's still-retryable items as a fresh small batch.
+            retry_ids = manifest.retryable_custom_ids("gen", name)
+            if retry_ids:
+                lines = self._rebuild_gen_lines_for_backend(manifest, name, custom_ids=retry_ids)
+                new_id = gen_backends[name].submit(lines)
+                for row in manifest.requests:
+                    if row["custom_id"] in retry_ids:
+                        row["attempts"] = row.get("attempts", 0) + 1
+                        row["status"] = "pending"  # back in flight
+                info.update({"batch_id": new_id, "status": "in_progress"})
+                print(f"Re-requested {len(retry_ids)} failed gen item(s) on {name} as {new_id}.")
+                all_collected = False
+            else:
+                info["collected"] = True
+
         manifest.save()
-        if not all_ended:
+        if not all_collected:
             statuses = {n: i["status"] for n, i in manifest.generation.items()}
             print(f"Generation batches not ready: {statuses} — re-run batch-collect later.")
             return "generation_submitted"
-
-        # Fetch results and write output_*.md for batched generations.
-        gen_meta = {
-            r["custom_id"]: r
-            for r in manifest.requests
-            if r["kind"] == "gen" and r["batchable"]
-        }
-        for name, info in manifest.generation.items():
-            for cid, item in gen_backends[name].fetch(info["batch_id"]).items():
-                self._write_batch_generation_output(
-                    report_dir, gen_meta[cid], item, manifest.contexts
-                )
 
         # Judge: batch if the judge model is batchable and produced any items,
         # else run live now.
@@ -863,9 +950,14 @@ class QualityTestRunner:
 
     def _write_batch_generation_output(
         self, report_dir: Path, meta: dict, item: dict, contexts: dict[str, dict]
-    ) -> None:
+    ) -> tuple[str, str | None]:
         """Parse a batch gen item into an LLMResponse and write output_*.md
-        (no-eval style: metadata only, judging happens later)."""
+        (no-eval style: metadata only, judging happens later).
+
+        Returns an outcome for the caller's retry logic: ("succeeded", None) after
+        the output file is written, or ("error", error_text) when the item could
+        not be parsed (the caller classifies + decides whether to re-request)."""
+        from tests.quality.batch.errors import extract_item_error
         from tests.quality.ragas_evaluator import RagasMetrics
 
         model = meta["model"]
@@ -873,8 +965,9 @@ class QualityTestRunner:
         try:
             llm_response = adapter_class.parse_batch_result(item)
         except Exception as e:
-            logger.error(f"Batch gen item {meta['custom_id']} failed to parse: {e} — skipping")
-            return
+            error_text = extract_item_error(item) or f"{type(e).__name__}: {e}"
+            logger.error(f"Batch gen item {meta['custom_id']} failed: {error_text}")
+            return ("error", error_text)
         if not llm_response.model_version:
             llm_response.model_version = LLMProviderFactory._model_registry[model][1]
 
@@ -948,32 +1041,32 @@ class QualityTestRunner:
             batch_savings_usd=breakdown.batch_savings,
             cache_savings_usd=breakdown.cache_savings,
         )
+        return ("succeeded", None)
 
-    def _submit_judge_batch(self, manifest, parsed, test_cases_map, judge_backend) -> bool:
-        """Build + submit a judge batch for all parsed outputs (batchable judge).
+    def _build_judge_lines(
+        self, parsed, test_cases_map, provider, judge, custom_ids=None
+    ) -> tuple[list[dict], list[dict]]:
+        """Build judge batch request lines from parsed generation outputs.
 
-        Returns True if a batch was submitted, False if there was nothing to submit
-        (no judge provider / every item failed to build) so the caller can fall
-        back to the live judge instead of submitting an empty batch.
-        """
+        Returns (lines, rows): request lines to submit, and the matching manifest
+        request rows (kind="judge"). When custom_ids is given, only those judge
+        items are (re)built — used both for the initial submit and for resubmitting
+        just the failed_retryable items."""
         from tests.quality.batch.manifest import BatchManifest
-        from tests.quality.custom_judge import CustomJudge
 
-        judge = CustomJudge(model=manifest.judge_model)
-        provider = LLMProviderFactory.create(manifest.judge_model)
-        if provider is None:
-            logger.error(
-                f"Judge provider {manifest.judge_model!r} unavailable (missing API key) "
-                f"— falling back to live judge."
-            )
-            return False
-        lines = []
+        lines: list[dict] = []
+        rows: list[dict] = []
         for po in parsed:
             meta = po.metadata
             test_id = meta.test_metadata["test_id"]
             if test_id not in test_cases_map:
                 continue
             test_case = test_cases_map[test_id]
+            cid = BatchManifest.make_custom_id(
+                "judge", test_id, meta.test_metadata["model"], meta.test_metadata["run_num"]
+            )
+            if custom_ids is not None and cid not in custom_ids:
+                continue
             try:
                 dm = MetadataGenerator.extract_deterministic_metrics_from_metadata(meta)
                 structured = StructuredLLMResponse.from_json(po.llm_response.answer_text)
@@ -984,56 +1077,244 @@ class QualityTestRunner:
                     ground_truth_answers=test_case.ground_truth_answers,
                     ground_truth_contexts=[c.text for c in test_case.ground_truth_contexts],
                 )
-                cid = BatchManifest.make_custom_id(
-                    "judge", test_id, meta.test_metadata["model"], meta.test_metadata["run_num"]
-                )
                 request_line = provider.build_batch_request(gen_req, cid)
             except Exception as e:
                 logger.error(f"Judge batch item for {test_id} failed to build: {e} — skipping")
                 continue
             lines.append(request_line)
+            rows.append({
+                "custom_id": cid,
+                "test_id": test_id,
+                "model": meta.test_metadata["model"],
+                "run_num": meta.test_metadata["run_num"],
+                "kind": "judge",
+                "backend": None,
+                "batchable": True,
+                "status": "pending",
+                "attempts": 0,
+            })
+        return lines, rows
+
+    def _submit_judge_batch(self, manifest, parsed, test_cases_map, judge_backend) -> bool:
+        """Build + submit a judge batch for all parsed outputs (batchable judge).
+
+        Persists one kind="judge" row per item in manifest.requests so the judge
+        phase can track and re-request failed items individually. Returns True if a
+        batch was submitted, False if there was nothing to submit (no judge provider
+        / every item failed to build) so the caller can fall back to the live judge.
+        """
+        from tests.quality.custom_judge import CustomJudge
+
+        judge = CustomJudge(model=manifest.judge_model)
+        provider = LLMProviderFactory.create(manifest.judge_model)
+        if provider is None:
+            logger.error(
+                f"Judge provider {manifest.judge_model!r} unavailable (missing API key) "
+                f"— falling back to live judge."
+            )
+            return False
+        lines, rows = self._build_judge_lines(parsed, test_cases_map, provider, judge)
         if not lines:
             logger.error("No judge batch items built — falling back to live judge.")
             return False
+        for row in rows:
+            row["backend"] = judge_backend.name
+            manifest.requests.append(row)
         batch_id = judge_backend.submit(lines)
-        manifest.judge[judge_backend.name] = {"batch_id": batch_id, "status": "in_progress"}
+        manifest.judge[judge_backend.name] = {
+            "batch_id": batch_id,
+            "status": "in_progress",
+            "attempts": 0,
+            "collected": False,
+        }
         return True
+
+    def _resubmit_judge(self, manifest, backend_name: str, custom_ids: set[str]) -> str:
+        """Rebuild judge lines for the given custom_ids and submit as a new batch."""
+        from tests.quality.batch.backends import make_backend
+        from tests.quality.custom_judge import CustomJudge
+        from tests.quality.output_parser import parse_output_directory
+
+        report_dir = Path(manifest.report_dir)
+        parsed = parse_output_directory(report_dir)
+        test_cases_map = self._load_test_cases_for_outputs(parsed)
+        judge = CustomJudge(model=manifest.judge_model)
+        provider = LLMProviderFactory.create(manifest.judge_model)
+        lines, _rows = self._build_judge_lines(
+            parsed, test_cases_map, provider, judge, custom_ids=custom_ids
+        )
+        return make_backend(backend_name).submit(lines)
+
+    def _score_judge_item(
+        self, manifest, backend_name, row, item, test_case, judge, judge_adapter
+    ) -> None:
+        """Parse + score one judge batch item, persisting the outcome on its row.
+
+        On success stores the judge metrics/cost on the row (status=succeeded); on
+        failure classifies transient vs permanent and marks the row failed_retryable
+        (if under the retry cap) or failed_permanent."""
+        from src.lib.constants import QUALITY_TEST_MAX_BATCH_ITEM_RETRIES
+        from tests.quality.batch.errors import classify_batch_error, extract_item_error
+
+        try:
+            judge_response = judge_adapter.parse_batch_result(item)
+            jr = judge.parse_result(judge_response, test_case.ground_truth_answers)
+            jb = calculate_llm_cost(
+                prompt_tokens=jr.prompt_tokens,
+                completion_tokens=jr.completion_tokens,
+                model=manifest.judge_model,
+                cache_read_tokens=jr.cache_read_tokens,
+                cache_creation_tokens=jr.cache_creation_tokens,
+                batch=True,
+                batch_backend=backend_name,
+            )
+            row["judge_metrics"] = {
+                "explanation_faithfulness": jr.explanation_faithfulness,
+                "answer_correctness": jr.answer_correctness,
+                "answer_correctness_details": jr.answer_correctness_details,
+                "feedback": jr.feedback,
+            }
+            row["judge_cost"] = jb.total_cost
+            row["judge_batch_savings"] = jb.batch_savings
+            row["status"] = "succeeded"
+            row.pop("error", None)
+            row.pop("error_class", None)
+        except Exception as e:
+            error_text = extract_item_error(item) or f"{type(e).__name__}: {e}"
+            error_class, _reason = classify_batch_error(error_text)
+            row["error"] = error_text
+            row["error_class"] = error_class
+            if (
+                error_class == "transient"
+                and row.get("attempts", 0) < QUALITY_TEST_MAX_BATCH_ITEM_RETRIES
+            ):
+                row["status"] = "failed_retryable"
+            else:
+                row["status"] = "failed_permanent"
 
     async def _collect_judge(self, manifest) -> str:
         from tests.quality.batch.backends import make_backend
+        from tests.quality.batch.manifest import BatchManifest
+        from tests.quality.custom_judge import CustomJudge
+        from tests.quality.output_parser import parse_output_directory
 
         report_dir = Path(manifest.report_dir)
         name, info = next(iter(manifest.judge.items()))
         backend = make_backend(name)
         status = backend.poll(info["batch_id"])
         info["status"] = status
-        manifest.save()
-        if status == "failed":
-            raise RuntimeError(f"Judge batch {info['batch_id']} ({name}) failed")
-        if status != "ended":
+        judge_rows = {r["custom_id"]: r for r in manifest.requests if r.get("kind") == "judge"}
+
+        def _pending_judge_ids() -> set[str]:
+            return {
+                cid
+                for cid, r in judge_rows.items()
+                if r.get("status") in (None, "pending", "failed_retryable")
+            }
+
+        if status == "in_progress":
+            manifest.save()
             print(f"Judge batch not ready ({status}) — re-run batch-collect later.")
             return "judge_submitted"
 
-        judge_items = backend.fetch(info["batch_id"])
-        results = self._score_from_judge_batch(manifest, judge_items)
+        if status == "expired":
+            pending = _pending_judge_ids()
+            new_id = self._resubmit_judge(manifest, name, pending)
+            info.update({"batch_id": new_id, "status": "in_progress"})
+            manifest.save()
+            print(f"Judge batch {name} expired — resubmitted {len(pending)} item(s) as {new_id}.")
+            return "judge_submitted"
+
+        if status == "failed":
+            # Resubmit once (transient), then mark remaining items permanent and
+            # score the succeeded ones instead of aborting the whole run.
+            if info.get("attempts", 0) < 1:
+                pending = _pending_judge_ids()
+                try:
+                    new_id = self._resubmit_judge(manifest, name, pending)
+                    info.update({
+                        "batch_id": new_id,
+                        "status": "in_progress",
+                        "attempts": info.get("attempts", 0) + 1,
+                    })
+                    print(f"Judge batch {name} failed — resubmitted as {new_id}.")
+                except Exception as e:
+                    logger.error(f"Resubmit of failed judge batch {name} raised: {e}")
+                manifest.save()
+                return "judge_submitted"
+            for r in judge_rows.values():
+                if r.get("status") in (None, "pending", "failed_retryable"):
+                    r["status"] = "failed_permanent"
+                    r.setdefault("error", f"judge backend {name} failed")
+                    r["error_class"] = "permanent"
+            print(f"Judge batch {name} failed twice — scoring succeeded items.")
+        else:
+            # status == "ended": fetch + score each item, classifying failures.
+            judge_items = backend.fetch(info["batch_id"])
+            judge = CustomJudge(model=manifest.judge_model)
+            judge_adapter = LLMProviderFactory._model_registry[manifest.judge_model][0]
+            parsed = parse_output_directory(report_dir)
+            test_cases_map = self._load_test_cases_for_outputs(parsed)
+            cid_to_test_case: dict[str, object] = {}
+            for po in parsed:
+                meta = po.metadata
+                tid = meta.test_metadata["test_id"]
+                if tid not in test_cases_map:
+                    continue
+                jcid = BatchManifest.make_custom_id(
+                    "judge", tid, meta.test_metadata["model"], meta.test_metadata["run_num"]
+                )
+                cid_to_test_case[jcid] = test_cases_map[tid]
+
+            for cid, item in judge_items.items():
+                row = judge_rows.get(cid)
+                if row is None or row.get("status") in ("succeeded", "failed_permanent"):
+                    continue
+                test_case = cid_to_test_case.get(cid)
+                if test_case is None:
+                    row["status"] = "failed_permanent"
+                    row["error"] = "no matching generation output"
+                    row["error_class"] = "permanent"
+                    continue
+                self._score_judge_item(manifest, name, row, item, test_case, judge, judge_adapter)
+
+            retry_ids = {
+                cid for cid, r in judge_rows.items() if r.get("status") == "failed_retryable"
+            }
+            if retry_ids:
+                new_id = self._resubmit_judge(manifest, name, retry_ids)
+                for cid in retry_ids:
+                    judge_rows[cid]["attempts"] = judge_rows[cid].get("attempts", 0) + 1
+                    judge_rows[cid]["status"] = "pending"
+                info.update({"batch_id": new_id, "status": "in_progress"})
+                manifest.save()
+                print(f"Re-requested {len(retry_ids)} failed judge item(s) on {name} as {new_id}.")
+                return "judge_submitted"
+
+        # All judge rows terminal — assemble results from persisted rows + finalize.
+        info["collected"] = True
+        results = self._score_from_judge_batch(manifest)
         self._finalize_report(results, report_dir, manifest)
         manifest.phase = "done"
         manifest.save()
         print(f"Batch run complete: report at {report_dir}/report.md")
         return "done"
 
-    def _score_from_judge_batch(self, manifest, judge_items: dict) -> list[IndividualTestResult]:
-        """Build results from batched judge outputs + saved generation metadata."""
+    def _score_from_judge_batch(self, manifest) -> list[IndividualTestResult]:
+        """Assemble results from persisted judge rows + saved generation metadata.
+
+        Judge scoring happens incrementally in _score_judge_item (persisted per row
+        so successes survive across the retry passes); here we only combine each
+        row's stored judge metrics with its generation metadata. A row that never
+        succeeded is scored with its recorded error (grey bar)."""
         from tests.quality.batch.manifest import BatchManifest
-        from tests.quality.custom_judge import CustomJudge
         from tests.quality.output_parser import parse_output_directory
         from tests.quality.ragas_evaluator import RagasMetrics
 
         report_dir = Path(manifest.report_dir)
         parsed = parse_output_directory(report_dir)
         test_cases_map = self._load_test_cases_for_outputs(parsed)
-        judge = CustomJudge(model=manifest.judge_model)
-        judge_adapter = LLMProviderFactory._model_registry[manifest.judge_model][0]
+        judge_rows = {r["custom_id"]: r for r in manifest.requests if r.get("kind") == "judge"}
 
         results = []
         for po in parsed:
@@ -1046,38 +1327,24 @@ class QualityTestRunner:
                 "judge", test_id, meta.test_metadata["model"], meta.test_metadata["run_num"]
             )
             dm = MetadataGenerator.extract_deterministic_metrics_from_metadata(meta)
+            row = judge_rows.get(cid)
             judge_cost = 0.0
             judge_batch_savings = 0.0
-            try:
-                judge_response = judge_adapter.parse_batch_result(judge_items[cid])
-                jr = judge.parse_result(judge_response, test_case.ground_truth_answers)
-                dm.update({
-                    "explanation_faithfulness": jr.explanation_faithfulness,
-                    "answer_correctness": jr.answer_correctness,
-                    "answer_correctness_details": jr.answer_correctness_details,
-                    "feedback": jr.feedback,
-                })
+            if row and row.get("judge_metrics"):
+                dm.update(row["judge_metrics"])
                 metrics = RagasMetrics(**dm)
-                jb = calculate_llm_cost(
-                    prompt_tokens=jr.prompt_tokens,
-                    completion_tokens=jr.completion_tokens,
-                    model=manifest.judge_model,
-                    cache_read_tokens=jr.cache_read_tokens,
-                    cache_creation_tokens=jr.cache_creation_tokens,
-                    batch=True,
-                    batch_backend=next(iter(manifest.judge), None),
-                )
-                judge_cost = jb.total_cost
-                judge_batch_savings = jb.batch_savings
-            except Exception as e:
-                logger.error(f"Batch judge scoring failed for {cid}: {e}")
-                metrics = RagasMetrics(**dm, error=f"Judge error: {e}")
+                judge_cost = row.get("judge_cost", 0.0)
+                judge_batch_savings = row.get("judge_batch_savings", 0.0)
+            else:
+                err = (row or {}).get("error") or "judge item missing"
+                metrics = RagasMetrics(**dm, error=f"Judge error: {err}")
 
             score = self.ragas_evaluator.calculate_aggregate_score(metrics)
             results.append(IndividualTestResult(
                 test_id=test_id,
                 query=po.query,
                 model=meta.test_metadata["model"],
+                run_num=meta.test_metadata["run_num"],
                 score=int(score),
                 max_score=test_case.max_score,
                 passed=score >= 80.0,
@@ -1107,12 +1374,95 @@ class QualityTestRunner:
             ))
         return results
 
+    def _synthesize_error_result_from_row(
+        self, row: dict, error: str, error_class: str
+    ) -> IndividualTestResult:
+        """Build a score-0 error result for a batch gen row that produced no output.
+
+        Permanently-failed generation items write no output_*.md, so the judge
+        paths never see them — this makes them appear in the report + grey bar
+        instead of silently vanishing (the pre-change behavior)."""
+        test_case = self.load_test_cases(row["test_id"])[0]
+        return IndividualTestResult(
+            test_id=row["test_id"],
+            query=test_case.query,
+            model=row["model"],
+            run_num=row.get("run_num"),
+            score=0,
+            max_score=test_case.max_score,
+            passed=False,
+            tokens=0,
+            cost_usd=0.0,
+            multi_hop_cost_usd=row.get("multi_hop_cost", 0.0),
+            embedding_cost_usd=row.get("embedding_cost", 0.0),
+            ragas_cost_usd=0.0,
+            output_char_count=0,
+            generation_time_seconds=0.0,
+            output_filename="",
+            error=error,
+            error_class=error_class,
+        )
+
+    def _enrich_and_synthesize_results(self, results, manifest) -> list[IndividualTestResult]:
+        """Tag results with batch recovery info and add synthesized error rows.
+
+        Single choke point (called by _finalize_report for both the live-judge and
+        batch-judge finalize paths, before aggregation). Matches each result to its
+        gen/judge manifest rows via the deterministic custom_id, marks
+        recovered_from_error / recovery_attempts / error_class, and appends a
+        score-0 result for every failed_permanent gen row that produced no output."""
+        from tests.quality.batch.manifest import BatchManifest
+
+        gen_rows = {r["custom_id"]: r for r in manifest.requests if r.get("kind") == "gen"}
+        judge_rows = {r["custom_id"]: r for r in manifest.requests if r.get("kind") == "judge"}
+
+        matched_gen_cids: set[str] = set()
+        for res in results:
+            if res.run_num is None:
+                continue
+            gen_cid = BatchManifest.make_custom_id("gen", res.test_id, res.model, res.run_num)
+            judge_cid = BatchManifest.make_custom_id("judge", res.test_id, res.model, res.run_num)
+            matched_gen_cids.add(gen_cid)
+            gen_row = gen_rows.get(gen_cid)
+            judge_row = judge_rows.get(judge_cid)
+
+            recovered = False
+            attempts = 0
+            if gen_row and BatchManifest.is_recovered(gen_row):
+                recovered = True
+                attempts = max(attempts, gen_row.get("attempts", 0))
+            if judge_row and BatchManifest.is_recovered(judge_row):
+                recovered = True
+                attempts = max(attempts, judge_row.get("attempts", 0))
+            res.recovered_from_error = recovered
+            res.recovery_attempts = attempts
+
+            if res.error or res.ragas_evaluation_error:
+                if judge_row and judge_row.get("error_class"):
+                    res.error_class = judge_row["error_class"]
+                elif gen_row and gen_row.get("error_class"):
+                    res.error_class = gen_row["error_class"]
+
+        synthesized = [
+            self._synthesize_error_result_from_row(
+                row,
+                row.get("error") or "generation failed",
+                row.get("error_class") or "permanent",
+            )
+            for cid, row in gen_rows.items()
+            if row.get("status") == "failed_permanent" and cid not in matched_gen_cids
+        ]
+        return results + synthesized
+
     def _finalize_report(self, results, report_dir: Path, manifest) -> None:
         """Aggregate results and generate the report into report_dir."""
         from tests.quality.reporting.aggregator import aggregate_results
         from tests.quality.reporting.report_generator import ReportGenerator
         from tests.quality.reporting.report_models import QualityReport
 
+        # Tag recovery info + add synthesized error rows BEFORE aggregation so the
+        # averages, chart, and error log all include permanently-failed runs.
+        results = self._enrich_and_synthesize_results(results, manifest)
         total_cost = sum(r.total_cost_usd for r in results)
         report = QualityReport(
             results=results,
@@ -1385,6 +1735,7 @@ class QualityTestRunner:
             test_id=metadata.test_metadata["test_id"],
             query=po.query,
             model=metadata.test_metadata["model"],
+            run_num=metadata.test_metadata.get("run_num"),
             score=int(score),
             max_score=test_case.max_score,
             passed=passed,
@@ -1433,6 +1784,7 @@ class QualityTestRunner:
             test_id=metadata.test_metadata["test_id"],
             query=test_case.query,
             model=metadata.test_metadata["model"],
+            run_num=metadata.test_metadata.get("run_num"),
             score=0,
             max_score=test_case.max_score,
             passed=False,
@@ -1568,6 +1920,7 @@ class QualityTestRunner:
                 test_id=test_id,
                 query=query,
                 model=model,
+                run_num=run_num,
                 score=0,  # Not needed for metadata
                 max_score=0,  # Not needed for metadata
                 passed=False,  # Not needed for metadata

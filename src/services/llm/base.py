@@ -411,6 +411,17 @@ class LLMProvider(ABC):
     # provider-specific batch knowledge inside src/services/llm/.
     supports_batch: bool = False
 
+    @classmethod
+    def batch_supports_model(cls, model_id: str) -> bool:  # noqa: ARG003 - base default; overrides use model_id
+        """Whether this provider's Batch API accepts `model_id`.
+
+        `supports_batch` is provider-wide, but a provider may batch most of its
+        models while excluding a few (e.g. OpenAI's Batch API rejects the
+        `*-chat-latest` aliases). Adapters override this to carve out the
+        unsupported ones; such models fall back to the live path.
+        """
+        return True
+
     def __init__(self, api_key: str, model: str):
         """Initialize LLM provider.
 

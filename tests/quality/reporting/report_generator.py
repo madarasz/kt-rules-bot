@@ -98,7 +98,53 @@ class ReportGenerator:
             content.append("\n## Individual Test Results")
             content.append(self._get_grouped_individual_results(self.report.results))
 
+        error_log = self._get_error_recovery_log()
+        if error_log:
+            content.append(error_log)
+
         return "\n".join(content)
+
+    def _get_error_recovery_log(self) -> str:
+        """Table of every run that hit an LLM/Ragas API error, with its transient/
+        permanent classification, how many times it was re-requested, and whether it
+        was recovered. Empty string when nothing errored."""
+        rows = [
+            r
+            for r in self.report.results
+            if r.error or r.ragas_evaluation_error or getattr(r, "recovered_from_error", False)
+        ]
+        if not rows:
+            return ""
+
+        recovered = sum(1 for r in rows if getattr(r, "recovered_from_error", False))
+        unrecoverable = sum(
+            1
+            for r in rows
+            if (r.error or r.ragas_evaluation_error)
+            and not getattr(r, "recovered_from_error", False)
+        )
+        lines = [
+            "\n## Error & Recovery Log",
+            f"**{len(rows)} run(s) hit an API error** — "
+            f"{recovered} recovered by re-request, {unrecoverable} unrecoverable.\n",
+            "| Test Case | Model | Run | Class | Attempts | Recovered | Message |",
+            "|-----------|-------|-----|-------|----------|-----------|---------|",
+        ]
+        for r in rows:
+            is_recovered = getattr(r, "recovered_from_error", False)
+            msg = (r.error or r.ragas_error or "").replace("\n", " ").replace("|", "\\|").strip()
+            if not msg and is_recovered:
+                msg = "recovered after re-request"
+            if len(msg) > 120:
+                msg = msg[:117] + "..."
+            run = r.run_num if r.run_num is not None else "-"
+            cls = r.error_class or "-"
+            attempts = getattr(r, "recovery_attempts", 0)
+            recovered_flag = "✅" if is_recovered else "❌"
+            lines.append(
+                f"| {r.test_id} | {r.model} | {run} | {cls} | {attempts} | {recovered_flag} | {msg} |"
+            )
+        return "\n".join(lines)
 
     def _generate_test_case_report(self, test_id: str, results: list[IndividualTestResult]) -> str:
         """Generates content for a per-test-case report."""
@@ -223,6 +269,22 @@ class ReportGenerator:
 
         header.append(f"- **Test cases**: {', '.join(self.report.test_cases)}")
         header.append(f"- **Judge model**: {self.report.judge_model} ({QUALITY_TEST_JUDGING} mode)")
+
+        # Batch error-tolerance summary (only shown when something errored).
+        recovered = sum(
+            1 for r in self.report.results if getattr(r, "recovered_from_error", False)
+        )
+        unrecoverable = sum(
+            1
+            for r in self.report.results
+            if (r.error or r.ragas_evaluation_error)
+            and not getattr(r, "recovered_from_error", False)
+        )
+        if recovered or unrecoverable:
+            header.append(
+                f"- **Errors**: {recovered + unrecoverable} — "
+                f"{recovered} recovered by re-request, {unrecoverable} unrecoverable"
+            )
 
         if self.report.chart_path:
             chart_name = os.path.basename(self.report.chart_path)
