@@ -8,43 +8,30 @@ Usage:
     python -m src.cli list-models --provider claude
 """
 
-from src.lib.model_name import LLM_REASONING_EFFORT_LEVELS, supported_effort_levels
+from src.lib.model_name import format_effort_levels, supported_effort_levels
 from src.lib.tokens import pricing
-from src.services.llm.chatgpt import ChatGPTAdapter
-from src.services.llm.claude import ClaudeAdapter
-from src.services.llm.deepseek import DeepSeekAdapter
-from src.services.llm.dial import DialAdapter
 from src.services.llm.factory import LLMProviderFactory
-from src.services.llm.gemini import GeminiAdapter
-from src.services.llm.glm import GLMAdapter
-from src.services.llm.grok import GrokAdapter
-from src.services.llm.kimi import KimiAdapter
-from src.services.llm.minimax import MiniMaxAdapter
-from src.services.llm.mistral import MistralAdapter
-from src.services.llm.qwen import QwenAdapter
 
-# Friendly provider label per adapter class. Falls back to "<Class>Adapter"
+# Friendly provider label per adapter class name. Falls back to "<ClassName>"
 # minus the "Adapter" suffix for any adapter not listed here.
-_PROVIDER_LABELS: dict[type, str] = {
-    ClaudeAdapter: "Claude (Anthropic)",
-    ChatGPTAdapter: "ChatGPT (OpenAI)",
-    GeminiAdapter: "Gemini (Google)",
-    GrokAdapter: "Grok (xAI)",
-    DeepSeekAdapter: "DeepSeek",
-    KimiAdapter: "Kimi (Moonshot)",
-    MistralAdapter: "Mistral",
-    QwenAdapter: "Qwen (Alibaba)",
-    GLMAdapter: "GLM (Z.AI)",
-    MiniMaxAdapter: "MiniMax",
-    DialAdapter: "DIAL",
+_PROVIDER_LABELS: dict[str, str] = {
+    "ClaudeAdapter": "Claude (Anthropic)",
+    "ChatGPTAdapter": "ChatGPT (OpenAI)",
+    "GeminiAdapter": "Gemini (Google)",
+    "GrokAdapter": "Grok (xAI)",
+    "DeepSeekAdapter": "DeepSeek",
+    "KimiAdapter": "Kimi (Moonshot)",
+    "MistralAdapter": "Mistral",
+    "QwenAdapter": "Qwen (Alibaba)",
+    "GLMAdapter": "GLM (Z.AI)",
+    "MiniMaxAdapter": "MiniMax",
+    "DialAdapter": "DIAL",
 }
-
-_EFFORT_ORDER = {level: i for i, level in enumerate(LLM_REASONING_EFFORT_LEVELS)}
 
 
 def _provider_label(adapter_class: type) -> str:
     """Human-readable provider name for an adapter class."""
-    return _PROVIDER_LABELS.get(adapter_class, adapter_class.__name__.removesuffix("Adapter"))
+    return _PROVIDER_LABELS.get(adapter_class.__name__, adapter_class.__name__.removesuffix("Adapter"))
 
 
 def _price_per_million(friendly_name: str, model_id: str, key: str) -> str:
@@ -62,9 +49,7 @@ def _price_per_million(friendly_name: str, model_id: str, key: str) -> str:
 def _reasoning_levels(model_id: str) -> str:
     """Comma-separated supported effort levels (canonical order), or "—"."""
     levels = supported_effort_levels(model_id)
-    if not levels:
-        return "—"
-    return ", ".join(sorted(levels, key=lambda lvl: _EFFORT_ORDER.get(lvl, 99)))
+    return format_effort_levels(levels, fallback="—")
 
 
 def _print_table(headers: list[str], rows: list[list[str]]) -> None:

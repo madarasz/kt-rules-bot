@@ -19,10 +19,6 @@ factory registry tuple), NOT the friendly registry key.
 
 import argparse
 
-from src.lib.logging import get_logger
-
-logger = get_logger(__name__)
-
 # Delimiter between a model name and its reasoning-effort level.
 REASONING_EFFORT_DELIMITER = "#"
 
@@ -148,14 +144,20 @@ def split_reasoning_effort(model: str) -> tuple[str, str | None]:
     return base, effort
 
 
-def format_effort_levels(levels: frozenset[str] | None) -> str:
+def format_effort_levels(
+    levels: frozenset[str] | None, fallback: str = "none (model has no effort control)"
+) -> str:
     """Render effort levels in canonical weakest-to-strongest order.
 
     Plain ``sorted()`` gives alphabetical order ("high, low, max, medium"),
     which reads as a nonsensical ranking for what is a ranked scale.
+
+    Args:
+        levels: Supported effort levels, or None if not supported.
+        fallback: String to return when levels is empty.
     """
     if not levels:
-        return "none (model has no effort control)"
+        return fallback
     order = {level: i for i, level in enumerate(LLM_REASONING_EFFORT_LEVELS)}
     return ", ".join(sorted(levels, key=lambda lvl: order.get(lvl, len(order))))
 

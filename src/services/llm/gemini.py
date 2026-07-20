@@ -12,6 +12,7 @@ from uuid import uuid4
 from google import genai
 from google.genai import types
 
+from src.lib.constants import LLM_REASONING_TOKEN_MULTIPLIER
 from src.lib.logging import get_logger
 from src.services.llm.base import (
     AuthenticationError,
@@ -93,7 +94,11 @@ class GeminiAdapter(LLMProvider):
         (parse_batch_result is a stateless classmethod in a later process).
         """
         schema_type = request.config.structured_output_schema
-        max_tokens = request.config.max_tokens * 3 if self.uses_completion_tokens else request.config.max_tokens
+        max_tokens = (
+            request.config.max_tokens * LLM_REASONING_TOKEN_MULTIPLIER
+            if self.uses_completion_tokens
+            else request.config.max_tokens
+        )
         if schema_type == "default":
             numbered, synthetic_ids, sentence_map = self._number_context(
                 request.context, request.chunk_ids
@@ -235,12 +240,11 @@ class GeminiAdapter(LLMProvider):
             # Use Pydantic model's JSON schema (Google's recommended approach as of Nov 2024)
 
             # Gemini 2.5+ uses reasoning tokens (similar to GPT-5/o-series)
-            # Multiply by 3 to give enough room for both reasoning and visible output
             if self.uses_completion_tokens:
-                max_tokens = request.config.max_tokens * 3
+                max_tokens = request.config.max_tokens * LLM_REASONING_TOKEN_MULTIPLIER
                 logger.info(
                     f"Gemini 2.5+: Using max_output_tokens={max_tokens} "
-                    f"(3x {request.config.max_tokens} to account for reasoning tokens)"
+                    f"({LLM_REASONING_TOKEN_MULTIPLIER}x {request.config.max_tokens} to account for reasoning tokens)"
                 )
             else:
                 max_tokens = request.config.max_tokens

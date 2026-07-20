@@ -113,21 +113,35 @@ def test_validate_model_arg_rejects(arg):
 # --------------------------------------------------------------------------- #
 # Factory injection
 # --------------------------------------------------------------------------- #
-def test_factory_injects_effort(monkeypatch):
+@pytest.fixture
+def patched_factory_config(monkeypatch):
+    """Fixture providing mocked config/multi-server-config for factory tests.
+
+    Accepts optional provider arg to override default_llm_provider.
+    """
     from src.services.llm import factory as fac
 
-    class _Cfg:
-        default_llm_provider = "grok-4.3"
-        anthropic_api_key = openai_api_key = google_api_key = "dummy"
-        x_api_key = dial_api_key = deepseek_api_key = "dummy"
-        mistral_api_key = moonshot_api_key = alibaba_api_key = "dummy"
+    def _patch(provider="grok-4.3"):
+        class _Cfg:
+            default_llm_provider = provider
+            anthropic_api_key = openai_api_key = google_api_key = "dummy"
+            x_api_key = dial_api_key = deepseek_api_key = "dummy"
+            mistral_api_key = moonshot_api_key = alibaba_api_key = "dummy"
 
-    class _MSC:
-        def get_server_config(self, _gid):
-            return None
+        class _MSC:
+            def get_server_config(self, _gid):
+                return None
 
-    monkeypatch.setattr(fac, "get_config", lambda: _Cfg())
-    monkeypatch.setattr(fac, "get_multi_server_config", lambda: _MSC())
+        monkeypatch.setattr(fac, "get_config", lambda: _Cfg())
+        monkeypatch.setattr(fac, "get_multi_server_config", lambda: _MSC())
+
+    return _patch
+
+
+def test_factory_injects_effort(patched_factory_config):
+    from src.services.llm import factory as fac
+
+    patched_factory_config()
 
     provider = fac.LLMProviderFactory.create("grok-4.3#high")
     assert provider is not None
@@ -280,43 +294,21 @@ def test_effort_matrix_keys_all_resolve_to_a_registry_model():
         ),
     ],
 )
-def test_factory_roundtrip_applies_effort(monkeypatch, request_, spec, expect):
+def test_factory_roundtrip_applies_effort(patched_factory_config, request_, spec, expect):
     from src.services.llm import factory as fac
 
-    class _Cfg:
-        default_llm_provider = "grok-4.3"
-        anthropic_api_key = openai_api_key = google_api_key = "dummy"
-        x_api_key = dial_api_key = deepseek_api_key = "dummy"
-        mistral_api_key = moonshot_api_key = alibaba_api_key = "dummy"
-
-    class _MSC:
-        def get_server_config(self, _gid):
-            return None
-
-    monkeypatch.setattr(fac, "get_config", lambda: _Cfg())
-    monkeypatch.setattr(fac, "get_multi_server_config", lambda: _MSC())
+    patched_factory_config()
 
     provider = fac.LLMProviderFactory.create(spec)
     assert expect(provider.build_batch_request(request_, "c"))
 
 
-def test_factory_roundtrip_reasoning_model_omits_temperature(monkeypatch):
+def test_factory_roundtrip_reasoning_model_omits_temperature(patched_factory_config):
     """gpt-5.4-mini resolves to a dated model_id; effort must not be paired with
     temperature/max_tokens, which OpenAI rejects for reasoning models."""
     from src.services.llm import factory as fac
 
-    class _Cfg:
-        default_llm_provider = "gpt-5.4-mini"
-        anthropic_api_key = openai_api_key = google_api_key = "dummy"
-        x_api_key = dial_api_key = deepseek_api_key = "dummy"
-        mistral_api_key = moonshot_api_key = alibaba_api_key = "dummy"
-
-    class _MSC:
-        def get_server_config(self, _gid):
-            return None
-
-    monkeypatch.setattr(fac, "get_config", lambda: _Cfg())
-    monkeypatch.setattr(fac, "get_multi_server_config", lambda: _MSC())
+    patched_factory_config("gpt-5.4-mini")
 
     provider = fac.LLMProviderFactory.create("gpt-5.4-mini#high")
     body = provider.build_batch_request(

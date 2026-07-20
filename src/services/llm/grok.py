@@ -11,6 +11,7 @@ from uuid import uuid4
 import httpx
 import pydantic
 
+from src.lib.constants import LLM_REASONING_TOKEN_MULTIPLIER
 from src.lib.logging import get_logger
 from src.services.llm.base import (
     AuthenticationError,
@@ -70,6 +71,7 @@ class GrokAdapter(LLMProvider):
         effort = self._resolve_effort()
         if effort is not None:
             responses_body["reasoning_effort"] = effort
+            responses_body["max_output_tokens"] = request.config.max_tokens * LLM_REASONING_TOKEN_MULTIPLIER
         return {
             "custom_id": custom_id,
             "batch_request_id": custom_id,
@@ -197,6 +199,7 @@ class GrokAdapter(LLMProvider):
             effort = self._resolve_effort()
             if effort is not None:
                 payload["reasoning_effort"] = effort
+                payload["max_tokens"] = request.config.max_tokens * LLM_REASONING_TOKEN_MULTIPLIER
 
             # Call Grok API with timeout
             async with httpx.AsyncClient(timeout=request.config.timeout_seconds) as client:

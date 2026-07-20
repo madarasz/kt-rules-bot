@@ -12,6 +12,7 @@ from uuid import uuid4
 from openai import AsyncOpenAI
 from openai.lib._pydantic import to_strict_json_schema
 
+from src.lib.constants import LLM_REASONING_TOKEN_MULTIPLIER
 from src.lib.logging import get_logger
 from src.services.llm.base import (
     AuthenticationError,
@@ -67,7 +68,7 @@ class ChatGPTAdapter(LLMProvider):
             },
         }
         if self.uses_completion_tokens:
-            body["max_completion_tokens"] = request.config.max_tokens * 3
+            body["max_completion_tokens"] = request.config.max_tokens * LLM_REASONING_TOKEN_MULTIPLIER
         else:
             body["max_tokens"] = request.config.max_tokens
         if self.supports_temperature:
@@ -185,12 +186,11 @@ class ChatGPTAdapter(LLMProvider):
             # Other models use max_tokens
             if self.uses_completion_tokens:
                 # GPT-5 needs higher token limit to account for reasoning tokens
-                # Multiply by 3 to give enough room for both reasoning and visible output
-                max_tokens = request.config.max_tokens * 3
+                max_tokens = request.config.max_tokens * LLM_REASONING_TOKEN_MULTIPLIER
                 api_params["max_completion_tokens"] = max_tokens
                 logger.info(
                     f"GPT-5 / o-series: Using max_completion_tokens={max_tokens} "
-                    f"(3x {request.config.max_tokens} to account for reasoning tokens)"
+                    f"({LLM_REASONING_TOKEN_MULTIPLIER}x {request.config.max_tokens} to account for reasoning tokens)"
                 )
             else:
                 api_params["max_tokens"] = request.config.max_tokens
