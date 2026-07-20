@@ -18,6 +18,11 @@ python -m src.cli quality-test --test banner-carrier-dies --runs 10
 python -m src.cli quality-test --judge-model gpt-4o
 ```
 
+**Reasoning effort**: `--model` and `--judge-model` accept a `#effort` postfix
+(e.g. `--model grok-4.3#high`, `--judge-model claude-4.8-opus#low`). The CLI
+validates the level against the model and **exits with an error** if unsupported —
+see [src/services/llm/CLAUDE.md](../../src/services/llm/CLAUDE.md#reasoning-effort-model-name-postfix).
+
 **Results**: `tests/quality/results/{timestamp}/report.md`
 
 ## What It Does

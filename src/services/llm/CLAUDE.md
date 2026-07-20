@@ -548,6 +548,46 @@ X_API_KEY
 DEEPSEEK_API_KEY
 ```
 
+## Reasoning Effort (model-name postfix)
+
+Append a reasoning-effort level to any model name with `#`, e.g. `grok-4.3#high`,
+`claude-4.8-opus#low`, `gpt-5.5#medium`. No postfix ⇒ provider default (unchanged
+behaviour). The postfix works everywhere a model name is accepted: CLI `--model` /
+`--judge-model`, `servers.yaml` `llm_provider`, and quality-test model lists.
+
+> `servers.yaml` `rag_hop_evaluation_model` is **not** one of them — that setting is
+> parsed into `ServerConfig`/`Config` and then never read (multi-hop always uses the
+> `RAG_HOP_EVALUATION_MODEL` constant), so neither the model nor an effort postfix
+> set there has any effect.
+
+**Single source of truth**: [src/lib/model_name.py](../../lib/model_name.py) —
+`LLM_REASONING_EFFORT_LEVELS` (vocabulary), `REASONING_EFFORT_SUPPORT` (per-`model_id`
+support matrix), `split_reasoning_effort`, `is_effort_supported`, `validate_model_arg`.
+
+**Flow**: `LLMProviderFactory.create()` splits the postfix, resolves the base model,
+and injects `provider.reasoning_effort`. Each wired adapter reads it via the base-class
+`_resolve_effort()` gate and adds the provider-specific param; unwired adapters ignore it.
+
+| Provider | Param it maps to | Wired models |
+|----------|------------------|--------------|
+| OpenAI | `reasoning_effort` | gpt-5 family (minimal/low/medium/high), gpt-5.6 (low/medium/high/xhigh/max, **no** minimal), o3/o3-mini/o4-mini (low/medium/high) — not gpt-4o/4.1/*-chat-latest |
+| Anthropic | `output_config.effort` (sent via `extra_body`; not a named param in the pinned SDK) | opus-4.5/4.6/4.7/4.8, sonnet-4.6 — not opus-4.1, sonnet-4.5, haiku-4.5 |
+| Grok | `reasoning_effort` | grok-3-mini, grok-4-fast-reasoning, grok-4-1-fast-reasoning, grok-4.20-*-reasoning, grok-4.3 — not grok-4-0709 |
+| Gemini | `thinking_config` | Gemini 3 → `thinking_level`; Gemini 2.5 → `thinking_budget` (approximate) |
+
+When an effort is active the adapter also inflates the output budget by
+`LLM_REASONING_TOKEN_MULTIPLIER`, since thinking tokens are billed against
+`max_tokens` and would otherwise truncate the answer.
+| DeepSeek/Kimi/Qwen/GLM/MiniMax/Mistral/Dial | — | not wired: postfix accepted but ignored (warn once) |
+
+**Behaviour on an unsupported level**:
+- **CLI** (`--model`/`--judge-model`) — `validate_model_arg` **terminates** with a clear error listing the model's supported levels (fail-fast).
+- **Non-CLI** (`servers.yaml`, programmatic) — the adapter logs a warning and sends the request with **no** effort param (warn+ignore), so a config typo never crashes the bot.
+
+**⚠️ Maintenance**: when adding a new model to the factory registry, add its supported
+levels to `REASONING_EFFORT_SUPPORT` (keyed by the resolved `model_id`) if the provider
+has an effort knob. Absent ⇒ the model has no effort control.
+
 ## Common Tasks
 
 ### Adding a New LLM Provider
@@ -588,12 +628,20 @@ ProviderName = Literal[
 ]
 ```
 
-4. **Update CLI choices** ([src/cli/__main__.py](../../cli/__main__.py)):
-```python
-choices=["claude-4.5-sonnet", ..., "cohere-command-r"]
-```
+4. **Add to the curated model list** — `LLM_PROVIDERS_LITERAL` in
+   [src/lib/constants.py](../../lib/constants.py). The CLI `--model` arguments validate
+   against `ALL_LLM_PROVIDERS` (derived from that literal) via `validate_model_arg`, so a
+   model registered only in the factory registry is **not** accepted on the CLI. Keeping
+   it out of the literal is how models unfit for the pipeline (e.g. `o3`, no structured
+   JSON output) stay unreachable.
 
-5. **Add API key** to [src/lib/config.py](../../lib/config.py):
+5. **Register reasoning-effort levels** (if the provider has an effort knob) in
+   `REASONING_EFFORT_SUPPORT` ([src/lib/model_name.py](../../lib/model_name.py)), keyed by
+   the resolved `model_id`. If the adapter also keeps its own reasoning-model list (as
+   ChatGPT and Gemini do, for the token-budget multiplier), add the model there too —
+   `tests/unit/test_reasoning_effort.py` fails if the two tables disagree.
+
+6. **Add API key** to [src/lib/config.py](../../lib/config.py):
 ```python
 COHERE_API_KEY: str = Field(..., description="Cohere API key")
 ```

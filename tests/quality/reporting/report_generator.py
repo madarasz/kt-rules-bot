@@ -6,6 +6,7 @@ from collections import defaultdict
 import numpy as np
 
 from src.lib.constants import QUALITY_TEST_JUDGING
+from src.lib.model_name import model_slug
 from tests.quality.reporting.chart_generator import ChartGenerator
 from tests.quality.reporting.report_models import IndividualTestResult, ModelSummary, QualityReport
 
@@ -48,7 +49,9 @@ class ReportGenerator:
                 for model_name in self.report.models:
                     results = [r for r in test_case_report.results if r.model == model_name]
                     if results:
-                        path = os.path.join(self.report_dir, f"report_{test_id}_{model_name}.md")
+                        path = os.path.join(
+                            self.report_dir, f"report_{test_id}_{model_slug(model_name)}.md"
+                        )
                         content = self._generate_test_case_model_report(
                             test_id, model_name, results
                         )
@@ -176,7 +179,8 @@ class ReportGenerator:
             content.append("\n### Detailed Run Reports")
             for model_name in self.report.models:
                 content.append(
-                    f"- [Report for {test_id} on {model_name}](./report_{test_id}_{model_name}.md)"
+                    f"- [Report for {test_id} on {model_name}]"
+                    f"(./report_{test_id}_{model_slug(model_name)}.md)"
                 )
         else:
             content.append(self._get_grouped_individual_results(results))

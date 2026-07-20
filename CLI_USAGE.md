@@ -195,6 +195,20 @@ python -m src.cli health --wait-for-discord
 
 ---
 
+### `list-models` - List LLM Models per Provider
+
+Print a table per provider showing input/output token costs (USD per million tokens) and the reasoning-effort levels each model supports. No API calls, no cost.
+
+**Usage:**
+```bash
+python -m src.cli list-models [--provider NAME]
+```
+
+**Options:**
+- `--provider`, `-p` - Case-insensitive substring filter on provider name (e.g. `claude`, `openai`, `grok`)
+
+---
+
 ### `quality-test` - Evaluate RAG + LLM Answer Quality
 
 Run test queries, judge the answers with an LLM, and produce a scored report with cost breakdown. **Costs real money** (each run makes generation + judge LLM calls).
@@ -571,6 +585,7 @@ python -m src.cli --help
 python -m src.cli run --help
 python -m src.cli ingest --help
 python -m src.cli query --help
+python -m src.cli list-models --help
 python -m src.cli health --help
 python -m src.cli gdpr-delete --help
 python -m src.cli quality-test --help

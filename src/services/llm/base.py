@@ -20,6 +20,9 @@ from src.lib.constants import (
     LLM_EXTRACTION_TIMEOUT,
     LLM_GENERATION_TIMEOUT,
 )
+from src.lib.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _default_system_prompt() -> str:
@@ -431,6 +434,37 @@ class LLMProvider(ABC):
         """
         self.api_key = api_key
         self.model = model
+        # Reasoning-effort level (from a ``model#effort`` postfix), injected by
+        # the factory. None => provider default (unchanged behaviour). Adapters
+        # that support effort read this and gate via
+        # src.lib.model_name.is_effort_supported; others ignore it.
+        self.reasoning_effort: str | None = None
+        self._effort_warned = False
+
+    def _resolve_effort(self) -> str | None:
+        """Return the requested reasoning-effort level if this model supports it.
+
+        Returns None (logging a warning) when a level was requested that the
+        model does not support — the warn+ignore fallback for non-CLI paths
+        (CLI callers are validated up front). Adapters that map effort call this
+        to gate their provider-specific application.
+        """
+        from src.lib.model_name import is_effort_supported
+
+        effort = self.reasoning_effort
+        if effort is None:
+            return None
+        if is_effort_supported(self.model, effort):
+            return effort
+        # The answer is fixed at construction, so warn once per provider rather
+        # than once per request - otherwise a single static config typo floods
+        # the log of a long-lived bot (and of every line in a batch build).
+        if not self._effort_warned:
+            self._effort_warned = True
+            logger.warning(
+                f"Reasoning effort '{effort}' not supported by model {self.model}; ignoring"
+            )
+        return None
 
     def build_batch_request(self, request: "GenerationRequest", custom_id: str) -> dict:
         """Build a backend-ready batch line for this generation request.

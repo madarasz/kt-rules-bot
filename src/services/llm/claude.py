@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from anthropic import Anthropic, AsyncAnthropic
 
+from src.lib.constants import LLM_REASONING_TOKEN_MULTIPLIER
 from src.lib.logging import get_logger
 from src.lib.pdf_utils import decompress_pdf_with_cleanup
 from src.services.llm.base import (
@@ -71,6 +72,16 @@ CLAUDE_MODELS_WITHOUT_TEMPERATURE = {
     "claude-opus-4-8",
 }
 
+
+def _effort_max_tokens(max_tokens: int) -> int:
+    """Output budget to use when a reasoning effort is active.
+
+    Anthropic bills thinking tokens against max_tokens, so leaving the default
+    budget in place makes a high-effort request spend it all on reasoning and
+    return a truncated (unparseable) answer.
+    """
+    return max_tokens * LLM_REASONING_TOKEN_MULTIPLIER
+
 class ClaudeAdapter(LLMProvider):
     """Anthropic Claude API integration."""
 
@@ -109,6 +120,12 @@ class ClaudeAdapter(LLMProvider):
         }
         if self.model not in CLAUDE_MODELS_WITHOUT_TEMPERATURE:
             params["temperature"] = request.config.temperature
+        effort = self._resolve_effort()
+        if effort is not None:
+            # Raw batch params are serialised straight to JSON, so output_config
+            # goes in directly here (unlike generate(), which needs extra_body).
+            params["output_config"] = {"effort": effort}
+            params["max_tokens"] = _effort_max_tokens(request.config.max_tokens)
         return {"custom_id": custom_id, "params": params}
 
     @classmethod
@@ -211,6 +228,12 @@ class ClaudeAdapter(LLMProvider):
                 }
                 if self.model not in CLAUDE_MODELS_WITHOUT_TEMPERATURE:
                     parse_kwargs["temperature"] = request.config.temperature
+                effort = self._resolve_effort()
+                if effort is not None:
+                    # output_config is not yet a named param in the pinned SDK
+                    # (anthropic 0.74.1), so pass it through extra_body.
+                    parse_kwargs["extra_body"] = {"output_config": {"effort": effort}}
+                    parse_kwargs["max_tokens"] = _effort_max_tokens(request.config.max_tokens)
                 response = await asyncio.wait_for(
                     self.client.beta.messages.parse(**parse_kwargs),
                     timeout=request.config.timeout_seconds,
@@ -253,6 +276,12 @@ class ClaudeAdapter(LLMProvider):
                 }
                 if self.model not in CLAUDE_MODELS_WITHOUT_TEMPERATURE:
                     create_kwargs["temperature"] = request.config.temperature
+                effort = self._resolve_effort()
+                if effort is not None:
+                    # output_config is not yet a named param in the pinned SDK
+                    # (anthropic 0.74.1), so pass it through extra_body.
+                    create_kwargs["extra_body"] = {"output_config": {"effort": effort}}
+                    create_kwargs["max_tokens"] = _effort_max_tokens(request.config.max_tokens)
                 response = await asyncio.wait_for(
                     self.client.messages.create(**create_kwargs),
                     timeout=request.config.timeout_seconds,

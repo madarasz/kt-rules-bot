@@ -25,6 +25,7 @@ from src.lib.constants import (
     RAG_MAX_HOPS,
 )
 from src.lib.logging import get_logger
+from src.lib.model_name import model_base_name, model_slug
 from src.lib.tokens import calculate_llm_cost
 from src.models.rag_context_serializer import RAGContextSerializationError, load_rag_context
 from src.models.structured_response import StructuredLLMResponse
@@ -235,7 +236,7 @@ class QualityTestRunner:
         # Create LLM provider for this model
         llm_provider = LLMProviderFactory.create(model)
         GenerationConfig(timeout_seconds=LLM_GENERATION_TIMEOUT)
-        output_filename = report_dir / f"output_{test_case.test_id}_{model}_{run_num}.md"
+        output_filename = report_dir / f"output_{test_case.test_id}_{model_slug(model)}_{run_num}.md"
 
         # Ensure we have a query_id
         if query_id is None:
@@ -961,7 +962,7 @@ class QualityTestRunner:
         from tests.quality.ragas_evaluator import RagasMetrics
 
         model = meta["model"]
-        adapter_class = LLMProviderFactory._model_registry[model][0]
+        adapter_class = LLMProviderFactory._model_registry[model_base_name(model)][0]
         try:
             llm_response = adapter_class.parse_batch_result(item)
         except Exception as e:
@@ -969,7 +970,7 @@ class QualityTestRunner:
             logger.error(f"Batch gen item {meta['custom_id']} failed: {error_text}")
             return ("error", error_text)
         if not llm_response.model_version:
-            llm_response.model_version = LLMProviderFactory._model_registry[model][1]
+            llm_response.model_version = LLMProviderFactory._model_registry[model_base_name(model)][1]
 
         # Gemini quote reconstruction: parse_batch_result returns GeminiAnswer JSON
         # with sentence_numbers and empty quote_text; fill it here using the sentence
@@ -1023,7 +1024,7 @@ class QualityTestRunner:
             )
         else:
             ragas_metrics = RagasMetrics()
-        output_filename = report_dir / f"output_{meta['test_id']}_{model}_{meta['run_num']}.md"
+        output_filename = report_dir / f"output_{meta['test_id']}_{model_slug(model)}_{meta['run_num']}.md"
         self._save_output(
             output_filename,
             test_case.query,
@@ -1252,7 +1253,7 @@ class QualityTestRunner:
             # status == "ended": fetch + score each item, classifying failures.
             judge_items = backend.fetch(info["batch_id"])
             judge = CustomJudge(model=manifest.judge_model)
-            judge_adapter = LLMProviderFactory._model_registry[manifest.judge_model][0]
+            judge_adapter = LLMProviderFactory._model_registry[model_base_name(manifest.judge_model)][0]
             parsed = parse_output_directory(report_dir)
             test_cases_map = self._load_test_cases_for_outputs(parsed)
             cid_to_test_case: dict[str, object] = {}

@@ -10,6 +10,7 @@ registry (api_key_type -> backend) and the routing functions.
 """
 
 from src.lib.config import get_config
+from src.lib.model_name import model_base_name
 
 from .anthropic import AnthropicBatchBackend
 from .gemini import GeminiBatchBackend
@@ -52,7 +53,9 @@ def batch_group_key(backend: BatchBackend, model: str) -> str:
     suffix is stripped back off in make_backend(), so the key round-trips.
     """
     if isinstance(backend, OpenAICompatBatchBackend):
-        return f"{backend.name}::{model}"
+        # Strip any #effort postfix so same-model different-effort requests share
+        # one batch file (OpenAI-compat only requires a single *model* per batch).
+        return f"{backend.name}::{model_base_name(model)}"
     return backend.name
 
 
@@ -107,7 +110,8 @@ def resolve_backend(model: str) -> BatchBackend | None:
     """
     from src.services.llm.factory import LLMProviderFactory
 
-    entry = LLMProviderFactory._model_registry.get(model)
+    # Model may carry a #effort postfix; the registry is keyed by the base name.
+    entry = LLMProviderFactory._model_registry.get(model_base_name(model))
     if entry is None:
         return None
     adapter_class, _model_id, api_key_type = entry

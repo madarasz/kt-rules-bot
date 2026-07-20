@@ -9,6 +9,10 @@ from dataclasses import dataclass
 import tiktoken
 
 from src.lib.constants import EMBEDDING_MODEL
+from src.lib.logging import get_logger
+from src.lib.model_name import model_base_name
+
+logger = get_logger(__name__)
 
 # Default encoding for OpenAI models
 DEFAULT_ENCODING = "cl100k_base"
@@ -168,7 +172,12 @@ def calculate_llm_cost(
     Returns:
         LLMCostBreakdown with full cost and savings breakdown
     """
+    # Model names may carry a "#effort" postfix; pricing is keyed by the base
+    # name. Strip here rather than at each call site so no caller can leak the
+    # postfix into the lookup and silently get the placeholder rate.
+    model = model_base_name(model)
     if model not in pricing:
+        logger.warning(f"No pricing entry for model '{model}'; using placeholder rate")
         p = {"prompt": 0.002, "completion": 0.002, "cache_read": 0.0, "cache_write": 0.0, "cache_mode": "none"}
     else:
         p = pricing[model]

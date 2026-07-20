@@ -289,6 +289,7 @@ class TestEvaluateContext:
             {"can_answer": True, "reasoning": "Sufficient context"}
         )
         mock_response.token_count = 100
+        mock_response.model_version = None
         mock_response.prompt_tokens = 70
         mock_response.completion_tokens = 30
         mock_response.cache_read_tokens = 0
@@ -326,6 +327,7 @@ class TestEvaluateContext:
             }
         )
         mock_response.token_count = 100
+        mock_response.model_version = None
         mock_response.prompt_tokens = 70
         mock_response.completion_tokens = 30
         mock_response.cache_read_tokens = 0
@@ -356,6 +358,7 @@ class TestEvaluateContext:
         mock_response = Mock()
         mock_response.answer_text = "invalid json"
         mock_response.token_count = 100
+        mock_response.model_version = None
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -381,6 +384,7 @@ class TestEvaluateContext:
         mock_response = Mock()
         mock_response.answer_text = json.dumps({"can_answer": True})  # Missing reasoning
         mock_response.token_count = 100
+        mock_response.model_version = None
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -412,6 +416,7 @@ class TestEvaluateContext:
             {"can_answer": True, "reasoning": "Success after retry"}
         )
         mock_response.token_count = 100
+        mock_response.model_version = None
         mock_response.prompt_tokens = 70
         mock_response.completion_tokens = 30
         mock_response.cache_read_tokens = 0
@@ -448,6 +453,7 @@ class TestRetrieveMultiHop:
         mock_response = Mock()
         mock_response.answer_text = json.dumps({"can_answer": True, "reasoning": "Sufficient"})
         mock_response.token_count = 100
+        mock_response.model_version = None
         mock_response.prompt_tokens = 70
         mock_response.completion_tokens = 30
         mock_response.cache_read_tokens = 0
@@ -494,6 +500,7 @@ class TestRetrieveMultiHop:
             }
         )
         response1.token_count = 100
+        response1.model_version = None
         response1.prompt_tokens = 70
         response1.completion_tokens = 30
         response1.cache_read_tokens = 0
@@ -502,6 +509,7 @@ class TestRetrieveMultiHop:
         response2 = Mock()
         response2.answer_text = json.dumps({"can_answer": True, "reasoning": "Now sufficient"})
         response2.token_count = 100
+        response2.model_version = None
         response2.prompt_tokens = 70
         response2.completion_tokens = 30
         response2.cache_read_tokens = 0
@@ -551,6 +559,7 @@ class TestRetrieveMultiHop:
             {"can_answer": False, "reasoning": "Need more", "missing_query": "More info"}
         )
         mock_response.token_count = 100
+        mock_response.model_version = None
         mock_response.prompt_tokens = 70
         mock_response.completion_tokens = 30
         mock_response.cache_read_tokens = 0
@@ -593,12 +602,14 @@ class TestRetrieveMultiHop:
             {"can_answer": False, "reasoning": "Need more", "missing_query": "Additional"}
         )
         response1.token_count = 100
+        response1.model_version = None
         response1.prompt_tokens = 70
         response1.completion_tokens = 30
 
         response2 = Mock()
         response2.answer_text = json.dumps({"can_answer": True, "reasoning": "Done"})
         response2.token_count = 100
+        response2.model_version = None
         response2.prompt_tokens = 70
         response2.completion_tokens = 30
 
@@ -636,6 +647,7 @@ class TestHopEvaluatorCachingBehavior:
         r = Mock()
         r.answer_text = json.dumps({"can_answer": True, "reasoning": "Enough context", "missing_query": None})
         r.token_count = 100
+        r.model_version = None
         r.prompt_tokens = 80
         r.completion_tokens = 20
         r.cache_read_tokens = 0

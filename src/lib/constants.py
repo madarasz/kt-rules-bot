@@ -105,13 +105,13 @@ PDF_EXTRACTION_PROVIDERS = [
 
 # Quality test providers (curated list for --all-models testing)
 QUALITY_TEST_PROVIDERS = [
-    "gpt-5.6-luna",
+    #"gpt-5.6-luna",
     #"gpt-5.4",
-    "gpt-5.4-mini",
+    #"gpt-5.4-mini",
     #"gpt-5.4-nano",
     "gpt-5.3-chat-latest",
     #"gpt-5.2",
-    #"gpt-5.2-chat-latest",
+    "gpt-5.2-chat-latest",
     #"gpt-5.1-chat-latest",
     #"gpt-4.1",
     #"gpt-4o",
@@ -168,6 +168,11 @@ LLM_JUDGE_TIMEOUT = 30  # Quality test judge evaluation timeout
 # Default LLM generation parameters
 LLM_DEFAULT_MAX_TOKENS = 2048  # Maximum response length
 LLM_DEFAULT_TEMPERATURE = 0.1  # Lower = more deterministic (0.0-1.0)
+
+# Reasoning/thinking tokens are billed against the output budget, so reasoning
+# models need a larger max_tokens or the answer is truncated. Matches the
+# multiplier already applied in the ChatGPT and Gemini adapters.
+LLM_REASONING_TOKEN_MULTIPLIER = 3
 
 
 # PDF extraction parameters

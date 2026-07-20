@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 
 from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_JUDGING, RAGAS_METRIC_WEIGHTS
 from src.lib.logging import get_logger
+from src.lib.model_name import model_base_name
 from src.lib.ragas_adapter import evaluate_retrieval
 from src.lib.text_utils import normalize_text_for_matching
 from src.lib.tokens import calculate_llm_cost, estimate_cost
@@ -51,7 +52,7 @@ def _get_ragas_llm(judge_model: str):
         raise ValueError("OPENAI_API_KEY environment variable is required for RAGAS evaluation")
 
     # Use Langchain wrapper with ChatOpenAI (new RAGAS API)
-    chat_llm = ChatOpenAI(model=judge_model, api_key=openai_api_key)
+    chat_llm = ChatOpenAI(model=model_base_name(judge_model), api_key=openai_api_key)
     llm = LangchainLLMWrapper(chat_llm)
 
     return llm

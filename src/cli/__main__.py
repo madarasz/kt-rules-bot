@@ -9,6 +9,7 @@ from src.cli.download_team import download_team
 from src.cli.gdpr_delete import delete_user_data
 from src.cli.health_check import health_check
 from src.cli.ingest_rules import ingest_rules
+from src.cli.list_models import list_models
 from src.cli.maintenance import maintenance
 from src.cli.quality_test import quality_test
 from src.cli.rag_test import rag_test
@@ -16,13 +17,13 @@ from src.cli.rag_test_sweep import rag_test_sweep
 from src.cli.run_bot import run_bot
 from src.cli.test_query import test_query
 from src.lib.constants import (
-    ALL_LLM_PROVIDERS,
     PDF_EXTRACTION_PROVIDERS,
     QUALITY_TEST_JUDGE_MODEL,
     RAG_MAX_CHUNKS,
     RAG_MAX_HOPS,
     RAG_MIN_RELEVANCE,
 )
+from src.lib.model_name import validate_model_arg
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -75,7 +76,12 @@ def create_parser() -> argparse.ArgumentParser:
     )
     query_parser.add_argument("query", help="Query text to test")
     query_parser.add_argument(
-        "--model", "-m", choices=ALL_LLM_PROVIDERS, help="LLM model to use (default: from config)"
+        "--model",
+        "-m",
+        type=validate_model_arg,
+        metavar="MODEL",
+        help="LLM model, optionally with a reasoning-effort postfix "
+        "(e.g. grok-4.3#high). Default: from config.",
     )
     query_parser.add_argument(
         "--max-chunks", type=int, default=RAG_MAX_CHUNKS, help=f"Maximum RAG chunks to retrieve (default: {RAG_MAX_CHUNKS})"
@@ -97,6 +103,20 @@ def create_parser() -> argparse.ArgumentParser:
         type=str,
         metavar="PATH",
         help="Save RAG context to JSON file (requires --rag-only)",
+    )
+
+    # Command: list-models
+    list_models_parser = subparsers.add_parser(
+        "list-models",
+        help="List LLM models per provider with costs and reasoning levels",
+        description="Print a table per provider showing input/output token costs "
+        "(USD per million tokens) and supported reasoning-effort levels",
+    )
+    list_models_parser.add_argument(
+        "--provider",
+        "-p",
+        metavar="NAME",
+        help="Case-insensitive substring filter on provider name (e.g. claude, openai)",
     )
 
     # Command: health
@@ -145,16 +165,21 @@ def create_parser() -> argparse.ArgumentParser:
     quality_parser.add_argument(
         "--model",
         "-m",
-        choices=ALL_LLM_PROVIDERS,
-        help="Specific model to test (default: from config)",
+        type=validate_model_arg,
+        metavar="MODEL",
+        help="Specific model to test, optionally with a reasoning-effort postfix "
+        "(e.g. grok-4.3#high). Default: from config.",
     )
     quality_parser.add_argument(
         "--all-models", action="store_true", help="Test all available models"
     )
     quality_parser.add_argument(
         "--judge-model",
+        type=validate_model_arg,
+        metavar="MODEL",
         default=QUALITY_TEST_JUDGE_MODEL,
-        help=f"Model to use for LLM-based evaluation (default: {QUALITY_TEST_JUDGE_MODEL})",
+        help=f"Model for LLM-based evaluation, optionally with a reasoning-effort "
+        f"postfix (e.g. grok-4.3#high). Default: {QUALITY_TEST_JUDGE_MODEL}.",
     )
     quality_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
     quality_parser.add_argument(
@@ -313,7 +338,8 @@ def create_parser() -> argparse.ArgumentParser:
     download_all_teams_parser.add_argument(
         "--model",
         "-m",
-        choices=ALL_LLM_PROVIDERS,
+        type=validate_model_arg,
+        metavar="MODEL",
         default="gemini-2.5-pro",
         help="LLM model to use for extraction (default: gemini-2.5-pro)",
     )
@@ -346,6 +372,9 @@ def main() -> None:
                     context_output=args.context_output,
                 )
             )
+
+        elif args.command == "list-models":
+            list_models(provider_filter=args.provider)
 
         elif args.command == "health":
             health_check(verbose=args.verbose, wait_for_discord=args.wait_for_discord)

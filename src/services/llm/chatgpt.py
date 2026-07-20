@@ -72,6 +72,9 @@ class ChatGPTAdapter(LLMProvider):
             body["max_tokens"] = request.config.max_tokens
         if self.supports_temperature:
             body["temperature"] = request.config.temperature
+        effort = self._resolve_effort()
+        if effort is not None:
+            body["reasoning_effort"] = effort
         return {
             "custom_id": custom_id,
             "method": "POST",
@@ -128,7 +131,7 @@ class ChatGPTAdapter(LLMProvider):
         # GPT-5 and O-series models have limited parameter support and use reasoning tokens
         reasoning_models = [
             "gpt-5.6-luna",
-            "gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano",
+            "gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-mini-2026-03-17", "gpt-5.4-nano",
             "gpt-5.3-chat-latest",
             "gpt-5.2", "gpt-5.2-chat-latest",
             "gpt-5.1-chat-latest", "gpt-5.1", "gpt-5", "gpt-5-mini", "gpt-5-nano",
@@ -195,6 +198,12 @@ class ChatGPTAdapter(LLMProvider):
             # GPT-5 only supports temperature=1 (default)
             if self.supports_temperature:
                 api_params["temperature"] = request.config.temperature
+
+            # Reasoning effort (gpt-5 / o-series). Gated by the central support
+            # matrix; unsupported levels warn+ignore (keeps request unchanged).
+            effort = self._resolve_effort()
+            if effort is not None:
+                api_params["reasoning_effort"] = effort
 
             # Call OpenAI API with timeout using parse method for Pydantic structured outputs
             response = await asyncio.wait_for(

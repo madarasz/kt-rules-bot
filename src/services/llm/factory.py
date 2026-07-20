@@ -7,6 +7,7 @@ Based on specs/001-we-are-building/contracts/llm-adapter.md
 from src.lib.config import get_config
 from src.lib.constants import LLM_PROVIDERS_LITERAL
 from src.lib.logging import get_logger
+from src.lib.model_name import model_base_name, split_reasoning_effort, supported_effort_levels
 from src.lib.server_config import get_multi_server_config
 from src.services.llm.base import LLMProvider
 from src.services.llm.chatgpt import ChatGPTAdapter
@@ -26,6 +27,10 @@ logger = get_logger(__name__)
 
 class LLMProviderFactory:
     """Factory for creating LLM provider instances."""
+
+    # Models already warned about lacking reasoning-effort support. create() runs
+    # once per Discord message, so this keeps a static config typo to one line.
+    _effort_unsupported_warned: set[str] = set()
 
     # Model name to (adapter_class, actual_model_id, api_key_type) mapping
     _model_registry = {
@@ -160,15 +165,40 @@ class LLMProviderFactory:
             else:
                 provider_name = config.default_llm_provider
 
+        # Split off an optional reasoning-effort postfix (e.g. "grok-4.3#high").
+        # Lenient here (runtime path): an invalid effort token warns and is
+        # ignored rather than raising, so a servers.yaml typo cannot crash the
+        # bot. The CLI validates strictly up front (see model_name.validate_model_arg).
+        try:
+            base_name, reasoning_effort = split_reasoning_effort(provider_name)
+        except ValueError as exc:
+            logger.warning(f"{exc}; ignoring reasoning-effort postfix")
+            base_name, reasoning_effort = model_base_name(provider_name), None
+
         # Validate provider name
-        if provider_name not in cls._model_registry:
+        if base_name not in cls._model_registry:
             raise ValueError(
-                f"Invalid model: {provider_name}. "
+                f"Invalid model: {base_name}. "
                 f"Must be one of: {', '.join(cls._model_registry.keys())}"
             )
 
         # Get adapter class, model ID, and API key type
-        adapter_class, model_id, api_key_type = cls._model_registry[provider_name]
+        adapter_class, model_id, api_key_type = cls._model_registry[base_name]
+
+        # Warn if an effort was requested for a provider that has no effort knob
+        # wired at all (unsupported *levels* on wired providers are warned by
+        # the adapter itself). create() runs per Discord message, so dedupe on
+        # the model or a static servers.yaml typo warns on every query.
+        if (
+            reasoning_effort is not None
+            and supported_effort_levels(model_id) is None
+            and base_name not in cls._effort_unsupported_warned
+        ):
+            cls._effort_unsupported_warned.add(base_name)
+            logger.warning(
+                f"Model {base_name} ({model_id}) has no reasoning-effort support; "
+                f"'#{reasoning_effort}' will be ignored"
+            )
 
         # Resolve API key based on whether server is configured
         api_key = None
@@ -229,6 +259,7 @@ class LLMProviderFactory:
 
         # Create provider instance
         provider = adapter_class(api_key=api_key, model=model_id)
+        provider.reasoning_effort = reasoning_effort
 
         log_msg = f"Created {provider_name} with model {model_id}"
         if guild_id:
