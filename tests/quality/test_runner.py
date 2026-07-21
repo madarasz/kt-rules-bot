@@ -370,10 +370,13 @@ class QualityTestRunner:
             score = self.evaluator.calculate_aggregate_score(metrics)
             passed = score >= 80.0  # 80% threshold for passing
 
-        # Track judge failures so the report can show them as grey bars.
-        # The error is stored in metrics.error by the evaluator.
+        # Track evaluation failures so the report can show them as grey bars.
+        # The error is stored in metrics.error by the evaluator. This covers both a
+        # failed judge call and a generation that produced no parseable JSON - the
+        # latter must not be excluded here, or it lands in the model average as a
+        # legitimate-looking 0%.
         evaluation_error = False
-        if not no_eval and structured_llm_response is not None and metrics.error:
+        if not no_eval and metrics.error:
             evaluation_error = True
             logger.error(
                 f"Judge evaluation failed for test {test_case.test_id} on model {model} - "
@@ -1632,27 +1635,41 @@ class QualityTestRunner:
                     ground_truth_contexts=[ctx.text for ctx in test_case.ground_truth_contexts],  # Just text
                 )
 
-                # Combine deterministic + judge metrics
-                # Update deterministic_metrics dict with judge results to avoid duplicate keyword args
-                deterministic_metrics.update({
-                    "explanation_faithfulness": judge_result.explanation_faithfulness,
-                    "answer_correctness": judge_result.answer_correctness,  # Not _aggregate
-                    "answer_correctness_details": judge_result.answer_correctness_details,
-                    "feedback": judge_result.feedback,
-                })
-                metrics = QualityMetrics(**deterministic_metrics)
+                # CustomJudge reports failures by returning an error result with 0.0
+                # scores rather than raising, so this must be checked explicitly -
+                # otherwise a failed judge is recorded as genuine zero scores instead
+                # of an evaluation error.
+                if judge_result.error:
+                    logger.error(
+                        f"Custom judge evaluation failed for "
+                        f"{metadata.test_metadata['test_id']}: {judge_result.error}"
+                    )
+                    # Deterministic metrics only; no tokens were consumed, so no cost.
+                    metrics = QualityMetrics(
+                        **deterministic_metrics, error=f"Judge error: {judge_result.error}"
+                    )
+                else:
+                    # Combine deterministic + judge metrics
+                    # Update deterministic_metrics dict with judge results to avoid duplicate keyword args
+                    deterministic_metrics.update({
+                        "explanation_faithfulness": judge_result.explanation_faithfulness,
+                        "answer_correctness": judge_result.answer_correctness,  # Not _aggregate
+                        "answer_correctness_details": judge_result.answer_correctness_details,
+                        "feedback": judge_result.feedback,
+                    })
+                    metrics = QualityMetrics(**deterministic_metrics)
 
-                # Calculate judge cost from actual tokens, including prompt-cache
-                # tokens so cached judge calls are costed and credited correctly.
-                judge_breakdown = calculate_llm_cost(
-                    prompt_tokens=judge_result.prompt_tokens,
-                    completion_tokens=judge_result.completion_tokens,
-                    model=self.judge_model,
-                    cache_read_tokens=judge_result.cache_read_tokens,
-                    cache_creation_tokens=judge_result.cache_creation_tokens,
-                )
-                judge_cost = judge_breakdown.total_cost
-                judge_cache_savings = judge_breakdown.cache_savings
+                    # Calculate judge cost from actual tokens, including prompt-cache
+                    # tokens so cached judge calls are costed and credited correctly.
+                    judge_breakdown = calculate_llm_cost(
+                        prompt_tokens=judge_result.prompt_tokens,
+                        completion_tokens=judge_result.completion_tokens,
+                        model=self.judge_model,
+                        cache_read_tokens=judge_result.cache_read_tokens,
+                        cache_creation_tokens=judge_result.cache_creation_tokens,
+                    )
+                    judge_cost = judge_breakdown.total_cost
+                    judge_cache_savings = judge_breakdown.cache_savings
 
             except Exception as e:
                 logger.error(

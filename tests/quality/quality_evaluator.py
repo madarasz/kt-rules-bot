@@ -127,54 +127,65 @@ class QualityEvaluator:
                 for q in llm_response.quotes
             ]
 
-            # Explanation Faithfulness + Answer Correctness: single unified judge call
-            logger.debug(f"Running custom LLM judge (model={self.llm_model})")
-
-            custom_judge = CustomJudge(model=self.llm_model)
-            judge_result = await custom_judge.evaluate(
-                query=query,
-                llm_response_text=llm_response.to_json(),  # Full structured response as JSON
-                llm_quotes_structured=llm_quotes_structured,
-                ground_truth_answers=ground_truth_answers,  # Pass objects, not strings
-                ground_truth_contexts=ground_truth_context_texts,
-            )
-
-            if judge_result.error:
-                logger.error(f"Custom judge evaluation failed: {judge_result.error}")
-                explanation_faithfulness_score = None
-                answer_correctness_score = None
-                custom_judge_feedback = f"Custom judge error: {judge_result.error}"
-                answer_correctness_details = None
-                # No tokens consumed on error
-                judge_prompt_tokens = 0
-                judge_completion_tokens = 0
-                judge_cache_read_tokens = 0
-                judge_cache_creation_tokens = 0
-            else:
-                explanation_faithfulness_score = judge_result.explanation_faithfulness
-                answer_correctness_score = judge_result.answer_correctness
-                custom_judge_feedback = judge_result.feedback
-                answer_correctness_details = judge_result.answer_correctness_details
-                # Capture actual token counts from LLM call
-                judge_prompt_tokens = judge_result.prompt_tokens
-                judge_completion_tokens = judge_result.completion_tokens
-                judge_cache_read_tokens = judge_result.cache_read_tokens
-                judge_cache_creation_tokens = judge_result.cache_creation_tokens
-                logger.info(
-                    f"Custom judge completed: ef={explanation_faithfulness_score:.2f}, "
-                    f"ac={answer_correctness_score:.2f}"
-                )
-
-            # Quote Faithfulness: fuzzy string matching (deterministic, fast, cheap).
-            # Needs DocumentChunk objects for chunk_id filtering; skipped when only text is available.
+            # Both LLM-scored metrics and quote faithfulness need DocumentChunk objects
+            # for chunk_id filtering. Without them nothing here can be scored, so skip
+            # the judge entirely rather than paying for a call we cannot use.
+            explanation_faithfulness_score = None
+            answer_correctness_score = None
+            custom_judge_feedback = None
+            answer_correctness_details = None
             quote_faithfulness_score = None
             quote_faithfulness_details = None
+            evaluation_error_message = None
+            judge_prompt_tokens = 0
+            judge_completion_tokens = 0
+            judge_cache_read_tokens = 0
+            judge_cache_creation_tokens = 0
+
             if context_chunk_objects is None:
                 logger.warning(
-                    "context_chunks are strings, not DocumentChunk objects. "
-                    "Skipping quote faithfulness (requires chunk_id filtering)."
+                    "No DocumentChunk objects available (empty retrieval or legacy string "
+                    "chunks). Skipping custom judge and quote faithfulness."
+                )
+                evaluation_error_message = (
+                    "No DocumentChunk objects available - judge and quote faithfulness skipped"
                 )
             else:
+                # Explanation Faithfulness + Answer Correctness: single unified judge call
+                logger.debug(f"Running custom LLM judge (model={self.llm_model})")
+
+                custom_judge = CustomJudge(model=self.llm_model)
+                judge_result = await custom_judge.evaluate(
+                    query=query,
+                    llm_response_text=llm_response.to_json(),  # Full structured response as JSON
+                    llm_quotes_structured=llm_quotes_structured,
+                    ground_truth_answers=ground_truth_answers,  # Pass objects, not strings
+                    ground_truth_contexts=ground_truth_context_texts,
+                )
+
+                if judge_result.error:
+                    logger.error(f"Custom judge evaluation failed: {judge_result.error}")
+                    # Surface as metrics.error so the run is reported as an evaluation
+                    # failure instead of being silently rescored over the remaining
+                    # metric weights (which would report a perfect run as 100%).
+                    evaluation_error_message = f"Judge error: {judge_result.error}"
+                    custom_judge_feedback = f"Custom judge error: {judge_result.error}"
+                else:
+                    explanation_faithfulness_score = judge_result.explanation_faithfulness
+                    answer_correctness_score = judge_result.answer_correctness
+                    custom_judge_feedback = judge_result.feedback
+                    answer_correctness_details = judge_result.answer_correctness_details
+                    # Capture actual token counts from LLM call
+                    judge_prompt_tokens = judge_result.prompt_tokens
+                    judge_completion_tokens = judge_result.completion_tokens
+                    judge_cache_read_tokens = judge_result.cache_read_tokens
+                    judge_cache_creation_tokens = judge_result.cache_creation_tokens
+                    logger.info(
+                        f"Custom judge completed: ef={explanation_faithfulness_score:.2f}, "
+                        f"ac={answer_correctness_score:.2f}"
+                    )
+
+                # Quote Faithfulness: fuzzy string matching (deterministic, fast, cheap)
                 fuzzy_result = FuzzyQuoteEvaluator().evaluate(
                     llm_quotes_structured=llm_quotes_structured,
                     rag_context_chunks=context_chunk_objects,
@@ -199,6 +210,7 @@ class QualityEvaluator:
                 answer_correctness_details=answer_correctness_details,
                 llm_quotes_structured=llm_quotes_structured,
                 feedback=custom_judge_feedback or "",
+                error=evaluation_error_message,
             )
 
             metrics.quote_recall_feedback = self._generate_quote_recall_feedback(

@@ -83,8 +83,14 @@ The judge is a single LLM call with structured output and unified feedback
 (prompt: `prompts/quality-test-custom-judge.md`), costing ~$0.001-0.003 per test.
 It produces explanation faithfulness + per-answer correctness.
 
-To skip it and get deterministic metrics only (quote precision/recall/faithfulness,
-$0, local computation), run with `--no-eval`.
+`--no-eval` skips evaluation entirely — it does **not** give you the deterministic
+metrics. No metrics are computed (every field is `None`), every run reports 0%, and
+the outputs carry no metadata block, so they cannot be replayed with `--from-output`.
+Use it only to generate responses for manual reading.
+
+There is currently no flag for "deterministic quote metrics only, no judge cost".
+The internal `defer_judge` path computes exactly that, but it is reachable only via
+`--batch-submit`, for models whose provider has no batch API.
 
 ---
 
