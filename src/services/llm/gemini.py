@@ -192,7 +192,6 @@ class GeminiAdapter(LLMProvider):
         self.client = genai.Client(
             api_key=api_key
         )
-        self.model = model
 
         # Non-reasoning models don't use thinking tokens; all others (new Gemini models
         # included by default) use reasoning/thinking tokens
