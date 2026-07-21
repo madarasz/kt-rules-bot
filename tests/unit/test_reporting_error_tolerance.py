@@ -7,7 +7,7 @@ from tests.quality.reporting.report_generator import ReportGenerator
 from tests.quality.reporting.report_models import IndividualTestResult, QualityReport
 
 
-def _result(run, score, *, error=None, ragas_eval_error=False, recovered=False,
+def _result(run, score, *, error=None, eval_error=False, recovered=False,
             attempts=0, error_class=None, max_score=100):
     return IndividualTestResult(
         test_id="t1",
@@ -23,7 +23,7 @@ def _result(run, score, *, error=None, ragas_eval_error=False, recovered=False,
         generation_time_seconds=0.0,
         output_filename="f",
         error=error,
-        ragas_evaluation_error=ragas_eval_error,
+        evaluation_error=eval_error,
         recovered_from_error=recovered,
         recovery_attempts=attempts,
         error_class=error_class,
@@ -66,7 +66,7 @@ def test_score_breakdown_three_way():
 def test_score_breakdown_double_fault():
     # Generation recovered but judge permanently errored: earned portion -> gold,
     # lost portion -> grey, total height preserved.
-    results = [_result(1, 40, recovered=True, attempts=1, ragas_eval_error=True)]
+    results = [_result(1, 40, recovered=True, attempts=1, eval_error=True)]
     earned, recovered, error = ChartGenerator(_report(results))._calculate_score_breakdown(["m"])
     assert earned[0] == pytest.approx(0.0)
     assert recovered[0] == pytest.approx(40.0)

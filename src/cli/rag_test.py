@@ -24,7 +24,7 @@ def rag_test(
     max_chunks: int = RAG_MAX_CHUNKS,
     min_relevance: float = RAG_MIN_RELEVANCE,
 ) -> None:
-    """Run RAG retrieval tests using Ragas evaluation framework.
+    """Run RAG retrieval tests.
 
     Args:
         test_id: Specific test ID to run (otherwise run all)
@@ -35,7 +35,7 @@ def rag_test(
     test_desc = f"test '{test_id}'" if test_id else "all tests"
     print(f"Running {test_desc} with {runs} run(s)")
     print(f"Configuration: max_chunks={max_chunks}, min_relevance={min_relevance}")
-    print("Evaluation: Ragas metrics")
+    print("Evaluation: retrieval metrics")
 
     # Initialize runner
     runner = RAGTestRunner()
@@ -70,19 +70,19 @@ def rag_test(
 
         # Print summary to console
         print("\n" + "=" * 80)
-        print("RAGAS METRICS")
+        print("RETRIEVAL METRICS")
         print("=" * 80)
         print(f"Total Tests: {summary.total_tests}")
 
-        # Print Ragas metrics
-        if summary.mean_ragas_context_precision is not None:
-            print(f"Context Precision: {summary.mean_ragas_context_precision:.3f}")
-            print(f"Context Recall: {summary.mean_ragas_context_recall:.3f}")
+        # Print retrieval metrics
+        if summary.mean_context_precision is not None:
+            print(f"Context Precision: {summary.mean_context_precision:.3f}")
+            print(f"Context Recall: {summary.mean_context_recall:.3f}")
 
-            if summary.std_dev_ragas_context_precision > 0:
+            if summary.std_dev_context_precision > 0:
                 print("")
-                print(f"Context Precision std dev: ±{summary.std_dev_ragas_context_precision:.3f}")
-                print(f"Context Recall std dev: ±{summary.std_dev_ragas_context_recall:.3f}")
+                print(f"Context Precision std dev: ±{summary.std_dev_context_precision:.3f}")
+                print(f"Context Recall std dev: ±{summary.std_dev_context_recall:.3f}")
 
         print("")
         print("=" * 80)
@@ -214,7 +214,7 @@ def _save_to_database(timestamp: str, summary, report_path: Path, results: list)
             "avg_retrieval_time": summary.avg_retrieval_time_seconds,
             # saved in cents to avoid floating point issues
             "avg_retrieval_cost": total_cost_with_hops * 100 / summary.total_tests if summary.total_tests > 0 else 0.0,
-            "context_recall": summary.mean_ragas_context_recall,
+            "context_recall": summary.mean_context_recall,
             "avg_hops_used": summary.avg_hops_used,
             "can_answer_recall": summary.hop_can_answer_recall,
             "full_report_md": full_report_md,

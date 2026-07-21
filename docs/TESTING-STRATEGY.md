@@ -140,7 +140,7 @@ python -m src.cli rag-test-sweep
 | Aspect | RAG Tests | Quality Tests |
 |--------|-----------|---------------|
 | **Focus** | Retrieval accuracy | LLM generation quality |
-| **Evaluation** | Chunk matching | Ragas metrics + custom judge |
+| **Evaluation** | Chunk matching | RAGAS-style metrics + custom judge |
 | **LLM Calls** | None (RAG only) | Yes (full pipeline) |
 | **Cost** | Embedding API only | Embedding + LLM APIs |
 | **Purpose** | Optimize retrieval | Compare LLM models |

@@ -64,20 +64,6 @@ LLM_PROVIDERS_LITERAL = Literal[
     "mistral-large-3",
     "ministral-3-14-b",
     "ministral-3-8-b",
-    "dial-gpt-4o",
-    "dial-gpt-4.1",
-    "dial-gpt-5",
-    "dial-gpt-5-chat",
-    "dial-gpt-5-mini",
-    "dial-gpt-o3",
-    "dial-sonet-4.5",
-    "dial-sonet-4.5-thinking",
-    "dial-opus-4.1",
-    "dial-opus-4.1-thinking",
-    "dial-amazon-nova-pro",
-    "dial-amazon-titan",
-    "dial-gemini-2.5-pro",
-    "dial-gemini-2.5-flash",
     # Qwen models (Alibaba Cloud)
     "qwen3.6-flash",
     "qwen-turbo",
@@ -111,7 +97,7 @@ QUALITY_TEST_PROVIDERS = [
     #"gpt-5.4-nano",
     "gpt-5.3-chat-latest",
     #"gpt-5.2",
-    "gpt-5.2-chat-latest",
+    #"gpt-5.2-chat-latest",
     #"gpt-5.1-chat-latest",
     #"gpt-4.1",
     #"gpt-4o",
@@ -139,19 +125,6 @@ QUALITY_TEST_PROVIDERS = [
     # "grok-3",
     # "grok-3-mini",
     "deepseek-v4-flash"
-    # "dial-gpt-4.1",  # denied WHY??
-    # "dial-gpt-5",    # denied
-    # "dial-gpt-5-chat",  # denied
-    # "dial-gpt-5-mini",
-    # "dial-gpt-o3",   # denied
-    # "dial-sonet-4.5",  # denied
-    # "dial-sonet-4.5-thinking",  # denied
-    # "dial-opus-4.1",  # denied
-    # "dial-opus-4.1-thinking",  # denied
-    # "dial-amazon-nova-pro",  # denied
-    # "dial-amazon-titan",  # denied
-    # "dial-gemini-2.5-pro",
-    # "dial-gemini-2.5-flash"
 ]
 
 # Default LLM provider for generation
@@ -163,7 +136,6 @@ LLM_MAX_RETRIES = 2  # Number of retry attempts on ContentFilterError
 # Default LLM timeouts (in seconds)
 LLM_GENERATION_TIMEOUT = 120  # Standard generation timeout
 LLM_EXTRACTION_TIMEOUT = 300  # PDF extraction timeout (5 minutes for large PDFs)
-LLM_JUDGE_TIMEOUT = 30  # Quality test judge evaluation timeout
 
 # Default LLM generation parameters
 LLM_DEFAULT_MAX_TOKENS = 2048  # Maximum response length
@@ -183,24 +155,13 @@ LLM_EXTRACTION_TEMPERATURE = 0  # Low temperature for consistent structure
 # Quality Test Constants
 # ============================================================================
 
-# Default judge model for quality tests (used by both Ragas and custom judge)
+# Default judge model for quality tests (custom unified LLM judge)
 QUALITY_TEST_JUDGE_MODEL = "grok-4.3"
-
-# Quality test judging mode
-# - "RAGAS": Enable LLM-based metrics (Quote Faithfulness, Explanation Faithfulness, Answer Correctness) using Ragas library
-# - "CUSTOM": Use custom unified LLM judge (single call, Pydantic validated, returns 2 metrics + feedback)
-# - "OFF": Disable LLM-based metrics (only Quote Precision and Quote Recall)
-# Note: Quote Precision and Quote Recall are always calculated (local, no LLM required)
-QUALITY_TEST_JUDGING: Literal["RAGAS", "CUSTOM", "OFF"] = "CUSTOM"  # Default: CUSTOM for improved evaluation
-
-# Judge evaluation parameters
-QUALITY_TEST_JUDGE_MAX_TOKENS = 150  # Short evaluation responses (Ragas only)
-QUALITY_TEST_JUDGE_TEMPERATURE = 0.0  # Deterministic for consistency (Ragas only)
 
 # Quality Testing - Metric Weights (Phase 1.1)
 # These weights are used to calculate the aggregate score from individual metrics
 # Higher weight = more important for overall score
-RAGAS_METRIC_WEIGHTS = {
+QUALITY_METRIC_WEIGHTS = {
     "answer_correctness": 0.50,       # Must get answer right (50%)
     "quote_recall": 0.20,             # Must cite all key rules (20%)
     "explanation_faithfulness": 0.15, # Explanation must be grounded (15%)
@@ -219,7 +180,8 @@ GROUND_TRUTH_PRIORITY_WEIGHTS = {
 DEFAULT_GROUND_TRUTH_PRIORITY = "critical"
 
 # Custom Judge Configuration (Phase 1.3)
-# Unified LLM judge for quality testing (alternative to Ragas)
+# Unified LLM judge for quality testing (single call: explanation faithfulness,
+# answer correctness, and feedback)
 CUSTOM_JUDGE_PROMPT_PATH = "prompts/quality-test-custom-judge.md"  # Prompt template path
 
 # Quote Validation Configuration

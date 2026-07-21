@@ -24,6 +24,7 @@ src/lib/
 ├── gdpr.py             # GDPR compliance utilities
 ├── metrics.py          # Usage and performance metrics
 ├── pricing.py          # LLM pricing table and cost calculation
+├── retrieval_metrics.py # RAGAS-style context precision/recall (test frameworks)
 ├── tokens.py           # Token counting and limits
 └── discord_utils.py    # Discord-specific utilities
 ```
@@ -98,6 +99,11 @@ LLM pricing and cost calculation:
 - Per-model pricing table (`pricing` dict)
 - `calculate_llm_cost()` / `estimate_cost()` — cost breakdown incl. cache and batch savings
 - Batch API discount rates (`BATCH_DISCOUNT`, `batch_discount_for()`)
+
+### retrieval_metrics.py
+RAGAS-style retrieval evaluation — **our own implementation**, not the `ragas` library:
+- `evaluate_retrieval()` — context precision + priority-weighted context recall by substring match
+- Deterministic and free (no LLM judge). Used by both `tests/quality/` and `tests/rag/`.
 
 ### discord_utils.py
 Discord-specific utilities:

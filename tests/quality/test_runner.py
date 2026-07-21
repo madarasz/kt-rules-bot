@@ -19,7 +19,6 @@ from src.lib.config import get_config
 from src.lib.constants import (
     LLM_GENERATION_TIMEOUT,
     QUALITY_TEST_JUDGE_MODEL,
-    QUALITY_TEST_JUDGING,
     QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS,
     RAG_MAX_CHUNKS,
     RAG_MAX_HOPS,
@@ -44,7 +43,7 @@ from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.retriever import RAGRetriever
 from src.services.rag.vector_db import VectorDBService
 from tests.quality.metadata_generator import MetadataFormatter, MetadataGenerator, OutputMetadata
-from tests.quality.ragas_evaluator import RagasEvaluator
+from tests.quality.quality_evaluator import QualityEvaluator
 from tests.quality.reporting.report_models import IndividualTestResult
 from tests.quality.test_case_models import GroundTruthAnswer, GroundTruthContext, TestCase
 
@@ -62,7 +61,7 @@ class QualityTestRunner:
         """Initialize test runner."""
         self.test_cases_dir = Path(test_cases_dir)
         self.judge_model = judge_model
-        self.ragas_evaluator = RagasEvaluator(llm_model=judge_model)
+        self.evaluator = QualityEvaluator(llm_model=judge_model)
         self.config = get_config()
         self.vector_db = VectorDBService(collection_name="kill_team_rules")
         self.embedding_service = EmbeddingService()
@@ -81,15 +80,11 @@ class QualityTestRunner:
 
         # Semaphore to limit concurrent LLM requests (prevents rate limit errors)
         self.llm_semaphore = asyncio.Semaphore(QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS)
-        # Semaphore to serialize Ragas evaluations (Ragas is not thread-safe for parallel execution)
-        self.ragas_semaphore = asyncio.Semaphore(1)
+        # Semaphore to serialize judge evaluations
+        self.judge_semaphore = asyncio.Semaphore(1)
 
         # Log quality test configuration
-        logger.info(
-            "quality_test_config",
-            judging_mode=QUALITY_TEST_JUDGING,
-            judge_model=judge_model if QUALITY_TEST_JUDGING != "OFF" else "N/A",
-        )
+        logger.info("quality_test_config", judge_model=judge_model)
 
     def load_test_cases(self, test_id: str | None = None) -> list[TestCase]:
         """Load test cases from YAML files with new key-based format.
@@ -166,7 +161,6 @@ class QualityTestRunner:
                         ground_truth_answers=answers,
                         ground_truth_contexts=contexts,
                         context_file=data.get("context_file", None),  # Optional cached context
-                        requirements=data.get("requirements", None),  # Legacy field
                     )
                 )
                 logger.info(f"Loaded test case: {data['test_id']} ({len(answers)} answers, {len(contexts)} contexts)")
@@ -335,36 +329,36 @@ class QualityTestRunner:
             llm_response_json = f"[LLM Generation Failed: {error_str}]"
             llm_response_markdown = llm_response_json
 
-        # Evaluate with Ragas metrics (skip if no_eval is True)
+        # Evaluate quality metrics (skip if no_eval is True)
         # Note: We save output AFTER evaluation to include metrics in the report
         if no_eval:
-            # Skip Ragas evaluation - create empty metrics
-            from tests.quality.ragas_evaluator import RagasMetrics
+            # Skip evaluation - create empty metrics
+            from tests.quality.quality_evaluator import QualityMetrics
 
-            ragas_metrics = RagasMetrics()
+            metrics = QualityMetrics()
             score = 0.0
             passed = False
         elif defer_judge:
             # Compute the deterministic (non-LLM) quote metrics now and skip the
             # judge; the deferred scoring pass runs the judge exactly once. Same
             # persisted shape as the batch-generation path.
-            from tests.quality.ragas_evaluator import RagasMetrics
+            from tests.quality.quality_evaluator import QualityMetrics
 
             if structured_llm_response is not None:
-                ragas_metrics = self.ragas_evaluator.compute_deterministic_metrics(
+                metrics = self.evaluator.compute_deterministic_metrics(
                     llm_response=structured_llm_response,
                     context_texts=[c.text for c in rag_context.document_chunks],
                     chunk_ids=[str(c.chunk_id) for c in rag_context.document_chunks],
                     ground_truth_contexts=test_case.ground_truth_contexts,
                 )
             else:
-                ragas_metrics = RagasMetrics()
+                metrics = QualityMetrics()
             score = 0.0
             passed = False
         else:
-            # Use semaphore to serialize Ragas evaluations (Ragas is not thread-safe)
-            async with self.ragas_semaphore:
-                ragas_metrics = await self.ragas_evaluator.evaluate(
+            # Use semaphore to serialize judge evaluations
+            async with self.judge_semaphore:
+                metrics = await self.evaluator.evaluate(
                     query=test_case.query,
                     llm_response=structured_llm_response,
                     context_chunks=rag_context.document_chunks,  # Pass DocumentChunk objects (not just text)
@@ -372,45 +366,21 @@ class QualityTestRunner:
                     ground_truth_contexts=test_case.ground_truth_contexts,
                 )
 
-            # Calculate aggregate score from Ragas metrics
-            score = self.ragas_evaluator.calculate_aggregate_score(ragas_metrics)
+            # Calculate aggregate score from quality metrics
+            score = self.evaluator.calculate_aggregate_score(metrics)
             passed = score >= 80.0  # 80% threshold for passing
 
-        # Check if any Ragas metrics failed (are None when they should have values)
-        # This indicates a Ragas evaluation failure that should be tracked for grey bar visualization
-        ragas_evaluation_error = False
-        # Check if any of the LLM-based Ragas metrics failed
-        # (quote_precision and quote_recall are locally calculated and should always succeed)
-        # Only flag as error if judging mode is RAGAS (otherwise None is expected)
-        if (
-            not no_eval
-            and not defer_judge
-            and structured_llm_response is not None
-            and QUALITY_TEST_JUDGING == "RAGAS"
-            and (
-                ragas_metrics.quote_faithfulness is None
-                or ragas_metrics.explanation_faithfulness is None
-                or ragas_metrics.answer_correctness is None
-            )
-        ):
-            ragas_evaluation_error = True
+        # Track evaluation failures so the report can show them as grey bars.
+        # The error is stored in metrics.error by the evaluator. This covers both a
+        # failed judge call and a generation that produced no parseable JSON - the
+        # latter must not be excluded here, or it lands in the model average as a
+        # legitimate-looking 0%.
+        evaluation_error = False
+        if not no_eval and metrics.error:
+            evaluation_error = True
             logger.error(
-                f"Ragas evaluation failed for test {test_case.test_id} on model {model} - "
-                f"some metrics returned None/NaN"
-            )
-
-        # Check if custom judge evaluation failed (for CUSTOM judging mode)
-        # The error is stored in ragas_metrics.error by the evaluator
-        if (
-            not no_eval
-            and structured_llm_response is not None
-            and QUALITY_TEST_JUDGING == "CUSTOM"
-            and ragas_metrics.error
-        ):
-            ragas_evaluation_error = True
-            logger.error(
-                f"Custom judge evaluation failed for test {test_case.test_id} on model {model} - "
-                f"Error: {ragas_metrics.error}"
+                f"Judge evaluation failed for test {test_case.test_id} on model {model} - "
+                f"Error: {metrics.error}"
             )
 
         # Calculate main LLM cost using actual token split and model ID
@@ -425,14 +395,14 @@ class QualityTestRunner:
         cache_savings = llm_breakdown.cache_savings
 
         # Log comprehensive cost breakdown
-        total_cost = cost + multi_hop_cost + ragas_metrics.total_cost_usd + embedding_cost
+        total_cost = cost + multi_hop_cost + metrics.total_cost_usd + embedding_cost
         logger.info(
             "test_cost_breakdown",
             test_id=test_case.test_id,
             model=model,
             main_llm_cost=cost,
             multi_hop_cost=multi_hop_cost,
-            ragas_cost=ragas_metrics.total_cost_usd,
+            judge_cost=metrics.total_cost_usd,
             embedding_cost=embedding_cost,
             total_cost=total_cost,
             cache_savings=cache_savings,
@@ -447,14 +417,14 @@ class QualityTestRunner:
                 f"Score is NaN for test {test_case.test_id} on model {model} - converting to 0"
             )
             score = 0.0
-            ragas_evaluation_error = True
+            evaluation_error = True
 
         # Save markdown output for human reading (with metrics and metadata if available)
         self._save_output(
             output_filename,
             test_case.query,
             llm_response_markdown,
-            ragas_metrics=ragas_metrics if not no_eval else None,
+            metrics=metrics if not no_eval else None,
             # Metadata parameters for replay support
             test_id=test_case.test_id,
             model=model,
@@ -478,33 +448,28 @@ class QualityTestRunner:
             tokens=token_count,
             cost_usd=cost,
             multi_hop_cost_usd=multi_hop_cost,
-            ragas_cost_usd=ragas_metrics.total_cost_usd,
+            judge_cost_usd=metrics.total_cost_usd,
             embedding_cost_usd=embedding_cost,
             cache_savings_usd=cache_savings,
-            judge_cache_savings_usd=ragas_metrics.cache_savings_usd,
+            judge_cache_savings_usd=metrics.cache_savings_usd,
             output_char_count=len(llm_response_markdown),
             generation_time_seconds=generation_time,
             output_filename=str(output_filename),
             error=error_str,
             json_formatted=json_formatted,
             structured_quotes_count=structured_quotes_count,
-            quote_precision=ragas_metrics.quote_precision,
-            quote_recall=ragas_metrics.quote_recall,
-            quote_faithfulness=ragas_metrics.quote_faithfulness,
-            explanation_faithfulness=ragas_metrics.explanation_faithfulness,
-            answer_correctness=ragas_metrics.answer_correctness,
-            ragas_error=ragas_metrics.error,
-            quote_precision_feedback=ragas_metrics.quote_precision_feedback,
-            quote_recall_feedback=ragas_metrics.quote_recall_feedback,
-            quote_faithfulness_feedback=ragas_metrics.quote_faithfulness_feedback,
-            explanation_faithfulness_feedback=ragas_metrics.explanation_faithfulness_feedback,
-            answer_correctness_feedback=ragas_metrics.answer_correctness_feedback,
-            feedback=ragas_metrics.feedback,  # Unified custom judge feedback
-            ragas_evaluation_error=ragas_evaluation_error,
-            quote_faithfulness_details=ragas_metrics.quote_faithfulness_details,
-            answer_correctness_details=ragas_metrics.answer_correctness_details,
-            llm_quotes_structured=ragas_metrics.llm_quotes_structured,
-            requirements=None,  # Legacy field, no longer used
+            quote_precision=metrics.quote_precision,
+            quote_recall=metrics.quote_recall,
+            quote_faithfulness=metrics.quote_faithfulness,
+            explanation_faithfulness=metrics.explanation_faithfulness,
+            answer_correctness=metrics.answer_correctness,
+            judge_error=metrics.error,
+            quote_recall_feedback=metrics.quote_recall_feedback,
+            feedback=metrics.feedback,  # Unified custom judge feedback
+            evaluation_error=evaluation_error,
+            quote_faithfulness_details=metrics.quote_faithfulness_details,
+            answer_correctness_details=metrics.answer_correctness_details,
+            llm_quotes_structured=metrics.llm_quotes_structured,
         )
 
     async def run_tests_in_parallel(
@@ -972,7 +937,7 @@ class QualityTestRunner:
         the output file is written, or ("error", error_text) when the item could
         not be parsed (the caller classifies + decides whether to re-request)."""
         from tests.quality.batch.errors import extract_item_error
-        from tests.quality.ragas_evaluator import RagasMetrics
+        from tests.quality.quality_evaluator import QualityMetrics
 
         model = meta["model"]
         adapter_class = LLMProviderFactory._model_registry[model_base_name(model)][0]
@@ -1026,23 +991,23 @@ class QualityTestRunner:
         test_case = self.load_test_cases(meta["test_id"])[0]
         # Recompute the deterministic quote metrics now (from the persisted
         # retrieval context) so they land in this output's metadata; scoring
-        # later reads them from there rather than an empty RagasMetrics().
+        # later reads them from there rather than an empty QualityMetrics().
         if structured is not None:
             ctx = contexts.get(f"{meta['test_id']}__run{meta['run_num']}", {})
-            ragas_metrics = self.ragas_evaluator.compute_deterministic_metrics(
+            metrics = self.evaluator.compute_deterministic_metrics(
                 llm_response=structured,
                 context_texts=ctx.get("context", []),
                 chunk_ids=ctx.get("chunk_ids", []),
                 ground_truth_contexts=test_case.ground_truth_contexts,
             )
         else:
-            ragas_metrics = RagasMetrics()
+            metrics = QualityMetrics()
         output_filename = report_dir / f"output_{meta['test_id']}_{model_slug(model)}_{meta['run_num']}.md"
         self._save_output(
             output_filename,
             test_case.query,
             markdown,
-            ragas_metrics=ragas_metrics,
+            metrics=metrics,
             test_id=meta["test_id"],
             model=model,
             run_num=meta["run_num"],
@@ -1323,7 +1288,7 @@ class QualityTestRunner:
         succeeded is scored with its recorded error (grey bar)."""
         from tests.quality.batch.manifest import BatchManifest
         from tests.quality.output_parser import parse_output_directory
-        from tests.quality.ragas_evaluator import RagasMetrics
+        from tests.quality.quality_evaluator import QualityMetrics
 
         report_dir = Path(manifest.report_dir)
         parsed = parse_output_directory(report_dir)
@@ -1346,14 +1311,14 @@ class QualityTestRunner:
             judge_batch_savings = 0.0
             if row and row.get("judge_metrics"):
                 dm.update(row["judge_metrics"])
-                metrics = RagasMetrics(**dm)
+                metrics = QualityMetrics(**dm)
                 judge_cost = row.get("judge_cost", 0.0)
                 judge_batch_savings = row.get("judge_batch_savings", 0.0)
             else:
                 err = (row or {}).get("error") or "judge item missing"
-                metrics = RagasMetrics(**dm, error=f"Judge error: {err}")
+                metrics = QualityMetrics(**dm, error=f"Judge error: {err}")
 
-            score = self.ragas_evaluator.calculate_aggregate_score(metrics)
+            score = self.evaluator.calculate_aggregate_score(metrics)
             results.append(IndividualTestResult(
                 test_id=test_id,
                 query=po.query,
@@ -1366,7 +1331,7 @@ class QualityTestRunner:
                 cost_usd=meta.costs["llm_generation_usd"],
                 multi_hop_cost_usd=meta.costs["multi_hop_usd"],
                 embedding_cost_usd=meta.costs["embedding_usd"],
-                ragas_cost_usd=judge_cost,
+                judge_cost_usd=judge_cost,
                 output_char_count=0,
                 generation_time_seconds=meta.latency["llm_generation_seconds"],
                 output_filename=str(po.file_path),
@@ -1377,9 +1342,9 @@ class QualityTestRunner:
                 quote_faithfulness=metrics.quote_faithfulness,
                 explanation_faithfulness=metrics.explanation_faithfulness,
                 answer_correctness=metrics.answer_correctness,
-                ragas_error=metrics.error,
+                judge_error=metrics.error,
                 feedback=metrics.feedback,
-                ragas_evaluation_error=metrics.error is not None,
+                evaluation_error=metrics.error is not None,
                 answer_correctness_details=metrics.answer_correctness_details,
                 llm_quotes_structured=metrics.llm_quotes_structured,
                 batch_savings_usd=getattr(meta, "batch_savings_usd", 0.0),
@@ -1409,7 +1374,7 @@ class QualityTestRunner:
             cost_usd=0.0,
             multi_hop_cost_usd=row.get("multi_hop_cost", 0.0),
             embedding_cost_usd=row.get("embedding_cost", 0.0),
-            ragas_cost_usd=0.0,
+            judge_cost_usd=0.0,
             output_char_count=0,
             generation_time_seconds=0.0,
             output_filename="",
@@ -1451,7 +1416,7 @@ class QualityTestRunner:
             res.recovered_from_error = recovered
             res.recovery_attempts = attempts
 
-            if res.error or res.ragas_evaluation_error:
+            if res.error or res.evaluation_error:
                 if judge_row and judge_row.get("error_class"):
                     res.error_class = judge_row["error_class"]
                 elif gen_row and gen_row.get("error_class"):
@@ -1632,7 +1597,7 @@ class QualityTestRunner:
             IndividualTestResult with original costs + new judge costs
         """
         from src.models.structured_response import StructuredLLMResponse
-        from tests.quality.ragas_evaluator import RagasMetrics
+        from tests.quality.quality_evaluator import QualityMetrics
 
         po = parsed_output
         metadata = po.metadata
@@ -1652,31 +1617,38 @@ class QualityTestRunner:
             metadata
         )
 
-        # Run judge evaluation based on QUALITY_TEST_JUDGING mode
+        # Run the custom judge (single LLM call) with semaphore
+        from tests.quality.custom_judge import CustomJudge
+
         judge_cost = 0.0
         judge_cache_savings = 0.0
+        judge = CustomJudge(model=self.judge_model)
 
-        if QUALITY_TEST_JUDGING == "OFF":
-            # No judge - use deterministic metrics only
-            ragas_metrics = RagasMetrics(**deterministic_metrics)
+        # Use semaphore to serialize judge evaluations
+        async with self.judge_semaphore:
+            try:
+                judge_result = await judge.evaluate(
+                    query=po.query,
+                    llm_response_text=structured_llm_response.to_json(),  # JSON string
+                    llm_quotes_structured=deterministic_metrics["llm_quotes_structured"],
+                    ground_truth_answers=test_case.ground_truth_answers,
+                    ground_truth_contexts=[ctx.text for ctx in test_case.ground_truth_contexts],  # Just text
+                )
 
-        elif QUALITY_TEST_JUDGING == "CUSTOM":
-            # Run custom judge (single LLM call) with semaphore
-            from tests.quality.custom_judge import CustomJudge
-
-            judge = CustomJudge(model=self.judge_model)
-
-            # Use semaphore to serialize judge evaluations
-            async with self.ragas_semaphore:
-                try:
-                    judge_result = await judge.evaluate(
-                        query=po.query,
-                        llm_response_text=structured_llm_response.to_json(),  # JSON string
-                        llm_quotes_structured=deterministic_metrics["llm_quotes_structured"],
-                        ground_truth_answers=test_case.ground_truth_answers,
-                        ground_truth_contexts=[ctx.text for ctx in test_case.ground_truth_contexts],  # Just text
+                # CustomJudge reports failures by returning an error result with 0.0
+                # scores rather than raising, so this must be checked explicitly -
+                # otherwise a failed judge is recorded as genuine zero scores instead
+                # of an evaluation error.
+                if judge_result.error:
+                    logger.error(
+                        f"Custom judge evaluation failed for "
+                        f"{metadata.test_metadata['test_id']}: {judge_result.error}"
                     )
-
+                    # Deterministic metrics only; no tokens were consumed, so no cost.
+                    metrics = QualityMetrics(
+                        **deterministic_metrics, error=f"Judge error: {judge_result.error}"
+                    )
+                else:
                     # Combine deterministic + judge metrics
                     # Update deterministic_metrics dict with judge results to avoid duplicate keyword args
                     deterministic_metrics.update({
@@ -1685,7 +1657,7 @@ class QualityTestRunner:
                         "answer_correctness_details": judge_result.answer_correctness_details,
                         "feedback": judge_result.feedback,
                     })
-                    ragas_metrics = RagasMetrics(**deterministic_metrics)
+                    metrics = QualityMetrics(**deterministic_metrics)
 
                     # Calculate judge cost from actual tokens, including prompt-cache
                     # tokens so cached judge calls are costed and credited correctly.
@@ -1699,49 +1671,17 @@ class QualityTestRunner:
                     judge_cost = judge_breakdown.total_cost
                     judge_cache_savings = judge_breakdown.cache_savings
 
-                except Exception as e:
-                    logger.error(
-                        f"Custom judge evaluation failed for {metadata.test_metadata['test_id']}: {e}"
-                    )
-                    # Use deterministic metrics only
-                    ragas_metrics = RagasMetrics(
-                        **deterministic_metrics, error=f"Judge error: {e}"
-                    )
-
-        elif QUALITY_TEST_JUDGING == "RAGAS":
-            # Run ragas evaluator (2 LLM calls) with semaphore
-            async with self.ragas_semaphore:
-                try:
-                    ragas_result = await self.ragas_evaluator.evaluate(
-                        query=po.query,
-                        llm_response=structured_llm_response,
-                        context_chunks=[],  # Not needed for judge-only evaluation
-                        ground_truth_answers=test_case.ground_truth_answers,
-                        ground_truth_contexts=test_case.ground_truth_contexts,
-                    )
-
-                    # Combine deterministic + ragas metrics
-                    ragas_metrics = RagasMetrics(
-                        **deterministic_metrics,
-                        explanation_faithfulness=ragas_result.explanation_faithfulness,
-                        answer_correctness=ragas_result.answer_correctness,
-                        feedback=ragas_result.feedback,
-                    )
-
-                    judge_cost = ragas_result.total_cost_usd
-                    judge_cache_savings = ragas_result.cache_savings_usd
-
-                except Exception as e:
-                    logger.error(
-                        f"Ragas evaluation failed for {metadata.test_metadata['test_id']}: {e}"
-                    )
-                    # Use deterministic metrics only
-                    ragas_metrics = RagasMetrics(
-                        **deterministic_metrics, error=f"Ragas error: {e}"
-                    )
+            except Exception as e:
+                logger.error(
+                    f"Custom judge evaluation failed for {metadata.test_metadata['test_id']}: {e}"
+                )
+                # Use deterministic metrics only
+                metrics = QualityMetrics(
+                    **deterministic_metrics, error=f"Judge error: {e}"
+                )
 
         # Calculate aggregate score
-        score = self.ragas_evaluator.calculate_aggregate_score(ragas_metrics)
+        score = self.evaluator.calculate_aggregate_score(metrics)
         passed = score >= 80.0
 
         # Build result with original costs + new judge cost
@@ -1759,7 +1699,7 @@ class QualityTestRunner:
             multi_hop_cost_usd=metadata.costs["multi_hop_usd"],
             embedding_cost_usd=metadata.costs["embedding_usd"],
             # NEW judge cost
-            ragas_cost_usd=judge_cost,
+            judge_cost_usd=judge_cost,
             judge_cache_savings_usd=judge_cache_savings,
             output_char_count=len(structured_llm_response.to_markdown()),
             # Original latency
@@ -1769,22 +1709,18 @@ class QualityTestRunner:
             json_formatted=True,  # Assume formatted if we could parse metadata
             structured_quotes_count=len(structured_llm_response.quotes),
             # Metrics (deterministic from metadata + judge from evaluation)
-            quote_precision=ragas_metrics.quote_precision,
-            quote_recall=ragas_metrics.quote_recall,
-            quote_faithfulness=ragas_metrics.quote_faithfulness,
-            explanation_faithfulness=ragas_metrics.explanation_faithfulness,
-            answer_correctness=ragas_metrics.answer_correctness,
-            ragas_error=ragas_metrics.error,
-            quote_precision_feedback=ragas_metrics.quote_precision_feedback,
-            quote_recall_feedback=ragas_metrics.quote_recall_feedback,
-            quote_faithfulness_feedback=ragas_metrics.quote_faithfulness_feedback,
-            explanation_faithfulness_feedback=ragas_metrics.explanation_faithfulness_feedback,
-            answer_correctness_feedback=ragas_metrics.answer_correctness_feedback,
-            feedback=ragas_metrics.feedback,
-            ragas_evaluation_error=ragas_metrics.error is not None,
-            quote_faithfulness_details=ragas_metrics.quote_faithfulness_details,
-            answer_correctness_details=ragas_metrics.answer_correctness_details,
-            llm_quotes_structured=ragas_metrics.llm_quotes_structured,
+            quote_precision=metrics.quote_precision,
+            quote_recall=metrics.quote_recall,
+            quote_faithfulness=metrics.quote_faithfulness,
+            explanation_faithfulness=metrics.explanation_faithfulness,
+            answer_correctness=metrics.answer_correctness,
+            judge_error=metrics.error,
+            quote_recall_feedback=metrics.quote_recall_feedback,
+            feedback=metrics.feedback,
+            evaluation_error=metrics.error is not None,
+            quote_faithfulness_details=metrics.quote_faithfulness_details,
+            answer_correctness_details=metrics.answer_correctness_details,
+            llm_quotes_structured=metrics.llm_quotes_structured,
             # Generation-time savings attributed at submit, carried through metadata.
             batch_savings_usd=getattr(metadata, "batch_savings_usd", 0.0),
             cache_savings_usd=getattr(metadata, "cache_savings_usd", 0.0),
@@ -1806,7 +1742,7 @@ class QualityTestRunner:
             cost_usd=metadata.costs["llm_generation_usd"],
             multi_hop_cost_usd=metadata.costs["multi_hop_usd"],
             embedding_cost_usd=metadata.costs["embedding_usd"],
-            ragas_cost_usd=0.0,
+            judge_cost_usd=0.0,
             output_char_count=0,
             generation_time_seconds=metadata.latency["llm_generation_seconds"],
             output_filename="",
@@ -1820,7 +1756,7 @@ class QualityTestRunner:
         filename: Path,
         query: str,
         response: str,
-        ragas_metrics=None,
+        metrics=None,
         # Metadata generation parameters (optional, for replay support)
         test_id: str | None = None,
         model: str | None = None,
@@ -1840,7 +1776,7 @@ class QualityTestRunner:
             filename: Path to save output file
             query: Original query text
             response: LLM response (markdown format)
-            ragas_metrics: Evaluation metrics (optional)
+            metrics: Evaluation metrics (optional)
             test_id: Test case ID (for metadata)
             model: Model name (for metadata)
             run_num: Run number (for metadata)
@@ -1854,27 +1790,27 @@ class QualityTestRunner:
 
         # Add quote validation issues if available
         if (
-            ragas_metrics
-            and hasattr(ragas_metrics, "quote_faithfulness_details")
-            and ragas_metrics.quote_faithfulness_details
+            metrics
+            and hasattr(metrics, "quote_faithfulness_details")
+            and metrics.quote_faithfulness_details
         ):
             failed_quotes = [
                 (chunk_id, similarity)
-                for chunk_id, similarity in ragas_metrics.quote_faithfulness_details.items()
+                for chunk_id, similarity in metrics.quote_faithfulness_details.items()
                 if similarity < 1.0
             ]
 
             if failed_quotes:
                 content += "---\n\n## ⚠️ Quote Validation Issues\n\n"
-                if ragas_metrics.quote_faithfulness is not None:
-                    content += f"**Quote Faithfulness Score**: {ragas_metrics.quote_faithfulness:.2f}\n\n"
+                if metrics.quote_faithfulness is not None:
+                    content += f"**Quote Faithfulness Score**: {metrics.quote_faithfulness:.2f}\n\n"
 
                 # Get the quote scores with full details if available
-                if hasattr(ragas_metrics, "llm_quotes_structured"):
+                if hasattr(metrics, "llm_quotes_structured"):
                     # Try to match failed quotes with full quote data
                     quote_map = {}
-                    if ragas_metrics.llm_quotes_structured:
-                        for quote_dict in ragas_metrics.llm_quotes_structured:
+                    if metrics.llm_quotes_structured:
+                        for quote_dict in metrics.llm_quotes_structured:
                             chunk_id = quote_dict.get("chunk_id", "")
                             if chunk_id:
                                 # Extract last 8 chars if it's a full UUID
@@ -1897,20 +1833,20 @@ class QualityTestRunner:
 
         # Add answer correctness issues if available
         if (
-            ragas_metrics
-            and hasattr(ragas_metrics, "answer_correctness_details")
-            and ragas_metrics.answer_correctness_details
+            metrics
+            and hasattr(metrics, "answer_correctness_details")
+            and metrics.answer_correctness_details
         ):
             failed_answers = [
                 (key, score)
-                for key, score in ragas_metrics.answer_correctness_details.items()
+                for key, score in metrics.answer_correctness_details.items()
                 if score < 1.0
             ]
 
             if failed_answers:
                 content += "---\n\n## ⚠️ Answer Correctness Issues\n\n"
-                if ragas_metrics.answer_correctness is not None:
-                    content += f"**Answer Correctness Score**: {ragas_metrics.answer_correctness:.2f}\n\n"
+                if metrics.answer_correctness is not None:
+                    content += f"**Answer Correctness Score**: {metrics.answer_correctness:.2f}\n\n"
 
                 for answer_key, score in failed_answers:
                     content += f"- **{answer_key}**: {score:.2f}\n"
@@ -1923,7 +1859,7 @@ class QualityTestRunner:
                 model is not None,
                 run_num is not None,
                 llm_response is not None,
-                ragas_metrics is not None,
+                metrics is not None,
                 cost_usd is not None,
                 generation_time_seconds is not None,
             ]
@@ -1955,7 +1891,7 @@ class QualityTestRunner:
                 run_num=run_num,
                 llm_response=llm_response,
                 result=result,
-                metrics=ragas_metrics,
+                metrics=metrics,
                 batch=batch,
             )
 

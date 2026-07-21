@@ -120,10 +120,10 @@ class ComparisonGenerator:
         with open(output_path, "w", newline="") as csvfile:
             fieldnames = [
                 param_name,
-                "mean_ragas_context_precision",
-                "mean_ragas_context_recall",
-                "std_dev_ragas_context_precision",
-                "std_dev_ragas_context_recall",
+                "mean_context_precision",
+                "mean_context_recall",
+                "std_dev_context_precision",
+                "std_dev_context_recall",
                 "total_time_seconds",
                 "avg_retrieval_time_seconds",
                 "total_cost_usd",
@@ -137,10 +137,10 @@ class ComparisonGenerator:
                 writer.writerow(
                     {
                         param_name: param_value,
-                        "mean_ragas_context_precision": result.summary.mean_ragas_context_precision,
-                        "mean_ragas_context_recall": result.summary.mean_ragas_context_recall,
-                        "std_dev_ragas_context_precision": result.summary.std_dev_ragas_context_precision,
-                        "std_dev_ragas_context_recall": result.summary.std_dev_ragas_context_recall,
+                        "mean_context_precision": result.summary.mean_context_precision,
+                        "mean_context_recall": result.summary.mean_context_recall,
+                        "std_dev_context_precision": result.summary.std_dev_context_precision,
+                        "std_dev_context_recall": result.summary.std_dev_context_recall,
                         "total_time_seconds": result.summary.total_time_seconds,
                         "avg_retrieval_time_seconds": result.summary.avg_retrieval_time_seconds,
                         "total_cost_usd": result.summary.total_cost_usd,
@@ -157,8 +157,8 @@ class ComparisonGenerator:
 
         with open(output_path, "w", newline="") as csvfile:
             fieldnames = param_names + [
-                "mean_ragas_context_precision",
-                "mean_ragas_context_recall",
+                "mean_context_precision",
+                "mean_context_recall",
                 "total_time_seconds",
                 "total_cost_usd",
             ]
@@ -173,8 +173,8 @@ class ComparisonGenerator:
 
                 row.update(
                     {
-                        "mean_ragas_context_precision": result.summary.mean_ragas_context_precision,
-                        "mean_ragas_context_recall": result.summary.mean_ragas_context_recall,
+                        "mean_context_precision": result.summary.mean_context_precision,
+                        "mean_context_recall": result.summary.mean_context_recall,
                         "total_time_seconds": result.summary.total_time_seconds,
                         "total_cost_usd": result.summary.total_cost_usd,
                     }
@@ -192,22 +192,22 @@ class ComparisonGenerator:
         charts_dir: Path,
     ) -> None:
         """Generate individual line charts for each metric."""
-        # Ragas Metrics - combined chart
-        if sweep_results[0].summary.mean_ragas_context_precision is not None:
-            ragas_cp_values = [r.summary.mean_ragas_context_precision for r in sweep_results]
-            ragas_cr_values = [r.summary.mean_ragas_context_recall for r in sweep_results]
+        # Retrieval Metrics - combined chart
+        if sweep_results[0].summary.mean_context_precision is not None:
+            cp_values = [r.summary.mean_context_precision for r in sweep_results]
+            cr_values = [r.summary.mean_context_recall for r in sweep_results]
 
-            # Combined Ragas metrics chart (both lines)
+            # Combined retrieval metrics chart (both lines)
             create_multi_line_chart(
                 x_values=param_values,
                 y_values_dict={
-                    "Context Precision": ragas_cp_values,
-                    "Context Recall": ragas_cr_values,
+                    "Context Precision": cp_values,
+                    "Context Recall": cr_values,
                 },
                 x_label=param_name,
-                y_label="Ragas Score",
-                title=f"Ragas Metrics vs {param_name}",
-                output_path=charts_dir / "ragas_metrics_comparison.png",
+                y_label="Score",
+                title=f"Retrieval Metrics vs {param_name}",
+                output_path=charts_dir / "retrieval_metrics_comparison.png",
             )
 
         logger.info("metric_charts_generated", charts_dir=str(charts_dir))
@@ -219,10 +219,10 @@ class ComparisonGenerator:
         param_name: str,  # noqa: ARG002
         charts_dir: Path,  # noqa: ARG002
     ) -> None:
-        """Generate grouped bar chart comparing Ragas metrics."""
-        # This method is kept for backwards compatibility but now only handles Ragas
-        # The actual Ragas chart is already generated in _generate_metric_charts
-        logger.info("multi_metric_chart_skipped_ragas_already_generated")
+        """Generate grouped bar chart comparing retrieval metrics."""
+        # This method is kept for backwards compatibility but now only handles retrieval metrics
+        # The actual retrieval metrics chart is already generated in _generate_metric_charts
+        logger.info("multi_metric_chart_skipped_already_generated")
 
     def _generate_heatmaps(
         self, sweep_results: list[SweepResult], param_grid: dict[str, list], charts_dir: Path
@@ -233,16 +233,16 @@ class ComparisonGenerator:
         param1_values = param_grid[param1_name]
         param2_values = param_grid[param2_name]
 
-        # Create data matrices for Ragas metrics only
+        # Create data matrices for retrieval metrics only
         metrics = {}
-        if sweep_results[0].summary.mean_ragas_context_precision is not None:
-            metrics["ragas_context_precision"] = (
-                "Ragas Context Precision",
-                "ragas_context_precision_heatmap.png",
+        if sweep_results[0].summary.mean_context_precision is not None:
+            metrics["context_precision"] = (
+                "Context Precision",
+                "context_precision_heatmap.png",
             )
-            metrics["ragas_context_recall"] = (
-                "Ragas Context Recall",
-                "ragas_context_recall_heatmap.png",
+            metrics["context_recall"] = (
+                "Context Recall",
+                "context_recall_heatmap.png",
             )
 
         for metric_key, (metric_label, filename) in metrics.items():
@@ -313,10 +313,10 @@ class ComparisonGenerator:
         content.append("## Summary Table")
         content.append("")
 
-        # Check if Ragas metrics are available
-        has_ragas = sweep_results[0].summary.mean_ragas_context_precision is not None
+        # Check if retrieval metrics are available
+        has_metrics = sweep_results[0].summary.mean_context_precision is not None
 
-        if has_ragas:
+        if has_metrics:
             content.append(
                 f"| {param_name} | Context Precision | Context Recall | Avg Time (s) | Cost (USD) |"
             )
@@ -337,7 +337,7 @@ class ComparisonGenerator:
             for param_val, result in zip(param_values, sweep_results, strict=False):
                 s = result.summary
                 content.append(
-                    f"| {param_val} | {s.mean_ragas_context_precision:.3f} | {s.mean_ragas_context_recall:.3f} | "
+                    f"| {param_val} | {s.mean_context_precision:.3f} | {s.mean_context_recall:.3f} | "
                     f"{s.avg_retrieval_time_seconds:.3f} | ${s.total_cost_usd:.6f} |"
                 )
         else:
@@ -352,11 +352,11 @@ class ComparisonGenerator:
 
         content.append("")
 
-        # Best configuration (based on Ragas Context Precision)
-        if has_ragas:
+        # Best configuration (based on Context Precision)
+        if has_metrics:
             best_idx = max(
                 range(len(sweep_results)),
-                key=lambda i: sweep_results[i].summary.mean_ragas_context_precision,
+                key=lambda i: sweep_results[i].summary.mean_context_precision,
             )
         else:
             best_idx = 0  # Fallback if no metrics available
@@ -369,31 +369,31 @@ class ComparisonGenerator:
         content.append(f"**{param_name}**: {best_param_val}")
         content.append("")
 
-        if has_ragas:
-            content.append("**Ragas Metrics:**")
+        if has_metrics:
+            content.append("**Retrieval Metrics:**")
             content.append(
-                f"- Context Precision: {best_result.summary.mean_ragas_context_precision:.3f}"
+                f"- Context Precision: {best_result.summary.mean_context_precision:.3f}"
             )
-            content.append(f"- Context Recall: {best_result.summary.mean_ragas_context_recall:.3f}")
+            content.append(f"- Context Recall: {best_result.summary.mean_context_recall:.3f}")
             content.append("")
 
         # Charts
         content.append("## Charts")
         content.append("")
 
-        if has_ragas:
-            content.append("### Ragas Metrics Comparison")
-            content.append(f"![Ragas Metrics vs {param_name}](charts/ragas_metrics_comparison.png)")
+        if has_metrics:
+            content.append("### Retrieval Metrics Comparison")
+            content.append(f"![Retrieval Metrics vs {param_name}](charts/retrieval_metrics_comparison.png)")
 
         # Recommendations
         content.append("## Recommendations")
         content.append("")
-        if has_ragas:
+        if has_metrics:
             content.append(
-                f"Based on Ragas Context Precision, the optimal value for **{param_name}** is **{best_param_val}**."
+                f"Based on Context Precision, the optimal value for **{param_name}** is **{best_param_val}**."
             )
             content.append("")
-            content.append("**Ragas Metrics:**")
+            content.append("**Retrieval Metrics:**")
             content.append(
                 "- **Context Precision**: Proportion of retrieved contexts containing ground truth information"
             )
@@ -448,12 +448,12 @@ class ComparisonGenerator:
         )
         content.append("")
 
-        # Best configuration (based on Ragas Context Precision if available)
-        has_ragas = sweep_results[0].summary.mean_ragas_context_precision is not None
-        if has_ragas:
+        # Best configuration (based on Context Precision if available)
+        has_metrics = sweep_results[0].summary.mean_context_precision is not None
+        if has_metrics:
             best_idx = max(
                 range(len(sweep_results)),
-                key=lambda i: sweep_results[i].summary.mean_ragas_context_precision,
+                key=lambda i: sweep_results[i].summary.mean_context_precision,
             )
         else:
             best_idx = 0
@@ -467,26 +467,26 @@ class ComparisonGenerator:
             content.append(f"- **{param_name}**: {param_val}")
         content.append("")
 
-        if has_ragas:
-            content.append("**Ragas Metrics:**")
+        if has_metrics:
+            content.append("**Retrieval Metrics:**")
             content.append(
-                f"- Context Precision: {best_result.summary.mean_ragas_context_precision:.3f}"
+                f"- Context Precision: {best_result.summary.mean_context_precision:.3f}"
             )
-            content.append(f"- Context Recall: {best_result.summary.mean_ragas_context_recall:.3f}")
+            content.append(f"- Context Recall: {best_result.summary.mean_context_recall:.3f}")
             content.append("")
 
         # Heatmaps (if 2D grid)
-        if len(param_names) == 2 and has_ragas:
+        if len(param_names) == 2 and has_metrics:
             content.append("## Heatmaps")
             content.append("")
-            content.append("### Ragas Context Precision Heatmap")
+            content.append("### Context Precision Heatmap")
             content.append(
-                "![Ragas Context Precision Heatmap](charts/ragas_context_precision_heatmap.png)"
+                "![Context Precision Heatmap](charts/context_precision_heatmap.png)"
             )
             content.append("")
-            content.append("### Ragas Context Recall Heatmap")
+            content.append("### Context Recall Heatmap")
             content.append(
-                "![Ragas Context Recall Heatmap](charts/ragas_context_recall_heatmap.png)"
+                "![Context Recall Heatmap](charts/context_recall_heatmap.png)"
             )
             content.append("")
 
@@ -494,8 +494,8 @@ class ComparisonGenerator:
         content.append("## All Configurations")
         content.append("")
 
-        # Build table header with Ragas columns if available
-        if has_ragas:
+        # Build table header with retrieval metric columns if available
+        if has_metrics:
             header = (
                 "| "
                 + " | ".join(param_names)
@@ -507,13 +507,13 @@ class ComparisonGenerator:
             content.append(separator)
 
             for result in sorted(
-                sweep_results, key=lambda r: r.summary.mean_ragas_context_precision, reverse=True
+                sweep_results, key=lambda r: r.summary.mean_context_precision, reverse=True
             ):
                 row = "| "
                 for param_name in param_names:
                     row += f"{getattr(result.config, param_name)} | "
                 row += (
-                    f"{result.summary.mean_ragas_context_precision:.3f} | {result.summary.mean_ragas_context_recall:.3f} | "
+                    f"{result.summary.mean_context_precision:.3f} | {result.summary.mean_context_recall:.3f} | "
                     f"{result.summary.avg_retrieval_time_seconds:.3f} | ${result.summary.total_cost_usd:.6f} |"
                 )
                 content.append(row)

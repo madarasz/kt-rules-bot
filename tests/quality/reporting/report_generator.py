@@ -5,7 +5,6 @@ from collections import defaultdict
 
 import numpy as np
 
-from src.lib.constants import QUALITY_TEST_JUDGING
 from src.lib.model_name import model_slug
 from tests.quality.reporting.chart_generator import ChartGenerator
 from tests.quality.reporting.report_models import IndividualTestResult, ModelSummary, QualityReport
@@ -108,13 +107,13 @@ class ReportGenerator:
         return "\n".join(content)
 
     def _get_error_recovery_log(self) -> str:
-        """Table of every run that hit an LLM/Ragas API error, with its transient/
+        """Table of every run that hit an LLM/judge API error, with its transient/
         permanent classification, how many times it was re-requested, and whether it
         was recovered. Empty string when nothing errored."""
         rows = [
             r
             for r in self.report.results
-            if r.error or r.ragas_evaluation_error or getattr(r, "recovered_from_error", False)
+            if r.error or r.evaluation_error or getattr(r, "recovered_from_error", False)
         ]
         if not rows:
             return ""
@@ -123,7 +122,7 @@ class ReportGenerator:
         unrecoverable = sum(
             1
             for r in rows
-            if (r.error or r.ragas_evaluation_error)
+            if (r.error or r.evaluation_error)
             and not getattr(r, "recovered_from_error", False)
         )
         lines = [
@@ -135,7 +134,7 @@ class ReportGenerator:
         ]
         for r in rows:
             is_recovered = getattr(r, "recovered_from_error", False)
-            msg = (r.error or r.ragas_error or "").replace("\n", " ").replace("|", "\\|").strip()
+            msg = (r.error or r.judge_error or "").replace("\n", " ").replace("|", "\\|").strip()
             if not msg and is_recovered:
                 msg = "recovered after re-request"
             if len(msg) > 120:
@@ -215,7 +214,7 @@ class ReportGenerator:
         # Calculate cost breakdown from all results
         total_main = sum(r.cost_usd for r in self.report.results)
         total_multi_hop = sum(r.multi_hop_cost_usd for r in self.report.results)
-        total_judge = sum(r.ragas_cost_usd for r in self.report.results)
+        total_judge = sum(r.judge_cost_usd for r in self.report.results)
         total_embedding = sum(r.embedding_cost_usd for r in self.report.results)
         total_main_cache_savings = sum(r.cache_savings_usd for r in self.report.results)
         total_judge_cache_savings = sum(r.judge_cache_savings_usd for r in self.report.results)
@@ -272,7 +271,7 @@ class ReportGenerator:
             )
 
         header.append(f"- **Test cases**: {', '.join(self.report.test_cases)}")
-        header.append(f"- **Judge model**: {self.report.judge_model} ({QUALITY_TEST_JUDGING} mode)")
+        header.append(f"- **Judge model**: {self.report.judge_model}")
 
         # Batch error-tolerance summary (only shown when something errored).
         recovered = sum(
@@ -281,7 +280,7 @@ class ReportGenerator:
         unrecoverable = sum(
             1
             for r in self.report.results
-            if (r.error or r.ragas_evaluation_error)
+            if (r.error or r.evaluation_error)
             and not getattr(r, "recovered_from_error", False)
         )
         if recovered or unrecoverable:
@@ -294,9 +293,9 @@ class ReportGenerator:
             chart_name = os.path.basename(self.report.chart_path)
             header.append(f"\n![Overall Chart](./{chart_name})")
 
-        if self.report.ragas_chart_path:
-            ragas_chart_name = os.path.basename(self.report.ragas_chart_path)
-            header.append(f"\n![Ragas Metrics Chart](./{ragas_chart_name})")
+        if self.report.metrics_chart_path:
+            metrics_chart_name = os.path.basename(self.report.metrics_chart_path)
+            header.append(f"\n![Quality Metrics Chart](./{metrics_chart_name})")
 
         return "\n".join(header)
 
@@ -327,12 +326,12 @@ class ReportGenerator:
         return "\n".join(table)
 
     def _get_metrics_summary_table(self, summaries: list[ModelSummary] | None = None) -> str:
-        """Builds a markdown table showing average RAGAS metrics per model."""
+        """Builds a markdown table showing average quality metrics per model."""
         if summaries is None:
             summaries = list(self.report.per_model_summaries.values())
 
-        # Check if any model has RAGAS metrics
-        has_ragas = any(
+        # Check if any model has quality metrics
+        has_metrics = any(
             s.avg_quote_recall is not None
             or s.avg_quote_precision is not None
             or s.avg_quote_faithfulness is not None
@@ -341,7 +340,7 @@ class ReportGenerator:
             for s in summaries
         )
 
-        if not has_ragas:
+        if not has_metrics:
             return ""
 
         headers = [
@@ -440,7 +439,7 @@ class ReportGenerator:
                         content.append(f"\n#### {model_name}")
 
                     # Status with emoji - skull for errors (generation or evaluation), warning for partial scores
-                    if result.error or result.ragas_evaluation_error:
+                    if result.error or result.evaluation_error:
                         status_emoji = "💀"
                         status_text = "Error"
                     elif result.passed:
@@ -459,20 +458,13 @@ class ReportGenerator:
                         f"- **Score:** {result.score}/{result.max_score} ({result.score_percentage:.1f}%)"
                     )
 
-                    # Display Ragas metrics if available
-                    if result.ragas_metrics_available:
-                        judging_mode_label = " (LLM-based judging: OFF)" if QUALITY_TEST_JUDGING == "OFF" else ""
-                        content.append(f"\n**Ragas Metrics{judging_mode_label}:**")
+                    # Display quality metrics if available
+                    if result.metrics_available:
+                        content.append("\n**Quality Metrics:**")
 
                         # Quote Precision
                         if result.quote_precision is not None:
                             content.append(f"- **Quote Precision:** {result.quote_precision:.3f}")
-                            if result.quote_precision_feedback:
-                                # Indent feedback for better readability
-                                feedback_lines = result.quote_precision_feedback.split("\n")
-                                for line in feedback_lines:
-                                    if line.strip():
-                                        content.append(f"  {line}")
 
                         # Quote Recall
                         if result.quote_recall is not None:
@@ -514,24 +506,11 @@ class ReportGenerator:
                                         quote_display = quote_text[:150] + "..." if len(quote_text) > 150 else quote_text
                                         content.append(f"  - Score: {score:.2f} - \"{quote_display}\"")
 
-                            if result.quote_faithfulness_feedback:
-                                feedback_lines = result.quote_faithfulness_feedback.split("\n")
-                                for line in feedback_lines:
-                                    if line.strip():
-                                        content.append(f"  {line}")
-
                         # Explanation Faithfulness
                         if result.explanation_faithfulness is not None:
                             content.append(
                                 f"- **Explanation Faithfulness:** {result.explanation_faithfulness:.3f}"
                             )
-                            if result.explanation_faithfulness_feedback:
-                                feedback_lines = result.explanation_faithfulness_feedback.split(
-                                    "\n"
-                                )
-                                for line in feedback_lines:
-                                    if line.strip():
-                                        content.append(f"  {line}")
 
                         # Answer Correctness
                         if result.answer_correctness is not None:
@@ -546,36 +525,30 @@ class ReportGenerator:
                                 for answer_key, score in sorted(result.answer_correctness_details.items(), key=lambda x: x[1]):
                                     content.append(f"  - **{answer_key}**: {score:.2f}")
 
-                            if result.answer_correctness_feedback:
-                                feedback_lines = result.answer_correctness_feedback.split("\n")
-                                for line in feedback_lines:
-                                    if line.strip():
-                                        content.append(f"  {line}")
-
-                        # Custom Judge Unified Feedback (when QUALITY_TEST_JUDGING == "CUSTOM")
-                        if result.feedback and QUALITY_TEST_JUDGING == "CUSTOM":
+                        # Custom Judge Unified Feedback
+                        if result.feedback:
                             content.append("\n**Custom Judge Feedback:**")
                             feedback_lines = result.feedback.split("\n")
                             for line in feedback_lines:
                                 if line.strip():
                                     content.append(f"  {line}")
 
-                        if result.ragas_error:
-                            content.append(f"- **Ragas Error:** {result.ragas_error}")
+                        if result.judge_error:
+                            content.append(f"- **Judge Error:** {result.judge_error}")
                         content.append("")  # Blank line after metrics
 
                     # content.append(f"- **Tokens:** {result.tokens}")
                     content.append(f"- **Cost:** ${result.total_cost_usd:.4f}")
                     if (
                         result.multi_hop_cost_usd > 0
-                        or result.ragas_cost_usd > 0
+                        or result.judge_cost_usd > 0
                         or result.embedding_cost_usd > 0
                     ):
                         content.append(f"  - Main LLM: ${result.cost_usd:.4f}")
                         if result.multi_hop_cost_usd > 0:
                             content.append(f"  - Multi-hop: ${result.multi_hop_cost_usd:.4f}")
-                        if result.ragas_cost_usd > 0:
-                            content.append(f"  - LLM Judge: ${result.ragas_cost_usd:.4f}")
+                        if result.judge_cost_usd > 0:
+                            content.append(f"  - LLM Judge: ${result.judge_cost_usd:.4f}")
                             if abs(result.judge_cache_savings_usd) > 1e-9:
                                 jsign = "-" if result.judge_cache_savings_usd < 0 else ""
                                 content.append(
@@ -592,20 +565,8 @@ class ReportGenerator:
                         content.append(f"- **Generation Error:** {result.error}")
 
                     # Show evaluation errors prominently if they occurred outside the metrics block
-                    if result.ragas_error and not result.ragas_metrics_available:
-                        content.append(f"- **Evaluation Error:** {result.ragas_error}")
-
-                    # Legacy requirements (for backward compatibility during migration)
-                    if result.requirements:
-                        content.append("\n**Requirements (Legacy):**")
-                        for req in result.requirements:
-                            # Build requirement line
-                            req_line = f"- {req.emoji} **{req.title}** ({req.type}): {req.achieved_score}/{req.max_score} points - {req.description}"
-                            content.append(req_line)
-
-                            # Add judge response as sub-bullet for LLM requirements
-                            if req.type == "llm" and hasattr(req, "outcome") and req.outcome:
-                                content.append(f"  - *{req.outcome}*")
+                    if result.judge_error and not result.metrics_available:
+                        content.append(f"- **Evaluation Error:** {result.judge_error}")
 
                     content.append("")  # Add spacing between runs
 
@@ -639,9 +600,9 @@ class ReportGenerator:
             f"**Score:** {result.score}/{result.max_score} ({result.score_percentage:.1f}%)"
         )
 
-        # Display Ragas metrics if available
-        if result.ragas_metrics_available:
-            content.append("\n**Ragas Metrics:**")
+        # Display quality metrics if available
+        if result.metrics_available:
+            content.append("\n**Quality Metrics:**")
             if result.quote_precision is not None:
                 content.append(f"- Quote Precision: {result.quote_precision:.3f}")
             if result.quote_recall is not None:
@@ -652,8 +613,8 @@ class ReportGenerator:
                 content.append(f"- Explanation Faithfulness: {result.explanation_faithfulness:.3f}")
             if result.answer_correctness is not None:
                 content.append(f"- Answer Correctness: {result.answer_correctness:.3f}")
-            if result.ragas_error:
-                content.append(f"- Ragas Error: {result.ragas_error}")
+            if result.judge_error:
+                content.append(f"- Judge Error: {result.judge_error}")
             content.append("")  # Blank line
 
         if result.error:
@@ -666,19 +627,13 @@ class ReportGenerator:
         content.append(f"- Main LLM: ${result.cost_usd:.4f}")
         if result.multi_hop_cost_usd > 0:
             content.append(f"- Multi-hop evaluation: ${result.multi_hop_cost_usd:.4f}")
-        if result.ragas_cost_usd > 0:
-            content.append(f"- Judge evaluation: ${result.ragas_cost_usd:.4f}")
+        if result.judge_cost_usd > 0:
+            content.append(f"- Judge evaluation: ${result.judge_cost_usd:.4f}")
         if result.embedding_cost_usd > 0:
             content.append(f"- Embeddings: ${result.embedding_cost_usd:.4f}")
         content.append(f"- **Total: ${result.total_cost_usd:.4f}**")
 
         content.append(f"\n**Generation Time:** {result.generation_time_seconds:.2f}s")
-
-        # Legacy requirements (for backward compatibility)
-        if result.requirements:
-            content.append("\n**Requirements (Legacy):**")
-            for req in result.requirements:
-                content.append(f"- {req.emoji} {req.title}: {req.description}")
 
         return "\n".join(content)
 
@@ -693,7 +648,7 @@ class ReportGenerator:
         # Calculate cost breakdown from all results
         total_main = sum(r.cost_usd for r in self.report.results)
         total_multi_hop = sum(r.multi_hop_cost_usd for r in self.report.results)
-        total_judge = sum(r.ragas_cost_usd for r in self.report.results)
+        total_judge = sum(r.judge_cost_usd for r in self.report.results)
         total_embedding = sum(r.embedding_cost_usd for r in self.report.results)
         total_main_cache_savings = sum(r.cache_savings_usd for r in self.report.results)
         total_judge_cache_savings = sum(r.judge_cache_savings_usd for r in self.report.results)
@@ -752,33 +707,32 @@ class ReportGenerator:
             content.append(f"Avg quotes per JSON response: {avg_quotes:.1f}")
 
         # Display average metrics if available
-        results_with_ragas = [r for r in self.report.results if r.ragas_metrics_available]
-        if results_with_ragas:
+        results_with_metrics = [r for r in self.report.results if r.metrics_available]
+        if results_with_metrics:
             content.append("")
-            judging_mode_label = " (LLM-based judging: OFF)" if QUALITY_TEST_JUDGING == "OFF" else ""
-            content.append(f"Average Metrics{judging_mode_label}:")
+            content.append("Average Metrics:")
 
             quote_precision_vals = [
-                r.quote_precision for r in results_with_ragas if r.quote_precision is not None
+                r.quote_precision for r in results_with_metrics if r.quote_precision is not None
             ]
             if quote_precision_vals:
                 content.append(f"  Quote Precision: {np.mean(quote_precision_vals):.3f}")
 
             quote_recall_vals = [
-                r.quote_recall for r in results_with_ragas if r.quote_recall is not None
+                r.quote_recall for r in results_with_metrics if r.quote_recall is not None
             ]
             if quote_recall_vals:
                 content.append(f"  Quote Recall: {np.mean(quote_recall_vals):.3f}")
 
             quote_faithfulness_vals = [
-                r.quote_faithfulness for r in results_with_ragas if r.quote_faithfulness is not None
+                r.quote_faithfulness for r in results_with_metrics if r.quote_faithfulness is not None
             ]
             if quote_faithfulness_vals:
                 content.append(f"  Quote Faithfulness: {np.mean(quote_faithfulness_vals):.3f}")
 
             explanation_faithfulness_vals = [
                 r.explanation_faithfulness
-                for r in results_with_ragas
+                for r in results_with_metrics
                 if r.explanation_faithfulness is not None
             ]
             if explanation_faithfulness_vals:
@@ -787,7 +741,7 @@ class ReportGenerator:
                 )
 
             answer_correctness_vals = [
-                r.answer_correctness for r in results_with_ragas if r.answer_correctness is not None
+                r.answer_correctness for r in results_with_metrics if r.answer_correctness is not None
             ]
             if answer_correctness_vals:
                 content.append(f"  Answer Correctness: {np.mean(answer_correctness_vals):.3f}")

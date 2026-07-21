@@ -4,7 +4,6 @@
 import asyncio
 import sys
 import time
-import warnings
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -18,38 +17,6 @@ from tests.quality.reporting.report_models import QualityReport
 from tests.quality.test_runner import QualityTestRunner
 
 logger = get_logger(__name__)
-
-# Suppress ResourceWarnings from async HTTP clients cleanup
-# This occurs when Ragas (and other async libraries) try to clean up connections
-# after the event loop has closed. It's harmless and doesn't affect results.
-warnings.filterwarnings("ignore", category=ResourceWarning, message=".*unclosed.*")
-
-# Filter asyncio "Event loop is closed" errors that occur during cleanup
-# These happen when Ragas' async HTTP clients try to close after the event loop is shut down
-# The errors occur AFTER we get our results, so they don't affect functionality
-import logging
-
-logging.getLogger("asyncio").setLevel(logging.CRITICAL)
-
-
-def _suppress_event_loop_closed_errors() -> None:
-    """Suppress 'Event loop is closed' errors during shutdown.
-
-    These errors occur when async HTTP clients (from Ragas) try to cleanup
-    after the event loop has been closed by asyncio.run(). They're harmless
-    and don't affect test results - they only appear during final cleanup.
-    """
-    # Store original excepthook
-    original_excepthook = sys.excepthook
-
-    def custom_excepthook(exc_type, exc_value, exc_traceback):
-        # Suppress RuntimeError: Event loop is closed
-        if exc_type is RuntimeError and "Event loop is closed" in str(exc_value):
-            return  # Silently ignore
-        # Call original excepthook for all other exceptions
-        original_excepthook(exc_type, exc_value, exc_traceback)
-
-    sys.excepthook = custom_excepthook
 
 
 def _detect_runs_from_results(results: list) -> int:
@@ -99,11 +66,11 @@ def quality_test(
         test_id: Specific test ID to run (default: all tests)
         model: Specific model to test
         all_models: Test all available models
-        judge_model: Model to use for Ragas evaluation
+        judge_model: Model to use for judge evaluation
         skip_confirm: Skip confirmation prompt
         runs: Number of times to run each test
         max_hops: Override RAG_MAX_HOPS constant
-        no_eval: Skip Ragas evaluation (only generate outputs)
+        no_eval: Skip judge evaluation (only generate outputs)
         force_rag: Ignore cached context files and run RAG
         from_output: Path to existing output folder for replay mode (skips RAG + LLM generation)
         batch_submit: Submit generation through provider Batch APIs, then exit
@@ -123,9 +90,6 @@ def quality_test(
             force_rag=force_rag,
         )
         return
-    # Suppress event loop cleanup errors from Ragas (only if we're running eval)
-    if not no_eval:
-        _suppress_event_loop_closed_errors()
 
     # Override RAG_MAX_HOPS if specified
     if max_hops is not None:
@@ -220,8 +184,8 @@ def quality_test(
             print(console_output)
 
             print(f"\n✅ Replay completed in {total_time:.1f}s")
-            print(f"   Original LLM costs: ${total_cost - sum(r.ragas_cost_usd for r in results):.4f}")
-            print(f"   New judge costs: ${sum(r.ragas_cost_usd for r in results):.4f}")
+            print(f"   Original LLM costs: ${total_cost - sum(r.judge_cost_usd for r in results):.4f}")
+            print(f"   New judge costs: ${sum(r.judge_cost_usd for r in results):.4f}")
             print(f"   Total costs (original + judge): ${total_cost:.4f}")
 
         except Exception as e:

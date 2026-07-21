@@ -31,7 +31,6 @@ class ServerConfig:
     openai_api_key: str | None = None
     google_api_key: str | None = None
     x_api_key: str | None = None
-    dial_api_key: str | None = None
     deepseek_api_key: str | None = None
     mistral_api_key: str | None = None
     moonshot_api_key: str | None = None
@@ -113,7 +112,6 @@ class MultiServerConfig:
                         openai_api_key=server_data.get("openai_api_key"),
                         google_api_key=server_data.get("google_api_key"),
                         x_api_key=server_data.get("x_api_key"),
-                        dial_api_key=server_data.get("dial_api_key"),
                         deepseek_api_key=server_data.get("deepseek_api_key"),
                         mistral_api_key=server_data.get("mistral_api_key"),
                         moonshot_api_key=server_data.get("moonshot_api_key"),

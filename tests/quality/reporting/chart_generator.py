@@ -4,8 +4,6 @@ import os
 
 import numpy as np
 
-from src.lib.constants import QUALITY_TEST_JUDGING
-
 try:
     import matplotlib
 
@@ -21,7 +19,7 @@ from tests.quality.reporting.report_models import IndividualTestResult, QualityR
 # Score-bar segment colors (single source of truth for the stacked score bar).
 COLOR_EARNED = "#2ecc71"  # Green — score earned on runs that never errored
 COLOR_RECOVERED = "#f1c40f"  # Gold — score recovered by re-requesting a failed batch item
-COLOR_ERROR = "#95a5a6"  # Grey — score lost to unrecoverable (LLM + Ragas) errors
+COLOR_ERROR = "#95a5a6"  # Grey — score lost to unrecoverable (LLM + judge) errors
 
 
 class ChartGenerator:
@@ -42,10 +40,10 @@ class ChartGenerator:
             if chart_path:
                 self.report.chart_path = chart_path
 
-            # Generate Ragas metrics chart for multi-model scenarios
-            ragas_chart_path = self._generate_ragas_metrics_chart()
-            if ragas_chart_path:
-                self.report.ragas_chart_path = ragas_chart_path
+            # Generate quality metrics chart for multi-model scenarios
+            metrics_chart_path = self._generate_metrics_chart()
+            if metrics_chart_path:
+                self.report.metrics_chart_path = metrics_chart_path
 
         # Generate per-test-case charts for multi-model scenarios
         if self.report.is_multi_test_case and self.report.is_multi_model:
@@ -265,7 +263,7 @@ class ChartGenerator:
         # Colors
         color_earned = COLOR_EARNED  # Green for earned points
         color_recovered = COLOR_RECOVERED  # Gold for score recovered by re-request
-        color_llm_error = COLOR_ERROR  # Grey for evaluation errors (LLM + Ragas)
+        color_llm_error = COLOR_ERROR  # Grey for evaluation errors (LLM + judge)
         color_time = "#3498db"  # Blue
         color_cost = "#e74c3c"  # Red
         color_chars = "#8B4513"  # Brown
@@ -289,7 +287,7 @@ class ChartGenerator:
             e + rv for e, rv in zip(earned_scores, recovered_scores, strict=False)
         ]
         # Only add error label to legend if there are actual errors
-        error_label = "Evaluation Error % (LLM + Ragas)" if any(e > 0 for e in llm_error_scores) else None
+        error_label = "Evaluation Error % (LLM + judge)" if any(e > 0 for e in llm_error_scores) else None
         ax1.bar(
             pos1,
             llm_error_scores,
@@ -433,7 +431,7 @@ class ChartGenerator:
         - recovered (gold): score of runs that succeeded only after a batch
           re-request (recovered_from_error=True).
         - error (grey): score lost (max_score - score) on any run that still
-          carries an LLM/Ragas error — including the rare double-fault where a
+          carries an LLM/judge error — including the rare double-fault where a
           recovered generation was followed by a permanent judge error, whose
           earned portion lands in gold and whose lost portion lands in grey.
         """
@@ -459,7 +457,7 @@ class ChartGenerator:
                 else:
                     earned += result.score
                 # Score lost to an unrecoverable error (grey), unchanged semantics.
-                if result.error or result.ragas_evaluation_error:
+                if result.error or result.evaluation_error:
                     error_lost += result.max_score - result.score
 
             if total_max > 0:
@@ -473,10 +471,10 @@ class ChartGenerator:
 
         return earned_scores, recovered_scores, error_scores
 
-    def _calculate_ragas_metric_breakdown(
+    def _calculate_metric_breakdown(
         self, models: list[str], metric_name: str
     ) -> tuple[list[float], list[float]]:
-        """Calculate earned and error portions for a specific Ragas metric.
+        """Calculate earned and error portions for a specific quality metric.
 
         For each model, calculates:
         - Earned: Average of successful evaluations
@@ -507,11 +505,11 @@ class ChartGenerator:
                 metric_value = getattr(result, metric_name, None)
 
                 # Check if this specific metric failed
-                if metric_value is None and result.ragas_evaluation_error:
+                if metric_value is None and result.evaluation_error:
                     failed_count += 1
                 elif metric_value is not None:
                     successful_values.append(metric_value)
-                # If metric is None but ragas_evaluation_error is False, it's a successful 0.0
+                # If metric is None but evaluation_error is False, it's a successful 0.0
 
             total_count = len(model_results)
 
@@ -591,8 +589,8 @@ class ChartGenerator:
                     zorder=10,
                 )
 
-    def _generate_ragas_metrics_chart(self) -> str | None:
-        """Generate a chart showing individual Ragas metrics per model.
+    def _generate_metrics_chart(self) -> str | None:
+        """Generate a chart showing individual quality metrics per model.
 
         X-axis shows metrics, with each model as a separate colored bar within
         each metric group.
@@ -603,9 +601,9 @@ class ChartGenerator:
         if not MATPLOTLIB_AVAILABLE or not self.report.is_multi_model:
             return None
 
-        # Check if we have any Ragas metrics to display
-        has_ragas_data = any(r.ragas_metrics_available for r in self.report.results)
-        if not has_ragas_data:
+        # Check if we have any quality metrics to display
+        has_metrics_data = any(r.metrics_available for r in self.report.results)
+        if not has_metrics_data:
             return None
 
         chart_path = os.path.join(self.report_dir, "chart_metrics.png")
@@ -669,7 +667,7 @@ class ChartGenerator:
         for model in models:
             error_values = []
             for metric_name, _label in metrics_to_plot:
-                _earned_list, error_list = self._calculate_ragas_metric_breakdown(
+                _earned_list, error_list = self._calculate_metric_breakdown(
                     [model], metric_name
                 )
                 error_values.append(error_list[0] if error_list else 0.0)
@@ -690,7 +688,7 @@ class ChartGenerator:
             earned_values = []
             for metric_name, _label in metrics_to_plot:
                 # Get earned for this specific model and metric
-                earned_list, _error_list = self._calculate_ragas_metric_breakdown(
+                earned_list, _error_list = self._calculate_metric_breakdown(
                     [model], metric_name
                 )
                 earned_values.append(earned_list[0] if earned_list else 0.0)
@@ -725,12 +723,7 @@ class ChartGenerator:
         ax.legend(loc="best", fontsize=10)
         ax.grid(axis="y", alpha=0.3, linestyle="--")
 
-        # Add note about LLM-based judging mode
-        title = "Model Comparison by Metric"
-        if QUALITY_TEST_JUDGING == "OFF":
-            title += "\n(LLM-based judging: OFF - only local metrics shown)"
-
-        plt.title(title, fontsize=14, fontweight="bold", pad=20)
+        plt.title("Model Comparison by Metric", fontsize=14, fontweight="bold", pad=20)
         plt.tight_layout()
 
         plt.savefig(chart_path, dpi=150, bbox_inches="tight")

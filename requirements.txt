@@ -2,15 +2,12 @@
 discord.py>=2.3.2
 
 # RAG & LLM
-langchain>=0.1.0
-langchain-openai>=0.1.0  # Langchain OpenAI integration for RAGAS
 chromadb>=0.4.0
 anthropic>=0.74.1  # Latest version with structured outputs beta support (Nov 2025)
 openai>=2.8.1  # Latest version released Nov 2025
 google-genai>=2.12.0  # New unified Google GenAI SDK (replaces google-generativeai), GA since May 2025; >=2.12 needed for InlinedResponse.metadata key echo in batch collect
 httpx>=0.25.0  # HTTP client for Grok API
 rank-bm25>=0.2.2  # BM25 keyword search for hybrid retrieval
-ragas>=0.3.9  # RAG evaluation framework
 rapidfuzz>=3.0.0  # Fuzzy string matching for team name extraction
 
 # Utilities
@@ -26,7 +23,6 @@ pytest>=7.4.0
 pytest-asyncio>=0.21.0
 pytest-mock>=3.12.0
 pytest-cov>=4.1.0
-freezegun>=1.4.0
 hypothesis>=6.92.0
 
 # Visualization

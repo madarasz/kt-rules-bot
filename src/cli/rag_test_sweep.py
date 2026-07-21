@@ -35,7 +35,7 @@ def rag_test_sweep(
     embedding_model: str | None = None,
     chunk_header_level: str | None = None,
 ) -> None:
-    """Run RAG parameter sweep tests using Ragas evaluation.
+    """Run RAG parameter sweep tests.
 
     Args:
         param: Parameter name to sweep (single-parameter mode)
@@ -124,7 +124,7 @@ def rag_test_sweep(
             print("\nRunning grid search...")
             print(f"Parameters: {list(param_grid.keys())}")
             print(f"Total configurations: {total_configs}")
-            print("Evaluation: Ragas metrics")
+            print("Evaluation: retrieval metrics")
             print("")
 
             sweep_results = sweep_runner.grid_search(
@@ -153,7 +153,7 @@ def rag_test_sweep(
             print("\nRunning parameter sweep...")
             print(f"Parameter: {param}")
             print(f"Values: {param_values}")
-            print("Evaluation: Ragas metrics")
+            print("Evaluation: retrieval metrics")
             print("")
 
             sweep_results = sweep_runner.sweep_parameter(
@@ -174,17 +174,17 @@ def rag_test_sweep(
         print("SWEEP COMPLETED")
         print("=" * 80)
 
-        # Find best configuration (based on Ragas Context Precision)
-        if sweep_results[0].summary.mean_ragas_context_precision is not None:
-            best_result = max(sweep_results, key=lambda r: r.summary.mean_ragas_context_precision)
+        # Find best configuration (based on Context Precision)
+        if sweep_results[0].summary.mean_context_precision is not None:
+            best_result = max(sweep_results, key=lambda r: r.summary.mean_context_precision)
         else:
             best_result = sweep_results[0]
 
         print("Best configuration:")
         print(f"  {best_result.config.get_description()}")
-        if best_result.summary.mean_ragas_context_precision is not None:
-            print(f"  Context Precision: {best_result.summary.mean_ragas_context_precision:.3f}")
-            print(f"  Context Recall: {best_result.summary.mean_ragas_context_recall:.3f}")
+        if best_result.summary.mean_context_precision is not None:
+            print(f"  Context Precision: {best_result.summary.mean_context_precision:.3f}")
+            print(f"  Context Recall: {best_result.summary.mean_context_recall:.3f}")
         print("")
 
         print(f"Report saved to: {output_dir / 'comparison_report.md'}")
@@ -197,8 +197,8 @@ def rag_test_sweep(
         logger.info(
             "sweep_completed",
             output_dir=str(output_dir),
-            best_context_precision=best_result.summary.mean_ragas_context_precision
-            if best_result.summary.mean_ragas_context_precision
+            best_context_precision=best_result.summary.mean_context_precision
+            if best_result.summary.mean_context_precision
             else 0.0,
         )
 

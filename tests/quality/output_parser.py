@@ -330,7 +330,6 @@ class OutputParser:
         "GeminiAdapter": "gemini",
         "GrokAdapter": "grok",
         "DeepSeekAdapter": "deepseek",
-        "DialAdapter": "dial",
         "MistralAdapter": "mistral",
         "KimiAdapter": "moonshot",
         "GLMAdapter": "alibaba",

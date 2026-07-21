@@ -1,6 +1,6 @@
 # Response Quality Testing
 
-This framework provides automated quality testing for RAG + LLM responses using RAGAS metrics and custom judge evaluation.
+This framework provides automated quality testing for RAG + LLM responses using RAGAS-style metrics (our own implementation, not the `ragas` library) and a custom LLM judge.
 
 ## Overview
 
@@ -10,7 +10,7 @@ Quality tests evaluate responses using:
    - Quote Recall: Fraction of ground truth contexts found in quotes
    - Quote Faithfulness: Accuracy of quote text vs RAG chunks (fuzzy matching ≥0.98)
 
-2. **Judge metrics** (LLM-based, via Custom Judge or RAGAS):
+2. **Judge metrics** (LLM-based, via Custom Judge):
    - Explanation Faithfulness: Does explanation accurately reflect RAG context?
    - Answer Correctness: Do answers match ground truth? (per-answer scoring)
 
@@ -75,23 +75,22 @@ python -m src.cli quality-test --no-eval
 
 **In `src/lib/constants.py`**:
 ```python
-QUALITY_TEST_JUDGING = "CUSTOM"  # "CUSTOM" | "RAGAS" | "OFF"
-QUALITY_TEST_JUDGE_MODEL = "gpt-4.1-mini"  # Model for judge LLM calls
+QUALITY_TEST_JUDGE_MODEL = "grok-4.3"   # Model for judge LLM calls
+QUALITY_METRIC_WEIGHTS = {...}          # Weights for the aggregate score
 ```
 
-**Judge modes**:
-- **CUSTOM** (recommended): Single LLM call, structured output, unified feedback
-  - Cost: ~$0.001-0.003 per test
-  - Metrics: Explanation faithfulness + per-answer correctness
-  - Prompt: `prompts/custom-judge-prompt.md`
+The judge is a single LLM call with structured output and unified feedback
+(prompt: `prompts/quality-test-custom-judge.md`), costing ~$0.001-0.003 per test.
+It produces explanation faithfulness + per-answer correctness.
 
-- **RAGAS**: Uses RAGAS library (2 LLM calls)
-  - Cost: ~$0.003-0.006 per test
-  - Metrics: Same as CUSTOM but via RAGAS API
+`--no-eval` skips evaluation entirely — it does **not** give you the deterministic
+metrics. No metrics are computed (every field is `None`), every run reports 0%, and
+the outputs carry no metadata block, so they cannot be replayed with `--from-output`.
+Use it only to generate responses for manual reading.
 
-- **OFF**: Deterministic metrics only (no judge)
-  - Cost: $0 (local computation)
-  - Metrics: Quote precision/recall/faithfulness only
+There is currently no flag for "deterministic quote metrics only, no judge cost".
+The internal `defer_judge` path computes exactly that, but it is reachable only via
+`--batch-submit`, for models whose provider has no batch API.
 
 ---
 
@@ -250,7 +249,7 @@ Output files (`output_{test_id}_{model}_{run}.md`) include embedded metadata:
 #### Explanation Faithfulness
 **What it measures**: Does explanation accurately reflect RAG context?
 
-**Requires**: LLM judge (Custom Judge or RAGAS)
+**Requires**: Custom Judge LLM call
 **Score**: 0-1
 **Cost**: Part of judge call (~$0.001-0.003)
 
@@ -310,7 +309,7 @@ tests/quality/results/2025-12-04_08-46-37_replay_2025-12-04_10-15-23/
 - **[test_runner.py](test_runner.py)**: Main test execution and replay orchestration
 - **[metadata_generator.py](metadata_generator.py)**: Metadata generation for replay support
 - **[output_parser.py](output_parser.py)**: Parse saved outputs for replay
-- **[ragas_evaluator.py](ragas_evaluator.py)**: RAGAS metrics evaluation
+- **[quality_evaluator.py](quality_evaluator.py)**: Metric calculation + judge orchestration
 - **[custom_judge.py](custom_judge.py)**: Custom judge evaluation (single LLM call)
 - **[fuzzy_quote_evaluator.py](fuzzy_quote_evaluator.py)**: Fuzzy string matching for quote validation
 - **[test_case_models.py](test_case_models.py)**: Data models (TestCase, GroundTruthAnswer, GroundTruthContext)
@@ -373,7 +372,7 @@ tests/quality/results/2025-12-04_08-46-37_replay_2025-12-04_10-15-23/
 ┌─────────────────────────────────────────────┐
 │ 3. RE-RUN JUDGE ONLY                         │
 │    • Skip deterministic metrics (cached)    │
-│    • Run Custom Judge or RAGAS              │
+│    • Run Custom Judge                       │
 │    • Calculate new aggregate score          │
 └─────────────────────────────────────────────┘
                     ↓
@@ -393,7 +392,7 @@ The framework tracks costs for:
 1. **LLM Generation** (main cost): Per-token pricing based on actual model ID
 2. **Multi-hop Evaluation**: RAG hop evaluation LLM calls (if enabled)
 3. **Embeddings**: Query embedding generation
-4. **Judge Evaluation**: Custom judge or RAGAS LLM calls
+4. **Judge Evaluation**: Custom judge LLM call
 
 **Example costs** (per test):
 - LLM generation: $0.003-0.008 (varies by model)

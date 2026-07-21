@@ -25,7 +25,6 @@ _PROVIDER_LABELS: dict[str, str] = {
     "QwenAdapter": "Qwen (Alibaba)",
     "GLMAdapter": "GLM (Z.AI)",
     "MiniMaxAdapter": "MiniMax",
-    "DialAdapter": "DIAL",
 }
 
 

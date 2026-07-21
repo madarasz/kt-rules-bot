@@ -194,7 +194,7 @@ def create_parser() -> argparse.ArgumentParser:
     quality_parser.add_argument(
         "--no-eval",
         action="store_true",
-        help="Skip Ragas evaluation (only generate outputs, no scoring)",
+        help="Skip judge evaluation (only generate outputs, no scoring)",
     )
     quality_parser.add_argument(
         "--force-rag",
