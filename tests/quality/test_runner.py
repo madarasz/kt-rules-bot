@@ -26,7 +26,7 @@ from src.lib.constants import (
 )
 from src.lib.logging import get_logger
 from src.lib.model_name import model_base_name, model_slug
-from src.lib.tokens import calculate_llm_cost
+from src.lib.pricing import calculate_llm_cost
 from src.models.rag_context_serializer import RAGContextSerializationError, load_rag_context
 from src.models.structured_response import StructuredLLMResponse
 from src.services.llm.base import (

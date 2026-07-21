@@ -18,7 +18,7 @@ from urllib.request import Request, urlopen
 from src.lib.config import get_config
 from src.lib.constants import PDF_EXTRACTION_PROVIDERS
 from src.lib.logging import get_logger
-from src.lib.tokens import LLMCostBreakdown, calculate_llm_cost
+from src.lib.pricing import LLMCostBreakdown, calculate_llm_cost
 from src.services.llm.base import ExtractionConfig, ExtractionRequest
 from src.services.llm.factory import LLMProviderFactory
 

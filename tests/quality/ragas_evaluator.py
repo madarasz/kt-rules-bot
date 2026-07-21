@@ -19,9 +19,9 @@ from dotenv import load_dotenv
 from src.lib.constants import QUALITY_TEST_JUDGE_MODEL, QUALITY_TEST_JUDGING, RAGAS_METRIC_WEIGHTS
 from src.lib.logging import get_logger
 from src.lib.model_name import model_base_name
+from src.lib.pricing import calculate_llm_cost, estimate_cost
 from src.lib.ragas_adapter import evaluate_retrieval
 from src.lib.text_utils import normalize_text_for_matching
-from src.lib.tokens import calculate_llm_cost, estimate_cost
 from src.models.structured_response import StructuredLLMResponse
 from tests.quality.custom_judge import CustomJudge
 from tests.quality.fuzzy_quote_evaluator import FuzzyQuoteEvaluator

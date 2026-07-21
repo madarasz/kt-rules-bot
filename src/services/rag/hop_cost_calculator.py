@@ -5,7 +5,7 @@ Uses actual prompt/completion token counts from LLM responses.
 """
 
 from src.lib.logging import get_logger
-from src.lib.tokens import LLMCostBreakdown, calculate_llm_cost
+from src.lib.pricing import LLMCostBreakdown, calculate_llm_cost
 from src.services.llm.base import LLMResponse
 
 logger = get_logger(__name__)

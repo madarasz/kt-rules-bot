@@ -194,9 +194,10 @@ class GeminiAdapter(LLMProvider):
         )
         self.model = model
 
-        # Gemini 2.5+ models with thinking capabilities use reasoning tokens
-        reasoning_models = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-pro-preview", "gemini-3.1-pro-preview", "gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-3.5-flash"]
-        self.uses_completion_tokens = model in reasoning_models
+        # Non-reasoning models don't use thinking tokens; all others (new Gemini models
+        # included by default) use reasoning/thinking tokens
+        non_reasoning_models = []
+        self.uses_completion_tokens = model not in non_reasoning_models
 
         logger.info(f"Initialized Gemini adapter with model {model}")
 

@@ -23,6 +23,7 @@ src/lib/
 ├── validation.py       # Input sanitization and validation
 ├── gdpr.py             # GDPR compliance utilities
 ├── metrics.py          # Usage and performance metrics
+├── pricing.py          # LLM pricing table and cost calculation
 ├── tokens.py           # Token counting and limits
 └── discord_utils.py    # Discord-specific utilities
 ```
@@ -91,7 +92,12 @@ Token counting and management:
 - Token estimation for embeddings
 - Chunk size validation
 - Model-specific token limits
-- Cost estimation helpers
+
+### pricing.py
+LLM pricing and cost calculation:
+- Per-model pricing table (`pricing` dict)
+- `calculate_llm_cost()` / `estimate_cost()` — cost breakdown incl. cache and batch savings
+- Batch API discount rates (`BATCH_DISCOUNT`, `batch_discount_for()`)
 
 ### discord_utils.py
 Discord-specific utilities:

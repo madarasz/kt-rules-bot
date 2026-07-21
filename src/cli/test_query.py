@@ -16,8 +16,9 @@ from src.lib.config import get_config
 from src.lib.constants import EMBEDDING_MODEL, LLM_GENERATION_TIMEOUT, RAG_MAX_CHUNKS, RAG_MAX_HOPS
 from src.lib.logging import get_logger
 from src.lib.model_name import validate_model_arg
+from src.lib.pricing import calculate_llm_cost
 from src.lib.statistics import format_statistics_summary
-from src.lib.tokens import calculate_llm_cost, estimate_embedding_cost
+from src.lib.tokens import estimate_embedding_cost
 from src.models.rag_context_serializer import save_rag_context
 from src.models.rag_request import RetrieveRequest
 from src.services.llm.factory import LLMProviderFactory

@@ -9,7 +9,7 @@ Usage:
 """
 
 from src.lib.model_name import format_effort_levels, supported_effort_levels
-from src.lib.tokens import pricing
+from src.lib.pricing import pricing
 from src.services.llm.factory import LLMProviderFactory
 
 # Friendly provider label per adapter class name. Falls back to "<ClassName>"

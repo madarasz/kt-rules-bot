@@ -129,19 +129,15 @@ class ChatGPTAdapter(LLMProvider):
 
         self.client = AsyncOpenAI(api_key=api_key)
 
-        # GPT-5 and O-series models have limited parameter support and use reasoning tokens
-        reasoning_models = [
-            "gpt-5.6-luna",
-            "gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-mini-2026-03-17", "gpt-5.4-nano",
-            "gpt-5.3-chat-latest",
-            "gpt-5.2", "gpt-5.2-chat-latest",
-            "gpt-5.1-chat-latest", "gpt-5.1", "gpt-5", "gpt-5-mini", "gpt-5-nano",
-            "o3", "o3-mini", "o4-mini"
+        # Non-reasoning models support full parameter set; all others (new GPT-5/O-series
+        # models included by default) use reasoning tokens with limited parameter support
+        non_reasoning_models = [
+            "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o"
         ]
-        self.supports_logprobs = model not in reasoning_models
-        self.uses_completion_tokens = model in reasoning_models
+        self.supports_logprobs = model in non_reasoning_models
+        self.uses_completion_tokens = model not in non_reasoning_models
         self.supports_temperature = (
-            model not in reasoning_models
+            model in non_reasoning_models
         )  # Reasoning models only support temperature=1
 
         logger.info(f"Initialized ChatGPT adapter with model {model}")

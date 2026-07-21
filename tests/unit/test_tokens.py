@@ -1,6 +1,6 @@
 import pytest
 
-from src.lib.tokens import LLMCostBreakdown, calculate_llm_cost, estimate_cost
+from src.lib.pricing import LLMCostBreakdown, calculate_llm_cost, estimate_cost
 
 
 class TestCalculateLlmCost:

@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 
 from src.lib.constants import SUMMARY_ENABLED
 from src.lib.logging import get_logger
-from src.lib.tokens import calculate_llm_cost
+from src.lib.pricing import calculate_llm_cost
 from src.models.rule_document import RuleDocument
 from src.services.rag.chunker import MarkdownChunker
 from src.services.rag.embeddings import EmbeddingService

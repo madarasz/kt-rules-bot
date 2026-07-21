@@ -1,6 +1,6 @@
 """Per-backend batch discount table (tokens.py)."""
 
-from src.lib.tokens import BATCH_DISCOUNT, batch_discount_for, calculate_llm_cost
+from src.lib.pricing import BATCH_DISCOUNT, batch_discount_for, calculate_llm_cost
 
 
 def test_known_backends_have_discounts():

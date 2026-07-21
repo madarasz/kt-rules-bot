@@ -324,7 +324,7 @@ def test_factory_roundtrip_reasoning_model_omits_temperature(patched_factory_con
 # Postfix must not leak into pricing lookups or filenames
 # --------------------------------------------------------------------------- #
 def test_cost_lookup_ignores_effort_postfix():
-    from src.lib.tokens import calculate_llm_cost
+    from src.lib.pricing import calculate_llm_cost
 
     plain = calculate_llm_cost(100_000, 20_000, "grok-4.3")
     posted = calculate_llm_cost(100_000, 20_000, "grok-4.3#high")
