@@ -13,7 +13,7 @@ from uuid import UUID, uuid4
 
 from src.lib.constants import LLM_GENERATION_TIMEOUT, QUALITY_TEST_PROVIDERS, RAG_MAX_CHUNKS
 from src.lib.logging import get_logger
-from src.lib.tokens import calculate_llm_cost
+from src.lib.pricing import calculate_llm_cost
 from src.models.rag_context import DocumentChunk, RAGContext
 from src.models.structured_response import StructuredLLMResponse
 from src.services.llm.factory import LLMProviderFactory

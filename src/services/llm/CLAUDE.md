@@ -723,12 +723,12 @@ logger.error("llm_generation_failed", model=model, error=str(e))
 
 ### Token Usage
 - Tracked per request in `GenerationResponse.token_count`
-- Estimated cost calculated in [src/lib/tokens.py](../../lib/tokens.py)
+- Estimated cost calculated in [src/lib/pricing.py](../../lib/pricing.py)
 - Quality tests report total cost
 
 ### Prompt Caching
 
-We use provider prompt caching for OpenAI, Claude, Grok and Gemini. Cost fields in [src/lib/tokens.py](../../lib/tokens.py): `cache_read` (discounted rate for cache hits) and `cache_write` (surcharge for writing to cache, Anthropic only).
+We use provider prompt caching for OpenAI, Claude, Grok and Gemini. Cost fields in [src/lib/pricing.py](../../lib/pricing.py): `cache_read` (discounted rate for cache hits) and `cache_write` (surcharge for writing to cache, Anthropic only).
 
 Claude charges a 1.25× write penalty on first cache population, so caching is **disabled for one-off queries** (CLI, Discord, admin rerun) via `GenerationConfig.use_cache=False`. It stays **enabled for repeated calls** — quality and RAG tests — where cache reads pay off.
 

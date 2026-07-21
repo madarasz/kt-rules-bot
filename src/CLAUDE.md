@@ -50,6 +50,7 @@ Application-wide utilities and configuration:
 - **[validation.py](lib/validation.py)** - Input sanitization
 - **[gdpr.py](lib/gdpr.py)** - GDPR compliance utilities
 - **[tokens.py](lib/tokens.py)** - Token counting
+- **[pricing.py](lib/pricing.py)** - LLM pricing table and cost calculation
 - **[metrics.py](lib/metrics.py)** - Usage metrics
 - **[discord_utils.py](lib/discord_utils.py)** - Discord helpers
 

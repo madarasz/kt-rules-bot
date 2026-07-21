@@ -1,7 +1,8 @@
 """Cost calculation service for query processing."""
 
 from src.lib.constants import EMBEDDING_MODEL
-from src.lib.tokens import calculate_llm_cost, estimate_embedding_cost
+from src.lib.pricing import calculate_llm_cost
+from src.lib.tokens import estimate_embedding_cost
 from src.services.llm.base import LLMResponse
 
 

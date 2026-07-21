@@ -1,6 +1,6 @@
 """Tests for the 50% batch-discount path in calculate_llm_cost."""
 
-from src.lib.tokens import calculate_llm_cost
+from src.lib.pricing import calculate_llm_cost
 
 
 def test_batch_halves_prompt_and_completion_cost_after_cache():

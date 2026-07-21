@@ -258,7 +258,8 @@ commands; `batch-collect` is single-pass and re-run by hand until the report is
 produced. State lives in `batch_state.json` in the results dir (idempotent, resumable).
 
 ```bash
-# 1. Submit — returns batch IDs, runs any non-batch models live now, then exits
+# 1. Submit — submits batches first, then runs any non-batch models live (overlapping
+#    provider batch queue time), prints batch IDs, exits
 python -m src.cli quality-test --batch-submit --test eliminator-concealed-counteract \
   --model claude-4.6-sonnet --judge-model gpt-4.1-mini
 
@@ -289,10 +290,11 @@ default `grok-4-1-fast-reasoning` — so reaching `done` normally takes **two
 collects** (gen batch, then judge batch). A non-batchable judge (e.g. DeepSeek)
 runs live inside the first collect and a single collect finishes the run.
 
-**Discounts:** per-backend in `src/lib/tokens.py` (`BATCH_DISCOUNT`). All default
-to 50%; **Kimi (`moonshot`) and Grok (`x`) publish "reduced pricing" without a
-confirmed percentage** — their `batch_savings_usd` is an estimate until the rate
-is confirmed against the provider pricing page and corrected in `BATCH_DISCOUNT`.
+**Discounts:** per-backend in `src/lib/pricing.py` (`BATCH_DISCOUNT`). Anthropic,
+OpenAI, Mistral, Qwen/DashScope, Gemini default to 50%. Grok (`x`) confirmed at
+20%. **Kimi (`moonshot`) publishes "reduced pricing" without a confirmed
+percentage** — its `batch_savings_usd` is an estimate until the rate is
+confirmed against the provider pricing page and corrected in `BATCH_DISCOUNT`.
 
 **Reporting:** `report.md` gains a **Batch net savings** line next to the existing
 cache-savings line, plus a combined total. Per-result savings are stored in each
