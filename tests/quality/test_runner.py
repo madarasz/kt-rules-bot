@@ -646,7 +646,10 @@ class QualityTestRunner:
         force_rag: bool = False,
     ) -> "BatchManifest":
         """Build generation requests, submit batchable ones, run non-batch models
-        live now, and persist batch_state.json (phase=generation_submitted)."""
+        live now, and persist batch_state.json (phase=generation_submitted).
+
+        Batches are submitted *before* the live models run so provider-side batch
+        time overlaps the local live generations instead of queuing behind them."""
         from uuid import uuid4
 
         from tests.quality.batch.backends import batch_group_key, resolve_backend
@@ -736,18 +739,8 @@ class QualityTestRunner:
                         )
                         live_done.append(custom_id)
 
-        if live_tasks:
-            logger.info(f"Running {len(live_tasks)} non-batch model(s) live at submit...")
-            # Tolerate individual live-run failures like _judge_parsed_outputs: a
-            # single non-batch model raising must not abort the whole submit and
-            # lose the batch work built above.
-            live_results = await asyncio.gather(*live_tasks, return_exceptions=True)
-            for cid, res in zip(live_done, live_results, strict=True):
-                if isinstance(res, Exception):
-                    logger.error(f"Live generation for {cid} failed at submit: {res}")
-
-        # generation is shared by reference with manifest.generation below, so
-        # each successful submit is persisted before the next backend is tried —
+        # generation is shared by reference with manifest.generation, so each
+        # successful submit is persisted before the next backend is tried —
         # a later submit failure can't orphan an already-submitted (billed) batch.
         generation: dict[str, dict] = {}
         manifest = BatchManifest(
@@ -764,6 +757,9 @@ class QualityTestRunner:
             live_done=live_done,
             contexts=contexts,
         )
+        # Submit first: the batches then queue provider-side while the live
+        # (non-batch) models generate here, so their wall time overlaps.
+        submit_error: Exception | None = None
         try:
             for name, lines in backend_lines.items():
                 batch_id = backends_by_name[name].submit(lines)
@@ -773,8 +769,25 @@ class QualityTestRunner:
                     "attempts": 0,
                     "collected": False,
                 }
+        except Exception as e:
+            # Keep going to the live models (they were already free of this
+            # failure in the old order) and re-raise once they are done.
+            submit_error = e
         finally:
             manifest.save()
+
+        if live_tasks:
+            logger.info(f"Running {len(live_tasks)} non-batch model(s) live at submit...")
+            # Tolerate individual live-run failures like _judge_parsed_outputs: a
+            # single non-batch model raising must not abort the whole submit and
+            # lose the batch work submitted above.
+            live_results = await asyncio.gather(*live_tasks, return_exceptions=True)
+            for cid, res in zip(live_done, live_results, strict=True):
+                if isinstance(res, Exception):
+                    logger.error(f"Live generation for {cid} failed at submit: {res}")
+
+        if submit_error is not None:
+            raise submit_error
         return manifest
 
     def _rebuild_gen_lines_for_backend(

@@ -258,7 +258,8 @@ commands; `batch-collect` is single-pass and re-run by hand until the report is
 produced. State lives in `batch_state.json` in the results dir (idempotent, resumable).
 
 ```bash
-# 1. Submit — returns batch IDs, runs any non-batch models live now, then exits
+# 1. Submit — submits batches first, then runs any non-batch models live (overlapping
+#    provider batch queue time), prints batch IDs, exits
 python -m src.cli quality-test --batch-submit --test eliminator-concealed-counteract \
   --model claude-4.6-sonnet --judge-model gpt-4.1-mini
 

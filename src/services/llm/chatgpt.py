@@ -132,7 +132,7 @@ class ChatGPTAdapter(LLMProvider):
         # Non-reasoning models support full parameter set; all others (new GPT-5/O-series
         # models included by default) use reasoning tokens with limited parameter support
         non_reasoning_models = [
-            "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o"
+            "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o", "gpt-4-turbo"
         ]
         self.supports_logprobs = model in non_reasoning_models
         self.uses_completion_tokens = model not in non_reasoning_models
