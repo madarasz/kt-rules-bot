@@ -125,7 +125,7 @@ def patched_factory_config(monkeypatch):
         class _Cfg:
             default_llm_provider = provider
             anthropic_api_key = openai_api_key = google_api_key = "dummy"
-            x_api_key = dial_api_key = deepseek_api_key = "dummy"
+            x_api_key = deepseek_api_key = "dummy"
             mistral_api_key = moonshot_api_key = alibaba_api_key = "dummy"
 
         class _MSC:

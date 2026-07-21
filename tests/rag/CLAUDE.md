@@ -38,14 +38,15 @@ python -m src.cli rag-test-sweep --grid \
 
 ## What It Tests
 
-Verifies RAG retrieval quality using the **Ragas evaluation framework**.
+Verifies RAG retrieval quality using **RAGAS-style retrieval metrics** — our own
+substring-matching implementation in [src/lib/retrieval_metrics.py](../../src/lib/retrieval_metrics.py),
+not the `ragas` library (which this project does not depend on).
 
-### Ragas Metrics
-Industry-standard RAG evaluation framework using substring matching:
+### Retrieval Metrics
 - **Context Precision**: Proportion of retrieved chunks containing ground truth information
 - **Context Recall**: Proportion of ground truth information found in retrieved chunks
 
-**Note**: Ragas metrics use `ground_truth_contexts` as ground truth contexts, enabling seamless evaluation with standardized test cases.
+**Note**: Both use `ground_truth_contexts` from the test case as ground truth, enabling seamless evaluation with standardized test cases.
 
 **Performance Tracking**:
 - **Total Time**: Total time for all tests
@@ -81,7 +82,7 @@ ground_truth_contexts:
 
 ## Evaluation Metrics Explained
 
-### Ragas Metrics
+### Retrieval Metrics
 
 **Context Precision**:
 - Measures what proportion of retrieved chunks contain ground truth information
@@ -96,20 +97,12 @@ ground_truth_contexts:
 - Formula: (# ground truth substrings found) / (total ground truth substrings)
 
 **How It Works**:
-- Ragas uses substring matching on chunk **text content** (not just headers)
+- Substring matching on chunk **text content** (not just headers)
 - Uses `ground_truth_contexts` from test cases as ground truth contexts
-- Provides industry-standard RAG evaluation metrics
+- Fully deterministic and free — no LLM judge involved
 
-**Configuration**:
-```python
-# File: src/lib/constants.py
-RAGAS_JUDGE_MODEL = "gpt-4o"  # LLM for future Ragas features
-```
-
-**Installation**:
-```bash
-pip install ragas>=0.1.0
-```
+**Implementation**: [src/lib/retrieval_metrics.py](../../src/lib/retrieval_metrics.py)
+(`evaluate_retrieval`), wrapped by [retrieval_evaluator.py](retrieval_evaluator.py).
 
 ## Tunable RAG Parameters
 
@@ -216,7 +209,7 @@ python -m src.cli rag-test-sweep \
   --runs 10
 ```
 
-**Output**: Charts showing Ragas Context Precision, Context Recall, Time, and Cost vs parameter value
+**Output**: Charts showing Context Precision, Context Recall, Time, and Cost vs parameter value
 
 ### Grid Search (Multiple Parameters)
 
@@ -287,9 +280,9 @@ python -m src.cli rag-test --runs 30
 ### Interpreting Results
 
 **Charts Generated**:
-- `ragas_metrics_comparison.png`: Combined chart with Context Precision and Context Recall (maximize these)
-- `ragas_context_precision_heatmap.png`: Grid search heatmap for Context Precision (2D only)
-- `ragas_context_recall_heatmap.png`: Grid search heatmap for Context Recall (2D only)
+- `retrieval_metrics_comparison.png`: Combined chart with Context Precision and Context Recall (maximize these)
+- `context_precision_heatmap.png`: Grid search heatmap for Context Precision (2D only)
+- `context_recall_heatmap.png`: Grid search heatmap for Context Recall (2D only)
 
 **CSV Export**: All metrics in `comparison_metrics.csv` for statistical analysis
 
@@ -308,8 +301,8 @@ Each test run generates:
 
 ### Main Report (`report.md`)
 - **Overall Metrics**:
-  - Ragas Context Precision across all tests
-  - Ragas Context Recall across all tests
+  - Context Precision across all tests
+  - Context Recall across all tests
 
 - **Performance Metrics**:
   - Total time for all tests (seconds)
@@ -325,7 +318,7 @@ Each test run generates:
   - Ground truth contexts (headers)
   - Retrieved chunks (top-k with ranks and scores)
   - Which ground truth contexts were found/missed
-  - Ragas metrics for this test
+  - Retrieval metrics for this test
 
 - **Configuration Used**:
   - RAG_MAX_CHUNKS
@@ -336,7 +329,7 @@ Each test run generates:
   - Hybrid enabled/disabled
 
 - **Multi-Run Statistics** (if --runs > 1):
-  - Mean ± std dev for Ragas metrics
+  - Mean ± std dev for retrieval metrics
   - Consistency analysis
   - Variance identification
 
@@ -350,7 +343,7 @@ tests/rag/
 ├── test_cases/          → YAML test definitions
 ├── results/             → Generated reports (timestamped)
 ├── test_runner.py       → Main orchestrator (TBD)
-├── evaluator.py         → Metric calculation (TBD)
+├── retrieval_evaluator.py → Metric calculation
 ├── reporting/           → Report generation (TBD)
 └── CLAUDE.md            → This file
 ```
@@ -421,7 +414,7 @@ python -m src.cli rag-test --runs 50
 
 ✅ **Fully Implemented**:
 - Test runner with multi-run support
-- **Ragas evaluation framework** (Context Precision, Context Recall)
+- **RAGAS-style retrieval metrics** (Context Precision, Context Recall)
 - Report generation with comprehensive breakdowns
 - CLI command integration (`python -m src.cli rag-test`)
 - Performance tracking (timing and cost)

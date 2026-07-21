@@ -135,7 +135,9 @@ tests/quality/
 │   └── archived_results/ → Historical data
 ├── findings/            → Manual analysis notes
 ├── test_runner.py       → Main orchestrator
-├── evaluator.py         → LLM judge evaluator
+├── quality_evaluator.py → Metric calculation + judge orchestration
+├── custom_judge.py      → Unified LLM judge (single call)
+├── fuzzy_quote_evaluator.py → Quote faithfulness via fuzzy matching
 ├── reporting/
 │   ├── report_generator.py → Markdown report generation
 │   └── chart_generator.py  → Matplotlib charts
@@ -146,11 +148,13 @@ tests/quality/
 
 **[test_runner.py](test_runner.py)**: Loads test cases → Runs queries → Collects results → Generates reports
 
-**[evaluator.py](evaluator.py)**: Evaluates responses using RAGAS-style metrics:
-- Quote Precision/Recall/Faithfulness (deterministic)
-- Explanation Faithfulness (LLM judge)
-- Answer Correctness (LLM judge comparing to ground truth answers)
-- Custom feedback (Explanation Problems, Style)
+**[quality_evaluator.py](quality_evaluator.py)**: Evaluates responses using RAGAS-style metrics.
+These are **our own implementation**, not the `ragas` library — nothing here calls out to it:
+- Quote Precision/Recall — substring matching with priority weights ([src/lib/retrieval_metrics.py](../../src/lib/retrieval_metrics.py))
+- Quote Faithfulness — fuzzy matching against the retrieved chunks ([fuzzy_quote_evaluator.py](fuzzy_quote_evaluator.py))
+- Explanation Faithfulness + Answer Correctness + feedback — one [custom_judge.py](custom_judge.py) LLM call
+
+The judge always runs; use `--no-eval` to generate outputs without scoring.
 
 **[reporting/](reporting/)**: Aggregates results → Generates markdown + charts → Archives data
 
@@ -170,7 +174,7 @@ Reports are organized by test dimensionality in `results/{timestamp}/`:
 |-----------|-------------|--------------|--------------|
 | test-name | 96.0% (±0.8) | 10.07 | $0.0357 |
 
-**Individual results:** Per-run details with RAGAS metrics and judge feedback
+**Individual results:** Per-run details with quality metrics and judge feedback
 
 ### Per-Run Output Files (`output_{test_id}_{model}_{run}.md`)
 
@@ -180,7 +184,7 @@ Each run generates a detailed output file containing:
 - Original query text
 - Full LLM response with quotes and explanation
 
-**RAGAS Metrics breakdown:**
+**Quality Metrics breakdown:**
 - **Quote Precision** (0.0-1.0): Fraction of cited quotes that are relevant
 - **Quote Recall** (0.0-1.0): Fraction of ground truth contexts that were cited
   - Lists missing ground truth contexts with priority icons (⭐ critical, ⚠️ important)
@@ -208,9 +212,8 @@ Each run generates a detailed output file containing:
 
 In [src/lib/constants.py](../../src/lib/constants.py):
 ```python
-QUALITY_TEST_JUDGE_MODEL = "gpt-4.1-mini"        # LLM judge
-QUALITY_TEST_JUDGE_MAX_TOKENS = 150
-QUALITY_TEST_JUDGE_TEMPERATURE = 0.0              # Deterministic
+QUALITY_TEST_JUDGE_MODEL = "grok-4.3"             # LLM judge
+QUALITY_METRIC_WEIGHTS = {...}                    # Aggregate score weights
 
 # Concurrency and rate limit handling
 QUALITY_TEST_MAX_CONCURRENT_LLM_REQUESTS = 5      # Max parallel LLM requests
@@ -345,7 +348,7 @@ turnaround is fine. Not for interactive iteration — use the live path (default
 
 ## Quality Metrics
 
-**RAGAS-style metrics (per-test)**:
+**RAGAS-style metrics (per-test, our own implementation)**:
 - **Quote Precision**: Fraction of cited quotes that match ground truth contexts
 - **Quote Recall**: Fraction of ground truth contexts that were cited
 - **Quote Faithfulness**: How accurately quotes are reproduced from source

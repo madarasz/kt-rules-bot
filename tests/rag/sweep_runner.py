@@ -179,7 +179,7 @@ class RAGSweepRunner:
                 "sweep_config_completed",
                 param_name=param_name,
                 value=value,
-                context_precision=result.summary.mean_ragas_context_precision,
+                context_precision=result.summary.mean_context_precision,
             )
 
         logger.info(
@@ -245,7 +245,7 @@ class RAGSweepRunner:
             logger.info(
                 "grid_config_completed",
                 progress=f"{i}/{total_configs}",
-                context_precision=result.summary.mean_ragas_context_precision,
+                context_precision=result.summary.mean_context_precision,
             )
 
         logger.info("grid_search_completed", total_configs=total_configs)

@@ -16,7 +16,7 @@ from tests.quality.reporting.report_models import IndividualTestResult
 from tests.quality.test_case_models import GroundTruthContext
 
 if TYPE_CHECKING:
-    from tests.quality.ragas_evaluator import RagasMetrics
+    from tests.quality.quality_evaluator import QualityMetrics
 
 logger = get_logger(__name__)
 
@@ -96,7 +96,7 @@ class MetadataGenerator:
         run_num: int,
         llm_response: LLMResponse,
         result: IndividualTestResult,
-        metrics: "RagasMetrics",
+        metrics: "QualityMetrics",
         batch: bool = False,
     ) -> OutputMetadata:
         """
@@ -159,13 +159,13 @@ class MetadataGenerator:
         """
         Extract deterministic metrics that can be reused during replay.
 
-        Returns dict suitable for initializing RagasMetrics partial object.
+        Returns dict suitable for initializing QualityMetrics partial object.
 
         Args:
             metadata: Parsed metadata from output file
 
         Returns:
-            Dict with deterministic metric fields for RagasMetrics
+            Dict with deterministic metric fields for QualityMetrics
         """
         dm = metadata.deterministic_metrics
 
@@ -193,7 +193,7 @@ class MetadataGenerator:
         """
         Generate feedback for quote recall showing missing ground truth contexts.
 
-        Extracted from RagasEvaluator._generate_quote_recall_feedback()
+        Extracted from QualityEvaluator._generate_quote_recall_feedback()
         for reuse in both test runner and replay modes.
 
         Quote Recall measures how much of the expected information was cited.

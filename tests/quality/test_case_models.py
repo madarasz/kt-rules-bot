@@ -59,7 +59,6 @@ class TestCase:
         ground_truth_answers: List of expected answer statements with keys and priorities
         ground_truth_contexts: List of rules that should be cited with keys and priorities
         context_file: Optional path to cached RAG context file (JSON)
-        requirements: Legacy field (deprecated, can be removed)
     """
     test_id: str
     query: str
@@ -69,10 +68,7 @@ class TestCase:
     # Optional cached RAG context file for deterministic/cheaper testing
     context_file: str | None = None
 
-    # Legacy support - can be removed if no longer needed
-    requirements: list | None = None
-
     @property
     def max_score(self) -> int:
-        """Legacy compatibility - returns fixed score for Ragas metrics."""
-        return 100  # Ragas metrics are percentages (0-1 scaled to 0-100)
+        """Score denominator: metrics are percentages (0-1 scaled to 0-100)."""
+        return 100

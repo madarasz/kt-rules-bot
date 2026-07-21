@@ -25,7 +25,7 @@ from src.models.rag_request import RetrieveRequest
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.retriever import RAGRetriever
 from tests.rag.evaluator import RAGEvaluator
-from tests.rag.ragas_evaluator import RagasRAGEvaluator, add_ragas_metrics_to_result
+from tests.rag.retrieval_evaluator import RetrievalEvaluator, add_retrieval_metrics_to_result
 from tests.rag.test_case_models import RAGTestCase, RAGTestResult, RAGTestSummary
 
 logger = get_logger(__name__)
@@ -65,7 +65,7 @@ class RAGTestRunner:
 
         # Create evaluators
         self.evaluator = RAGEvaluator()
-        self.ragas_evaluator = RagasRAGEvaluator()
+        self.retrieval_evaluator = RetrievalEvaluator()
 
         # Create embedding service with custom model
         embedding_service = EmbeddingService(model=embedding_model)
@@ -188,7 +188,7 @@ class RAGTestRunner:
         )
 
         total_cost = 0.0
-        ragas_metrics = None
+        retrieval_metrics = None
 
         # Retrieve chunks (returns tuple: context, hop_evaluations, chunk_hop_map)
         start_time = time.time()
@@ -259,14 +259,14 @@ class RAGTestRunner:
                     chunk_hop_map.get(chunk.chunk_id, 0) for chunk in rag_context.document_chunks
                 ]
 
-            # Evaluate with Ragas metrics
-            ragas_metrics = self.ragas_evaluator.evaluate(
+            # Evaluate with retrieval metrics
+            retrieval_metrics = self.retrieval_evaluator.evaluate(
                 test_case=test_case, retrieved_chunks=rag_context.document_chunks
             )
-            # Add Ragas metrics to result
-            result = add_ragas_metrics_to_result(result, ragas_metrics)
+            # Add retrieval metrics to result
+            result = add_retrieval_metrics_to_result(result, retrieval_metrics)
 
-            # Capture non-fatal hop evaluation errors (after Ragas rebuild)
+            # Capture non-fatal hop evaluation errors (after metrics rebuild)
             if (
                 self.retriever.multi_hop_retriever is not None
                 and self.retriever.multi_hop_retriever.last_hop_errors
@@ -301,7 +301,7 @@ class RAGTestRunner:
             result.error_type = error_type
             result.error_message = error_message
             total_cost = initial_embedding_cost  # Cost for failed test
-            ragas_metrics = None
+            retrieval_metrics = None
 
         except Exception as e:
             # Handle other exceptions gracefully
@@ -332,7 +332,7 @@ class RAGTestRunner:
             result.error_type = error_type
             result.error_message = error_message
             total_cost = initial_embedding_cost  # Cost for failed test
-            ragas_metrics = None
+            retrieval_metrics = None
 
         # Log results
         log_data = {
@@ -342,12 +342,12 @@ class RAGTestRunner:
             "cost": f"${total_cost:.6f}",
         }
 
-        # Add Ragas metrics to log
-        if ragas_metrics is not None:
-            if ragas_metrics.context_precision is not None:
-                log_data["ragas_context_precision"] = f"{ragas_metrics.context_precision:.3f}"
-            if ragas_metrics.context_recall is not None:
-                log_data["ragas_context_recall"] = f"{ragas_metrics.context_recall:.3f}"
+        # Add retrieval metrics to log
+        if retrieval_metrics is not None:
+            if retrieval_metrics.context_precision is not None:
+                log_data["context_precision"] = f"{retrieval_metrics.context_precision:.3f}"
+            if retrieval_metrics.context_recall is not None:
+                log_data["context_recall"] = f"{retrieval_metrics.context_recall:.3f}"
 
         logger.info("rag_test_completed", **log_data)
 
@@ -459,16 +459,16 @@ class RAGTestRunner:
             "prec_3": [],
             "prec_5": [],
             "mrr": [],
-            "ragas_context_precision": [],
-            "ragas_context_recall": [],
+            "context_precision": [],
+            "context_recall": [],
         }
         test_case_stds = {
             "map": [],
             "recall_5": [],
             "recall_all": [],
             "prec_3": [],
-            "ragas_context_precision": [],
-            "ragas_context_recall": [],
+            "context_precision": [],
+            "context_recall": [],
         }
 
         for _test_id, test_results in results_by_test.items():
@@ -493,23 +493,23 @@ class RAGTestRunner:
             )
             test_case_means["mrr"].append(sum(r.mrr for r in test_results) / len(test_results))
 
-            # Calculate Ragas means (only if available)
-            ragas_context_precision_values = [
-                r.ragas_context_precision
+            # Calculate retrieval metric means (only if available)
+            context_precision_values = [
+                r.context_precision
                 for r in test_results
-                if r.ragas_context_precision is not None
+                if r.context_precision is not None
             ]
-            ragas_context_recall_values = [
-                r.ragas_context_recall for r in test_results if r.ragas_context_recall is not None
+            context_recall_values = [
+                r.context_recall for r in test_results if r.context_recall is not None
             ]
 
-            if ragas_context_precision_values:
-                test_case_means["ragas_context_precision"].append(
-                    sum(ragas_context_precision_values) / len(ragas_context_precision_values)
+            if context_precision_values:
+                test_case_means["context_precision"].append(
+                    sum(context_precision_values) / len(context_precision_values)
                 )
-            if ragas_context_recall_values:
-                test_case_means["ragas_context_recall"].append(
-                    sum(ragas_context_recall_values) / len(ragas_context_recall_values)
+            if context_recall_values:
+                test_case_means["context_recall"].append(
+                    sum(context_recall_values) / len(context_recall_values)
                 )
 
             # Calculate standard deviation for this test case (only if multiple runs)
@@ -525,27 +525,27 @@ class RAGTestRunner:
                     statistics.stdev([r.precision_at_3 for r in test_results])
                 )
 
-                # Ragas standard deviations
-                if len(ragas_context_precision_values) > 1:
-                    test_case_stds["ragas_context_precision"].append(
-                        statistics.stdev(ragas_context_precision_values)
+                # retrieval metric standard deviations
+                if len(context_precision_values) > 1:
+                    test_case_stds["context_precision"].append(
+                        statistics.stdev(context_precision_values)
                     )
                 else:
-                    test_case_stds["ragas_context_precision"].append(0.0)
+                    test_case_stds["context_precision"].append(0.0)
 
-                if len(ragas_context_recall_values) > 1:
-                    test_case_stds["ragas_context_recall"].append(
-                        statistics.stdev(ragas_context_recall_values)
+                if len(context_recall_values) > 1:
+                    test_case_stds["context_recall"].append(
+                        statistics.stdev(context_recall_values)
                     )
                 else:
-                    test_case_stds["ragas_context_recall"].append(0.0)
+                    test_case_stds["context_recall"].append(0.0)
             else:
                 test_case_stds["map"].append(0.0)
                 test_case_stds["recall_5"].append(0.0)
                 test_case_stds["recall_all"].append(0.0)
                 test_case_stds["prec_3"].append(0.0)
-                test_case_stds["ragas_context_precision"].append(0.0)
-                test_case_stds["ragas_context_recall"].append(0.0)
+                test_case_stds["context_precision"].append(0.0)
+                test_case_stds["context_recall"].append(0.0)
 
         # Overall means (average of per-test-case means)
         mean_map = sum(test_case_means["map"]) / len(test_case_means["map"])
@@ -556,16 +556,16 @@ class RAGTestRunner:
         mean_prec_5 = sum(test_case_means["prec_5"]) / len(test_case_means["prec_5"])
         mean_mrr = sum(test_case_means["mrr"]) / len(test_case_means["mrr"])
 
-        # Ragas overall means (if available)
-        mean_ragas_context_precision = None
-        mean_ragas_context_recall = None
-        if test_case_means["ragas_context_precision"]:
-            mean_ragas_context_precision = sum(test_case_means["ragas_context_precision"]) / len(
-                test_case_means["ragas_context_precision"]
+        # retrieval metric overall means (if available)
+        mean_context_precision = None
+        mean_context_recall = None
+        if test_case_means["context_precision"]:
+            mean_context_precision = sum(test_case_means["context_precision"]) / len(
+                test_case_means["context_precision"]
             )
-        if test_case_means["ragas_context_recall"]:
-            mean_ragas_context_recall = sum(test_case_means["ragas_context_recall"]) / len(
-                test_case_means["ragas_context_recall"]
+        if test_case_means["context_recall"]:
+            mean_context_recall = sum(test_case_means["context_recall"]) / len(
+                test_case_means["context_recall"]
             )
 
         # Overall standard deviations (average of per-test-case standard deviations)
@@ -575,16 +575,16 @@ class RAGTestRunner:
         std_recall_all = sum(test_case_stds["recall_all"]) / len(test_case_stds["recall_all"])
         std_prec_3 = sum(test_case_stds["prec_3"]) / len(test_case_stds["prec_3"])
 
-        # Ragas overall standard deviations
-        std_ragas_context_precision = 0.0
-        std_ragas_context_recall = 0.0
-        if test_case_stds["ragas_context_precision"]:
-            std_ragas_context_precision = sum(test_case_stds["ragas_context_precision"]) / len(
-                test_case_stds["ragas_context_precision"]
+        # retrieval metric overall standard deviations
+        std_context_precision = 0.0
+        std_context_recall = 0.0
+        if test_case_stds["context_precision"]:
+            std_context_precision = sum(test_case_stds["context_precision"]) / len(
+                test_case_stds["context_precision"]
             )
-        if test_case_stds["ragas_context_recall"]:
-            std_ragas_context_recall = sum(test_case_stds["ragas_context_recall"]) / len(
-                test_case_stds["ragas_context_recall"]
+        if test_case_stds["context_recall"]:
+            std_context_recall = sum(test_case_stds["context_recall"]) / len(
+                test_case_stds["context_recall"]
             )
 
         # Calculate performance metrics
@@ -784,10 +784,10 @@ class RAGTestRunner:
             std_dev_recall_at_5=std_recall_5,
             std_dev_recall_at_all=std_recall_all,
             std_dev_precision_at_3=std_prec_3,
-            mean_ragas_context_precision=mean_ragas_context_precision,
-            mean_ragas_context_recall=mean_ragas_context_recall,
-            std_dev_ragas_context_precision=std_ragas_context_precision,
-            std_dev_ragas_context_recall=std_ragas_context_recall,
+            mean_context_precision=mean_context_precision,
+            mean_context_recall=mean_context_recall,
+            std_dev_context_precision=std_context_precision,
+            std_dev_context_recall=std_context_recall,
             total_time_seconds=total_time_seconds,
             avg_retrieval_time_seconds=avg_retrieval_time,
             total_cost_usd=total_embedding_cost_only,  # Just embeddings (hop costs tracked separately)

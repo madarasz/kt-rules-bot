@@ -1,42 +1,38 @@
-"""RAG test evaluator using Ragas framework.
+"""RAG retrieval test evaluator.
 
-This evaluator integrates Ragas metrics alongside custom IR metrics.
-It uses substring matching for ground_truth_contexts as specified in the refactor plan.
+Computes RAGAS-style context precision/recall alongside the custom IR metrics,
+using substring matching against `ground_truth_contexts`.
 """
 
 from src.lib.constants import QUALITY_TEST_JUDGE_MODEL
-from src.lib.ragas_adapter import RagasRetrievalMetrics, evaluate_retrieval
+from src.lib.retrieval_metrics import RetrievalMetrics, evaluate_retrieval
 from src.models.rag_context import DocumentChunk
 from tests.rag.test_case_models import RAGTestCase, RAGTestResult
 
 
-class RagasRAGEvaluator:
-    """Evaluates RAG retrieval using Ragas framework with substring matching.
-
-    This evaluator extends the custom IR metrics with Ragas-style evaluation,
-    using substring matching for ground_truth_contexts instead of full-text matching.
-    """
+class RetrievalEvaluator:
+    """Evaluates RAG retrieval with substring matching against ground truth contexts."""
 
     def __init__(self, judge_model: str | None = None):
-        """Initialize the Ragas evaluator.
+        """Initialize the retrieval evaluator.
 
         Args:
-            judge_model: Optional LLM model for Ragas evaluation (default: QUALITY_TEST_JUDGE_MODEL)
+            judge_model: Optional LLM model name (default: QUALITY_TEST_JUDGE_MODEL)
                         Note: Not used for substring matching, but available for future extensions
         """
         self.judge_model = judge_model or QUALITY_TEST_JUDGE_MODEL
 
     def evaluate(
         self, test_case: RAGTestCase, retrieved_chunks: list[DocumentChunk]
-    ) -> RagasRetrievalMetrics | None:
-        """Evaluate retrieval using Ragas metrics.
+    ) -> RetrievalMetrics | None:
+        """Evaluate retrieval quality.
 
         Args:
             test_case: Test case definition with ground_truth_contexts
             retrieved_chunks: Chunks retrieved by RAG system (ordered by relevance)
 
         Returns:
-            RagasRetrievalMetrics
+            RetrievalMetrics
         """
 
         # Get ground truth contexts
@@ -45,28 +41,25 @@ class RagasRAGEvaluator:
         # Extract full text from retrieved chunks
         retrieved_texts = [chunk.text for chunk in retrieved_chunks]
 
-        # Evaluate using Ragas adapter (substring matching)
-        ragas_metrics = evaluate_retrieval(
+        return evaluate_retrieval(
             retrieved_contexts=retrieved_texts, ground_truth_contexts=ground_truth_contexts
         )
 
-        return ragas_metrics
 
-
-def add_ragas_metrics_to_result(
-    base_result: RAGTestResult, ragas_metrics: RagasRetrievalMetrics | None
+def add_retrieval_metrics_to_result(
+    base_result: RAGTestResult, retrieval_metrics: RetrievalMetrics | None
 ) -> RAGTestResult:
-    """Add Ragas metrics to an existing RAGTestResult.
+    """Add retrieval metrics to an existing RAGTestResult.
 
-    This is a helper function to augment RAGTestResult with Ragas metrics
+    This is a helper function to augment RAGTestResult with context precision/recall
     without modifying the existing evaluation flow.
 
     Args:
         base_result: The base RAGTestResult from custom evaluation
-        ragas_metrics: Optional Ragas metrics to add
+        retrieval_metrics: Optional retrieval metrics to add
 
     Returns:
-        New RAGTestResult with Ragas metrics added
+        New RAGTestResult with retrieval metrics added
     """
     # Create a dict of all base result fields
     result_dict = {
@@ -104,13 +97,13 @@ def add_ragas_metrics_to_result(
         "max_ground_truth_rank": base_result.max_ground_truth_rank,
     }
 
-    # Add Ragas metrics if available
-    if ragas_metrics:
-        result_dict["ragas_context_precision"] = ragas_metrics.context_precision
-        result_dict["ragas_context_recall"] = ragas_metrics.context_recall
+    # Add retrieval metrics if available
+    if retrieval_metrics:
+        result_dict["context_precision"] = retrieval_metrics.context_precision
+        result_dict["context_recall"] = retrieval_metrics.context_recall
     else:
-        result_dict["ragas_context_precision"] = None
-        result_dict["ragas_context_recall"] = None
+        result_dict["context_precision"] = None
+        result_dict["context_recall"] = None
 
     # Return new RAGTestResult with all fields
     return RAGTestResult(**result_dict)

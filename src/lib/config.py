@@ -25,7 +25,6 @@ class Config:
     openai_api_key: str | None = None
     google_api_key: str | None = None
     x_api_key: str | None = None
-    dial_api_key: str | None = None
     deepseek_api_key: str | None = None
     mistral_api_key: str | None = None
     moonshot_api_key: str | None = None
@@ -148,7 +147,6 @@ class Config:
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             google_api_key=os.getenv("GOOGLE_API_KEY"),
             x_api_key=os.getenv("X_API_KEY"),
-            dial_api_key=os.getenv("DIAL_API_KEY"),
             deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
             mistral_api_key=os.getenv("MISTRAL_API_KEY"),
             moonshot_api_key=os.getenv("MOONSHOT_API_KEY"),

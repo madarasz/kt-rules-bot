@@ -120,9 +120,9 @@ class RAGTestResult:
     error_message: str | None = None  # Error message if test failed
     hop_errors: list[str] = None  # Non-fatal errors during hop evaluation (e.g., LLM truncation)
 
-    # Ragas Metrics (optional, calculated if ground_truth_contexts provided)
-    ragas_context_precision: float | None = None  # Ragas context precision (0-1)
-    ragas_context_recall: float | None = None  # Ragas context recall (0-1)
+    # Retrieval Metrics (optional, calculated if ground_truth_contexts provided)
+    context_precision: float | None = None  # context precision (0-1)
+    context_recall: float | None = None  # context recall (0-1)
 
     # Multi-hop retrieval data (if enabled)
     hops_used: int = 0  # Number of hops performed
@@ -167,11 +167,11 @@ class RAGTestSummary:
     std_dev_recall_at_all: float = 0.0
     std_dev_precision_at_3: float = 0.0
 
-    # Ragas aggregate metrics (optional, if any tests have ground_truth_contexts)
-    mean_ragas_context_precision: float | None = None
-    mean_ragas_context_recall: float | None = None
-    std_dev_ragas_context_precision: float = 0.0
-    std_dev_ragas_context_recall: float = 0.0
+    # aggregate retrieval metrics (optional, if any tests have ground_truth_contexts)
+    mean_context_precision: float | None = None
+    mean_context_recall: float | None = None
+    std_dev_context_precision: float = 0.0
+    std_dev_context_recall: float = 0.0
 
     # Configuration
     rag_max_chunks: int = RAG_MAX_CHUNKS

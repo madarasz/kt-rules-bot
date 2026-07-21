@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from src.services.llm.base import LLMResponse
 from tests.quality.metadata_generator import MetadataFormatter, MetadataGenerator
-from tests.quality.ragas_evaluator import RagasMetrics
+from tests.quality.quality_evaluator import QualityMetrics
 from tests.quality.reporting.report_models import IndividualTestResult
 
 
@@ -36,7 +36,7 @@ def _result():
 def test_batch_metadata_roundtrips():
     meta = MetadataGenerator.generate_metadata(
         test_id="t1", model="claude-4.6-sonnet", run_num=1,
-        llm_response=_llm_response(), result=_result(), metrics=RagasMetrics(),
+        llm_response=_llm_response(), result=_result(), metrics=QualityMetrics(),
         batch=True,
     )
     assert meta.batch is True
@@ -54,7 +54,7 @@ def test_old_metadata_without_batch_defaults_false():
     # generate_metadata without batch kwarg (legacy call) -> defaults
     meta = MetadataGenerator.generate_metadata(
         test_id="t1", model="claude-4.6-sonnet", run_num=1,
-        llm_response=_llm_response(), result=_result(), metrics=RagasMetrics(),
+        llm_response=_llm_response(), result=_result(), metrics=QualityMetrics(),
     )
     assert meta.batch is False
     assert meta.batch_savings_usd == 0.03  # still reads result.batch_savings_usd

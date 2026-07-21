@@ -87,7 +87,7 @@ def test_collect_reconstructs_gemini_quote_text(tmp_path, monkeypatch):
     """Collect fills empty GeminiAnswer quote_text from the persisted sentence map."""
     from pathlib import Path
 
-    from tests.quality.ragas_evaluator import RagasMetrics
+    from tests.quality.quality_evaluator import QualityMetrics
     from tests.quality.test_runner import QualityTestRunner
 
     content = json.dumps(
@@ -127,11 +127,11 @@ def test_collect_reconstructs_gemini_quote_text(tmp_path, monkeypatch):
 
     monkeypatch.setattr(runner, "load_test_cases", lambda _tid: [_TC()])
 
-    class _Ragas:
+    class _Evaluator:
         def compute_deterministic_metrics(self, **_k):
-            return RagasMetrics()
+            return QualityMetrics()
 
-    runner.ragas_evaluator = _Ragas()
+    runner.evaluator = _Evaluator()
 
     saved = {}
 

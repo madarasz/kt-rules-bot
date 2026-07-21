@@ -6,31 +6,6 @@ import numpy as np
 
 
 @dataclass
-class RequirementResult:
-    """Represents the result of a single requirement check."""
-
-    title: str
-    type: str
-    achieved_score: int
-    max_score: int
-    description: str
-    outcome: str
-
-    @property
-    def passed(self) -> bool:
-        return self.achieved_score == self.max_score
-
-    @property
-    def emoji(self) -> str:
-        if self.passed:
-            return "✅"
-        score_pct = self.achieved_score / self.max_score if self.max_score > 0 else 0
-        if score_pct < 0.5:
-            return "❌"
-        return "⚠️"
-
-
-@dataclass
 class IndividualTestResult:
     """Represents the result of a single test run for a specific model and test case."""
 
@@ -50,7 +25,7 @@ class IndividualTestResult:
 
     # Detailed cost breakdown
     multi_hop_cost_usd: float = 0.0
-    ragas_cost_usd: float = 0.0
+    judge_cost_usd: float = 0.0
     embedding_cost_usd: float = 0.0
     cache_savings_usd: float = 0.0  # Prompt-cache net savings on the main LLM call
     judge_cache_savings_usd: float = 0.0  # Prompt-cache net savings on the judge call
@@ -59,24 +34,20 @@ class IndividualTestResult:
     json_formatted: bool = False  # True if response was valid JSON
     structured_quotes_count: int = 0  # Number of quotes in structured response
 
-    # Ragas metrics (0-1 scale, or None if evaluation failed)
+    # Quality metrics (0-1 scale, or None if evaluation failed)
     quote_precision: float | None = None
     quote_recall: float | None = None
     quote_faithfulness: float | None = None
     explanation_faithfulness: float | None = None
     answer_correctness: float | None = None
-    ragas_error: str | None = None
+    judge_error: str | None = None
 
-    # Ragas detailed feedback
-    quote_precision_feedback: str | None = None
+    # Detailed feedback
     quote_recall_feedback: str | None = None
-    quote_faithfulness_feedback: str | None = None
-    explanation_faithfulness_feedback: str | None = None
-    answer_correctness_feedback: str | None = None
     feedback: str | None = None
 
-    # Ragas evaluation error tracking (for grey bar visualization)
-    ragas_evaluation_error: bool = False
+    # Judge evaluation error tracking (for grey bar visualization)
+    evaluation_error: bool = False
 
     # Batch error-tolerance tracking (populated by the batch finalize enrichment)
     recovered_from_error: bool = False  # True if this run succeeded only after a re-request
@@ -87,9 +58,6 @@ class IndividualTestResult:
     quote_faithfulness_details: dict[str, float] | None = None  # chunk_id -> score
     answer_correctness_details: dict[str, float] | None = None  # answer_key -> score
     llm_quotes_structured: list[dict] | None = None  # List of {chunk_id, quote_title, quote_text}
-
-    # Legacy support - optional for backward compatibility
-    requirements: list[RequirementResult] | None = None
 
     @property
     def score_percentage(self) -> float:
@@ -106,8 +74,8 @@ class IndividualTestResult:
         return "⚠️"
 
     @property
-    def ragas_metrics_available(self) -> bool:
-        """Check if Ragas metrics are available."""
+    def metrics_available(self) -> bool:
+        """Check if quality metrics are available."""
         return (
             self.quote_precision is not None
             or self.quote_recall is not None
@@ -120,7 +88,7 @@ class IndividualTestResult:
     def total_cost_usd(self) -> float:
         """Calculate total cost including all components."""
         return (
-            self.cost_usd + self.multi_hop_cost_usd + self.ragas_cost_usd + self.embedding_cost_usd
+            self.cost_usd + self.multi_hop_cost_usd + self.judge_cost_usd + self.embedding_cost_usd
         )
 
 
@@ -190,7 +158,7 @@ class ModelSummary:
         """Average judge evaluation cost per test."""
         if not self.results:
             return 0.0
-        return np.mean([r.ragas_cost_usd for r in self.results])
+        return np.mean([r.judge_cost_usd for r in self.results])
 
     @property
     def avg_embedding(self) -> float:
@@ -315,7 +283,7 @@ class QualityReport:
     judge_model: str
     prompt_path: str | None = None
     chart_path: str | None = None
-    ragas_chart_path: str | None = None
+    metrics_chart_path: str | None = None
 
     # Populated by the aggregator
     per_test_case_reports: dict[str, TestCaseReport] = field(default_factory=dict)

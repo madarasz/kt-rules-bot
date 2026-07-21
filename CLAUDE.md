@@ -2,7 +2,7 @@
 
 Discord bot answering Kill Team rules questions using RAG + LLM (ChromaDB + Claude/GPT/Gemini/Grok).
 
-**Last updated:** 2025-10-13
+**Last updated:** 2026-07-21
 
 ## Quick Start for Agents
 

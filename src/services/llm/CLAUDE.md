@@ -578,7 +578,7 @@ and injects `provider.reasoning_effort`. Each wired adapter reads it via the bas
 When an effort is active the adapter also inflates the output budget by
 `LLM_REASONING_TOKEN_MULTIPLIER`, since thinking tokens are billed against
 `max_tokens` and would otherwise truncate the answer.
-| DeepSeek/Kimi/Qwen/GLM/MiniMax/Mistral/Dial | — | not wired: postfix accepted but ignored (warn once) |
+| DeepSeek/Kimi/Qwen/GLM/MiniMax/Mistral | — | not wired: postfix accepted but ignored (warn once) |
 
 **Behaviour on an unsupported level**:
 - **CLI** (`--model`/`--judge-model`) — `validate_model_arg` **terminates** with a clear error listing the model's supported levels (fail-fast).

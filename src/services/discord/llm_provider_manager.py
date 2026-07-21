@@ -19,7 +19,6 @@ class LLMProviderManager:
         "o4": "OPENAI_API_KEY",
         "grok": "X_API_KEY",
         "deepseek": "DEEPSEEK_API_KEY",
-        "dial": "DIAL_API_KEY",
         "mistral": "MISTRAL_API_KEY",
     }
 
