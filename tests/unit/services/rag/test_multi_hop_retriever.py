@@ -11,6 +11,41 @@ from src.services.llm.base import GenerationRequest
 from src.services.rag.multi_hop_retriever import HopEvaluation, MultiHopRetriever
 
 
+def _make_can_answer_response(
+    can_answer: bool = True,
+    reasoning: str = "Enough context",
+    missing_query: str | None = None,
+    answer_text: str | None = None,
+    token_count: int = 100,
+    model_version: str | None = None,
+    prompt_tokens: int = 70,
+    completion_tokens: int = 30,
+    cache_read_tokens: int = 0,
+    cache_creation_tokens: int = 0,
+) -> Mock:
+    """Build mock LLM response with customizable parameters.
+
+    Supports varying answer text, token counts, model version, and cache values.
+    Defaults preserve typical test values; model_version falls back to None.
+    """
+    if answer_text is None:
+        answer_text = json.dumps({
+            "can_answer": can_answer,
+            "reasoning": reasoning,
+            "missing_query": missing_query
+        })
+
+    r = Mock()
+    r.answer_text = answer_text
+    r.token_count = token_count
+    r.model_version = model_version
+    r.prompt_tokens = prompt_tokens
+    r.completion_tokens = completion_tokens
+    r.cache_read_tokens = cache_read_tokens
+    r.cache_creation_tokens = cache_creation_tokens
+    return r
+
+
 @pytest.fixture
 def mock_base_retriever():
     """Mock base retriever."""
@@ -284,15 +319,7 @@ class TestEvaluateContext:
     async def test_evaluate_can_answer(self, mock_yaml_load, mock_open, mock_create, sample_chunks):
         """Test evaluation when context is sufficient."""
         mock_llm = Mock()
-        mock_response = Mock()
-        mock_response.answer_text = json.dumps(
-            {"can_answer": True, "reasoning": "Sufficient context"}
-        )
-        mock_response.token_count = 100
-        mock_response.prompt_tokens = 70
-        mock_response.completion_tokens = 30
-        mock_response.cache_read_tokens = 0
-        mock_response.cache_creation_tokens = 0
+        mock_response = _make_can_answer_response(reasoning="Sufficient context")
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -317,19 +344,11 @@ class TestEvaluateContext:
     ):
         """Test evaluation when more context is needed."""
         mock_llm = Mock()
-        mock_response = Mock()
-        mock_response.answer_text = json.dumps(
-            {
-                "can_answer": False,
-                "reasoning": "Missing information",
-                "missing_query": "What are charge restrictions?",
-            }
+        mock_response = _make_can_answer_response(
+            can_answer=False,
+            reasoning="Missing information",
+            missing_query="What are charge restrictions?",
         )
-        mock_response.token_count = 100
-        mock_response.prompt_tokens = 70
-        mock_response.completion_tokens = 30
-        mock_response.cache_read_tokens = 0
-        mock_response.cache_creation_tokens = 0
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -353,9 +372,7 @@ class TestEvaluateContext:
     ):
         """Test evaluation with invalid JSON response."""
         mock_llm = Mock()
-        mock_response = Mock()
-        mock_response.answer_text = "invalid json"
-        mock_response.token_count = 100
+        mock_response = _make_can_answer_response(answer_text="invalid json")
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -378,9 +395,7 @@ class TestEvaluateContext:
     ):
         """Test evaluation with missing required fields."""
         mock_llm = Mock()
-        mock_response = Mock()
-        mock_response.answer_text = json.dumps({"can_answer": True})  # Missing reasoning
-        mock_response.token_count = 100
+        mock_response = _make_can_answer_response(answer_text=json.dumps({"can_answer": True}))
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -407,15 +422,7 @@ class TestEvaluateContext:
 
         mock_llm = Mock()
         # First call raises rate limit, second succeeds
-        mock_response = Mock()
-        mock_response.answer_text = json.dumps(
-            {"can_answer": True, "reasoning": "Success after retry"}
-        )
-        mock_response.token_count = 100
-        mock_response.prompt_tokens = 70
-        mock_response.completion_tokens = 30
-        mock_response.cache_read_tokens = 0
-        mock_response.cache_creation_tokens = 0
+        mock_response = _make_can_answer_response(reasoning="Success after retry")
 
         mock_llm.generate = AsyncMock(side_effect=[RateLimitError("Rate limited"), mock_response])
         mock_create.return_value = mock_llm
@@ -445,13 +452,7 @@ class TestRetrieveMultiHop:
         """Test multi-hop when initial retrieval is sufficient."""
         # Setup mocks
         mock_llm = Mock()
-        mock_response = Mock()
-        mock_response.answer_text = json.dumps({"can_answer": True, "reasoning": "Sufficient"})
-        mock_response.token_count = 100
-        mock_response.prompt_tokens = 70
-        mock_response.completion_tokens = 30
-        mock_response.cache_read_tokens = 0
-        mock_response.cache_creation_tokens = 0
+        mock_response = _make_can_answer_response(reasoning="Sufficient")
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -485,27 +486,12 @@ class TestRetrieveMultiHop:
         """Test multi-hop with additional retrieval needed."""
         # Setup LLM mock - first needs more, then sufficient
         mock_llm = Mock()
-        response1 = Mock()
-        response1.answer_text = json.dumps(
-            {
-                "can_answer": False,
-                "reasoning": "Need more",
-                "missing_query": "Additional query",
-            }
+        response1 = _make_can_answer_response(
+            can_answer=False,
+            reasoning="Need more",
+            missing_query="Additional query",
         )
-        response1.token_count = 100
-        response1.prompt_tokens = 70
-        response1.completion_tokens = 30
-        response1.cache_read_tokens = 0
-        response1.cache_creation_tokens = 0
-
-        response2 = Mock()
-        response2.answer_text = json.dumps({"can_answer": True, "reasoning": "Now sufficient"})
-        response2.token_count = 100
-        response2.prompt_tokens = 70
-        response2.completion_tokens = 30
-        response2.cache_read_tokens = 0
-        response2.cache_creation_tokens = 0
+        response2 = _make_can_answer_response(reasoning="Now sufficient")
 
         responses = [response1, response2]
         mock_llm.generate = AsyncMock(side_effect=responses)
@@ -546,15 +532,11 @@ class TestRetrieveMultiHop:
         """Test behavior when max hops is reached."""
         # Setup LLM mock - always says need more
         mock_llm = Mock()
-        mock_response = Mock()
-        mock_response.answer_text = json.dumps(
-            {"can_answer": False, "reasoning": "Need more", "missing_query": "More info"}
+        mock_response = _make_can_answer_response(
+            can_answer=False,
+            reasoning="Need more",
+            missing_query="More info",
         )
-        mock_response.token_count = 100
-        mock_response.prompt_tokens = 70
-        mock_response.completion_tokens = 30
-        mock_response.cache_read_tokens = 0
-        mock_response.cache_creation_tokens = 0
         mock_llm.generate = AsyncMock(return_value=mock_response)
         mock_create.return_value = mock_llm
 
@@ -588,19 +570,12 @@ class TestRetrieveMultiHop:
         """Test that duplicate chunks are not added."""
         # Setup LLM mock
         mock_llm = Mock()
-        response1 = Mock()
-        response1.answer_text = json.dumps(
-            {"can_answer": False, "reasoning": "Need more", "missing_query": "Additional"}
+        response1 = _make_can_answer_response(
+            can_answer=False,
+            reasoning="Need more",
+            missing_query="Additional",
         )
-        response1.token_count = 100
-        response1.prompt_tokens = 70
-        response1.completion_tokens = 30
-
-        response2 = Mock()
-        response2.answer_text = json.dumps({"can_answer": True, "reasoning": "Done"})
-        response2.token_count = 100
-        response2.prompt_tokens = 70
-        response2.completion_tokens = 30
+        response2 = _make_can_answer_response(reasoning="Done")
 
         responses = [response1, response2]
         mock_llm.generate = AsyncMock(side_effect=responses)
@@ -632,16 +607,6 @@ class TestRetrieveMultiHop:
 class TestHopEvaluatorCachingBehavior:
     """Tests for Claude prompt-caching in _evaluate_context."""
 
-    def _make_can_answer_response(self):
-        r = Mock()
-        r.answer_text = json.dumps({"can_answer": True, "reasoning": "Enough context", "missing_query": None})
-        r.token_count = 100
-        r.prompt_tokens = 80
-        r.completion_tokens = 20
-        r.cache_read_tokens = 0
-        r.cache_creation_tokens = 0
-        return r
-
     @pytest.mark.asyncio
     @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
     @patch("builtins.open", create=True)
@@ -663,7 +628,7 @@ class TestHopEvaluatorCachingBehavior:
 
         async def capture_generate(req):
             captured_requests.append(req)
-            return self._make_can_answer_response()
+            return _make_can_answer_response()
 
         claude_llm.generate = capture_generate
         mock_create.return_value = claude_llm
@@ -695,7 +660,7 @@ class TestHopEvaluatorCachingBehavior:
 
         async def capture_generate(req):
             captured_requests.append(req)
-            return self._make_can_answer_response()
+            return _make_can_answer_response()
 
         mock_llm = Mock()
         mock_llm.generate = capture_generate

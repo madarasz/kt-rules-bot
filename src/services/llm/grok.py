@@ -11,6 +11,7 @@ from uuid import uuid4
 import httpx
 import pydantic
 
+from src.lib.constants import LLM_REASONING_TOKEN_MULTIPLIER
 from src.lib.logging import get_logger
 from src.services.llm.base import (
     AuthenticationError,
@@ -45,28 +46,36 @@ class GrokAdapter(LLMProvider):
         """
         full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
         model_cls = get_pydantic_model(request.config.structured_output_schema)
+        responses_body: dict = {
+            "model": self.model,
+            "input": [
+                {"role": "system", "content": request.config.system_prompt},
+                {"role": "user", "content": full_prompt},
+            ],
+            "max_output_tokens": request.config.max_tokens,
+            "temperature": request.config.temperature,
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": model_cls.__name__,
+                    "schema": model_cls.model_json_schema(),
+                    "strict": True,
+                }
+            },
+        }
+        # Reasoning effort. Uses the same field name as the live chat/completions
+        # path below, because parse_batch_result treats xAI batch results as
+        # chat.completions-shaped; a Responses-API `reasoning: {effort}` object
+        # would not be read by the same endpoint.
+        # ponytail: smoke-confirm the exact reasoning field against a live batch.
+        effort = self._resolve_effort()
+        if effort is not None:
+            responses_body["reasoning_effort"] = effort
+            responses_body["max_output_tokens"] = request.config.max_tokens * LLM_REASONING_TOKEN_MULTIPLIER
         return {
             "custom_id": custom_id,
             "batch_request_id": custom_id,
-            "batch_request": {
-                "responses": {
-                    "model": self.model,
-                    "input": [
-                        {"role": "system", "content": request.config.system_prompt},
-                        {"role": "user", "content": full_prompt},
-                    ],
-                    "max_output_tokens": request.config.max_tokens,
-                    "temperature": request.config.temperature,
-                    "text": {
-                        "format": {
-                            "type": "json_schema",
-                            "name": model_cls.__name__,
-                            "schema": model_cls.model_json_schema(),
-                            "strict": True,
-                        }
-                    },
-                }
-            },
+            "batch_request": {"responses": responses_body},
         }
 
     @classmethod
@@ -184,6 +193,13 @@ class GrokAdapter(LLMProvider):
                     },
                 },
             }
+
+            # Reasoning effort (chat/completions shape). Gated by central matrix;
+            # unsupported models/levels warn+ignore (payload unchanged).
+            effort = self._resolve_effort()
+            if effort is not None:
+                payload["reasoning_effort"] = effort
+                payload["max_tokens"] = request.config.max_tokens * LLM_REASONING_TOKEN_MULTIPLIER
 
             # Call Grok API with timeout
             async with httpx.AsyncClient(timeout=request.config.timeout_seconds) as client:

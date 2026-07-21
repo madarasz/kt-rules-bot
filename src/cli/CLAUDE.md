@@ -21,6 +21,7 @@ src/cli/
 ├── run_bot.py              # Discord bot launcher
 ├── ingest_rules.py         # Rules ingestion command
 ├── test_query.py           # Local query testing
+├── list_models.py          # Model/cost/reasoning-level listing
 ├── health_check.py         # System health diagnostics
 ├── gdpr_delete.py          # User data deletion (GDPR)
 ├── quality_test.py         # Quality test runner
@@ -56,6 +57,13 @@ python -m src.cli query "Can I shoot during conceal order?" --rag-only
 - `--model`, `-m`: LLM model to use (default: from config)
 - `--max-chunks`: Maximum RAG chunks to retrieve (default: 5)
 - `--rag-only`: Stop after RAG retrieval, do not call LLM
+
+### `list-models`
+List LLM models per provider with input/output token costs (USD per million) and the
+reasoning-effort levels each supports. No API calls, no cost.
+```bash
+python -m src.cli list-models --provider claude
+```
 
 ### `health`
 Check system health (Discord bot, vector DB, LLM providers).
@@ -110,11 +118,15 @@ python -m src.cli download-all-teams --dry-run
 
 ## Supported LLM Providers
 
-Available across `query` and `quality-test` commands:
-- `claude-4.5-sonnet`, `claude-4.1-opus`, `claude-4.5-haiku`
-- `gemini-2.5-pro`, `gemini-2.5-flash`
-- `gpt-5`, `gpt-5-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4o`
-- `o3`, `o3-mini`, `o4-mini`
+`--model` / `--judge-model` accept any name in `ALL_LLM_PROVIDERS`
+([src/lib/constants.py](../../src/lib/constants.py)). Run `python -m src.cli list-models`
+for the current list with per-model costs and reasoning levels rather than relying on a
+hand-maintained list here.
+
+**Reasoning effort**: append `#level` to a model name (e.g. `--model grok-4.3#high`,
+`--judge-model claude-4.8-opus#low`). The CLI validates the level against the model and
+exits with an error if unsupported. See
+[src/services/llm/CLAUDE.md](../services/llm/CLAUDE.md#reasoning-effort-model-name-postfix).
 
 Default provider is configured in [src/lib/constants.py](../../src/lib/constants.py).
 

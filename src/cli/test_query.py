@@ -13,14 +13,9 @@ from uuid import uuid4
 
 import src.lib.constants as constants
 from src.lib.config import get_config
-from src.lib.constants import (
-    ALL_LLM_PROVIDERS,
-    EMBEDDING_MODEL,
-    LLM_GENERATION_TIMEOUT,
-    RAG_MAX_CHUNKS,
-    RAG_MAX_HOPS,
-)
+from src.lib.constants import EMBEDDING_MODEL, LLM_GENERATION_TIMEOUT, RAG_MAX_CHUNKS, RAG_MAX_HOPS
 from src.lib.logging import get_logger
+from src.lib.model_name import validate_model_arg
 from src.lib.statistics import format_statistics_summary
 from src.lib.tokens import calculate_llm_cost, estimate_embedding_cost
 from src.models.rag_context_serializer import save_rag_context
@@ -563,7 +558,12 @@ def main():
     parser = argparse.ArgumentParser(description="Test RAG + LLM pipeline locally without Discord")
     parser.add_argument("query", help="Question to ask")
     parser.add_argument(
-        "--model", "-m", choices=ALL_LLM_PROVIDERS, help="LLM model to use (default: from config)"
+        "--model",
+        "-m",
+        type=validate_model_arg,
+        metavar="MODEL",
+        help="LLM model, optionally with a reasoning-effort postfix "
+        "(e.g. grok-4.3#high). Default: from config.",
     )
     parser.add_argument(
         "--max-chunks",

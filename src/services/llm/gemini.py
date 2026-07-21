@@ -12,6 +12,7 @@ from uuid import uuid4
 from google import genai
 from google.genai import types
 
+from src.lib.constants import LLM_REASONING_TOKEN_MULTIPLIER
 from src.lib.logging import get_logger
 from src.services.llm.base import (
     AuthenticationError,
@@ -63,6 +64,27 @@ class GeminiAdapter(LLMProvider):
             synthetic_chunk_ids.append(chunk_id)
         return numbered_chunks, synthetic_chunk_ids, chunk_id_to_sentences
 
+    def _thinking_config_kwargs(self) -> dict | None:
+        """Map the resolved reasoning effort to google-genai ThinkingConfig kwargs.
+
+        Gemini 3 -> ``thinking_level`` (LOW/HIGH; flash/flash-lite add MINIMAL);
+        Gemini 2.5 -> ``thinking_budget`` int (approximate; -1 = dynamic). Returns
+        None when no/unsupported effort was requested (gated by the central matrix).
+        """
+        effort = self._resolve_effort()
+        if effort is None:
+            return None
+        if self.model.startswith("gemini-3"):
+            level = {"minimal": "MINIMAL", "low": "LOW", "high": "HIGH"}.get(effort)
+            return {"thinking_level": level} if level else None
+        # Gemini 2.5 family: integer thinking budget (approximate mapping).
+        # NB: -1 means "dynamic / model decides", which is the API default and
+        # can resolve BELOW the medium budget - so high maps to an explicit
+        # large value instead, keeping the scale monotonic. 16384 is within
+        # range for both 2.5-pro (max 32768) and 2.5-flash (max 24576).
+        budget = {"low": 2048, "medium": 8192, "high": 16384}.get(effort)
+        return {"thinking_budget": budget} if budget is not None else None
+
     def build_batch_request(self, request: GenerationRequest, custom_id: str) -> dict:
         """Gemini batch line for inline google-genai submission.
 
@@ -72,7 +94,11 @@ class GeminiAdapter(LLMProvider):
         (parse_batch_result is a stateless classmethod in a later process).
         """
         schema_type = request.config.structured_output_schema
-        max_tokens = request.config.max_tokens * 3 if self.uses_completion_tokens else request.config.max_tokens
+        max_tokens = (
+            request.config.max_tokens * LLM_REASONING_TOKEN_MULTIPLIER
+            if self.uses_completion_tokens
+            else request.config.max_tokens
+        )
         if schema_type == "default":
             numbered, synthetic_ids, sentence_map = self._number_context(
                 request.context, request.chunk_ids
@@ -93,17 +119,21 @@ class GeminiAdapter(LLMProvider):
             )
             model_cls = get_pydantic_model(schema_type)
             sentence_map = {}
+        config: dict = {
+            "max_output_tokens": max_tokens,
+            "temperature": request.config.temperature,
+            "response_mime_type": "application/json",
+            "response_schema": model_cls.model_json_schema(),
+        }
+        thinking_kwargs = self._thinking_config_kwargs()
+        if thinking_kwargs is not None:
+            config["thinking_config"] = thinking_kwargs
         return {
             "custom_id": custom_id,
             "model": self.model,
             "request": {
                 "contents": [{"role": "user", "parts": [{"text": full_prompt}]}],
-                "config": {
-                    "max_output_tokens": max_tokens,
-                    "temperature": request.config.temperature,
-                    "response_mime_type": "application/json",
-                    "response_schema": model_cls.model_json_schema(),
-                },
+                "config": config,
             },
             "_gemini_sentences": sentence_map,
         }
@@ -165,7 +195,7 @@ class GeminiAdapter(LLMProvider):
         self.model = model
 
         # Gemini 2.5+ models with thinking capabilities use reasoning tokens
-        reasoning_models = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-pro-preview", "gemini-3-flash-preview", "gemini-3.1-flash-lite"]
+        reasoning_models = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-pro-preview", "gemini-3.1-pro-preview", "gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-3.5-flash"]
         self.uses_completion_tokens = model in reasoning_models
 
         logger.info(f"Initialized Gemini adapter with model {model}")
@@ -210,24 +240,27 @@ class GeminiAdapter(LLMProvider):
             # Use Pydantic model's JSON schema (Google's recommended approach as of Nov 2024)
 
             # Gemini 2.5+ uses reasoning tokens (similar to GPT-5/o-series)
-            # Multiply by 3 to give enough room for both reasoning and visible output
             if self.uses_completion_tokens:
-                max_tokens = request.config.max_tokens * 3
+                max_tokens = request.config.max_tokens * LLM_REASONING_TOKEN_MULTIPLIER
                 logger.info(
                     f"Gemini 2.5+: Using max_output_tokens={max_tokens} "
-                    f"(3x {request.config.max_tokens} to account for reasoning tokens)"
+                    f"({LLM_REASONING_TOKEN_MULTIPLIER}x {request.config.max_tokens} to account for reasoning tokens)"
                 )
             else:
                 max_tokens = request.config.max_tokens
 
             # Configure generation with JSON mode for structured output
             # Use types.GenerateContentConfig with Pydantic model (not .model_json_schema())
-            generation_config = types.GenerateContentConfig(
-                max_output_tokens=max_tokens,
-                temperature=request.config.temperature,
-                response_mime_type="application/json",
-                response_schema=pydantic_model,  # Pass Pydantic model directly
-            )
+            config_kwargs: dict = {
+                "max_output_tokens": max_tokens,
+                "temperature": request.config.temperature,
+                "response_mime_type": "application/json",
+                "response_schema": pydantic_model,  # Pass Pydantic model directly
+            }
+            thinking_kwargs = self._thinking_config_kwargs()
+            if thinking_kwargs is not None:
+                config_kwargs["thinking_config"] = types.ThinkingConfig(**thinking_kwargs)
+            generation_config = types.GenerateContentConfig(**config_kwargs)
 
             # Call Gemini API with timeout using new API
             # Note: google-genai doesn't have native async support yet

@@ -18,8 +18,8 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from src.cli.download_team import download_team_internal
-from src.lib.constants import ALL_LLM_PROVIDERS
 from src.lib.logging import get_logger
+from src.lib.model_name import validate_model_arg
 
 logger = get_logger(__name__)
 
@@ -446,7 +446,8 @@ def main() -> None:
     parser.add_argument(
         "--model",
         "-m",
-        choices=ALL_LLM_PROVIDERS,
+        type=validate_model_arg,
+        metavar="MODEL",
         default="gemini-2.5-pro",
         help="LLM model to use for extraction (default: gemini-2.5-pro)",
     )
