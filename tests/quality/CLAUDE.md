@@ -271,12 +271,21 @@ python -m src.cli quality-test --batch-collect tests/quality/results/<timestamp>
 ```
 
 **Coverage:** Anthropic (`claude-*`), OpenAI (`gpt-*`, `o3*`), **Kimi**
-(`moonshot`), **Qwen** (`alibaba`/DashScope), **Mistral**, **Gemini**, and
-**Grok** (`x`) generate via batch. Only **DeepSeek** — which has no native batch
-API — falls back to **live async at submit time** and lands in the same report.
-Kimi/Qwen reuse the OpenAI-compatible `/v1/batches` backend; Mistral and Grok use
+(`moonshot`), **Mistral**, **Gemini**, and **Grok** (`x`) generate via batch.
+**DeepSeek** (no native batch API) and **every Qwen model in the registry** (see
+below) fall back to **live async at submit time** and land in the same report.
+Kimi reuses the OpenAI-compatible `/v1/batches` backend; Mistral and Grok use
 httpx REST (no new SDK deps); Gemini uses `google-genai` inline batches with a
 persisted sentence map so verbatim quote extraction survives into `batch-collect`.
+
+**Qwen is live-only in practice:** DashScope's `/v1/batches` accepts only the
+stable aliases `qwen-flash` / `qwen-plus` / `qwen-max` / `qwen-turbo`. Every
+versioned snapshot (`qwen3.6-flash-2026-04-16`) and every `qwen3.x` name is
+rejected with `model_not_found` — and DashScope fails the **whole batch**, not the
+offending line, so a single bad model wipes out every request in it.
+`QwenAdapter.BATCH_SUPPORTED_MODELS` allowlists the four aliases; since none of the
+registry's Qwen entries are among them, they all route live. The `alibaba` backend
+stays wired for whenever a batchable alias is registered.
 
 **One model per OpenAI-compat batch:** OpenAI's `/v1/batches` (and the compat hosts
 Kimi/Qwen) reject a batch mixing models (`mismatched_model`), so those backends
@@ -319,6 +328,12 @@ Per-item state (`status`, `attempts`, `error`, `error_class`) lives on each
 `batch_state.json` request row; a whole-backend `failed` status is resubmitted once then
 salvaged (succeeded items kept) instead of aborting the run. A permanently-failed item
 becomes a score-0 `💀` result rather than silently vanishing.
+
+A whole-batch rejection reports its reason on the batch object's `errors` field, never
+in an error file. `OpenAICompatBatchBackend.poll` reads it into `last_error`, logs it,
+and the collect loop classifies it: a **permanent** rejection (e.g. `model_not_found`)
+skips the pointless resubmit and goes straight to salvage, and the reason is stored on
+each failed row so `report.md` shows *why* instead of a bare "backend batch failed".
 
 `report.md` gains an **Error & Recovery Log** table (test / model / run / class / attempts /
 recovered? / message) plus an **Errors** summary line in the header. In the score chart the

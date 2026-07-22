@@ -11,6 +11,7 @@ registry (api_key_type -> backend) and the routing functions.
 
 from src.lib.config import get_config
 from src.lib.model_name import model_base_name
+from src.services.llm.qwen import qwen_base_url
 
 from .anthropic import AnthropicBatchBackend
 from .gemini import GeminiBatchBackend
@@ -84,15 +85,12 @@ def make_backend(name: str) -> BatchBackend | None:
             name="moonshot",
         )
     if name == "alibaba":
-        # Qwen/DashScope — OpenAI-compatible /v1/batches. sk-sp-* keys use the
-        # Coding Plan host (matches QwenAdapter.__init__).
+        # Qwen/DashScope — OpenAI-compatible /v1/batches. Same host resolution as
+        # the live adapter (Coding Plan host for sk-sp-*, else region endpoint).
         key = config.alibaba_api_key or ""
-        base_url = (
-            "https://coding.dashscope.aliyuncs.com/v1"
-            if key.startswith("sk-sp-")
-            else "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        return OpenAICompatBatchBackend(
+            api_key=key, base_url=qwen_base_url(key), name="alibaba"
         )
-        return OpenAICompatBatchBackend(api_key=key, base_url=base_url, name="alibaba")
     if name == "mistral":
         return MistralBatchBackend(api_key=config.mistral_api_key)
     if name == "google":

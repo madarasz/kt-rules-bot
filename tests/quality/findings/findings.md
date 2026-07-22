@@ -1,5 +1,6 @@
 # Decisions
 ## LLM models removed from consideration
+- `grok-4.1` models were phased out, it got redirected to `grok-4.3` after a while
 - `kimi-k2.5` answers are good, but it is too slow (60s+). Other Kimi models just give bad answers
 - `gemini-3-flash-preview` is slower (20s+), more expensive than `gemini-2.5-flash`. It might be smarter, but sometimes has truncated JSON isse
 - `gpt-5`, `grok-4-0709`, `gemini-3-pro-preview`: VERY SLOW (often around 2 mins or more)
@@ -18,6 +19,13 @@
 - `claude-4.5-sonnet` is too permissive. `gtp-4o` is unsuitable as a judge, it has a lot of false negative judgements.
 
 # Test results
+
+## Improved tests, added complex-logic, retired strategic-double-action - 2026.07.21
+- Grok 4.1 became unavailable
+- Grok 4.3 seems to be the best - maybe explaination faithfulness and quote faithfulness can be improved somehow
+- Qwen 3.6-flash was buggy, fixed, ran separately, bad results: 58% score, ~20s response
+![chart](2026-07-21-chart.png)
+![chart](2026-07-21-chart_metrics.png)
 
 ## New GTP model test - 2026.05.22
 - Grok 4.1 fast reasoning is still king. 

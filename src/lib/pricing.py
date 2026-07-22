@@ -136,6 +136,7 @@ pricing: dict[str, dict] = {
     # qwen3-turbo is 2% — 10x smaller than its siblings. Likely a typo;
     # verify 0.000001 against Alibaba's pricing page (0.00001, matching the
     # 20% pattern, seems more plausible).
+    "qwen3.7-max-2026-05-20":         {"prompt": 0.0025, "completion": 0.0075, "cache_read": 0.0005, "cache_write": 0.0, "cache_mode": "openai"},
     "qwen3.6-flash-2026-04-16":         {"prompt": 0.00025, "completion": 0.0015, "cache_read": 0.00005, "cache_write": 0.0, "cache_mode": "openai"},
     "qwen3-turbo":                      {"prompt": 0.00005, "completion": 0.0002, "cache_read": 0.000001, "cache_write": 0.0, "cache_mode": "openai"}, # FLAG: verify, looks like a typo (10x off vs siblings) - non-thinking price
     "qwen3-coder-plus-2025-09-23":     {"prompt": 0.00100, "completion": 0.00500, "cache_read": 0.0002, "cache_write": 0.0, "cache_mode": "openai"},

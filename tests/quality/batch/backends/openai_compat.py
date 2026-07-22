@@ -19,6 +19,9 @@ class OpenAICompatBatchBackend:
         self.base_url = base_url
         self.name = name
         self._client = None
+        # Whole-batch rejection reason from the last failed poll (e.g. an invalid
+        # model), so the failure is not reported as a bare "batch failed".
+        self.last_error: str | None = None
 
     @property
     def client(self):
@@ -51,14 +54,34 @@ class OpenAICompatBatchBackend:
             jsonl_path.unlink(missing_ok=True)
 
     def poll(self, batch_id: str) -> str:
-        status = self.client.batches.retrieve(batch_id).status
+        batch = self.client.batches.retrieve(batch_id)
+        status = batch.status
         if status == "completed":
             return "ended"
         if status == "expired":
             return "expired"
         if status in ("failed", "cancelled", "canceled"):
+            # A whole-batch rejection carries its reason on `errors`, never in an
+            # error file — read it here or it is lost for the rest of the run.
+            self.last_error = self._batch_error_text(batch)
+            logger.error(
+                f"{self.name} batch {batch_id} {status}: {self.last_error or 'no detail'}"
+            )
             return "failed"
         return "in_progress"
+
+    @staticmethod
+    def _batch_error_text(batch) -> str | None:
+        errors = getattr(batch, "errors", None)
+        data = getattr(errors, "data", None) if errors is not None else None
+        if not data:
+            return None
+        parts = []
+        for err in data:
+            code = getattr(err, "code", None) or "error"
+            message = getattr(err, "message", None) or ""
+            parts.append(f"{code}: {message}".strip(": "))
+        return "; ".join(parts)
 
     def fetch(self, batch_id: str) -> dict[str, dict]:
         batch = self.client.batches.retrieve(batch_id)

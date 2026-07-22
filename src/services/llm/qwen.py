@@ -8,6 +8,7 @@ Note: Qwen uses OpenAI-compatible API endpoint.
 
 import asyncio
 import json
+import os
 import time
 from uuid import uuid4
 
@@ -31,13 +32,43 @@ from src.services.llm.base import TimeoutError as LLMTimeoutError
 logger = get_logger(__name__)
 
 
+def qwen_base_url(api_key: str) -> str:
+    """Resolve the DashScope base URL for an API key.
+
+    sk-sp-* keys are Coding Plan keys and use their own host. Everything else
+    goes to the region endpoint, overridable via the ALIBABA_BASE_URL env var
+    (keys only authenticate against the region that issued them).
+    """
+    if api_key.startswith("sk-sp-"):
+        return QwenAdapter.CODING_PLAN_BASE_URL
+    return os.getenv("ALIBABA_BASE_URL") or QwenAdapter.DASHSCOPE_BASE_URL
+
+
 class QwenAdapter(LLMProvider):
     """Alibaba Cloud Qwen API integration using OpenAI-compatible endpoint."""
 
-    DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    # DashScope endpoints are region-scoped: an API key only authenticates against
+    # the region it was issued in. Override with ALIBABA_BASE_URL if your account
+    # lives in Beijing (https://dashscope.aliyuncs.com/compatible-mode/v1) or
+    # US Virginia (https://dashscope-us.aliyuncs.com/compatible-mode/v1).
+    DASHSCOPE_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
     CODING_PLAN_BASE_URL = "https://coding.dashscope.aliyuncs.com/v1"
 
     supports_batch = True
+
+    # DashScope's Batch API accepts only these stable aliases. Every versioned
+    # snapshot (`qwen-flash-2026-04-16`) and every `qwen3.x` name is rejected with
+    # `model_not_found` — the whole batch fails, not the individual line.
+    BATCH_SUPPORTED_MODELS = frozenset({"qwen-flash", "qwen-plus", "qwen-max", "qwen-turbo"})
+
+    @classmethod
+    def batch_supports_model(cls, model_id: str) -> bool:
+        """Whether DashScope's /v1/batches accepts `model_id`.
+
+        Unlike other OpenAI-compatible hosts, DashScope batches only the stable
+        aliases (see BATCH_SUPPORTED_MODELS); anything else route to the live path.
+        """
+        return model_id in cls.BATCH_SUPPORTED_MODELS
 
     def build_batch_request(self, request: GenerationRequest, custom_id: str) -> dict:
         """OpenAI-compatible /v1/batches line using Qwen's json_object mode.
@@ -112,7 +143,7 @@ class QwenAdapter(LLMProvider):
 
         # Qwen API is OpenAI-compatible, use custom base URL
         # Use Coding Plan base URL for sk-sp-* keys, otherwise use general base URL
-        base_url = self.CODING_PLAN_BASE_URL if api_key.startswith("sk-sp-") else self.DASHSCOPE_BASE_URL
+        base_url = qwen_base_url(api_key)
         self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
         logger.info(f"Initialized Qwen adapter with model {model}, base_url={base_url}")

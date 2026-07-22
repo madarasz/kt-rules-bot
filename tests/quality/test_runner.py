@@ -837,7 +837,16 @@ class QualityTestRunner:
             if status == "failed":
                 # Whole-batch failure: resubmit once (transient), then salvage the
                 # succeeded items and mark the rest permanent instead of aborting.
-                if info.get("attempts", 0) < 1:
+                # A backend that told us *why* it rejected the batch (e.g. an
+                # unsupported model) gets classified first — resubmitting the same
+                # input against a permanent rejection only burns a collect pass.
+                backend_error = getattr(gen_backends[name], "last_error", None)
+                fatal = (
+                    classify_batch_error(backend_error)[0] == "permanent"
+                    if backend_error
+                    else False
+                )
+                if not fatal and info.get("attempts", 0) < 1:
                     lines = self._rebuild_gen_lines_for_backend(manifest, name)
                     try:
                         new_id = gen_backends[name].submit(lines)
@@ -858,10 +867,14 @@ class QualityTestRunner:
                         and row.get("status") in (None, "pending", "failed_retryable")
                     ):
                         row["status"] = "failed_permanent"
-                        row.setdefault("error", f"backend batch {name} failed")
+                        row.setdefault(
+                            "error", backend_error or f"backend batch {name} failed"
+                        )
                         row["error_class"] = "permanent"
                 info["collected"] = True
-                print(f"Generation batch {name} failed twice — salvaging succeeded items.")
+                detail = f" ({backend_error})" if backend_error else ""
+                reason = "rejected the batch" if fatal else "failed twice"
+                print(f"Generation batch {name} {reason}{detail} — salvaging succeeded items.")
                 continue
 
             # status == "ended": fetch + write each item, classifying failures.
@@ -1188,6 +1201,7 @@ class QualityTestRunner:
 
     async def _collect_judge(self, manifest) -> str:
         from tests.quality.batch.backends import make_backend
+        from tests.quality.batch.errors import classify_batch_error
         from tests.quality.batch.manifest import BatchManifest
         from tests.quality.custom_judge import CustomJudge
         from tests.quality.output_parser import parse_output_directory
@@ -1221,8 +1235,15 @@ class QualityTestRunner:
 
         if status == "failed":
             # Resubmit once (transient), then mark remaining items permanent and
-            # score the succeeded ones instead of aborting the whole run.
-            if info.get("attempts", 0) < 1:
+            # score the succeeded ones instead of aborting the whole run. As in the
+            # generation phase, a permanent backend rejection skips the resubmit.
+            backend_error = getattr(backend, "last_error", None)
+            fatal = (
+                classify_batch_error(backend_error)[0] == "permanent"
+                if backend_error
+                else False
+            )
+            if not fatal and info.get("attempts", 0) < 1:
                 pending = _pending_judge_ids()
                 try:
                     new_id = self._resubmit_judge(manifest, name, pending)
@@ -1239,9 +1260,11 @@ class QualityTestRunner:
             for r in judge_rows.values():
                 if r.get("status") in (None, "pending", "failed_retryable"):
                     r["status"] = "failed_permanent"
-                    r.setdefault("error", f"judge backend {name} failed")
+                    r.setdefault("error", backend_error or f"judge backend {name} failed")
                     r["error_class"] = "permanent"
-            print(f"Judge batch {name} failed twice — scoring succeeded items.")
+            detail = f" ({backend_error})" if backend_error else ""
+            reason = "rejected the batch" if fatal else "failed twice"
+            print(f"Judge batch {name} {reason}{detail} — scoring succeeded items.")
         else:
             # status == "ended": fetch + score each item, classifying failures.
             judge_items = backend.fetch(info["batch_id"])
