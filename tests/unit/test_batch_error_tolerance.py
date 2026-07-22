@@ -477,7 +477,7 @@ def test_resubmit_judge_returns_none_when_nothing_rebuilds(tmp_path, monkeypatch
 
 
 def test_resubmit_judge_returns_none_when_provider_unavailable(tmp_path, monkeypatch):
-    """A missing judge API key retires the items with a readable reason, not None.build_batch_request."""
+    """A missing judge API key retires the items with a readable reason, not None."""
     manifest = _resubmit_manifest(tmp_path)
     cid = manifest.requests[0]["custom_id"]
 

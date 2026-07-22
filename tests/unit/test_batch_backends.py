@@ -160,6 +160,7 @@ def _poll_without_error_detail(monkeypatch, status: str) -> str:
 
     monkeypatch.setattr(b, "_client", _Client())
     assert b.poll("bid") == "failed"
+    assert b.last_error is not None
     return b.last_error
 
 
@@ -200,5 +201,6 @@ def test_poll_error_detail_excludes_batch_id(monkeypatch):
 
     monkeypatch.setattr(b, "_client", _Client())
     b.poll("batch_404abc")
+    assert b.last_error is not None
     assert "404" not in b.last_error
     assert classify_batch_error(b.last_error)[0] == "transient"
