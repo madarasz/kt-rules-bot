@@ -1121,12 +1121,12 @@ class QualityTestRunner:
             )
             return False
         lines, rows = self._build_judge_lines(parsed, test_cases_map, provider, judge)
-        if not lines:
-            logger.error("No judge batch items built — falling back to live judge.")
-            return False
         for row in rows:
             row["backend"] = judge_backend.name
             manifest.requests.append(row)
+        if not lines:
+            logger.error("No judge batch items built — falling back to live judge.")
+            return False
         batch_id = judge_backend.submit(lines)
         manifest.judge[judge_backend.name] = {
             "batch_id": batch_id,
@@ -1147,9 +1147,20 @@ class QualityTestRunner:
         test_cases_map = self._load_test_cases_for_outputs(parsed)
         judge = CustomJudge(model=manifest.judge_model)
         provider = LLMProviderFactory.create(manifest.judge_model)
-        lines, _rows = self._build_judge_lines(
+        lines, rows = self._build_judge_lines(
             parsed, test_cases_map, provider, judge, custom_ids=custom_ids
         )
+        existing = {r["custom_id"]: r for r in manifest.requests if r.get("kind") == "judge"}
+        for row in rows:
+            if row.get("status") == "failed_permanent":
+                ex = existing.get(row["custom_id"])
+                if ex is not None:
+                    ex["status"] = row["status"]
+                    ex["error"] = row.get("error", "")
+                    ex["error_class"] = row.get("error_class", "permanent")
+                else:
+                    row["backend"] = backend_name
+                    manifest.requests.append(row)
         return make_backend(backend_name).submit(lines)
 
     def _score_judge_item(
@@ -1301,6 +1312,8 @@ class QualityTestRunner:
             if retry_ids:
                 new_id = self._resubmit_judge(manifest, name, retry_ids)
                 for cid in retry_ids:
+                    if judge_rows[cid].get("status") == "failed_permanent":
+                        continue
                     judge_rows[cid]["attempts"] = judge_rows[cid].get("attempts", 0) + 1
                     judge_rows[cid]["status"] = "pending"
                 info.update({"batch_id": new_id, "status": "in_progress"})
