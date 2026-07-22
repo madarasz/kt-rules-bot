@@ -56,6 +56,15 @@ def _split_field_value(text: str, max_length: int = 1024) -> list[str]:
         delimiter = sentences[i + 1] if i + 1 < len(sentences) else ""
         sentence_with_delimiter = sentence + delimiter
 
+        # A single sentence may still exceed max_length; hard-split it.
+        if len(sentence_with_delimiter) > max_length:
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+                current_chunk = ""
+            for start in range(0, len(sentence_with_delimiter), max_length):
+                chunks.append(sentence_with_delimiter[start:start + max_length].strip())
+            continue
+
         # Check if adding this sentence exceeds limit
         if len(current_chunk) + len(sentence_with_delimiter) <= max_length:
             current_chunk += sentence_with_delimiter
@@ -66,6 +75,49 @@ def _split_field_value(text: str, max_length: int = 1024) -> list[str]:
 
     if current_chunk:
         chunks.append(current_chunk.strip())
+
+    return chunks
+
+
+def _split_field_value_by_lines(text: str, max_length: int = 1024) -> list[str]:
+    """Split text into chunks ≤ max_length, preferring newline boundaries.
+
+    Used for quote fields where each line is prefixed with '> ' so the
+    quote-block formatting is preserved across splits. Any single line that
+    still exceeds ``max_length`` is hard-split as a last resort.
+
+    Args:
+        text: Text to split (may already contain '> ' quote prefixes)
+        max_length: Maximum characters per chunk (default 1024 for Discord fields)
+
+    Returns:
+        List of text chunks, each ≤ max_length
+    """
+    if len(text) <= max_length:
+        return [text]
+
+    chunks: list[str] = []
+    current_chunk = ""
+
+    for line in text.split("\n"):
+        # Hard-split any line that on its own exceeds the limit.
+        if len(line) > max_length:
+            if current_chunk:
+                chunks.append(current_chunk)
+                current_chunk = ""
+            for start in range(0, len(line), max_length):
+                chunks.append(line[start:start + max_length])
+            continue
+
+        candidate = line if not current_chunk else f"{current_chunk}\n{line}"
+        if len(candidate) <= max_length:
+            current_chunk = candidate
+        else:
+            chunks.append(current_chunk)
+            current_chunk = line
+
+    if current_chunk:
+        chunks.append(current_chunk)
 
     return chunks
 
@@ -137,7 +189,16 @@ def _format_structured(bot_response: BotResponse, smalltalk: bool = False) -> li
         field_name = f"**{quote_title}**"
         if len(field_name) > 256:
             field_name = field_name[:253] + "..."
-        embed.add_field(name=field_name, value=_format_quote_text(quote_text), inline=False)
+
+        # Quote values may exceed Discord's 1024-char field limit; split them
+        # on line boundaries so the quote-block formatting is preserved.
+        quote_value_chunks = _split_field_value_by_lines(_format_quote_text(quote_text))
+        for chunk_idx, value_chunk in enumerate(quote_value_chunks):
+            embed.add_field(
+                name=field_name if chunk_idx == 0 else "",
+                value=value_chunk,
+                inline=False,
+            )
 
     # Add explanation field (split if needed)
     if len(data.explanation) > 0:
