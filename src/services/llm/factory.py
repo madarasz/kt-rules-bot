@@ -91,6 +91,7 @@ class LLMProviderFactory:
         "ministral-3-8-b": (MistralAdapter, "ministral-8b-2512", "mistral"),
         # Qwen models (Alibaba Cloud)
         "qwen3.7-max": (QwenAdapter, "qwen3.7-max-2026-05-20", "alibaba"),
+        "qwen3.7-plus": (QwenAdapter, "qwen3.7-plus-2026-05-26", "alibaba"),
         "qwen3.6-flash": (QwenAdapter, "qwen3.6-flash-2026-04-16", "alibaba"),
         "qwen3-turbo": (QwenAdapter, "qwen3-turbo", "alibaba"),
         "qwen3-coder-flash": (QwenAdapter, "qwen3-coder-flash-2025-07-28", "alibaba"),

@@ -66,6 +66,7 @@ LLM_PROVIDERS_LITERAL = Literal[
     "ministral-3-8-b",
     # Qwen models (Alibaba Cloud)
     "qwen3.7-max",
+    "qwen3.7-plus",
     "qwen3.6-flash",
     "qwen-turbo",
     "qwen3-coder-flash",

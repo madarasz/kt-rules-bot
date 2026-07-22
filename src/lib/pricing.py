@@ -151,6 +151,7 @@ pricing: dict[str, dict] = {
     # Qwen models (Alibaba Cloud) - https://help.aliyun.com/zh/model-studio/pricing
     **_family(QWEN_CACHE_READ_MULTIPLIER, {
         "qwen3.7-max-2026-05-20":       (0.0025,  0.0075),
+        "qwen3.7-plus-2026-05-26":      (0.0004,  0.0016),
         "qwen3.6-flash-2026-04-16":     (0.00025, 0.0015),
         "qwen3-turbo":                  (0.00005, 0.0002),   # non-thinking price
         "qwen3-coder-plus-2025-09-23":  (0.00100, 0.00500),
@@ -186,6 +187,7 @@ _PRICING_ALIASES = {
     "ministral-3-14-b":   "ministral-14b-2512",
     "ministral-3-8-b":    "ministral-8b-2512",
     "qwen3.7-max":        "qwen3.7-max-2026-05-20",
+    "qwen3.7-plus":       "qwen3.7-plus-2026-05-26",
     "qwen3.6-flash":      "qwen3.6-flash-2026-04-16",
     "qwen3-coder-plus":   "qwen3-coder-plus-2025-09-23",
     "qwen3-coder-flash":  "qwen3-coder-flash-2025-07-28",
