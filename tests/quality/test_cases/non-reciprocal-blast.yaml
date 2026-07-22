@@ -10,12 +10,12 @@ ground_truth_answers:
   - key: "Visibility"
     text: "Not being visible to the target allows you to avoid being hit by the blast."
     priority: critical
-  - key: "Shooter identity"
-    text: "Your operative is the shooter"
-    priority: supporting
-  - key: "Primary target identity"
-    text: "The target within 2\" is the primary target"
-    priority: supporting
+  # - key: "Shooter identity"
+  #   text: "Your operative is the shooter"
+  #   priority: supporting
+  # - key: "Primary target identity"
+  #   text: "The target within 2\" is the primary target"
+  #   priority: supporting
   - key: "Secondary targets identity"
     text: "Operatives visible within 2\" of the primary target are secondary targets."
     priority: supporting

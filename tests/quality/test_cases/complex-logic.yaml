@@ -1,0 +1,24 @@
+test_id: complex-logic
+context_file: tests/quality/test_cases/complex-logic.json
+query: >
+  Can Navi Axejack operator reduce damage dice of 4 to 3 with Brace for Counterattack strategy ploy and then reduce it further via his Emboldener rule?
+ground_truth_answers:
+  - key: "Final Answer"
+    text: "Yes, both can apply."
+    priority: critical
+  - key: "Dice roll"
+    text: "The rolled D6 has to be 5+ for Emboldened to reduce damage"
+    priority: important
+  - key: "Within territory"
+    text: "Emboldened requires the operative to have performed the Charge action. Brace for Counterattack requires the operative to not have perfomed the Charge action or be within your territory. Both can only be satisfied if the operative is within your territory."
+    priority: critical
+ground_truth_contexts:
+  - key: "BRACE FOR COUNTERATTACK"
+    text: "Whenever an operative is shooting against, fighting against or retaliating against a friendly **IMPERIAL NAVY BREACHER** operative that's within your territory or that hasn't performed the **Charge**, **Fall Back** or **Reposition** action during this turning point, Normal and Critical Dmg of 3 or more inflicts 1 less damage on that friendly operative."
+    priority: critical
+  - key: "NAVIS AXEJACK - Emboldened"
+    text: "Whenever an attack dice inflicts damage of 3 or more on this operative during a turning point in which it performed the **Charge** action"
+    priority: critical
+  - key: "FAQ - multuple damage reduction"
+    text: "[FAQ] *Question*: Can rules that ignore or reduce damage inflicted by an attack dice "
+    priority: supporting

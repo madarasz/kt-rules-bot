@@ -837,20 +837,37 @@ class QualityTestRunner:
             if status == "failed":
                 # Whole-batch failure: resubmit once (transient), then salvage the
                 # succeeded items and mark the rest permanent instead of aborting.
-                if info.get("attempts", 0) < 1:
-                    lines = self._rebuild_gen_lines_for_backend(manifest, name)
+                # A backend that told us *why* it rejected the batch (e.g. an
+                # unsupported model) gets classified first — resubmitting the same
+                # input against a permanent rejection only burns a collect pass.
+                backend_error = getattr(gen_backends[name], "last_error", None)
+                fatal = (
+                    classify_batch_error(backend_error)[0] == "permanent"
+                    if backend_error
+                    else False
+                )
+                resubmit_error = None
+                if not fatal and info.get("attempts", 0) < 1:
+                    # Spend the retry budget BEFORE submitting. If submit raises, the
+                    # batch_id and status are unchanged, so without this the next
+                    # collect re-enters this branch with attempts still 0 and the run
+                    # never reaches salvage — it just fails the same way forever.
+                    info["attempts"] = info.get("attempts", 0) + 1
+                    new_id = None
                     try:
+                        lines = self._rebuild_gen_lines_for_backend(manifest, name)
                         new_id = gen_backends[name].submit(lines)
-                        info.update({
-                            "batch_id": new_id,
-                            "status": "in_progress",
-                            "attempts": info.get("attempts", 0) + 1,
-                        })
-                        print(f"Generation batch {name} failed — resubmitted as {new_id}.")
                     except Exception as e:
+                        # Fall through to salvage in this same pass rather than
+                        # burning another collect on a backend we can't re-reach.
+                        resubmit_error = f"{type(e).__name__}: {e}"
                         logger.error(f"Resubmit of failed batch {name} raised: {e}")
-                    all_collected = False
-                    continue
+                    if new_id is not None:
+                        info.update({"batch_id": new_id, "status": "in_progress"})
+                        print(f"Generation batch {name} failed — resubmitted as {new_id}.")
+                        all_collected = False
+                        continue
+                cause = backend_error or resubmit_error
                 for row in manifest.requests:
                     if (
                         row.get("kind") == "gen"
@@ -858,10 +875,22 @@ class QualityTestRunner:
                         and row.get("status") in (None, "pending", "failed_retryable")
                     ):
                         row["status"] = "failed_permanent"
-                        row.setdefault("error", f"backend batch {name} failed")
+                        row.setdefault(
+                            "error",
+                            f"backend batch {name} failed: {cause}"
+                            if cause
+                            else f"backend batch {name} failed",
+                        )
                         row["error_class"] = "permanent"
                 info["collected"] = True
-                print(f"Generation batch {name} failed twice — salvaging succeeded items.")
+                detail = f" ({cause})" if cause else ""
+                if fatal:
+                    reason = "rejected the batch"
+                elif resubmit_error:
+                    reason = "failed and could not be resubmitted"
+                else:
+                    reason = "failed twice"
+                print(f"Generation batch {name} {reason}{detail} — salvaging succeeded items.")
                 continue
 
             # status == "ended": fetch + write each item, classifying failures.
@@ -1028,10 +1057,24 @@ class QualityTestRunner:
         """Build judge batch request lines from parsed generation outputs.
 
         Returns (lines, rows): request lines to submit, and the matching manifest
-        request rows (kind="judge"). When custom_ids is given, only those judge
-        items are (re)built — used both for the initial submit and for resubmitting
-        just the failed_retryable items."""
+        request rows (kind="judge"). An item that fails to build still gets a row —
+        marked failed_permanent — so it can't disappear between submit and scoring.
+        When custom_ids is given, only those judge items are (re)built — used both
+        for the initial submit and for resubmitting just the failed_retryable items."""
+        from tests.quality.batch.errors import CLASS_PERMANENT
         from tests.quality.batch.manifest import BatchManifest
+
+        def base_row(cid: str, meta, test_id: str) -> dict:
+            return {
+                "custom_id": cid,
+                "test_id": test_id,
+                "model": meta.test_metadata["model"],
+                "run_num": meta.test_metadata["run_num"],
+                "kind": "judge",
+                "backend": None,
+                "batchable": True,
+                "attempts": 0,
+            }
 
         lines: list[dict] = []
         rows: list[dict] = []
@@ -1058,20 +1101,21 @@ class QualityTestRunner:
                 )
                 request_line = provider.build_batch_request(gen_req, cid)
             except Exception as e:
+                # A build failure is local (malformed stored output), not a provider
+                # error: re-requesting the same input can't fix it. Record the row as
+                # permanently failed so it surfaces with its real cause instead of
+                # vanishing and later scoring as "judge item missing".
+                error_text = f"{type(e).__name__}: {e}"
                 logger.error(f"Judge batch item for {test_id} failed to build: {e} — skipping")
+                rows.append({
+                    **base_row(cid, meta, test_id),
+                    "status": "failed_permanent",
+                    "error": error_text,
+                    "error_class": CLASS_PERMANENT,
+                })
                 continue
             lines.append(request_line)
-            rows.append({
-                "custom_id": cid,
-                "test_id": test_id,
-                "model": meta.test_metadata["model"],
-                "run_num": meta.test_metadata["run_num"],
-                "kind": "judge",
-                "backend": None,
-                "batchable": True,
-                "status": "pending",
-                "attempts": 0,
-            })
+            rows.append({**base_row(cid, meta, test_id), "status": "pending"})
         return lines, rows
 
     def _submit_judge_batch(self, manifest, parsed, test_cases_map, judge_backend) -> bool:
@@ -1093,12 +1137,12 @@ class QualityTestRunner:
             )
             return False
         lines, rows = self._build_judge_lines(parsed, test_cases_map, provider, judge)
-        if not lines:
-            logger.error("No judge batch items built — falling back to live judge.")
-            return False
         for row in rows:
             row["backend"] = judge_backend.name
             manifest.requests.append(row)
+        if not lines:
+            logger.error("No judge batch items built — falling back to live judge.")
+            return False
         batch_id = judge_backend.submit(lines)
         manifest.judge[judge_backend.name] = {
             "batch_id": batch_id,
@@ -1108,20 +1152,72 @@ class QualityTestRunner:
         }
         return True
 
-    def _resubmit_judge(self, manifest, backend_name: str, custom_ids: set[str]) -> str:
-        """Rebuild judge lines for the given custom_ids and submit as a new batch."""
+    def _resubmit_judge(self, manifest, backend_name: str, custom_ids: set[str]) -> str | None:
+        """Rebuild judge lines for the given custom_ids and submit as a new batch.
+
+        Returns the new batch id, or None when there is nothing left to submit —
+        the judge provider is unavailable, or every requested item failed to
+        rebuild. Submitting the empty line list instead would upload a zero-byte
+        JSONL that the host rejects, raising out of the collect pass before the
+        judge scores from that pass are saved. On a None return the affected rows
+        are already marked failed_permanent, so the caller finalizes rather than
+        waiting on a batch that will never exist."""
         from tests.quality.batch.backends import make_backend
+        from tests.quality.batch.errors import CLASS_PERMANENT
         from tests.quality.custom_judge import CustomJudge
         from tests.quality.output_parser import parse_output_directory
+
+        existing = {r["custom_id"]: r for r in manifest.requests if r.get("kind") == "judge"}
+
+        def mark_permanent(cid: str, error: str, row: dict | None = None) -> None:
+            target = existing.get(cid)
+            if target is None:
+                if row is None:
+                    return
+                row["backend"] = backend_name
+                manifest.requests.append(row)
+                existing[cid] = row
+                return
+            target["status"] = "failed_permanent"
+            target["error"] = error
+            target["error_class"] = CLASS_PERMANENT
+
+        # _build_judge_lines would call build_batch_request on None and turn a
+        # missing API key into a per-item AttributeError; say so once instead.
+        provider = LLMProviderFactory.create(manifest.judge_model)
+        if provider is None:
+            error = f"judge provider {manifest.judge_model!r} unavailable (missing API key)"
+            logger.error(f"{error} — cannot resubmit judge items.")
+            for cid in custom_ids:
+                mark_permanent(cid, error)
+            return None
 
         report_dir = Path(manifest.report_dir)
         parsed = parse_output_directory(report_dir)
         test_cases_map = self._load_test_cases_for_outputs(parsed)
         judge = CustomJudge(model=manifest.judge_model)
-        provider = LLMProviderFactory.create(manifest.judge_model)
-        lines, _rows = self._build_judge_lines(
+        lines, rows = self._build_judge_lines(
             parsed, test_cases_map, provider, judge, custom_ids=custom_ids
         )
+        for row in rows:
+            if row.get("status") == "failed_permanent":
+                mark_permanent(row["custom_id"], row.get("error", ""), row)
+        if not lines:
+            logger.error(
+                f"No judge batch items could be rebuilt for {backend_name} "
+                f"({len(custom_ids)} requested) — nothing to resubmit."
+            )
+            # Includes ids _build_judge_lines skipped outright (no matching test
+            # case), which produce neither a line nor a row; without this they
+            # would sit pending forever.
+            for cid in custom_ids:
+                row = existing.get(cid)
+                if row is not None and row.get("status") not in (
+                    "succeeded",
+                    "failed_permanent",
+                ):
+                    mark_permanent(cid, row.get("error") or "judge item could not be rebuilt")
+            return None
         return make_backend(backend_name).submit(lines)
 
     def _score_judge_item(
@@ -1173,6 +1269,7 @@ class QualityTestRunner:
 
     async def _collect_judge(self, manifest) -> str:
         from tests.quality.batch.backends import make_backend
+        from tests.quality.batch.errors import classify_batch_error
         from tests.quality.batch.manifest import BatchManifest
         from tests.quality.custom_judge import CustomJudge
         from tests.quality.output_parser import parse_output_directory
@@ -1199,34 +1296,65 @@ class QualityTestRunner:
         if status == "expired":
             pending = _pending_judge_ids()
             new_id = self._resubmit_judge(manifest, name, pending)
-            info.update({"batch_id": new_id, "status": "in_progress"})
-            manifest.save()
-            print(f"Judge batch {name} expired — resubmitted {len(pending)} item(s) as {new_id}.")
-            return "judge_submitted"
-
-        if status == "failed":
+            if new_id is not None:
+                info.update({"batch_id": new_id, "status": "in_progress"})
+                manifest.save()
+                print(
+                    f"Judge batch {name} expired — resubmitted {len(pending)} item(s) as {new_id}."
+                )
+                return "judge_submitted"
+            # Nothing rebuildable: the rows are already permanent, so fall through
+            # to finalize instead of waiting on a batch that was never submitted.
+            print(f"Judge batch {name} expired and nothing could be resubmitted — "
+                  f"scoring succeeded items.")
+        elif status == "failed":
             # Resubmit once (transient), then mark remaining items permanent and
-            # score the succeeded ones instead of aborting the whole run.
-            if info.get("attempts", 0) < 1:
+            # score the succeeded ones instead of aborting the whole run. As in the
+            # generation phase, a permanent backend rejection skips the resubmit.
+            backend_error = getattr(backend, "last_error", None)
+            fatal = (
+                classify_batch_error(backend_error)[0] == "permanent"
+                if backend_error
+                else False
+            )
+            resubmit_error = None
+            if not fatal and info.get("attempts", 0) < 1:
+                # Same as the generation phase: spend the retry budget before the
+                # submit, so a submit that raises can't loop this branch forever.
+                info["attempts"] = info.get("attempts", 0) + 1
                 pending = _pending_judge_ids()
+                # Only the submit is guarded: if it succeeded, a later failure must
+                # not be misread as "no batch went out" and orphan a live batch.
                 try:
                     new_id = self._resubmit_judge(manifest, name, pending)
-                    info.update({
-                        "batch_id": new_id,
-                        "status": "in_progress",
-                        "attempts": info.get("attempts", 0) + 1,
-                    })
-                    print(f"Judge batch {name} failed — resubmitted as {new_id}.")
                 except Exception as e:
+                    new_id = None
+                    resubmit_error = f"{type(e).__name__}: {e}"
                     logger.error(f"Resubmit of failed judge batch {name} raised: {e}")
-                manifest.save()
-                return "judge_submitted"
+                if new_id is not None:
+                    info.update({"batch_id": new_id, "status": "in_progress"})
+                    manifest.save()
+                    print(f"Judge batch {name} failed — resubmitted as {new_id}.")
+                    return "judge_submitted"
+            cause = backend_error or resubmit_error
             for r in judge_rows.values():
                 if r.get("status") in (None, "pending", "failed_retryable"):
                     r["status"] = "failed_permanent"
-                    r.setdefault("error", f"judge backend {name} failed")
+                    r.setdefault(
+                        "error",
+                        f"judge backend {name} failed: {cause}"
+                        if cause
+                        else f"judge backend {name} failed",
+                    )
                     r["error_class"] = "permanent"
-            print(f"Judge batch {name} failed twice — scoring succeeded items.")
+            detail = f" ({cause})" if cause else ""
+            if fatal:
+                reason = "rejected the batch"
+            elif resubmit_error:
+                reason = "failed and could not be resubmitted"
+            else:
+                reason = "failed twice"
+            print(f"Judge batch {name} {reason}{detail} — scoring succeeded items.")
         else:
             # status == "ended": fetch + score each item, classifying failures.
             judge_items = backend.fetch(info["batch_id"])
@@ -1261,14 +1389,32 @@ class QualityTestRunner:
                 cid for cid, r in judge_rows.items() if r.get("status") == "failed_retryable"
             }
             if retry_ids:
-                new_id = self._resubmit_judge(manifest, name, retry_ids)
-                for cid in retry_ids:
-                    judge_rows[cid]["attempts"] = judge_rows[cid].get("attempts", 0) + 1
-                    judge_rows[cid]["status"] = "pending"
-                info.update({"batch_id": new_id, "status": "in_progress"})
-                manifest.save()
-                print(f"Re-requested {len(retry_ids)} failed judge item(s) on {name} as {new_id}.")
-                return "judge_submitted"
+                new_id = None
+                try:
+                    new_id = self._resubmit_judge(manifest, name, retry_ids)
+                except Exception as e:
+                    # The scores _score_judge_item just wrote onto the rows above are
+                    # only in memory until manifest.save(); letting this escape would
+                    # discard them and re-do the whole pass on the next collect. Retire
+                    # the items instead so the run can finalize with what it earned.
+                    logger.error(f"Re-request of failed judge item(s) on {name} raised: {e}")
+                    for cid in retry_ids:
+                        row = judge_rows[cid]
+                        row["status"] = "failed_permanent"
+                        row["error"] = f"judge re-request failed: {type(e).__name__}: {e}"
+                        row["error_class"] = "permanent"
+                if new_id is not None:
+                    for cid in retry_ids:
+                        if judge_rows[cid].get("status") == "failed_permanent":
+                            continue
+                        judge_rows[cid]["attempts"] = judge_rows[cid].get("attempts", 0) + 1
+                        judge_rows[cid]["status"] = "pending"
+                    info.update({"batch_id": new_id, "status": "in_progress"})
+                    manifest.save()
+                    print(
+                        f"Re-requested {len(retry_ids)} failed judge item(s) on {name} as {new_id}."
+                    )
+                    return "judge_submitted"
 
         # All judge rows terminal — assemble results from persisted rows + finalize.
         info["collected"] = True

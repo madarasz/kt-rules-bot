@@ -99,9 +99,21 @@ class StructuredLLMResponse:
         if missing_fields:
             raise ValueError(f"Missing required fields: {missing_fields}")
 
+        # Some models double-encode `quotes` as a JSON string holding the array
+        # (occasionally with a trailing comma). Unwrap it instead of iterating the
+        # string character by character.
+        raw_quotes = data["quotes"]
+        if isinstance(raw_quotes, str):
+            try:
+                raw_quotes = json.loads(raw_quotes.rstrip().rstrip(","))
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid quotes JSON from LLM: {e}") from e
+        if not isinstance(raw_quotes, list):
+            raise ValueError(f"Expected quotes to be a list, got {type(raw_quotes).__name__}")
+
         # Parse quotes
         quotes = []
-        for quote_data in data["quotes"]:
+        for quote_data in raw_quotes:
             if "quote_title" not in quote_data or "quote_text" not in quote_data:
                 raise ValueError(f"Invalid quote structure: {quote_data}")
             quotes.append(

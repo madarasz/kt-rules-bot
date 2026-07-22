@@ -65,6 +65,8 @@ LLM_PROVIDERS_LITERAL = Literal[
     "ministral-3-14-b",
     "ministral-3-8-b",
     # Qwen models (Alibaba Cloud)
+    "qwen3.7-max",
+    "qwen3.7-plus",
     "qwen3.6-flash",
     "qwen-turbo",
     "qwen3-coder-flash",
@@ -97,12 +99,12 @@ QUALITY_TEST_PROVIDERS = [
     #"gpt-5.4-nano",
     "gpt-5.3-chat-latest",
     #"gpt-5.2",
-    #"gpt-5.2-chat-latest",
+    "gpt-5.2-chat-latest",
     #"gpt-5.1-chat-latest",
     #"gpt-4.1",
     #"gpt-4o",
     # "gpt-4.1-mini",
-    "claude-4.6-sonnet",
+    #"claude-4.6-sonnet",
     #"claude-4.5-sonnet",
     #"claude-4.6-opus",
     #"claude-4.5-opus",
@@ -124,7 +126,8 @@ QUALITY_TEST_PROVIDERS = [
     "mistral-medium-3-5",
     # "grok-3",
     # "grok-3-mini",
-    "deepseek-v4-flash"
+    "deepseek-v4-flash",
+    "qwen3.6-flash"
 ]
 
 # Default LLM provider for generation

@@ -728,7 +728,7 @@ logger.error("llm_generation_failed", model=model, error=str(e))
 
 ### Prompt Caching
 
-We use provider prompt caching for OpenAI, Claude, Grok and Gemini. Cost fields in [src/lib/pricing.py](../../lib/pricing.py): `cache_read` (discounted rate for cache hits) and `cache_write` (surcharge for writing to cache, Anthropic only).
+We use provider prompt caching for OpenAI, Claude, Grok and Gemini. Cache rates in [src/lib/pricing.py](../../lib/pricing.py) are multipliers of the base prompt rate, declared once per provider family (`*_CACHE_READ_MULTIPLIER`) rather than per model; `ANTHROPIC_CACHE_WRITE_MULTIPLIER` is the write surcharge (Anthropic only).
 
 Claude charges a 1.25× write penalty on first cache population, so caching is **disabled for one-off queries** (CLI, Discord, admin rerun) via `GenerationConfig.use_cache=False`. It stays **enabled for repeated calls** — quality and RAG tests — where cache reads pay off.
 
