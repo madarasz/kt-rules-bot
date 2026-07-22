@@ -1028,10 +1028,24 @@ class QualityTestRunner:
         """Build judge batch request lines from parsed generation outputs.
 
         Returns (lines, rows): request lines to submit, and the matching manifest
-        request rows (kind="judge"). When custom_ids is given, only those judge
-        items are (re)built — used both for the initial submit and for resubmitting
-        just the failed_retryable items."""
+        request rows (kind="judge"). An item that fails to build still gets a row —
+        marked failed_permanent — so it can't disappear between submit and scoring.
+        When custom_ids is given, only those judge items are (re)built — used both
+        for the initial submit and for resubmitting just the failed_retryable items."""
+        from tests.quality.batch.errors import CLASS_PERMANENT
         from tests.quality.batch.manifest import BatchManifest
+
+        def base_row(cid: str, meta, test_id: str) -> dict:
+            return {
+                "custom_id": cid,
+                "test_id": test_id,
+                "model": meta.test_metadata["model"],
+                "run_num": meta.test_metadata["run_num"],
+                "kind": "judge",
+                "backend": None,
+                "batchable": True,
+                "attempts": 0,
+            }
 
         lines: list[dict] = []
         rows: list[dict] = []
@@ -1058,20 +1072,21 @@ class QualityTestRunner:
                 )
                 request_line = provider.build_batch_request(gen_req, cid)
             except Exception as e:
+                # A build failure is local (malformed stored output), not a provider
+                # error: re-requesting the same input can't fix it. Record the row as
+                # permanently failed so it surfaces with its real cause instead of
+                # vanishing and later scoring as "judge item missing".
+                error_text = f"{type(e).__name__}: {e}"
                 logger.error(f"Judge batch item for {test_id} failed to build: {e} — skipping")
+                rows.append({
+                    **base_row(cid, meta, test_id),
+                    "status": "failed_permanent",
+                    "error": error_text,
+                    "error_class": CLASS_PERMANENT,
+                })
                 continue
             lines.append(request_line)
-            rows.append({
-                "custom_id": cid,
-                "test_id": test_id,
-                "model": meta.test_metadata["model"],
-                "run_num": meta.test_metadata["run_num"],
-                "kind": "judge",
-                "backend": None,
-                "batchable": True,
-                "status": "pending",
-                "attempts": 0,
-            })
+            rows.append({**base_row(cid, meta, test_id), "status": "pending"})
         return lines, rows
 
     def _submit_judge_batch(self, manifest, parsed, test_cases_map, judge_backend) -> bool:

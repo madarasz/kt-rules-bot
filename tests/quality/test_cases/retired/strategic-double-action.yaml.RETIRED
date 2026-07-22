@@ -1,3 +1,4 @@
+# SAME TEST AS action-in-strategic-phase
 test_id: strategic-double-action
 context_file: tests/quality/test_cases/strategic-double-action.json
 query: >

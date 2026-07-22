@@ -12,8 +12,11 @@ ground_truth_answers:
   - key: "How teleportation works"
     text: "Using the teleport pad requires the operative to be set up on the other teleport pad"
     priority: important
-  - key: "Distance"
-    text: "The two teleport pads are not wholly within 2\" of each other."
+  - key: "Teleporter distance"
+    text: "The two teleport pads are probably more than 2\" apart"
+    priority: important
+  - key: "Setup is probably not possible"
+    text: "The operative likely cannot be set up / teleported wholly within 2\" of where it was removed."
     priority: important
 ground_truth_contexts:
   - key: "Teleport Pad"

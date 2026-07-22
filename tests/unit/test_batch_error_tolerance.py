@@ -2,6 +2,7 @@
 and multi-backend re-fetch idempotency (no network, no LLM)."""
 
 import asyncio
+import json
 from datetime import UTC, datetime
 
 import pytest
@@ -355,6 +356,67 @@ def test_judge_item_retry_recovers(tmp_path, monkeypatch):
     m2 = BatchManifest.load(tmp_path)
     assert BatchManifest.is_recovered(m2.rows_by_custom_id("judge")[j2])
     assert finalized == [["RESULT"]]
+
+
+class _JudgeableTC(_TC):
+    ground_truth_answers = []
+
+
+class _BuildingJudge:
+    def build_judge_request(self, **_kw):
+        return object()
+
+
+class _POWithResponse(_PO):
+    """Parsed output carrying a generation response body the judge builder must parse."""
+
+    def __init__(self, run, answer_text):
+        super().__init__(run)
+        self.query = "q?"
+        self.llm_response = type("R", (), {"answer_text": answer_text})()
+
+
+def test_unbuildable_judge_item_is_recorded_not_dropped(monkeypatch):
+    """An item that fails to build gets a failed_permanent row instead of vanishing.
+
+    Without a row, _score_from_judge_batch later reports the bogus "judge item
+    missing" and the run is logged as an unrecoverable *API* error with 0 attempts.
+    """
+    good = json.dumps({
+        "smalltalk": False,
+        "short_answer": "Yes.",
+        "persona_short_answer": "Yes.",
+        "quotes": [{"quote_title": "REPOSITION (1AP)", "quote_text": "...", "chunk_id": "a1"}],
+        "explanation": "...",
+        "persona_afterword": "...",
+    })
+    parsed = [_POWithResponse(1, good), _POWithResponse(2, "this is not json")]
+
+    monkeypatch.setattr(
+        "tests.quality.metadata_generator.MetadataGenerator"
+        ".extract_deterministic_metrics_from_metadata",
+        staticmethod(lambda _m: {"llm_quotes_structured": []}),
+    )
+
+    runner = object.__new__(QualityTestRunner)
+    lines, rows = runner._build_judge_lines(
+        parsed, {"t1": _JudgeableTC()}, _Prov(), _BuildingJudge()
+    )
+
+    assert len(lines) == 1, "only the parseable item yields a request line"
+
+    by_cid = {r["custom_id"]: r for r in rows}
+    assert len(by_cid) == 2, "every parsed output gets a row, buildable or not"
+
+    ok = by_cid[BatchManifest.make_custom_id("judge", "t1", MODEL, 1)]
+    assert ok["status"] == "pending"
+
+    bad = by_cid[BatchManifest.make_custom_id("judge", "t1", MODEL, 2)]
+    assert bad["status"] == "failed_permanent"
+    assert bad["error_class"] == "permanent"
+    assert "Invalid JSON from LLM" in bad["error"]
+    # Permanent => excluded from re-request, so it never burns retry budget.
+    assert bad["attempts"] == 0
 
 
 if __name__ == "__main__":
