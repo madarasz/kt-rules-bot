@@ -327,7 +327,7 @@ RAG_HOP_CHUNK_LIMIT = 5
 RAG_HOP_EVALUATION_MODEL = "ministral-3-14-b"
 
 # Hop evaluation timeout in seconds
-RAG_HOP_EVALUATION_TIMEOUT = 20
+RAG_HOP_EVALUATION_TIMEOUT = 30
 
 # Hop evaluation retry delay on rate limit (seconds)
 RAG_HOP_RATE_LIMIT_DELAY = 5.0
