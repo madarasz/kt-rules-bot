@@ -137,3 +137,68 @@ def test_openai_poll_captures_whole_batch_rejection(monkeypatch):
     assert "model_not_found" in b.last_error
     # classify_batch_error must call this permanent so collect skips the resubmit.
     assert classify_batch_error(b.last_error)[0] == "permanent"
+
+
+def _poll_without_error_detail(monkeypatch, status: str) -> str:
+    """poll() a batch that reports `status` and carries no errors payload."""
+    b = backends.OpenAICompatBatchBackend(
+        api_key="x", base_url="https://api.openai.com/v1", name="openai"
+    )
+
+    class _FakeBatch:
+        errors = None
+
+    _FakeBatch.status = status
+
+    class _Batches:
+        @staticmethod
+        def retrieve(_id):
+            return _FakeBatch()
+
+    class _Client:
+        batches = _Batches()
+
+    monkeypatch.setattr(b, "_client", _Client())
+    assert b.poll("bid") == "failed"
+    return b.last_error
+
+
+def test_poll_without_error_detail_is_still_readable(monkeypatch):
+    # No errors payload: last_error must say something usable rather than the bare
+    # status word, which would land in report.md as the message "failed".
+    detail = _poll_without_error_detail(monkeypatch, "failed")
+    assert detail == "batch failed, no error detail reported"
+    # Still unclassified -> transient, so a detail-less failure earns its one resubmit.
+    assert classify_batch_error(detail)[0] == "transient"
+
+
+def test_poll_cancelled_without_detail_classifies_permanent(monkeypatch):
+    # The status word has to survive into last_error for cancelled batches, or the
+    # collect loop would resubmit a batch the host already gave up on.
+    detail = _poll_without_error_detail(monkeypatch, "cancelled")
+    assert classify_batch_error(detail)[0] == "permanent"
+
+
+def test_poll_error_detail_excludes_batch_id(monkeypatch):
+    # last_error is fed to classify_batch_error by substring match, so an id like
+    # "batch_404abc" must not be able to fake a permanent marker.
+    b = backends.OpenAICompatBatchBackend(
+        api_key="x", base_url="https://api.openai.com/v1", name="openai"
+    )
+
+    class _FakeBatch:
+        status = "failed"
+        errors = None
+
+    class _Batches:
+        @staticmethod
+        def retrieve(_id):
+            return _FakeBatch()
+
+    class _Client:
+        batches = _Batches()
+
+    monkeypatch.setattr(b, "_client", _Client())
+    b.poll("batch_404abc")
+    assert "404" not in b.last_error
+    assert classify_batch_error(b.last_error)[0] == "transient"

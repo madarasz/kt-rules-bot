@@ -4,31 +4,6 @@
     "query_id": "3badd111-01e0-48fa-9611-2048e0bbcef9",
     "document_chunks": [
       {
-        "chunk_id": "d80412b0-5ee1-4303-a392-b0a7ba6a0f17",
-        "document_id": "700988bc-724a-40e7-b4b7-540e3a14c7c3",
-        "text": "STRATEGY PHASE - 3. GAMBIT\nPlayers alternate using or passing on Strategic Gambits, including strategy ploys, with each gambit usable only once per turning point.\n## STRATEGY PHASE - 3. GAMBIT\n\n• Starting with the player who has initiative, each player alternates either using a **STRATEGIC GAMBIT** or passing. The players repeat this process until they have both passed in succession. Strategy ploys are the most common **STRATEGIC GAMBIT**, but any rule labelled **STRATEGIC GAMBIT** can be used. You cannot use each **STRATEGIC GAMBIT** more than once per turning point.\n\n> **Designer's Note:** CP (Command Points) are a valuable resource used to activate additional rules called ploys. An order token with the fighter side up shows an operative as **ready**.",
-        "header": "STRATEGY PHASE - 3. GAMBIT",
-        "header_level": 2,
-        "metadata": {
-          "section": "phases",
-          "document_id": "700988bc-724a-40e7-b4b7-540e3a14c7c3",
-          "position": 5,
-          "doc_type": "core-rules",
-          "filename": "rules-1-phases.md",
-          "source": "Core Rulebook",
-          "last_update_date": "2025-01-25",
-          "header_level": 2,
-          "header": "STRATEGY PHASE - 3. GAMBIT",
-          "summary": "Players alternate using or passing on Strategic Gambits, including strategy ploys, with each gambit usable only once per turning point.",
-          "vector_similarity": 0.8312625288963318,
-          "bm25_score": 41.986443302653484,
-          "rrf_score": 0.014084507042253521,
-          "rrf_normalized": 0.8595305164319249
-        },
-        "relevance_score": 0.8595305164319249,
-        "position_in_doc": 5
-      },
-      {
         "chunk_id": "46f92d0d-87ad-4105-a02b-b968c6570ea9",
         "document_id": "5bd60664-5b34-48d9-b913-ab4f95846361",
         "text": "## RETURN TO DARKNESS - Strategy Ploy\nOne friendly **NEMESIS CLAW** operative can immediately perform a free **Fall Back** or **Reposition** action, but it must end that move with **Heavy** terrain within its **control range**, or any part of its base underneath Vantage terrain. In addition, it cannot move more than 4\" during that action and it cannot end that move closer to enemy operatives (in a killzone that uses the close quarters rules, e.g. Killzone: Gallowdark, ignore Wall terrain when determining this).",
@@ -227,6 +202,31 @@
         },
         "relevance_score": 0.8919874804381847,
         "position_in_doc": 23
+      },
+      {
+        "chunk_id": "d80412b0-5ee1-4303-a392-b0a7ba6a0f17",
+        "document_id": "700988bc-724a-40e7-b4b7-540e3a14c7c3",
+        "text": "STRATEGY PHASE - 3. GAMBIT\nPlayers alternate using or passing on Strategic Gambits, including strategy ploys, with each gambit usable only once per turning point.\n## STRATEGY PHASE - 3. GAMBIT\n\n• Starting with the player who has initiative, each player alternates either using a **STRATEGIC GAMBIT** or passing. The players repeat this process until they have both passed in succession. Strategy ploys are the most common **STRATEGIC GAMBIT**, but any rule labelled **STRATEGIC GAMBIT** can be used. You cannot use each **STRATEGIC GAMBIT** more than once per turning point.\n\n> **Designer's Note:** CP (Command Points) are a valuable resource used to activate additional rules called ploys. An order token with the fighter side up shows an operative as **ready**.",
+        "header": "STRATEGY PHASE - 3. GAMBIT",
+        "header_level": 2,
+        "metadata": {
+          "section": "phases",
+          "document_id": "700988bc-724a-40e7-b4b7-540e3a14c7c3",
+          "position": 5,
+          "doc_type": "core-rules",
+          "filename": "rules-1-phases.md",
+          "source": "Core Rulebook",
+          "last_update_date": "2025-01-25",
+          "header_level": 2,
+          "header": "STRATEGY PHASE - 3. GAMBIT",
+          "summary": "Players alternate using or passing on Strategic Gambits, including strategy ploys, with each gambit usable only once per turning point.",
+          "vector_similarity": 0.8312625288963318,
+          "bm25_score": 41.986443302653484,
+          "rrf_score": 0.014084507042253521,
+          "rrf_normalized": 0.8595305164319249
+        },
+        "relevance_score": 0.8595305164319249,
+        "position_in_doc": 5
       },
       {
         "chunk_id": "ff1845ff-0e26-411a-b0fe-b906adda05ed",
@@ -498,8 +498,8 @@
         "position_in_doc": 3
       }
     ],
-    "total_chunks": 19,
-    "avg_relevance": 0.7609763369279735,
+    "total_chunks": 20,
+    "avg_relevance": 0.7659040459031711,
     "meets_threshold": true
   },
   "hop_evaluations": [

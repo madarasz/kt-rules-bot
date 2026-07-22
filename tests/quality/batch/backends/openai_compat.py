@@ -63,13 +63,15 @@ class OpenAICompatBatchBackend:
         if status in ("failed", "cancelled", "canceled"):
             # A whole-batch rejection carries its reason on `errors`, never in an
             # error file — read it here or it is lost for the rest of the run.
-            error_text = self._batch_error_text(batch)
-            # Cancelled batches without error detail must still classify as permanent
-            # so the collect loop skips resubmission. Use the status as fallback marker.
-            self.last_error = error_text or status
-            logger.error(
-                f"{self.name} batch {batch_id} {status}: {self.last_error}"
-            )
+            # The fallback keeps the status word so classify_batch_error still sees
+            # "cancelled"/"canceled" as permanent, while a detail-less "failed"
+            # stays unclassified (transient) and earns its one resubmit.
+            # Deliberately excludes name/batch_id: last_error is fed to
+            # classify_batch_error, and an id like "batch_404xyz" would match a
+            # permanent marker by accident. The caller adds that context itself.
+            detail = self._batch_error_text(batch)
+            self.last_error = detail or f"batch {status}, no error detail reported"
+            logger.error(f"{self.name} batch {batch_id} {status}: {self.last_error}")
             return "failed"
         return "in_progress"
 

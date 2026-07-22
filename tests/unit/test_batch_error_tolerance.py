@@ -419,5 +419,79 @@ def test_unbuildable_judge_item_is_recorded_not_dropped(monkeypatch):
     assert bad["attempts"] == 0
 
 
+def _resubmit_manifest(tmp_path) -> BatchManifest:
+    return BatchManifest(
+        phase="judge_submitted",
+        created_at=datetime.now(UTC).isoformat(),
+        models=[MODEL],
+        judge_model="gpt-4.1-mini",
+        runs=1,
+        test_ids=["t1"],
+        report_dir=str(tmp_path),
+        generation={"anthropic": {"batch_id": "b1", "status": "ended", "collected": True}},
+        judge={"openai": {"batch_id": "jb1", "status": "ended", "attempts": 0}},
+        requests=[_judge_row(1, status="failed_retryable", attempts=1)],
+        live_done=[],
+        contexts={},
+    )
+
+
+class _ExplodingBackend:
+    name = "openai"
+
+    @staticmethod
+    def submit(_lines):
+        raise AssertionError("submit() must not be called when there is nothing to send")
+
+
+def test_resubmit_judge_returns_none_when_nothing_rebuilds(tmp_path, monkeypatch):
+    """Every item failing to rebuild must yield None, not an empty batch submission.
+
+    submit([]) uploads a zero-byte JSONL that the host rejects, and the raise would
+    escape _collect_judge before manifest.save(), discarding that pass's scores.
+    """
+    manifest = _resubmit_manifest(tmp_path)
+    cid = manifest.requests[0]["custom_id"]
+
+    monkeypatch.setattr(backends_mod, "make_backend", lambda _n: _ExplodingBackend())
+    monkeypatch.setattr(LLMProviderFactory, "create", lambda _m: _Prov())
+    monkeypatch.setattr(
+        "tests.quality.output_parser.parse_output_directory",
+        lambda _d: [_POWithResponse(1, "this is not json")],
+    )
+    monkeypatch.setattr(
+        "tests.quality.metadata_generator.MetadataGenerator"
+        ".extract_deterministic_metrics_from_metadata",
+        staticmethod(lambda _m: {"llm_quotes_structured": []}),
+    )
+    runner = object.__new__(QualityTestRunner)
+    monkeypatch.setattr(runner, "_load_test_cases_for_outputs", lambda _p: {"t1": _JudgeableTC()})
+
+    assert runner._resubmit_judge(manifest, "openai", {cid}) is None
+
+    row = manifest.rows_by_custom_id("judge")[cid]
+    assert row["status"] == "failed_permanent"
+    assert "Invalid JSON from LLM" in row["error"]
+    # One row, not a duplicate appended alongside the original.
+    assert len([r for r in manifest.requests if r["custom_id"] == cid]) == 1
+
+
+def test_resubmit_judge_returns_none_when_provider_unavailable(tmp_path, monkeypatch):
+    """A missing judge API key retires the items with a readable reason, not None.build_batch_request."""
+    manifest = _resubmit_manifest(tmp_path)
+    cid = manifest.requests[0]["custom_id"]
+
+    monkeypatch.setattr(backends_mod, "make_backend", lambda _n: _ExplodingBackend())
+    monkeypatch.setattr(LLMProviderFactory, "create", lambda _m: None)
+    runner = object.__new__(QualityTestRunner)
+
+    assert runner._resubmit_judge(manifest, "openai", {cid}) is None
+
+    row = manifest.rows_by_custom_id("judge")[cid]
+    assert row["status"] == "failed_permanent"
+    assert "missing API key" in row["error"]
+    assert row["error_class"] == "permanent"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
