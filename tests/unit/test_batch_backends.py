@@ -1,9 +1,9 @@
 """Tests for batch backends and model->backend routing (no network)."""
 
+from src.services.llm.batch import backends
+from src.services.llm.batch.backends import batch_group_key, make_backend, resolve_backend
+from src.services.llm.batch.errors import classify_batch_error
 from src.services.llm.qwen import QwenAdapter
-from tests.quality.batch import backends
-from tests.quality.batch.backends import batch_group_key, make_backend, resolve_backend
-from tests.quality.batch.errors import classify_batch_error
 
 
 def test_resolve_backend_routing():

@@ -127,6 +127,16 @@ class KeywordExtractor:
 
         return added_count
 
+    def clear_keywords(self) -> None:
+        """Drop every loaded keyword.
+
+        The library is otherwise append-only, so keywords from headers that were
+        edited or deleted linger forever. A full rebuild starts from empty and
+        re-extracts everything, which prunes them.
+        """
+        logger.info("keywords_cleared", previous_count=len(self.keywords))
+        self.keywords = set()
+
     def save_keywords(self) -> None:
         """Save keywords to cache file."""
         # Ensure parent directory exists

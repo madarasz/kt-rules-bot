@@ -14,8 +14,18 @@ source venv/bin/activate
 pip install -r requirements.txt
 cp config/.env.template config/.env  # Add your API keys
 
-# Ingest rules
+# Ingest rules (incremental: only changed files are re-summarized + re-embedded)
 python -m src.cli ingest extracted-rules/
+
+# Ingest with Batch API summaries (cheaper; resume with --batch-collect if interrupted)
+python -m src.cli ingest extracted-rules/ --batch
+
+# Full rebuild (reset collection, re-ingest everything)
+python -m src.cli ingest extracted-rules/ --force
+
+# Ship the local vector store to the deployed server (no re-ingestion there)
+./scripts/sync_vector_db.sh --dry-run user@host   # preview
+./scripts/sync_vector_db.sh user@host
 
 # Test locally (full pipeline)
 python -m src.cli query "Can I use overwatch against a charge?"
@@ -58,6 +68,8 @@ python3 scripts/migrate_db.py
 - Query normalization for case-insensitive keyword matching
 - ChromaDB + text-embedding-3-small
 - 1300+ game-specific keywords auto-extracted from rules
+- Incremental ingestion: deterministic (uuid5) document/chunk ids + a per-file hash state
+  file, so only changed markdown is re-summarized and re-embedded; optional Batch API
 
 **LLM Providers** (via factory pattern):
 - Claude: `claude-4.5-sonnet`, `claude-4.1-opus`, `claude-4.5-haiku`
@@ -80,6 +92,7 @@ src/
     discord/    → Bot orchestration, handlers, context management
     rag/        → Hybrid retrieval (vector + BM25), embeddings, chunking, ingestion
     llm/        → Multi-provider LLM integration (Claude, GPT, Gemini, Grok)
+      batch/    → Provider Batch API backends, shared by quality tests + ingestion
 
 tests/
   unit/         → Module/function tests
@@ -94,9 +107,10 @@ config/
   .env            → Global API keys (gitignored, see .env.template)
   servers.yaml    → Per-server API keys (optional, gitignored, see servers.yaml.template)
 data/
-  chroma_db/      → Vector database (ChromaDB)
+  chroma_db/      → Vector database (ChromaDB). Chunk summaries live here, in metadata
   rag_keywords.json → Auto-extracted keyword library for query normalization
-  analytics.db    → Optional analytics database (if enabled)
+  ingestion_state.json → Per-file hashes + config fingerprint (incremental ingestion)
+  analytics.db    → Optional analytics database (if enabled). NEVER synced to/from prod
 ```
 
 **Notes**:

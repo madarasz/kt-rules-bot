@@ -2,7 +2,7 @@
 discord.py>=2.3.2
 
 # RAG & LLM
-chromadb>=0.4.0
+chromadb==1.3.5  # Pinned: the on-disk store is copied Mac->server (scripts/sync_vector_db.sh), and a different major version may not read the sqlite schema
 anthropic>=0.74.1  # Latest version with structured outputs beta support (Nov 2025)
 openai>=2.8.1  # Latest version released Nov 2025
 google-genai>=2.12.0  # New unified Google GenAI SDK (replaces google-generativeai), GA since May 2025; >=2.12 needed for InlinedResponse.metadata key echo in batch collect

@@ -2,7 +2,7 @@
 
 import pytest
 
-from tests.quality.batch.errors import (
+from src.services.llm.batch.errors import (
     CLASS_PERMANENT,
     CLASS_TRANSIENT,
     classify_batch_error,
@@ -94,7 +94,7 @@ def test_extract_item_error_grok_gemini_shape():
 
 def test_openai_backend_fetch_reads_error_file():
     """A failed OpenAI item lives in the error file, previously never read."""
-    from tests.quality.batch.backends import OpenAICompatBatchBackend
+    from src.services.llm.batch.backends import OpenAICompatBatchBackend
 
     class _Files:
         def content(self, file_id):

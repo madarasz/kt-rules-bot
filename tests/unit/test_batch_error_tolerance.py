@@ -7,8 +7,8 @@ from datetime import UTC, datetime
 
 import pytest
 
+from src.services.llm.batch import backends as backends_mod
 from src.services.llm.factory import LLMProviderFactory
-from tests.quality.batch import backends as backends_mod
 from tests.quality.batch.manifest import BatchManifest
 from tests.quality.reporting.report_models import IndividualTestResult
 from tests.quality.test_runner import QualityTestRunner
@@ -321,7 +321,7 @@ def test_judge_item_retry_recovers(tmp_path, monkeypatch):
 
     def _fake_score_item(_m, _bn, row, item, _tc, _j, _ja):
         if item.get("error"):
-            from tests.quality.batch.errors import classify_batch_error
+            from src.services.llm.batch.errors import classify_batch_error
 
             cls, _r = classify_batch_error(item["error"])
             row["error"] = item["error"]

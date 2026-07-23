@@ -5,8 +5,8 @@ unquantified "reduced" discount. These tests fix the transport/poll logic and
 the request/parse scaffold; live fidelity is smoke-confirmable only."""
 
 from src.services.llm.base import GenerationConfig, GenerationRequest
+from src.services.llm.batch.backends import GrokBatchBackend
 from src.services.llm.grok import GrokAdapter
-from tests.quality.batch.backends import GrokBatchBackend
 
 
 def _req():

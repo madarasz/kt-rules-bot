@@ -69,6 +69,60 @@ class ChunkSummarizer:
         self.model = SUMMARY_LLM_MODEL
         logger.info(f"Initialized ChunkSummarizer with model: {SUMMARY_LLM_MODEL}")
 
+    def build_request(self, chunks: list[MarkdownChunk]) -> GenerationRequest:
+        """Build the summarization request for one file's chunks.
+
+        Shared by the live path below and the Batch API path
+        (src/services/rag/summarizer_batch.py), so both send byte-identical
+        prompts and the summaries they produce are interchangeable.
+        """
+        chunk_input = self._format_chunks_for_llm(chunks)
+
+        # For Claude: split into cache-control blocks (static instructions cached,
+        # dynamic data not). For all other providers: plain string.
+        from src.services.llm.claude import ClaudeAdapter
+        from src.services.llm.prompt_builder import CACHE_BREAK_MARKER, split_user_prompt_for_cache
+
+        if isinstance(self.provider, ClaudeAdapter):
+            full_prompt = split_user_prompt_for_cache(
+                f"{self.summary_prompt}{CACHE_BREAK_MARKER}\n\n{chunk_input}"
+            )
+        else:
+            full_prompt = f"{self.summary_prompt}\n\n{chunk_input}"
+
+        config = GenerationConfig(
+            max_tokens=LLM_DEFAULT_MAX_TOKENS * 3,
+            temperature=0.3,
+            system_prompt=(
+                "You are a technical writer creating concise summaries for game rules "
+                "documentation."
+            ),
+            structured_output_schema="chunk_summaries",
+        )
+
+        return GenerationRequest(
+            prompt=full_prompt,
+            context=[],  # No RAG context needed for summarization
+            chunk_ids=[],  # Empty list for non-RAG requests
+            config=config,
+        )
+
+    @staticmethod
+    def apply_summaries(chunks: list[MarkdownChunk], summaries_response: ChunkSummaries) -> int:
+        """Copy structured summaries onto chunks in place; returns how many matched.
+
+        Chunk numbers are 1-based and follow `_format_chunks_for_llm` ordering.
+        """
+        summaries_dict = {cs.chunk_number: cs.summary for cs in summaries_response.summaries}
+        for i, chunk in enumerate(chunks, start=1):
+            if i in summaries_dict:
+                chunk.summary = summaries_dict[i]
+                logger.debug(f"Chunk {i}: '{chunk.header}' -> '{chunk.summary}'")
+            else:
+                chunk.summary = ""
+                logger.warning(f"No summary generated for chunk {i}: '{chunk.header}'")
+        return len(summaries_dict)
+
     async def generate_summaries(
         self, chunks: list[MarkdownChunk]
     ) -> tuple[list[MarkdownChunk], int, int, int, int, str]:
@@ -106,38 +160,7 @@ class ChunkSummarizer:
             return (chunks, 0, 0, 0, 0, "")
 
         try:
-            # Build input text with numbered chunks
-            chunk_input = self._format_chunks_for_llm(chunks)
-
-            # For Claude: split into cache-control blocks (static instructions cached, dynamic data not).
-            # For all other providers: plain string.
-            from src.services.llm.claude import ClaudeAdapter
-            from src.services.llm.prompt_builder import (
-                CACHE_BREAK_MARKER,
-                split_user_prompt_for_cache,
-            )
-
-            if isinstance(self.provider, ClaudeAdapter):
-                full_prompt = split_user_prompt_for_cache(
-                    f"{self.summary_prompt}{CACHE_BREAK_MARKER}\n\n{chunk_input}"
-                )
-            else:
-                full_prompt = f"{self.summary_prompt}\n\n{chunk_input}"
-
-            # Configure the generation request
-            config = GenerationConfig(
-                max_tokens=LLM_DEFAULT_MAX_TOKENS * 3,
-                temperature=0.3,
-                system_prompt="You are a technical writer creating concise summaries for game rules documentation.",
-                structured_output_schema="chunk_summaries",
-            )
-
-            request = GenerationRequest(
-                prompt=full_prompt,
-                context=[],  # No RAG context needed for summarization
-                chunk_ids=[],  # Empty list for non-RAG requests
-                config=config,
-            )
+            request = self.build_request(chunks)
 
             # Make LLM call with structured output
             logger.info(f"Generating summaries for {len(chunks)} chunks...")
@@ -163,22 +186,10 @@ class ChunkSummarizer:
             cache_read_tokens = response.cache_read_tokens
             cache_creation_tokens = response.cache_creation_tokens
 
-            # Parse summaries from structured output
-            summaries_dict = {}
-            for chunk_summary in summaries_response.summaries:
-                summaries_dict[chunk_summary.chunk_number] = chunk_summary.summary
-
-            # Assign summaries to chunks
-            for i, chunk in enumerate(chunks, start=1):
-                if i in summaries_dict:
-                    chunk.summary = summaries_dict[i]
-                    logger.debug(f"Chunk {i}: '{chunk.header}' -> '{chunk.summary}'")
-                else:
-                    chunk.summary = ""
-                    logger.warning(f"No summary generated for chunk {i}: '{chunk.header}'")
+            matched = self.apply_summaries(chunks, summaries_response)
 
             logger.info(
-                f"Successfully generated {len(summaries_dict)}/{len(chunks)} summaries "
+                f"Successfully generated {matched}/{len(chunks)} summaries "
                 f"(prompt: {prompt_tokens} tokens, completion: {completion_tokens} tokens, "
                 f"cache_read: {cache_read_tokens} tokens, latency: {latency_ms}ms)"
             )
