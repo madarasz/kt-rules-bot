@@ -33,8 +33,11 @@ class GrokBatchBackend:
             )
         return self._http
 
-    def submit(self, lines: list[dict]) -> str:
-        created = self.http.post("/batches", json={"name": "quality-test"})
+    def submit(self, lines: list[dict], label: str = "quality-test") -> str:
+        # `label` is the human-readable batch name in the xAI console; callers other
+        # than the quality-test runner (e.g. RAG ingestion) pass their own so the
+        # submissions are distinguishable there.
+        created = self.http.post("/batches", json={"name": label})
         created.raise_for_status()
         batch_id = created.json()["batch_id"]
         payload = {

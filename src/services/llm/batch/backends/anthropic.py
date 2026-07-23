@@ -29,7 +29,7 @@ class AnthropicBatchBackend:
             )
         return self._client
 
-    def submit(self, lines: list[dict]) -> str:
+    def submit(self, lines: list[dict], label: str = "quality-test") -> str:  # noqa: ARG002 - no name field in this API
         # lines are {custom_id, params}; the SDK accepts plain dicts as requests.
         batch = self.client.messages.batches.create(requests=lines)
         logger.info(f"Submitted Anthropic batch {batch.id} ({len(lines)} requests)")

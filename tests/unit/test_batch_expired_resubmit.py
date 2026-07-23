@@ -1,6 +1,6 @@
 """Whole-batch `expired` poll status is reported distinctly (for resubmission)."""
 
-from tests.quality.batch.backends import OpenAICompatBatchBackend
+from src.services.llm.batch.backends import OpenAICompatBatchBackend
 
 
 class _FakeBatches:
@@ -36,8 +36,8 @@ def test_collect_generation_expired_resubmits(tmp_path, monkeypatch):
     import asyncio
     from datetime import UTC, datetime
 
+    from src.services.llm.batch import backends as backends_mod
     from src.services.llm.factory import LLMProviderFactory
-    from tests.quality.batch import backends as backends_mod
     from tests.quality.batch.manifest import BatchManifest
     from tests.quality.test_runner import QualityTestRunner
 

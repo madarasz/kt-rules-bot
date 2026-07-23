@@ -617,7 +617,7 @@ class QualityTestRunner:
         time overlaps the local live generations instead of queuing behind them."""
         from uuid import uuid4
 
-        from tests.quality.batch.backends import batch_group_key, resolve_backend
+        from src.services.llm.batch.backends import batch_group_key, resolve_backend
         from tests.quality.batch.manifest import BatchManifest
 
         test_cases = self.load_test_cases(test_id)
@@ -797,8 +797,8 @@ class QualityTestRunner:
 
     async def _collect_generation(self, manifest) -> str:
         from src.lib.constants import QUALITY_TEST_MAX_BATCH_ITEM_RETRIES
-        from tests.quality.batch.backends import make_backend, resolve_backend
-        from tests.quality.batch.errors import classify_batch_error
+        from src.services.llm.batch.backends import make_backend, resolve_backend
+        from src.services.llm.batch.errors import classify_batch_error
         from tests.quality.output_parser import parse_output_directory
 
         report_dir = Path(manifest.report_dir)
@@ -965,7 +965,7 @@ class QualityTestRunner:
         Returns an outcome for the caller's retry logic: ("succeeded", None) after
         the output file is written, or ("error", error_text) when the item could
         not be parsed (the caller classifies + decides whether to re-request)."""
-        from tests.quality.batch.errors import extract_item_error
+        from src.services.llm.batch.errors import extract_item_error
         from tests.quality.quality_evaluator import QualityMetrics
 
         model = meta["model"]
@@ -1061,7 +1061,7 @@ class QualityTestRunner:
         marked failed_permanent — so it can't disappear between submit and scoring.
         When custom_ids is given, only those judge items are (re)built — used both
         for the initial submit and for resubmitting just the failed_retryable items."""
-        from tests.quality.batch.errors import CLASS_PERMANENT
+        from src.services.llm.batch.errors import CLASS_PERMANENT
         from tests.quality.batch.manifest import BatchManifest
 
         def base_row(cid: str, meta, test_id: str) -> dict:
@@ -1162,8 +1162,8 @@ class QualityTestRunner:
         judge scores from that pass are saved. On a None return the affected rows
         are already marked failed_permanent, so the caller finalizes rather than
         waiting on a batch that will never exist."""
-        from tests.quality.batch.backends import make_backend
-        from tests.quality.batch.errors import CLASS_PERMANENT
+        from src.services.llm.batch.backends import make_backend
+        from src.services.llm.batch.errors import CLASS_PERMANENT
         from tests.quality.custom_judge import CustomJudge
         from tests.quality.output_parser import parse_output_directory
 
@@ -1229,7 +1229,7 @@ class QualityTestRunner:
         failure classifies transient vs permanent and marks the row failed_retryable
         (if under the retry cap) or failed_permanent."""
         from src.lib.constants import QUALITY_TEST_MAX_BATCH_ITEM_RETRIES
-        from tests.quality.batch.errors import classify_batch_error, extract_item_error
+        from src.services.llm.batch.errors import classify_batch_error, extract_item_error
 
         try:
             judge_response = judge_adapter.parse_batch_result(item)
@@ -1268,8 +1268,8 @@ class QualityTestRunner:
                 row["status"] = "failed_permanent"
 
     async def _collect_judge(self, manifest) -> str:
-        from tests.quality.batch.backends import make_backend
-        from tests.quality.batch.errors import classify_batch_error
+        from src.services.llm.batch.backends import make_backend
+        from src.services.llm.batch.errors import classify_batch_error
         from tests.quality.batch.manifest import BatchManifest
         from tests.quality.custom_judge import CustomJudge
         from tests.quality.output_parser import parse_output_directory

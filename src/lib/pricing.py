@@ -219,7 +219,7 @@ def batch_discount_for(backend: str | None) -> float:
     """Return the batch discount fraction for a backend name (default 0.5).
 
     OpenAI-compatible callers pass a compound `"backend::model"` group key
-    (see `tests/quality/batch/backends.py::batch_group_key`) since those
+    (see `src/services/llm/batch/backends/__init__.py::batch_group_key`) since those
     providers batch one model per submission; strip the model suffix so the
     lookup still hits BATCH_DISCOUNT's bare backend names instead of silently
     falling through to the default.

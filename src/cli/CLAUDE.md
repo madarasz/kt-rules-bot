@@ -38,10 +38,36 @@ python -m src.cli run --mode production
 ```
 
 ### `ingest`
-Ingest markdown rules from a directory into the vector database.
+Ingest markdown rules from a directory into the vector database. **Incremental by
+default**: files whose content hash is unchanged since the last run are skipped entirely
+(no summary call, no embedding call, no write).
+
 ```bash
-python -m src.cli ingest extracted-rules/ --force
+python -m src.cli ingest extracted-rules/                  # incremental
+python -m src.cli ingest extracted-rules/ --batch          # batch-API summaries (cheaper)
+python -m src.cli ingest extracted-rules/ --batch-collect   # resume an interrupted --batch
+python -m src.cli ingest extracted-rules/ --force           # full rebuild (reset + all)
 ```
+
+**Options**:
+- `--force`: reset the collection and re-ingest everything. Also happens automatically
+  when the config fingerprint changes (chunk level, embedding model, summary model,
+  summary prompt) or when there is no state file.
+- `--batch`: summarize through the provider Batch API, then wait. Mutually exclusive with
+  `--batch-collect`.
+- `--batch-collect`: resume a `--batch` run whose wait was interrupted; every batch id
+  (including each retry's) is persisted before polling starts, so nothing is resubmitted
+  or re-billed. Refuses — without discarding the batch — if the config fingerprint,
+  `SUMMARY_LLM_MODEL`, or the source directory changed since submission.
+
+State lives in `data/ingestion_state.json`, and records the source directory it was built
+from. Ingesting a *different* tree (e.g. one subdirectory) is refused rather than treating
+every file outside it as deleted; use `--force` to re-point the state. Deleted source
+files have their chunks removed. See
+[src/services/rag/CLAUDE.md](../services/rag/CLAUDE.md#incremental-ingestion).
+
+Note there is no `python -m src.cli.ingest_rules` entry point — the flags are defined once,
+here, in [__main__.py](__main__.py).
 
 ### `query`
 Test RAG + LLM pipeline locally without Discord.

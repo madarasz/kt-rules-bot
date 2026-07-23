@@ -23,6 +23,7 @@ from src.lib.logging import get_logger
 from src.models.rule_document import RuleDocument
 from src.services.rag.chunker import MarkdownChunker
 from src.services.rag.embeddings import EmbeddingService
+from src.services.rag.ingestion_state import IngestionState
 from src.services.rag.ingestor import RAGIngestor
 from src.services.rag.validator import DocumentValidator
 from src.services.rag.vector_db import VectorDBService
@@ -341,6 +342,20 @@ class RAGSweepRunner:
         """
         print("\n🗑️  Resetting vector database...")
 
+        # This sweep repopulates the shared collection with non-default chunking and
+        # embedding parameters. Clear the incremental-ingestion state first, or a
+        # later `python -m src.cli ingest extracted-rules/` would find a matching
+        # fingerprint, report "nothing to ingest", and leave the sweep's store live.
+        state = IngestionState.load()
+        if state.files or state.fingerprint or state.batch:
+            if state.batch:
+                print("   ⚠️  Discarding an in-flight ingestion batch (already submitted/billed)")
+            state.files = {}
+            state.batch = None
+            state.fingerprint = {}
+            state.save()
+            print("   Cleared ingestion state (next `ingest` will rebuild)")
+
         # Reset vector DB
         vector_db = VectorDBService()
         count_before = vector_db.get_count()
@@ -364,18 +379,28 @@ class RAGSweepRunner:
         for md_file in markdown_files:
             try:
                 content = md_file.read_text(encoding="utf-8")
+                relative_path = md_file.relative_to(rules_dir).as_posix()
 
                 # Validate and extract metadata
-                is_valid, error, metadata = validator.validate_content(content, md_file.name)
+                is_valid, error, metadata = validator.validate_content(content, relative_path)
 
                 if not is_valid:
-                    logger.warning(f"Skipping {md_file.name}: {error}")
-                    print(f"   ⚠️  Skipping {md_file.name}: {error}")
+                    logger.warning(f"Skipping {relative_path}: {error}")
+                    print(f"   ⚠️  Skipping {relative_path}: {error}")
                     continue
 
-                # Create RuleDocument using the class method
+                # Create RuleDocument using the class method. `relative_path` must
+                # match what `src/cli/ingest_rules.py` passes: document_id is
+                # uuid5(namespace, relative_path), so omitting it here would key the
+                # sweep's documents on the bare basename — a different id from the
+                # CLI's for the same file (leaving undeletable duplicates behind),
+                # and a shared id for any two files with the same basename in
+                # different subdirectories.
                 doc = RuleDocument.from_markdown_file(
-                    filename=md_file.name, content=content, metadata=metadata
+                    filename=md_file.name,
+                    content=content,
+                    metadata=metadata,
+                    relative_path=relative_path,
                 )
                 documents.append(doc)
             except Exception as e:

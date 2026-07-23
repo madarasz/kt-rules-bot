@@ -4,8 +4,8 @@ and the google-genai backend poll mapping."""
 import json
 
 from src.services.llm.base import GenerationConfig, GenerationRequest
+from src.services.llm.batch.backends import GeminiBatchBackend
 from src.services.llm.gemini import GeminiAdapter
-from tests.quality.batch.backends import GeminiBatchBackend
 
 
 def test_gemini_build_batch_request_has_schema_and_sentence_map():

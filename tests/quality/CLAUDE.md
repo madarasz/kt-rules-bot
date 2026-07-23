@@ -290,7 +290,7 @@ stays wired for whenever a batchable alias is registered.
 **One model per OpenAI-compat batch:** OpenAI's `/v1/batches` (and the compat hosts
 Kimi/Qwen) reject a batch mixing models (`mismatched_model`), so those backends
 submit **one batch per model** — the manifest groups them by a `name::model` key
-(`batch_group_key`, `tests/quality/batch/backends.py`), not the bare backend name.
+(`batch_group_key`, `src/services/llm/batch/backends/`), not the bare backend name.
 Mixed-model batches are fine on Anthropic/Gemini/Grok/Mistral (one batch per backend).
 OpenAI also rejects its own `*-chat-latest` aliases from the Batch API
 (`model_not_found`); `ChatGPTAdapter.batch_supports_model` excludes them so they route
@@ -313,7 +313,7 @@ cache-savings line, plus a combined total. Per-result savings are stored in each
 `output_*.md` metadata (`batch`, `batch_savings_usd`) and re-derived on collect.
 
 **Error tolerance:** individual batch items (generation **and** judge) that fail are
-classified transient vs permanent (`tests/quality/batch/errors.py`) and the transient
+classified transient vs permanent (`src/services/llm/batch/errors.py`) and the transient
 ones are **re-requested**, bounded by `QUALITY_TEST_MAX_BATCH_ITEM_RETRIES` (default 2,
 in `src/lib/constants.py`). Each re-request is a fresh small batch picked up on the next
 `batch-collect`, so the backoff is the gap between collect passes (no in-process sleep).

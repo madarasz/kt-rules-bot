@@ -229,7 +229,7 @@ def test_no_effort_leaves_request_unchanged(request_):
 # Batch registry lookup strips the postfix
 # --------------------------------------------------------------------------- #
 def test_resolve_backend_strips_postfix():
-    from tests.quality.batch.backends import resolve_backend
+    from src.services.llm.batch.backends import resolve_backend
 
     assert type(resolve_backend("gpt-5.5#high")) is type(resolve_backend("gpt-5.5"))
     assert resolve_backend("gpt-5.5#high") is not None

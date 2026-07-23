@@ -37,7 +37,7 @@ class GeminiBatchBackend:
             self._client = genai.Client(api_key=self.api_key)
         return self._client
 
-    def submit(self, lines: list[dict]) -> str:
+    def submit(self, lines: list[dict], label: str = "quality-test") -> str:  # noqa: ARG002 - no name field in this API
         # lines: [{custom_id, model, request:{contents, config}, _gemini_sentences}]
         # google-genai inline batch validates each src item as an InlinedRequest
         # (fields: model/contents/metadata/config) — NOT the file-JSONL

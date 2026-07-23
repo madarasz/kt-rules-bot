@@ -223,7 +223,35 @@ def test_main_routes_ingest_command(mock_ingest):
             main()
 
         # Verify ingest_rules was called
-        mock_ingest.assert_called_once_with(source_dir="./rules", force=True)
+        mock_ingest.assert_called_once_with(
+            source_dir="./rules", force=True, batch=False, batch_collect=False
+        )
+
+
+@patch("src.cli.__main__.ingest_rules")
+def test_main_routes_ingest_batch_flag(mock_ingest):
+    """Test that 'ingest --batch' reaches ingest_rules."""
+    with patch("sys.argv", ["cli", "ingest", "./rules", "--batch"]):
+        from src.cli.__main__ import main
+
+        with contextlib.suppress(SystemExit):
+            main()
+
+        mock_ingest.assert_called_once_with(
+            source_dir="./rules", force=False, batch=True, batch_collect=False
+        )
+
+
+def test_ingest_batch_flags_are_mutually_exclusive(capsys):
+    """--batch and --batch-collect cannot be combined (argparse rejects it)."""
+    with patch("sys.argv", ["cli", "ingest", "./rules", "--batch", "--batch-collect"]):
+        from src.cli.__main__ import main
+
+        with pytest.raises(SystemExit) as exc:
+            main()
+
+        assert exc.value.code != 0
+        assert "not allowed with argument" in capsys.readouterr().err
 
 
 def test_main_routes_query_command():

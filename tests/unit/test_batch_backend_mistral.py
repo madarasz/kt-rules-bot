@@ -3,8 +3,8 @@
 import json
 
 from src.services.llm.base import GenerationConfig, GenerationRequest
+from src.services.llm.batch.backends import MistralBatchBackend
 from src.services.llm.mistral import MistralAdapter
-from tests.quality.batch.backends import MistralBatchBackend
 
 
 def _req():
