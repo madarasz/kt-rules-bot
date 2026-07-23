@@ -5,17 +5,17 @@ Implements ingest() method from specs/001-we-are-building/contracts/rag-pipeline
 
 import asyncio
 import time
-from dataclasses import dataclass
-from uuid import UUID, uuid4
+from dataclasses import dataclass, field
+from uuid import UUID, uuid4, uuid5
 
 from src.lib.constants import SUMMARY_ENABLED
 from src.lib.logging import get_logger
 from src.lib.pricing import calculate_llm_cost
 from src.models.rule_document import RuleDocument
-from src.services.rag.chunker import MarkdownChunker
+from src.services.rag.chunker import MarkdownChunk, MarkdownChunker
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.keyword_extractor import KeywordExtractor
-from src.services.rag.summarizer import ChunkSummarizer
+from src.services.rag.summarizer import ChunkSummarizer, summaries_complete
 from src.services.rag.vector_db import VectorDBService
 
 logger = get_logger(__name__)
@@ -34,6 +34,13 @@ class IngestionResult:
     duration_seconds: float
     summary_cost_usd: float = 0.0  # Total cost of summary generation (discounted, if enabled)
     summary_cache_savings_usd: float = 0.0  # Saved by prompt caching vs. full price
+    chunks_by_path: dict[str, int] = field(default_factory=dict)  # relative path -> chunk count
+    # Relative paths ingested with empty summaries because summarization failed.
+    # The chunks are usable (summaries only enrich BM25), but the caller must not
+    # record them as cleanly ingested, or incremental runs would never retry them.
+    summary_failed_paths: set[str] = field(default_factory=set)
+    # Batch-API costs are not tracked here: batched summaries are paid for before
+    # ingest() is called, and reported by BatchSummarizer as BatchCosts.
 
 
 class InvalidDocumentError(Exception):
@@ -81,13 +88,17 @@ class RAGIngestor:
         self.vector_db = vector_db_service or VectorDBService(db_path=db_path)
         self.keyword_extractor = keyword_extractor or KeywordExtractor()
         self.summarizer = summarizer or (ChunkSummarizer() if SUMMARY_ENABLED else None)
-        self.document_hashes: dict[str, str] = {}  # filename -> hash mapping
 
         logger.info(
             "rag_ingestor_initialized", summary_generation_enabled=SUMMARY_ENABLED
         )
 
-    def ingest(self, documents: list[RuleDocument]) -> IngestionResult:
+    def ingest(
+        self,
+        documents: list[RuleDocument],
+        prepared_chunks: dict[str, list[MarkdownChunk]] | None = None,
+        flush_keywords: bool = True,
+    ) -> IngestionResult:
         """Ingest rule documents into the RAG system.
 
         Implements the RAG pipeline contract from contracts/rag-pipeline.md.
@@ -100,6 +111,14 @@ class RAGIngestor:
 
         Args:
             documents: List of RuleDocument objects
+            prepared_chunks: Optional {relative_path: chunks} whose summaries are
+                already populated (the Batch API path). Those documents skip the
+                chunk + live-summarize steps; everything else is unchanged.
+            flush_keywords: Write the keyword library to disk at the end of this
+                call. Callers that invoke ingest() once per document (so a crash
+                cannot discard finished work) should pass False and call
+                `keyword_extractor.save_keywords()` once, instead of rewriting the
+                whole library N times.
 
         Returns:
             IngestionResult with statistics
@@ -107,6 +126,7 @@ class RAGIngestor:
         Raises:
             VectorDBWriteError: If vector DB write fails (aborts job)
         """
+        prepared_chunks = prepared_chunks or {}
         start_time = time.time()
         job_id = uuid4()
 
@@ -118,6 +138,8 @@ class RAGIngestor:
         errors: list[str] = []
         warnings: list[str] = []
         all_chunks = []  # Collect all chunks for keyword extraction
+        chunks_by_path: dict[str, int] = {}  # For the caller's state file
+        summary_failed_paths: set[str] = set()
 
         logger.info("ingestion_started", job_id=str(job_id), document_count=len(documents))
 
@@ -136,8 +158,14 @@ class RAGIngestor:
                         deleted_embeddings=deleted_count,
                     )
 
-                # Chunk the document
-                chunks = self.chunker.chunk(document.content)
+                # Chunk the document, unless the caller already did it and attached
+                # summaries (batch path — its cost is accounted for by the caller).
+                presummarized = prepared_chunks.get(document.relative_path or document.filename)
+                if presummarized is not None:
+                    chunks = presummarized
+                else:
+                    chunks = self.chunker.chunk(document.content)
+                    self.assign_chunk_ids(document, chunks)
 
                 # Collect chunks for keyword extraction
                 all_chunks.extend(chunks)
@@ -149,7 +177,7 @@ class RAGIngestor:
                 )
 
                 # Generate summaries for chunks (if enabled)
-                if self.summarizer:
+                if self.summarizer and presummarized is None:
                     (
                         chunks,
                         prompt_tokens,
@@ -175,6 +203,25 @@ class RAGIngestor:
                             cost_usd=f"${breakdown.total_cost:.4f}",
                             cache_savings_usd=f"${breakdown.cache_savings:.4f}",
                         )
+                # Judge success by the summaries themselves, not by token count, and
+                # do it for *both* paths. generate_summaries() reports outright failure
+                # as zero tokens and blanks every summary, but a truncated response
+                # bills tokens while apply_summaries() blanks only the chunks it did
+                # not cover; and pre-summarized chunks can arrive blank too, because
+                # the batch path's own live fallback can fail. Either way the file must
+                # stay out of the state, otherwise a transient API blip permanently
+                # costs this document its summaries — incremental runs never revisit a
+                # file recorded as clean.
+                if self.summarizer and chunks and not summaries_complete(chunks):
+                    summary_failed_paths.add(document.relative_path or document.filename)
+                    logger.warning(
+                        "summaries_incomplete_will_retry_next_run",
+                        document_id=str(document.document_id),
+                        filename=document.filename,
+                        presummarized=presummarized is not None,
+                        with_summary=sum(1 for c in chunks if c.summary),
+                        chunk_count=len(chunks),
+                    )
 
                 # Generate embeddings for chunks
                 # Use original chunk text only (summary stored in metadata)
@@ -194,6 +241,7 @@ class RAGIngestor:
                         "header_level": chunk.header_level,
                         "position": chunk.position,
                         "filename": document.filename,
+                        "relative_path": document.relative_path or document.filename,
                         "summary": chunk.summary,  # Add summary to metadata
                     }
                     for chunk in chunks
@@ -207,9 +255,7 @@ class RAGIngestor:
 
                     embedding_count += len(embeddings)
                     documents_processed += 1
-
-                    # Store document hash for deduplication
-                    self.document_hashes[document.filename] = document.hash
+                    chunks_by_path[document.relative_path or document.filename] = len(chunks)
 
                     logger.info(
                         "document_ingested",
@@ -251,7 +297,8 @@ class RAGIngestor:
         if all_chunks:
             keywords = self.keyword_extractor.extract_from_chunks(all_chunks)
             added_count = self.keyword_extractor.add_keywords(keywords)
-            self.keyword_extractor.save_keywords()
+            if flush_keywords:
+                self.keyword_extractor.save_keywords()
 
             logger.info(
                 "keywords_updated",
@@ -270,6 +317,8 @@ class RAGIngestor:
             duration_seconds=duration,
             summary_cost_usd=total_summary_cost,
             summary_cache_savings_usd=total_cache_savings,
+            chunks_by_path=chunks_by_path,
+            summary_failed_paths=summary_failed_paths,
         )
 
         logger.info(
@@ -284,6 +333,29 @@ class RAGIngestor:
         )
 
         return result
+
+    def delete_document(self, document_id: str | UUID) -> int:
+        """Remove every chunk of a document from the vector store.
+
+        Used when a markdown file disappears from the source tree — without this
+        its chunks would keep being retrieved forever.
+
+        Returns:
+            Number of embeddings deleted.
+        """
+        doc_uuid = document_id if isinstance(document_id, UUID) else UUID(str(document_id))
+        return self.vector_db.delete_by_document_id(doc_uuid)
+
+    @staticmethod
+    def assign_chunk_ids(document: RuleDocument, chunks: list[MarkdownChunk]) -> None:
+        """Replace the chunker's random chunk ids with deterministic ones, in place.
+
+        The chunker cannot see the document, so it emits uuid4 ids. Re-deriving them
+        here from (document_id, position, header) means re-ingesting an unchanged
+        file rewrites the same rows rather than inserting duplicates under new ids.
+        """
+        for chunk in chunks:
+            chunk.chunk_id = uuid5(document.document_id, f"{chunk.position}:{chunk.header}")
 
     def _validate_document(self, document: RuleDocument, warnings: list[str]) -> None:
         """Validate document has required metadata.

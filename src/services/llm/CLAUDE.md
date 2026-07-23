@@ -344,6 +344,28 @@ Validates LLM responses:
 - Detects truncated responses
 - Ensures response quality
 
+#### Batch API layer ([batch/](batch/))
+The submit / poll / fetch envelope over each provider's Batch API. Provider-specific
+*request building* and *result parsing* stay in the adapters
+(`build_batch_request` / `parse_batch_result`); the backends only move bytes.
+
+- `batch/backends/` — one module per provider, plus `resolve_backend(model)` routing
+  (an adapter must set `supports_batch = True` and have a backend wired here) and
+  `batch_group_key()` for the one-model-per-batch OpenAI-compatible hosts.
+- `batch/errors.py` — `classify_batch_error()` (transient vs permanent) and
+  `extract_item_error()`, normalizing each provider's failure shape.
+- `batch/custom_id.py` — `safe_custom_id()`, the single place enforcing the strictest
+  provider constraint on request ids (Anthropic: `^[a-zA-Z0-9_-]{1,64}$`).
+
+Two consumers, both opt-in: quality tests
+([tests/quality/CLAUDE.md](../../../tests/quality/CLAUDE.md#batch-api-workflow-opt-in-50-cheaper),
+which keeps its own `BatchManifest` for the two-phase gen/judge run) and RAG chunk
+summarization during ingestion
+([summarizer_batch.py](../rag/summarizer_batch.py)).
+
+`submit(lines, label=...)` takes a human-readable batch name; only xAI's API has a field
+for it, so other backends accept and ignore it.
+
 ## Request Flow
 
 ```

@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from tests.quality.batch import backends as backends_mod
+from src.services.llm.batch import backends as backends_mod
 from tests.quality.batch.manifest import BatchManifest
 from tests.quality.test_runner import QualityTestRunner
 

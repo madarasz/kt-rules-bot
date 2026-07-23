@@ -5,6 +5,7 @@ Modify values here to change behavior across the entire application.
 """
 
 from typing import Literal, get_args
+from uuid import UUID
 
 # ============================================================================
 # LLM Generation Constants
@@ -280,6 +281,29 @@ SUMMARY_LLM_MODEL = "grok-4.3"
 
 # Path to summary generation prompt template
 CHUNK_SUMMARY_PROMPT_PATH = "prompts/chunk-summary-prompt.md"
+
+# ============================================================================
+# Ingestion Constants
+# ============================================================================
+
+# Namespace for deterministic (uuid5) document and chunk ids. Ingesting the same
+# file twice must produce the same ids, otherwise re-ingestion appends duplicate
+# chunks instead of replacing them. NEVER change this value: doing so orphans
+# every chunk already in the vector store and forces a full rebuild.
+INGEST_ID_NAMESPACE = UUID("6f0d4a1e-6c3b-5f7a-9c2d-1b8e4a7f0c93")
+
+# Per-file hashes + config fingerprint, so a re-run only processes changed files
+INGEST_STATE_PATH = "data/ingestion_state.json"
+
+# Batch summarization: how often to check a submitted batch, and how long to wait
+# before giving up. Providers promise <=24h turnaround; in practice ingestion
+# batches complete in minutes.
+INGEST_BATCH_POLL_INTERVAL = 30  # seconds between poll() calls
+INGEST_BATCH_MAX_WAIT = 24 * 60 * 60  # seconds before the poll loop aborts
+
+# How many times a single transiently-failed batch item is re-requested before
+# falling back to a live summarization call for that file.
+INGEST_MAX_BATCH_ITEM_RETRIES = 2
 
 # ============================================================================
 # RAG Keyword Normalization Constants

@@ -9,7 +9,9 @@ import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Any, Literal
-from uuid import UUID, uuid4
+from uuid import UUID, uuid5
+
+from src.lib.constants import INGEST_ID_NAMESPACE
 
 DocumentType = Literal["core-rules", "faq", "team-rules", "ops", "killzone"]
 
@@ -27,6 +29,21 @@ class RuleDocument:
     document_type: DocumentType
     last_updated: datetime
     hash: str  # SHA-256 of content
+    relative_path: str = ""  # Path relative to the ingestion source dir; identity key
+
+    @staticmethod
+    def make_document_id(relative_path: str) -> UUID:
+        """Derive the stable document id for a source-relative markdown path.
+
+        Deterministic on purpose: re-ingesting a file must reuse its id so the
+        ingestor's delete-then-upsert actually replaces the old chunks instead of
+        appending a second copy under a fresh random id.
+
+        Keyed on the *relative path*, not the basename: extracted-rules/ has
+        team/, killzone/, prompt/ and approved-ops-2025/ subdirectories, so
+        basenames are not guaranteed unique.
+        """
+        return uuid5(INGEST_ID_NAMESPACE, relative_path)
 
     @staticmethod
     def compute_hash(content: str) -> str:
@@ -106,14 +123,21 @@ class RuleDocument:
 
     @classmethod
     def from_markdown_file(
-        cls, filename: str, content: str, metadata: dict[str, Any]
+        cls,
+        filename: str,
+        content: str,
+        metadata: dict[str, Any],
+        relative_path: str | None = None,
     ) -> "RuleDocument":
         """Create RuleDocument from markdown file data.
 
         Args:
-            filename: Markdown filename
+            filename: Markdown filename (basename)
             content: File content
             metadata: Parsed YAML frontmatter
+            relative_path: Path relative to the ingestion source dir. Defaults to
+                filename. Used to derive the stable document_id, so callers that
+                ingest a directory tree should pass it.
 
         Returns:
             RuleDocument instance
@@ -140,8 +164,10 @@ class RuleDocument:
         if not cls.validate_document_type(doc_type):
             raise ValueError(f"Invalid document_type: {doc_type}")
 
+        rel_path = relative_path or filename
+
         return cls(
-            document_id=uuid4(),
+            document_id=cls.make_document_id(rel_path),
             filename=filename,
             content=content,
             metadata=metadata,
@@ -150,4 +176,5 @@ class RuleDocument:
             document_type=doc_type,
             last_updated=datetime.now(UTC),
             hash=cls.compute_hash(content),
+            relative_path=rel_path,
         )

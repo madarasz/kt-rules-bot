@@ -61,11 +61,28 @@ def create_parser() -> argparse.ArgumentParser:
     ingest_parser = subparsers.add_parser(
         "ingest",
         help="Ingest rules into vector database",
-        description="Ingest markdown rules from source directory into vector database",
+        description=(
+            "Ingest markdown rules from source directory into vector database. "
+            "Incremental by default: only files whose content changed since the last "
+            "run are re-summarized and re-embedded."
+        ),
     )
     ingest_parser.add_argument("source_dir", help="Directory containing markdown rule files")
     ingest_parser.add_argument(
-        "--force", action="store_true", help="Force re-ingestion of all documents"
+        "--force",
+        action="store_true",
+        help="Full rebuild: reset the collection and re-ingest every document",
+    )
+    ingest_batch_group = ingest_parser.add_mutually_exclusive_group()
+    ingest_batch_group.add_argument(
+        "--batch",
+        action="store_true",
+        help="Summarize via the provider Batch API (cheaper, waits for completion)",
+    )
+    ingest_batch_group.add_argument(
+        "--batch-collect",
+        action="store_true",
+        help="Resume an interrupted --batch run from the ingestion state file",
     )
 
     # Command: query
@@ -358,7 +375,12 @@ def main() -> None:
             run_bot()
 
         elif args.command == "ingest":
-            ingest_rules(source_dir=args.source_dir, force=args.force)
+            ingest_rules(
+                source_dir=args.source_dir,
+                force=args.force,
+                batch=args.batch,
+                batch_collect=args.batch_collect,
+            )
 
         elif args.command == "query":
             asyncio.run(

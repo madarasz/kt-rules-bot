@@ -35,7 +35,7 @@ class MistralBatchBackend:
             )
         return self._http
 
-    def submit(self, lines: list[dict]) -> str:
+    def submit(self, lines: list[dict], label: str = "quality-test") -> str:  # noqa: ARG002 - no name field in this API
         import io
 
         model = lines[0]["body"]["model"]

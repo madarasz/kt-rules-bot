@@ -88,8 +88,8 @@ Ingestion pipeline for rule documents:
 - Chunks documents
 - Extracts keywords from headers (for query normalization)
 - Generates embeddings
-- Stores in vector database
-- Indexes for BM25 search
+- Stores in vector database (BM25 is indexed at query time, not here — see
+  [Ingestion Process](#ingestion-process))
 - Tracks document versions
 - Updates keyword library automatically
 
@@ -348,22 +348,126 @@ Note: Token limits and embedding dimensions are now determined dynamically based
 
 ### Manual Ingestion
 ```bash
-# Ingest all markdown files from directory
+# Incremental (default): only changed files are re-summarized and re-embedded
 python -m src.cli ingest extracted-rules/
 
-# Force re-ingestion
+# Same, but summarize via the provider Batch API (cheaper, waits for completion)
+python -m src.cli ingest extracted-rules/ --batch
+
+# Resume a --batch run that was interrupted while waiting
+python -m src.cli ingest extracted-rules/ --batch-collect
+
+# Full rebuild: reset the collection and re-ingest everything
 python -m src.cli ingest extracted-rules/ --force
 ```
 
 ### Ingestion Process
 1. Read markdown files from source directory
-2. Chunk documents ([chunker.py](chunker.py))
-3. Extract keywords from headers ([keyword_extractor.py](keyword_extractor.py))
-4. Generate embeddings ([embeddings.py](embeddings.py))
-5. Store in ChromaDB ([vector_db.py](vector_db.py))
-6. Index for BM25 ([bm25_retriever.py](bm25_retriever.py))
-7. Save keyword library to `data/rag_keywords.json`
-8. Update metadata store
+2. **Classify against `data/ingestion_state.json`** ([ingestion_state.py](ingestion_state.py)):
+   new / changed / unchanged / removed, by SHA-256 of file content
+3. Chunk documents ([chunker.py](chunker.py))
+4. Summarize chunks — live ([summarizer.py](summarizer.py)) or batched
+   ([summarizer_batch.py](summarizer_batch.py))
+5. Extract keywords from headers ([keyword_extractor.py](keyword_extractor.py))
+6. Generate embeddings ([embeddings.py](embeddings.py))
+7. Delete the document's previous chunks, then upsert ([vector_db.py](vector_db.py))
+8. Record the file's hash in the state file — after each file, so a crash resumes, and
+   **only if every chunk got a summary** (see Batch Summarization below)
+9. Save keyword library to `data/rag_keywords.json`, once, after the last file
+
+BM25 is indexed at query time from ChromaDB ([retriever.py](retriever.py)), not during
+ingestion.
+
+### Incremental Ingestion
+
+**Identity is deterministic.** `document_id = uuid5(INGEST_ID_NAMESPACE, relative_path)`
+([rule_document.py](../../models/rule_document.py)) and
+`chunk_id = uuid5(document_id, "position:header")` (`RAGIngestor.assign_chunk_ids`).
+This is what makes re-ingestion *replace* a file's chunks instead of appending a second
+copy — with the previous random `uuid4()` ids, the delete-before-upsert in
+[ingestor.py](ingestor.py) always matched zero rows.
+
+> ⚠️ **Never change `INGEST_ID_NAMESPACE`** ([constants.py](../../lib/constants.py)).
+> Every chunk already stored would be orphaned and a full rebuild forced.
+
+**State file** (`data/ingestion_state.json`, gitignored):
+
+```json
+{
+  "version": 1,
+  "source_dir": "/abs/path/to/extracted-rules",
+  "fingerprint": {"state_version": 1, "chunk_level": 2, "embedding_model": "...",
+                  "summary_model": "...", "summary_prompt_sha256": "...",
+                  "summary_enabled": true},
+  "files": {"team/kommandos.md": {"hash": "...", "document_id": "...", "chunks": 22,
+                                  "ingested_at": "..."}},
+  "batch": null
+}
+```
+
+**Automatic full rebuild** happens when the fingerprint no longer matches — chunk level,
+embedding model, summary model, or the summary prompt changed — because the stored hashes
+then describe chunks these settings would no longer produce. Also on `--force`, or when
+there is no state file at all. A rebuild resets the collection *and* clears the keyword
+library (which is otherwise append-only, so edited/deleted headers would linger).
+
+> **Ordering matters.** The cleared state is written to disk *before* `vector_db.reset()`.
+> `--force` does not change the fingerprint, so a crash between the two would otherwise
+> leave a state file listing every file as ingested with a matching fingerprint — and the
+> next incremental run would report "nothing to ingest" against an empty collection.
+
+**Deleted files** are detected as state entries with no file on disk; their chunks are
+removed from ChromaDB and the entry dropped.
+
+**One tree per state file.** `source_dir` records the directory the `files` keys are
+relative to. "Removed" is derived by subtraction, so classifying against a *different*
+tree — `ingest extracted-rules/team/` after a full `ingest extracted-rules/` — would
+report every file outside it as deleted and drop its chunks. A mismatch aborts; `--force`
+re-points the state at the new tree.
+
+**One document per `ingest()` call**, so a crash keeps the work already done. Callers
+doing this pass `flush_keywords=False` and save the keyword library once at the end
+rather than rewriting it in full per file. Anything that escapes a single document's
+ingest is caught and counted, so one unwritable file cannot abandon the rest of the run.
+
+### Batch Summarization
+
+Summarization is the only LLM cost in ingestion and nothing downstream needs it until the
+upsert (embeddings come from `chunk.text` alone), so it batches well.
+
+- One batch request per markdown file, matching the live path's granularity.
+- The prompt comes from `ChunkSummarizer.build_request`, shared with the live path, so
+  batch and live summaries are interchangeable.
+- Backend routing reuses `resolve_backend()` from
+  [src/services/llm/batch/](../llm/batch/); a summary model with no batch backend
+  silently falls back to live.
+- Failures are classified by `classify_batch_error`: transient → re-requested in a fresh
+  batch (bounded by `INGEST_MAX_BATCH_ITEM_RETRIES`), permanent → one live call for that
+  file, and if that fails too, the file is ingested with empty summaries plus a warning.
+- A *short* result counts as a failure too. `ChunkSummaries` has no minimum length, so a
+  truncated response parses cleanly while `apply_summaries` blanks the chunks it did not
+  cover. Success is judged by `summaries_complete()` — every chunk carries a summary —
+  not by "parsed without raising" or by billed tokens.
+- Empty summaries never reach the state file. `RAGIngestor.ingest` checks
+  `summaries_complete()` on pre-summarized chunks as well as its own, so a file the batch
+  path could not summarize is reported in `summary_failed_paths` and left out of the state
+  for the next run to retry.
+- Discount is per-provider (`BATCH_DISCOUNT` in [pricing.py](../../lib/pricing.py)). The
+  default `SUMMARY_LLM_MODEL = "grok-4.3"` gets xAI's **20%**, not the 50% most providers
+  offer.
+- Interrupting the wait is safe: **every** batch id is persisted before polling starts —
+  `batch_ids` is a list because each transient-failure retry submits another billable
+  batch — so `--batch-collect` resumes them all instead of stranding one and paying for a
+  third submission.
+- `state.batch` is cleared by the CLI *after* the chunks are embedded and upserted, not by
+  `BatchSummarizer` when the poll returns. Until the upsert lands, the summaries exist
+  only in memory, and clearing early meant an embedding failure discarded a paid-for
+  batch with nothing left to resume.
+- `--batch-collect` refuses to resume when the fingerprint, the source directory, or
+  `SUMMARY_LLM_MODEL` changed since submission: re-chunking under new settings would bind
+  each summary to unrelated text (summaries map to chunks by ordinal position, and the
+  only other integrity check compares file *content*, which is unchanged). It also refuses
+  without discarding the batch, so it stays collectable once the setting is restored.
 
 ## Common Tasks
 
