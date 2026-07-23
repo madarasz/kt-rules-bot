@@ -12,6 +12,7 @@ import pytest
 
 from src.models.rule_document import RuleDocument
 from src.services.llm.base import LLMResponse
+from src.services.llm.batch.custom_id import safe_custom_id
 from src.services.rag.ingestion_state import IngestionState
 from src.services.rag.summarizer_batch import BatchCosts, BatchSummarizer
 
@@ -66,9 +67,21 @@ class FakeBackend:
         return self._results[index] if index < len(self._results) else {}
 
 
-def _stub_live(summarizer):
-    """Replace the live-summarization fallback with a free, no-op stub."""
-    summarizer._summarize_live = MagicMock(side_effect=lambda chunks: BatchCosts())  # noqa: ARG005
+def _summarize_live_stub(chunks):
+    """Stand in for a *successful* live call: it must leave summaries behind.
+
+    A stub that returned without touching the chunks would look identical to a
+    failed live call, which the caller now detects and reports for retry.
+    """
+    for chunk in chunks:
+        chunk.summary = "live summary"
+    return BatchCosts()
+
+
+def _stub_live(summarizer, succeed=True):
+    """Replace the live-summarization fallback with a free stub."""
+    side_effect = _summarize_live_stub if succeed else (lambda chunks: BatchCosts())  # noqa: ARG005
+    summarizer._summarize_live = MagicMock(side_effect=side_effect)
     return summarizer._summarize_live
 
 
@@ -106,6 +119,9 @@ def summarizer_factory(tmp_path):
             patch("src.services.rag.summarizer_batch.ChunkSummarizer") as summarizer_cls,
         ):
             summarizer_cls.return_value.build_request.return_value = MagicMock()
+            # BatchSummarizer reuses the ChunkSummarizer's own client rather than
+            # building a second one for the same model, so the stub has to live here.
+            summarizer_cls.return_value.provider = provider
             # Use the real apply_summaries so summaries actually land on chunks
             from src.services.rag.summarizer import ChunkSummarizer as RealSummarizer
 
@@ -119,9 +135,9 @@ def summarizer_factory(tmp_path):
     return _make
 
 
-def test_successful_batch_applies_summaries_and_clears_state(summarizer_factory):
+def test_successful_batch_applies_summaries(summarizer_factory):
     doc = _doc()
-    cid = "sum__team-a-md"
+    cid = safe_custom_id("sum__team/a.md")
     summarizer, backend, _provider, state = summarizer_factory(
         [{cid: {"custom_id": cid, "response": {}}}]
     )
@@ -132,7 +148,25 @@ def test_successful_batch_applies_summaries_and_clears_state(summarizer_factory)
     assert [c.summary for c in prepared["team/a.md"]] == ["summary 1", "summary 2"]
     assert costs.cost_usd > 0
     assert costs.batch_savings_usd > 0  # xAI batch discount applied
-    assert state.batch is None  # finished runs leave no resumable state
+
+
+def test_batch_state_survives_until_the_caller_has_ingested(summarizer_factory):
+    """run() must not clear the resume record — the summaries are not durable yet.
+
+    They only become durable once the caller has embedded and upserted them.
+    Clearing here meant a failure during embedding discarded an already-paid batch,
+    with --batch-collect then reporting no in-flight run at all.
+    """
+    doc = _doc()
+    cid = safe_custom_id("sum__team/a.md")
+    summarizer, _backend, _provider, state = summarizer_factory(
+        [{cid: {"custom_id": cid, "response": {}}}]
+    )
+
+    summarizer.run([doc])
+
+    assert state.batch is not None
+    assert state.batch["batch_ids"] == ["batch-1"]
 
 
 def test_one_batch_line_per_file_with_ingestion_label(summarizer_factory):
@@ -146,37 +180,49 @@ def test_one_batch_line_per_file_with_ingestion_label(summarizer_factory):
     assert len(backend.submitted[0]) == 3
     assert backend.labels[0] == "kt-rules-ingestion"
     assert {line["custom_id"] for line in backend.submitted[0]} == {
-        "sum__team-a-md",
-        "sum__team-b-md",
-        "sum__core-md",
+        safe_custom_id("sum__team/a.md"),
+        safe_custom_id("sum__team/b.md"),
+        safe_custom_id("sum__core.md"),
     }
 
 
 def test_state_is_saved_before_waiting(summarizer_factory, tmp_path):
-    """Interrupting the wait must leave a resumable batch id on disk."""
+    """Interrupting the wait must leave a resumable batch id on disk.
+
+    True of the retry batches too, not just the first: each is separately billable,
+    so one that is submitted and then interrupted before being recorded is paid for
+    and unreachable, and --batch-collect would resubmit yet again.
+    """
     doc = _doc()
-    saved = {}
+    seen_before_each_wait = []
 
     summarizer, backend, _p, _state = summarizer_factory([{}])
     _stub_live(summarizer)
     original_poll = backend.poll
 
     def capture_then_poll(batch_id):
-        saved.update(json.loads((tmp_path / "state.json").read_text())["batch"])
+        on_disk = json.loads((tmp_path / "state.json").read_text())["batch"]
+        seen_before_each_wait.append(on_disk)
         return original_poll(batch_id)
 
     backend.poll = capture_then_poll
     summarizer.run([doc])
 
-    assert saved["batch_id"] == "batch-1"
-    assert saved["backend"] == "x"
-    assert saved["requests"][0]["relative_path"] == "team/a.md"
-    assert saved["requests"][0]["file_hash"] == doc.hash
+    first = seen_before_each_wait[0]
+    assert first["batch_ids"] == ["batch-1"]
+    assert first["backend"] == "x"
+    assert first["model"] == summarizer.model
+    assert first["requests"][0]["relative_path"] == "team/a.md"
+    assert first["requests"][0]["file_hash"] == doc.hash
+
+    # Every batch this run submitted was on disk before its own wait began
+    for index, on_disk in enumerate(seen_before_each_wait, start=1):
+        assert on_disk["batch_ids"] == [f"batch-{n}" for n in range(1, index + 1)]
 
 
 def test_transient_failure_is_retried_in_a_fresh_batch(summarizer_factory):
     doc = _doc()
-    cid = "sum__team-a-md"
+    cid = safe_custom_id("sum__team/a.md")
     summarizer, backend, _p, _s = summarizer_factory(
         [
             {cid: {"custom_id": cid, "response": None, "error": "rate limit exceeded"}},
@@ -193,7 +239,7 @@ def test_transient_failure_is_retried_in_a_fresh_batch(summarizer_factory):
 
 def test_permanent_failure_falls_back_to_live_summarization(summarizer_factory):
     doc = _doc()
-    cid = "sum__team-a-md"
+    cid = safe_custom_id("sum__team/a.md")
     summarizer, backend, _p, _s = summarizer_factory(
         [{cid: {"custom_id": cid, "response": None, "error": "invalid_request: bad schema"}}]
     )
@@ -220,7 +266,7 @@ def test_missing_result_item_is_treated_as_transient(summarizer_factory):
 def test_file_changed_after_submission_is_not_applied(summarizer_factory):
     """Summaries must never be attached to chunks of a different file version."""
     doc = _doc()
-    cid = "sum__team-a-md"
+    cid = safe_custom_id("sum__team/a.md")
     summarizer, _backend, _p, state = summarizer_factory(
         [{cid: {"custom_id": cid, "response": {}}}]
     )
@@ -255,7 +301,7 @@ def test_dead_batch_states_stop_the_wait(summarizer_factory, terminal_status):
     Grok (today's default summary model) never does.
     """
     doc = _doc()
-    cid = "sum__team-a-md"
+    cid = safe_custom_id("sum__team/a.md")
     summarizer, backend, _p, _s = summarizer_factory(
         [{cid: {"custom_id": cid, "response": {}}}], poll_status=terminal_status
     )
@@ -267,6 +313,104 @@ def test_dead_batch_states_stop_the_wait(summarizer_factory, terminal_status):
     assert backend.poll_calls == len(backend.submitted)
     # Whatever did complete is still salvaged
     assert "team/a.md" in prepared
+
+
+def test_incomplete_summaries_are_not_accepted_as_success(summarizer_factory):
+    """A short (truncated) response parses fine but leaves later chunks blank.
+
+    Treating "parsed without raising" as success recorded a half-summarized file as
+    cleanly ingested, and incremental runs never revisit it.
+    """
+    doc = _doc()
+    cid = safe_custom_id("sum__team/a.md")
+    summarizer, backend, _p, _s = summarizer_factory(
+        # Two chunks in the document, one summary in the response
+        [{cid: {"custom_id": cid, "response": {}}}] * 3,
+        parse_side_effect=lambda raw: _response(_summary_payload(count=1)),  # noqa: ARG005
+    )
+    live = _stub_live(summarizer)
+
+    prepared, _costs = summarizer.run([doc])
+
+    assert len(backend.submitted) > 1  # re-requested rather than accepted
+    live.assert_called_once()  # then resolved live
+    assert all(c.summary for c in prepared["team/a.md"])
+
+
+def test_failed_live_fallback_leaves_chunks_unsummarized_for_the_ingestor(summarizer_factory):
+    """When the live fallback fails too, the blanks must reach the ingestor.
+
+    They are handed over so the text is still indexed; RAGIngestor.ingest() detects
+    the blank summaries and reports the path, which keeps the CLI from recording it.
+    """
+    doc = _doc()
+    cid = safe_custom_id("sum__team/a.md")
+    summarizer, _backend, _p, _s = summarizer_factory(
+        [{cid: {"custom_id": cid, "response": None, "error": "invalid_request: bad schema"}}]
+    )
+    _stub_live(summarizer, succeed=False)
+
+    prepared, _costs = summarizer.run([doc])
+
+    assert "team/a.md" in prepared
+    assert [c.summary for c in prepared["team/a.md"]] == ["", ""]
+
+
+def test_resume_refuses_a_batch_submitted_with_a_different_model(summarizer_factory):
+    """Summaries came from the model recorded at submit time.
+
+    Resuming under a different one polled another provider's batch id against the
+    wrong API, and would have mixed two models' summaries in one collection.
+    """
+    doc = _doc()
+    cid = safe_custom_id("sum__team/a.md")
+    summarizer, backend, _p, state = summarizer_factory(
+        [{cid: {"custom_id": cid, "response": {}}}]
+    )
+    state.batch = {
+        "backend": "x",
+        "batch_ids": ["batch-1"],
+        "model": "some-other-model",
+        "requests": [{"custom_id": cid, "relative_path": "team/a.md", "file_hash": doc.hash}],
+    }
+
+    prepared, costs = summarizer.resume([doc])
+
+    assert prepared == {}
+    assert costs.cost_usd == 0.0
+    assert backend.poll_calls == 0  # never polled the wrong provider
+
+
+def test_resume_reads_the_legacy_single_batch_id(summarizer_factory):
+    """State written before batch_ids existed must still resume, not strand a batch."""
+    doc = _doc()
+    cid = safe_custom_id("sum__team/a.md")
+    summarizer, _backend, _p, state = summarizer_factory(
+        [{cid: {"custom_id": cid, "response": {}}}]
+    )
+    state.batch = {
+        "backend": "x",
+        "batch_id": "batch-1",
+        "requests": [{"custom_id": cid, "relative_path": "team/a.md", "file_hash": doc.hash}],
+    }
+
+    prepared, _costs = summarizer.resume([doc])
+
+    assert [c.summary for c in prepared["team/a.md"]] == ["summary 1", "summary 2"]
+
+
+def test_summaries_disabled_degrades_instead_of_crashing(tmp_path):
+    """With SUMMARY_ENABLED=False, ChunkSummarizer returns a half-built instance.
+
+    Constructing and calling it anyway raised AttributeError on summary_prompt and
+    aborted the whole ingest — after the collection had already been reset.
+    """
+    with patch("src.services.rag.summarizer_batch.SUMMARY_ENABLED", False):
+        summarizer = BatchSummarizer(state=IngestionState(path=tmp_path / "s.json"))
+        prepared, costs = summarizer.run([_doc()])
+
+    assert prepared == {}
+    assert costs.cost_usd == 0.0
 
 
 def test_no_batch_backend_falls_back_to_live_path(tmp_path):

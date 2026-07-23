@@ -11,7 +11,6 @@ Usage:
     python -m src.cli ingest extracted-rules/ --force
 """
 
-import argparse
 import sys
 from pathlib import Path
 from uuid import uuid4
@@ -116,13 +115,29 @@ def ingest_rules(
 
     # A stale fingerprint means the stored hashes describe chunks/embeddings that
     # these settings would no longer produce, so incremental skipping is unsafe.
+    # A *different source tree* is worse: `classify` derives "removed" by
+    # subtraction, so comparing against another tree (e.g. ingesting one
+    # subdirectory) would report every file outside it as deleted and drop its
+    # chunks. Rebuilding is the only safe way to re-point the state at a new tree.
+    same_tree = state.matches_source_dir(source_path)
+    if not same_tree and not force:
+        print(f"\n❌ State file was built from {state.source_dir}")
+        print(f"   but this run targets {IngestionState.normalize_source_dir(source_path)}.")
+        print("   Ingest the original directory, or re-point the state with --force.")
+        sys.exit(1)
+
     rebuild = force or state.is_stale()
     if rebuild:
         reason = "--force" if force else _stale_reason(state)
         print(f"\n🔄 Full rebuild ({reason}) — resetting collection")
+        # Invalidate the state *before* the destructive reset. Otherwise a crash
+        # between the two leaves a state file that still lists every file with a
+        # matching fingerprint, and the next incremental run reports "nothing to
+        # ingest" against an empty collection.
+        state.reset_for_rebuild(source_path)
+        state.save()
         vector_db.reset()
         ingestor.keyword_extractor.clear_keywords()
-        state.reset_for_rebuild()
         changes = state.classify(md_files, source_path)  # everything is "new" now
     else:
         changes = state.classify(md_files, source_path)
@@ -186,6 +201,13 @@ def ingest_rules(
 
     result = _ingest_documents(ingestor, documents, state, prepared_chunks)
 
+    # Only now are the batched summaries durable (embedded and upserted), so only
+    # now may the resume record be dropped. Clearing it earlier would mean a
+    # failure during embedding discarded a batch that had already been paid for.
+    if state.batch is not None:
+        state.batch = None
+        state.save()
+
     # Batched summaries are paid for by BatchSummarizer, live ones by the ingestor;
     # a run can contain both (batch items that failed fall back to live).
     _print_summary(
@@ -238,11 +260,23 @@ def _ingest_documents(
 
     for document in documents:
         rel_path = document.relative_path or document.filename
-        doc_prepared = None
-        if prepared_chunks and rel_path in prepared_chunks:
-            doc_prepared = {rel_path: prepared_chunks[rel_path]}
 
-        result = ingestor.ingest([document], prepared_chunks=doc_prepared)
+        try:
+            # `flush_keywords=False`: the library is rewritten in full on every
+            # flush, so with one call per document that is N rewrites of the same
+            # file. It is saved once after the loop instead.
+            result = ingestor.ingest(
+                [document], prepared_chunks=prepared_chunks, flush_keywords=False
+            )
+        except Exception as e:
+            # One unwritable document must not abandon the rest of the run (and the
+            # end-of-run report). RAGIngestor raises VectorDBWriteError on any Chroma
+            # failure and lets unexpected errors escape; both are per-document.
+            logger.error(f"Error ingesting {rel_path}: {e}", exc_info=True)
+            print(f"❌ {rel_path}: {e}")
+            totals.documents_failed += 1
+            totals.errors.append(rel_path)
+            continue
 
         totals.documents_processed += result.documents_processed
         totals.documents_failed += result.documents_failed
@@ -274,10 +308,15 @@ def _ingest_documents(
             document_id=str(document.document_id),
             chunks=result.chunks_by_path.get(rel_path, result.embedding_count),
         )
-        state.fingerprint = current_fingerprint()
+        # The fingerprint is *not* re-stamped here. It is set once by
+        # reset_for_rebuild() on the rebuild path, and on the incremental path it
+        # already matches (that is what `is_stale()` established). Stamping it
+        # per document let the resume path — which never checks staleness — write
+        # a fresh fingerprint over entries built under the previous config.
         state.save()
         print(f"✓ {rel_path} - {result.embedding_count} embeddings")
 
+    ingestor.keyword_extractor.save_keywords()
     return totals
 
 
@@ -293,6 +332,20 @@ def _resume_batch(
         print("   Start one with: python -m src.cli ingest <source> --batch")
         sys.exit(1)
 
+    # The batch was built from the chunks these settings produced. Re-chunking under
+    # a changed config yields a different split, and summaries are matched to chunks
+    # by ordinal position — so resuming would bind each summary to unrelated text,
+    # with the file-content hash check passing throughout.
+    if state.is_stale():
+        print(f"❌ Config changed since the batch was submitted ({_stale_reason(state)}).")
+        print("   Restore the previous settings to collect it, or discard it with --force.")
+        sys.exit(1)
+
+    if not state.matches_source_dir(source_path):
+        print(f"❌ Batch was submitted against {state.source_dir}, not {source_path}.")
+        print("   Re-run --batch-collect from the original source directory.")
+        sys.exit(1)
+
     documents: list[RuleDocument] = []
     for request in state.batch.get("requests", []):
         md_file = source_path / request["relative_path"]
@@ -306,14 +359,21 @@ def _resume_batch(
         documents.append(document)
 
     if not documents:
-        print("❌ None of the batched files could be re-read; clearing batch state.")
-        state.batch = None
-        state.save()
+        # Leave state.batch intact: the submission is already paid for, and the usual
+        # cause is a wrong working directory rather than genuinely missing files.
+        # Clearing it here would make the batch permanently uncollectable.
+        print("❌ None of the batched files could be re-read.")
+        print(f"   Check that {source_path} is the directory the batch was submitted from.")
+        print("   The batch id is preserved; re-run --batch-collect with the right source.")
         sys.exit(1)
 
     summarizer = BatchSummarizer(state=state)
     prepared_chunks, batch_costs = summarizer.resume(documents)
     result = _ingest_documents(ingestor, documents, state, prepared_chunks)
+
+    if state.batch is not None:
+        state.batch = None
+        state.save()
 
     _print_summary(
         processed=result.documents_processed,
@@ -377,39 +437,8 @@ def _print_summary(
     )
 
 
-def main() -> None:
-    """Main entry point for ingest_rules CLI."""
-    parser = argparse.ArgumentParser(
-        description="Ingest Kill Team markdown rules into vector database"
-    )
-    parser.add_argument(
-        "--source", "-s", required=True, help="Source directory containing markdown files"
-    )
-    parser.add_argument(
-        "--force", "-f", action="store_true", help="Full rebuild: reset collection, re-ingest all"
-    )
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "--batch", action="store_true", help="Summarize via the provider Batch API (cheaper)"
-    )
-    group.add_argument(
-        "--batch-collect", action="store_true", help="Resume an interrupted --batch run"
-    )
-
-    args = parser.parse_args()
-
-    try:
-        ingest_rules(
-            args.source,
-            force=args.force,
-            batch=args.batch,
-            batch_collect=args.batch_collect,
-        )
-    except Exception as e:
-        logger.error(f"Ingestion failed: {e}", exc_info=True)
-        print(f"❌ Ingestion failed: {e}")
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
+# No module-level argparse entry point here on purpose: `src/cli/__main__.py` owns
+# the `ingest` subcommand and its flags. A second parser in this file drifted from
+# it (it took `--source` where the real command takes a positional argument, with
+# different help text), and only one of the two was reachable via the documented
+# `python -m src.cli ingest`.

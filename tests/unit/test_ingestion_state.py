@@ -42,7 +42,7 @@ def test_corrupt_state_file_degrades_to_rebuild(tmp_path):
 
 def test_save_load_roundtrip(tmp_path):
     state = IngestionState(path=tmp_path / "state.json")
-    state.reset_for_rebuild()
+    state.reset_for_rebuild(tmp_path)
     state.record("team/a.md", "hash-a", "doc-id-a", chunks=3)
     state.save()
 
@@ -56,7 +56,7 @@ def test_save_load_roundtrip(tmp_path):
 
 def test_save_is_atomic_and_leaves_no_temp_file(tmp_path):
     state = IngestionState(path=tmp_path / "state.json")
-    state.reset_for_rebuild()
+    state.reset_for_rebuild(tmp_path)
     state.save()
 
     assert (tmp_path / "state.json").exists()
@@ -66,7 +66,7 @@ def test_save_is_atomic_and_leaves_no_temp_file(tmp_path):
 
 def test_classify_detects_new_changed_unchanged_removed(source_tree, tmp_path):
     state = IngestionState(path=tmp_path / "state.json")
-    state.reset_for_rebuild()
+    state.reset_for_rebuild(source_tree)
 
     # First pass: everything is new
     changes = state.classify(_files(source_tree), source_tree)
@@ -96,7 +96,7 @@ def test_classify_detects_new_changed_unchanged_removed(source_tree, tmp_path):
 def test_classify_ignores_mtime_only_touch(source_tree, tmp_path):
     """Rewriting identical bytes must not trigger reprocessing (hash, not mtime)."""
     state = IngestionState(path=tmp_path / "state.json")
-    state.reset_for_rebuild()
+    state.reset_for_rebuild(source_tree)
     for md_file in _files(source_tree):
         rel = md_file.relative_to(source_tree).as_posix()
         state.record(rel, file_hash(md_file.read_text()), f"id-{rel}", chunks=1)
@@ -116,7 +116,7 @@ def test_classify_uses_relative_path_so_basenames_can_repeat(tmp_path):
     (tmp_path / "killzone" / "same.md").write_text(MD + "\n## Extra\n", encoding="utf-8")
 
     state = IngestionState(path=tmp_path / "state.json")
-    state.reset_for_rebuild()
+    state.reset_for_rebuild(tmp_path)
     changes = state.classify(sorted(tmp_path.rglob("*.md")), tmp_path)
 
     assert len(changes.new) == 2
@@ -125,7 +125,7 @@ def test_classify_uses_relative_path_so_basenames_can_repeat(tmp_path):
 
 def test_fingerprint_change_makes_state_stale(tmp_path, monkeypatch):
     state = IngestionState(path=tmp_path / "state.json")
-    state.reset_for_rebuild()
+    state.reset_for_rebuild(tmp_path)
     assert not state.is_stale()
 
     monkeypatch.setattr("src.services.rag.ingestion_state.MARKDOWN_CHUNK_HEADER_LEVEL", 4)
@@ -153,8 +153,55 @@ def test_reset_for_rebuild_clears_files_and_batch(tmp_path):
     state.record("a.md", "h", "id", chunks=1)
     state.batch = {"batch_id": "b1"}
 
-    state.reset_for_rebuild()
+    state.reset_for_rebuild(tmp_path)
 
     assert state.files == {}
     assert state.batch is None
     assert state.fingerprint == current_fingerprint()
+    assert state.source_dir == IngestionState.normalize_source_dir(tmp_path)
+
+
+def test_unreadable_state_file_is_not_treated_as_missing(tmp_path, monkeypatch):
+    """An I/O error must not silently authorize a destructive full rebuild.
+
+    Corrupt *content* means "rebuild", which is safe. A permissions or I/O failure
+    on a file that exists is a different problem, and swallowing it would drop the
+    real state and re-ingest everything at full LLM cost.
+    """
+    path = tmp_path / "state.json"
+    path.write_text("{}", encoding="utf-8")
+
+    def boom(*_args, **_kwargs):
+        raise PermissionError("nope")
+
+    monkeypatch.setattr("pathlib.Path.read_text", boom)
+
+    with pytest.raises(OSError):
+        IngestionState.load(path)
+
+
+def test_source_dir_mismatch_is_detected(tmp_path):
+    """State built from one tree must not be compared against another.
+
+    `classify` derives `removed` by subtraction, so running it against a
+    subdirectory would report every file outside it as deleted.
+    """
+    state = IngestionState(path=tmp_path / "state.json")
+    state.reset_for_rebuild(tmp_path)
+
+    assert state.matches_source_dir(tmp_path)
+    assert not state.matches_source_dir(tmp_path / "team")
+
+
+def test_source_dir_absent_in_older_state_is_accepted(tmp_path):
+    """State written before source_dir was tracked still loads and matches."""
+    path = tmp_path / "state.json"
+    path.write_text(
+        json.dumps({"version": 1, "fingerprint": {}, "files": {}, "batch": None}),
+        encoding="utf-8",
+    )
+
+    state = IngestionState.load(path)
+
+    assert state.source_dir == ""
+    assert state.matches_source_dir(tmp_path / "anywhere")

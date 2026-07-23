@@ -25,6 +25,7 @@ from src.lib.constants import (
     INGEST_BATCH_MAX_WAIT,
     INGEST_BATCH_POLL_INTERVAL,
     INGEST_MAX_BATCH_ITEM_RETRIES,
+    SUMMARY_ENABLED,
     SUMMARY_LLM_MODEL,
 )
 from src.lib.logging import get_logger
@@ -36,7 +37,7 @@ from src.services.llm.schemas import ChunkSummaries
 from src.services.rag.chunker import MarkdownChunk, MarkdownChunker
 from src.services.rag.ingestion_state import IngestionState
 from src.services.rag.ingestor import RAGIngestor
-from src.services.rag.summarizer import ChunkSummarizer
+from src.services.rag.summarizer import ChunkSummarizer, summaries_complete
 
 logger = get_logger(__name__)
 
@@ -98,11 +99,27 @@ class BatchSummarizer:
 
     def __post_init__(self) -> None:
         from src.services.llm.batch.backends import resolve_backend
-        from src.services.llm.factory import LLMProviderFactory
 
         self.model = SUMMARY_LLM_MODEL
+        self.summarizer: ChunkSummarizer | None = None
+        self.provider = None
+        self.backend = None
+
+        # Mirror RAGIngestor's gate. Without it, a disabled summarizer still gets
+        # constructed and called: ChunkSummarizer.__init__ returns early, and
+        # build_request() would then send an empty prompt to a live batch.
+        if not SUMMARY_ENABLED:
+            logger.info("batch_summarization_disabled", reason="SUMMARY_ENABLED=False")
+            return
+
         self.summarizer = ChunkSummarizer()
-        self.provider = LLMProviderFactory.create(self.model)
+        # Reuse the summarizer's own client rather than building a second one for
+        # the same model — they must agree on which provider built the request.
+        self.provider = self.summarizer.provider
+        if self.provider is None:
+            logger.warning("batch_summarization_no_provider", model=self.model)
+            return
+
         self.backend = resolve_backend(self.model)
 
     # ------------------------------------------------------------------ public
@@ -119,9 +136,10 @@ class BatchSummarizer:
             logger.warning(
                 "batch_summarization_unavailable",
                 model=self.model,
-                reason="no batch backend for this model" if self.provider else "no provider",
+                reason=self._unavailable_reason(),
             )
-            print(f"⚠️  {self.model} has no Batch API backend — falling back to live summaries")
+            print(f"⚠️  Batch summarization unavailable ({self._unavailable_reason()})")
+            print("   Falling back to live summaries.")
             return {}, BatchCosts()
 
         chunks_by_path = self._chunk_documents(documents)
@@ -134,25 +152,69 @@ class BatchSummarizer:
         # Print before persisting: the submission is already billable, so the id must
         # reach the operator even if writing the state file is what fails.
         print(f"📤 Submitted batch {batch_id} ({len(lines)} files) via {self.backend.name}")
-        self._save_batch_state(batch_id, requests)
+        self._save_batch_state([batch_id], requests)
 
-        return self._wait_and_collect(batch_id, requests, documents, chunks_by_path)
+        return self._wait_and_collect([batch_id], requests, documents, chunks_by_path)
 
     def resume(
         self, documents: list[RuleDocument]
     ) -> tuple[dict[str, list[MarkdownChunk]], BatchCosts]:
         """Continue an already-submitted batch recorded in the state file."""
         batch_state = self.state.batch or {}
-        batch_id = batch_state.get("batch_id")
-        if not batch_id or self.backend is None or self.provider is None:
+        batch_ids = self._stored_batch_ids(batch_state)
+        if not batch_ids or self.backend is None or self.provider is None:
             print("❌ Stored batch state is unusable (no batch id or no backend).")
             return {}, BatchCosts()
 
+        # The results were produced by the model recorded at submit time. Summarizing
+        # half a corpus with one model and half with another is not a state we can
+        # detect later, so refuse rather than silently mix — and never poll one
+        # provider's batch id against another provider's API.
+        stored_model = batch_state.get("model")
+        if stored_model and stored_model != self.model:
+            print(
+                f"❌ Batch was submitted with SUMMARY_LLM_MODEL={stored_model!r}, "
+                f"but it is now {self.model!r}."
+            )
+            print(f"   Restore {stored_model!r} to collect it, or discard with --force.")
+            return {}, BatchCosts()
+
+        stored_backend = batch_state.get("backend")
+        if stored_backend and stored_backend != self.backend.name:
+            from src.services.llm.batch.backends import make_backend
+
+            backend = make_backend(stored_backend)
+            if backend is None:
+                print(f"❌ No batch backend named {stored_backend!r} for the stored batch.")
+                return {}, BatchCosts()
+            self.backend = backend
+
         requests = [_Request.from_dict(r) for r in batch_state.get("requests", [])]
         chunks_by_path = self._chunk_documents(documents)
-        print(f"📥 Resuming batch {batch_id} ({len(requests)} files)")
+        print(f"📥 Resuming batch {', '.join(batch_ids)} ({len(requests)} files)")
 
-        return self._wait_and_collect(batch_id, requests, documents, chunks_by_path)
+        return self._wait_and_collect(batch_ids, requests, documents, chunks_by_path)
+
+    def _unavailable_reason(self) -> str:
+        if not SUMMARY_ENABLED:
+            return "SUMMARY_ENABLED=False"
+        if self.provider is None:
+            return f"no LLM provider for {self.model}"
+        return f"{self.model} has no Batch API backend"
+
+    @staticmethod
+    def _stored_batch_ids(batch_state: dict) -> list[str]:
+        """Every batch id belonging to this run, oldest first.
+
+        A run can own more than one: each transient-failure retry submits a fresh
+        batch. `batch_id` is the pre-list layout, still read so a state file written
+        by an older version resumes instead of stranding a paid-for batch.
+        """
+        ids = batch_state.get("batch_ids")
+        if ids:
+            return list(ids)
+        single = batch_state.get("batch_id")
+        return [single] if single else []
 
     # ----------------------------------------------------------------- internal
 
@@ -202,10 +264,10 @@ class BatchSummarizer:
             )
         return lines, requests
 
-    def _save_batch_state(self, batch_id: str, requests: list[_Request]) -> None:
+    def _save_batch_state(self, batch_ids: list[str], requests: list[_Request]) -> None:
         self.state.batch = {
             "backend": self.backend.name,
-            "batch_id": batch_id,
+            "batch_ids": list(batch_ids),
             "model": self.model,
             "submitted_at": datetime.now(UTC).isoformat(),
             "requests": [r.to_dict() for r in requests],
@@ -214,21 +276,31 @@ class BatchSummarizer:
 
     def _wait_and_collect(
         self,
-        batch_id: str,
+        batch_ids: list[str],
         requests: list[_Request],
         documents: list[RuleDocument],
         chunks_by_path: dict[str, list[MarkdownChunk]],
     ) -> tuple[dict[str, list[MarkdownChunk]], BatchCosts]:
-        """Poll to completion, apply results, retry transients, fall back on failures."""
+        """Poll to completion, apply results, retry transients, fall back on failures.
+
+        Does not clear `state.batch`: the summaries only become durable once the
+        caller has embedded and upserted them, so the caller owns that clearing.
+        """
         costs = BatchCosts()
         by_path = {d.relative_path or d.filename: d for d in documents}
+        batch_ids = list(batch_ids)
 
-        self._poll(batch_id)
-        items = self.backend.fetch(batch_id)
+        # Later batches re-use the same custom_ids, so merging in submission order
+        # lets a retry result supersede the failure it was submitted to replace.
+        items: dict[str, dict] = {}
+        for bid in batch_ids:
+            self._poll(bid)
+            items.update(self.backend.fetch(bid))
         prepared = self._apply_results(items, requests, by_path, chunks_by_path, costs)
 
         # Bounded retry: transient failures get a fresh (small) batch, which we are
         # already waiting on anyway, so there is no reason to defer it to a later run.
+        by_cid = {r.custom_id: r for r in requests}
         for attempt in range(INGEST_MAX_BATCH_ITEM_RETRIES):
             retryable = [r for r in requests if r.status == "failed_retryable"]
             if not retryable:
@@ -239,24 +311,30 @@ class BatchSummarizer:
             if not lines:
                 break
             for row in retry_rows:
-                row.attempts = next(
-                    (r.attempts + 1 for r in requests if r.custom_id == row.custom_id), 1
-                )
+                tracked = by_cid.get(row.custom_id)
+                row.attempts = (tracked.attempts + 1) if tracked else 1
             retry_batch_id = self.backend.submit(lines, label=f"{BATCH_LABEL}-retry")
+            batch_ids.append(retry_batch_id)
+            # Persist before waiting, exactly as the first submission does: this batch
+            # is already billable, and an interrupted wait must resume it rather than
+            # strand it and pay for a third submission.
+            self._save_batch_state(batch_ids, requests)
             self._poll(retry_batch_id)
             retry_items = self.backend.fetch(retry_batch_id)
             prepared.update(
                 self._apply_results(retry_items, retry_rows, by_path, chunks_by_path, costs)
             )
             # Fold the retry outcome back into the tracked rows
-            by_cid = {r.custom_id: r for r in retry_rows}
-            for row in requests:
-                if row.custom_id in by_cid:
-                    updated = by_cid[row.custom_id]
-                    row.status, row.attempts = updated.status, updated.attempts
-                    row.error, row.error_class = updated.error, updated.error_class
+            for row in retry_rows:
+                tracked = by_cid.get(row.custom_id)
+                if tracked is not None:
+                    tracked.status, tracked.attempts = row.status, row.attempts
+                    tracked.error, tracked.error_class = row.error, row.error_class
 
-        # Anything still unresolved gets one live call, then empty summaries.
+        # Anything still unresolved gets one live call. If that fails too the chunks
+        # come back with blank summaries; they are still handed over so the text is
+        # indexed, and RAGIngestor.ingest() detects the blanks and reports the path in
+        # summary_failed_paths, which keeps the CLI from recording it as clean.
         for row in requests:
             if row.status == "succeeded" or row.relative_path in prepared:
                 continue
@@ -266,10 +344,11 @@ class BatchSummarizer:
             print(f"↩️  {row.relative_path}: batch failed ({row.error}) — summarizing live")
             live_cost = self._summarize_live(chunks)
             costs.add(live_cost)
+            if not summaries_complete(chunks):
+                print(f"⚠️  {row.relative_path}: live summarization also failed — will retry")
+                logger.warning("ingest_batch_live_fallback_failed", file=row.relative_path)
             prepared[row.relative_path] = chunks
 
-        self.state.batch = None
-        self.state.save()
         return prepared, costs
 
     def _poll(self, batch_id: str) -> None:
@@ -367,6 +446,23 @@ class BatchSummarizer:
                 )
                 logger.warning(
                     "ingest_batch_parse_failed", file=row.relative_path, error=str(e)
+                )
+                continue
+
+            # A schema-valid response can still be short: ChunkSummaries has no
+            # minimum length, and a truncated one covers only the first few chunks.
+            # apply_summaries() blanks the rest, so "parsed without raising" is not
+            # the same as "summarized". Send it round the retry / live-fallback path
+            # rather than recording a half-summarized file as succeeded.
+            if not summaries_complete(chunks):
+                row.status = "failed_retryable"
+                row.error = "incomplete summaries in batch result"
+                row.error_class = CLASS_TRANSIENT
+                logger.warning(
+                    "ingest_batch_summaries_incomplete",
+                    file=row.relative_path,
+                    with_summary=sum(1 for c in chunks if c.summary),
+                    chunk_count=len(chunks),
                 )
                 continue
 

@@ -17,11 +17,14 @@ _DISALLOWED = re.compile(r"[^a-zA-Z0-9_-]")
 def safe_custom_id(raw: str) -> str:
     """Return a deterministic, provider-safe custom_id for an arbitrary raw string.
 
-    Disallowed characters become '-'. Over-long ids are truncated with a hash
-    suffix derived from the *full* raw string, so uniqueness survives truncation.
+    Disallowed characters become '-', which is a *lossy* mapping: "team/a.md" and
+    "team-a.md" both sanitize to "team-a-md". A hash of the full raw string is
+    therefore appended whenever the substitution changed anything, not only when
+    the id is over-long — otherwise two source paths could share a custom_id, and
+    the batch result of one file would be applied to the other's chunks.
     """
     safe = _DISALLOWED.sub("-", raw)
-    if len(safe) <= CUSTOM_ID_MAX:
+    if safe == raw and len(safe) <= CUSTOM_ID_MAX:
         return safe
     digest = hashlib.sha1(raw.encode()).hexdigest()[:10]
     return f"{safe[: CUSTOM_ID_MAX - 11]}-{digest}"

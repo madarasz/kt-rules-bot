@@ -49,11 +49,29 @@ def load_summary_prompt() -> str:
     return strip_cache_markers(prompt_file.read_text(encoding="utf-8"))
 
 
+def summaries_complete(chunks: list[MarkdownChunk]) -> bool:
+    """True when every chunk carries a non-empty summary.
+
+    The single test for "may this file be recorded as cleanly ingested?", shared by
+    the live path (ingestor.py) and the batch path (summarizer_batch.py). Token
+    counts are not a substitute: a truncated or partially-numbered LLM response
+    bills tokens while `apply_summaries` blanks the chunks it did not cover, and
+    under incremental ingestion a file recorded clean is never revisited.
+    """
+    return bool(chunks) and all(chunk.summary for chunk in chunks)
+
+
 class ChunkSummarizer:
     """Generates one-sentence summaries for rule chunks using LLM."""
 
     def __init__(self):
         """Initialize the chunk summarizer with LLM provider."""
+        # Set before any early return: build_request() is public and is called by
+        # the batch path, which does not go through generate_summaries()' guards.
+        # A half-initialized instance must fail as "disabled", not AttributeError.
+        self.summary_prompt = ""
+        self.model = SUMMARY_LLM_MODEL
+
         if not SUMMARY_ENABLED:
             logger.info("Summary generation is disabled (SUMMARY_ENABLED=False)")
             self.provider = None
@@ -112,16 +130,25 @@ class ChunkSummarizer:
         """Copy structured summaries onto chunks in place; returns how many matched.
 
         Chunk numbers are 1-based and follow `_format_chunks_for_llm` ordering.
+
+        The count is of chunks that actually received a non-empty summary — not of
+        entries the model returned. A truncated response covering chunks 1-3 of 22,
+        or one numbering chunks that do not exist, must not read as a full success:
+        callers compare this against `len(chunks)` to decide whether the file may be
+        recorded as cleanly ingested.
         """
         summaries_dict = {cs.chunk_number: cs.summary for cs in summaries_response.summaries}
+        matched = 0
         for i, chunk in enumerate(chunks, start=1):
-            if i in summaries_dict:
-                chunk.summary = summaries_dict[i]
+            summary = summaries_dict.get(i, "")
+            if summary:
+                chunk.summary = summary
+                matched += 1
                 logger.debug(f"Chunk {i}: '{chunk.header}' -> '{chunk.summary}'")
             else:
                 chunk.summary = ""
                 logger.warning(f"No summary generated for chunk {i}: '{chunk.header}'")
-        return len(summaries_dict)
+        return matched
 
     async def generate_summaries(
         self, chunks: list[MarkdownChunk]

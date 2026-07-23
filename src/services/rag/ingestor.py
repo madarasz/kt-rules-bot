@@ -15,7 +15,7 @@ from src.models.rule_document import RuleDocument
 from src.services.rag.chunker import MarkdownChunk, MarkdownChunker
 from src.services.rag.embeddings import EmbeddingService
 from src.services.rag.keyword_extractor import KeywordExtractor
-from src.services.rag.summarizer import ChunkSummarizer
+from src.services.rag.summarizer import ChunkSummarizer, summaries_complete
 from src.services.rag.vector_db import VectorDBService
 
 logger = get_logger(__name__)
@@ -88,7 +88,6 @@ class RAGIngestor:
         self.vector_db = vector_db_service or VectorDBService(db_path=db_path)
         self.keyword_extractor = keyword_extractor or KeywordExtractor()
         self.summarizer = summarizer or (ChunkSummarizer() if SUMMARY_ENABLED else None)
-        self.document_hashes: dict[str, str] = {}  # filename -> hash mapping
 
         logger.info(
             "rag_ingestor_initialized", summary_generation_enabled=SUMMARY_ENABLED
@@ -98,6 +97,7 @@ class RAGIngestor:
         self,
         documents: list[RuleDocument],
         prepared_chunks: dict[str, list[MarkdownChunk]] | None = None,
+        flush_keywords: bool = True,
     ) -> IngestionResult:
         """Ingest rule documents into the RAG system.
 
@@ -114,6 +114,11 @@ class RAGIngestor:
             prepared_chunks: Optional {relative_path: chunks} whose summaries are
                 already populated (the Batch API path). Those documents skip the
                 chunk + live-summarize steps; everything else is unchanged.
+            flush_keywords: Write the keyword library to disk at the end of this
+                call. Callers that invoke ingest() once per document (so a crash
+                cannot discard finished work) should pass False and call
+                `keyword_extractor.save_keywords()` once, instead of rewriting the
+                whole library N times.
 
         Returns:
             IngestionResult with statistics
@@ -198,19 +203,25 @@ class RAGIngestor:
                             cost_usd=f"${breakdown.total_cost:.4f}",
                             cache_savings_usd=f"${breakdown.cache_savings:.4f}",
                         )
-                    elif chunks:
-                        # generate_summaries() reports failure as zero tokens and
-                        # blanks every summary (see its except branch). Flag the
-                        # file so the caller leaves it out of the state, otherwise
-                        # a transient API blip would permanently cost this document
-                        # its summaries — incremental runs never revisit a file
-                        # recorded as clean.
-                        summary_failed_paths.add(document.relative_path or document.filename)
-                        logger.warning(
-                            "summaries_missing_will_retry_next_run",
-                            document_id=str(document.document_id),
-                            filename=document.filename,
-                        )
+                # Judge success by the summaries themselves, not by token count, and
+                # do it for *both* paths. generate_summaries() reports outright failure
+                # as zero tokens and blanks every summary, but a truncated response
+                # bills tokens while apply_summaries() blanks only the chunks it did
+                # not cover; and pre-summarized chunks can arrive blank too, because
+                # the batch path's own live fallback can fail. Either way the file must
+                # stay out of the state, otherwise a transient API blip permanently
+                # costs this document its summaries — incremental runs never revisit a
+                # file recorded as clean.
+                if self.summarizer and chunks and not summaries_complete(chunks):
+                    summary_failed_paths.add(document.relative_path or document.filename)
+                    logger.warning(
+                        "summaries_incomplete_will_retry_next_run",
+                        document_id=str(document.document_id),
+                        filename=document.filename,
+                        presummarized=presummarized is not None,
+                        with_summary=sum(1 for c in chunks if c.summary),
+                        chunk_count=len(chunks),
+                    )
 
                 # Generate embeddings for chunks
                 # Use original chunk text only (summary stored in metadata)
@@ -245,9 +256,6 @@ class RAGIngestor:
                     embedding_count += len(embeddings)
                     documents_processed += 1
                     chunks_by_path[document.relative_path or document.filename] = len(chunks)
-
-                    # Store document hash for deduplication
-                    self.document_hashes[document.filename] = document.hash
 
                     logger.info(
                         "document_ingested",
@@ -289,7 +297,8 @@ class RAGIngestor:
         if all_chunks:
             keywords = self.keyword_extractor.extract_from_chunks(all_chunks)
             added_count = self.keyword_extractor.add_keywords(keywords)
-            self.keyword_extractor.save_keywords()
+            if flush_keywords:
+                self.keyword_extractor.save_keywords()
 
             logger.info(
                 "keywords_updated",

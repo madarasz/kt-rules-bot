@@ -179,8 +179,13 @@ def test_successful_summarization_is_not_flagged(ingestor):
     assert result.summary_cost_usd > 0
 
 
-def test_prepared_chunks_are_never_flagged(ingestor):
-    """The batch path accounts for its own failures; ingest() must not double-flag."""
+def test_prepared_chunks_with_blank_summaries_are_flagged(ingestor):
+    """Pre-summarized chunks are checked too — the batch path can hand over blanks.
+
+    Its last-resort live call can fail, which blanks every summary. Trusting
+    `prepared_chunks` unconditionally would let the CLI record the file as cleanly
+    ingested, and incremental runs never revisit a file recorded as clean.
+    """
     doc = _doc()
     chunks = MarkdownChunker().chunk(doc.content)
     RAGIngestor.assign_chunk_ids(doc, chunks)
@@ -188,7 +193,53 @@ def test_prepared_chunks_are_never_flagged(ingestor):
 
     result = ingestor.ingest([doc], prepared_chunks={"team/a.md": chunks})
 
+    assert result.summary_failed_paths == {"team/a.md"}
+    # The chunks are still stored and searchable, just without summaries
+    assert result.documents_processed == 1
+
+
+def test_prepared_chunks_with_summaries_are_not_flagged(ingestor):
+    doc = _doc()
+    chunks = MarkdownChunker().chunk(doc.content)
+    RAGIngestor.assign_chunk_ids(doc, chunks)
+    for chunk in chunks:
+        chunk.summary = "a summary"
+    ingestor.summarizer = MagicMock()
+
+    result = ingestor.ingest([doc], prepared_chunks={"team/a.md": chunks})
+
     assert result.summary_failed_paths == set()
+
+
+def test_partial_summaries_are_flagged_despite_billed_tokens(ingestor):
+    """A truncated response bills tokens but leaves later chunks blank.
+
+    Judging success by `prompt_tokens > 0` recorded such a file as clean, so the
+    unsummarized chunks were never revisited.
+    """
+    chunks = MarkdownChunker().chunk(MD)
+    chunks[0].summary = "only the first chunk got one"
+    summarizer = MagicMock()
+    summarizer.generate_summaries = AsyncMock(
+        return_value=(chunks, 500, 100, 0, 0, "grok-4.3")
+    )
+    ingestor.summarizer = summarizer
+
+    result = ingestor.ingest([_doc("team/a.md")])
+
+    assert result.summary_failed_paths == {"team/a.md"}
+    assert result.summary_cost_usd > 0  # still billed, and still reported
+
+
+def test_keyword_flush_can_be_deferred(ingestor):
+    """Callers that ingest one document per call rewrite the whole library N times."""
+    ingestor.keyword_extractor = MagicMock()
+
+    ingestor.ingest([_doc("team/a.md")], flush_keywords=False)
+    ingestor.keyword_extractor.save_keywords.assert_not_called()
+
+    ingestor.ingest([_doc("team/b.md")])
+    ingestor.keyword_extractor.save_keywords.assert_called_once()
 
 
 def test_delete_document_accepts_string_id(ingestor):
