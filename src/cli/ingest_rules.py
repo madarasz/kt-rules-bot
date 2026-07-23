@@ -101,6 +101,11 @@ def ingest_rules(
 
     state = IngestionState.load()
 
+    if batch_collect and force:
+        print("❌ --force and --batch-collect cannot be combined.")
+        print("   Use --batch-collect to resume, or --force alone to discard and rebuild.")
+        sys.exit(1)
+
     if batch_collect:
         _resume_batch(state, source_path, ingestor, validator)
         return
@@ -205,6 +210,7 @@ def ingest_rules(
     # now may the resume record be dropped. Clearing it earlier would mean a
     # failure during embedding discarded a batch that had already been paid for.
     if state.batch is not None:
+        print("⚠️  Discarding a previously submitted --batch run superseded by this run.")
         state.batch = None
         state.save()
 

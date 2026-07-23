@@ -347,7 +347,9 @@ class RAGSweepRunner:
         # later `python -m src.cli ingest extracted-rules/` would find a matching
         # fingerprint, report "nothing to ingest", and leave the sweep's store live.
         state = IngestionState.load()
-        if state.files or state.fingerprint:
+        if state.files or state.fingerprint or state.batch:
+            if state.batch:
+                print("   ⚠️  Discarding an in-flight ingestion batch (already submitted/billed)")
             state.files = {}
             state.batch = None
             state.fingerprint = {}

@@ -136,6 +136,7 @@ class KeywordExtractor:
         """
         logger.info("keywords_cleared", previous_count=len(self.keywords))
         self.keywords = set()
+        self.save_keywords()
 
     def save_keywords(self) -> None:
         """Save keywords to cache file."""
