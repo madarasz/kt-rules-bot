@@ -47,6 +47,15 @@ if [[ ! -x "$PY" ]]; then
     echo "⚠️  ./venv/bin/python not found — falling back to system python3"
 fi
 
+# --info=progress2 needs rsync >= 3.1. macOS ships openrsync (2.6.9-compatible),
+# which aborts on it. Probe once and fall back to the universally-supported
+# --progress so the upload works regardless of which rsync is in front of us.
+if rsync --info=progress2 --version >/dev/null 2>&1; then
+    PROGRESS_FLAG="--info=progress2"
+else
+    PROGRESS_FLAG="--progress"
+fi
+
 run() {
     if [[ $DRY_RUN -eq 1 ]]; then
         echo "  [dry-run] $*"
@@ -84,7 +93,7 @@ fi
 #    only ever applies inside chroma_db.new/ and can never reach analytics.db.
 echo
 echo "==> [3/5] Uploading to staging paths"
-run rsync -az --delete --info=progress2 -e ssh \
+run rsync -az --delete "$PROGRESS_FLAG" -e ssh \
     "$EXPORT_DIR/" "$REMOTE:$REMOTE_REPO/data/chroma_db.new/"
 run rsync -az -e ssh \
     data/rag_keywords.json "$REMOTE:$REMOTE_REPO/data/rag_keywords.json.new"
@@ -114,19 +123,29 @@ fi
 # false one-line test is a non-zero statement that aborts the script. Since these
 # sit between `stop` and `start`, that would leave the bot DOWN — e.g. on the very
 # first sync, where data/chroma_db does not exist yet.
+#
+# rsync ran as this ssh user (often root), so everything staged is owned by it.
+# The bot runs as a different service user and Chroma opens sqlite read-WRITE even
+# to read (WAL + schema migrations), so root-owned files give it 'attempt to write
+# a readonly database'. Re-own the swapped-in files to whoever owns the repo (the
+# service user's home), which is the account systemd runs the bot as.
 run ssh "$REMOTE" "set -euo pipefail
     cd $REMOTE_REPO
+    OWNER=\$(stat -c '%U:%G' .)
     sudo systemctl stop $SERVICES
     rm -rf data/chroma_db.old
     if [ -d data/chroma_db ]; then
         mv data/chroma_db data/chroma_db.old
     fi
     mv data/chroma_db.new data/chroma_db
+    sudo chown -R \"\$OWNER\" data/chroma_db
     if [ -f data/rag_keywords.json.new ]; then
         mv data/rag_keywords.json.new data/rag_keywords.json
+        sudo chown \"\$OWNER\" data/rag_keywords.json
     fi
     if [ -f data/ingestion_state.json.new ]; then
         mv data/ingestion_state.json.new data/ingestion_state.json
+        sudo chown \"\$OWNER\" data/ingestion_state.json
     fi
     sudo systemctl start $SERVICES
     sleep 2
