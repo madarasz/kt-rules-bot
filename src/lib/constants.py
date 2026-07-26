@@ -48,6 +48,7 @@ LLM_PROVIDERS_LITERAL = Literal[
     # "o3", --- does not support JSON output
     "o3-mini",
     "o4-mini",
+    "grok-4.5",
     "grok-4.3",
     "grok-4.20-0309-reasoning",
     "grok-4.20-0309-non-reasoning",
@@ -98,9 +99,9 @@ QUALITY_TEST_PROVIDERS = [
     #"gpt-5.4",
     #"gpt-5.4-mini",
     #"gpt-5.4-nano",
-    "gpt-5.3-chat-latest",
+    #"gpt-5.3-chat-latest",
     #"gpt-5.2",
-    "gpt-5.2-chat-latest",
+    #"gpt-5.2-chat-latest",
     #"gpt-5.1-chat-latest",
     #"gpt-4.1",
     #"gpt-4o",
@@ -110,7 +111,7 @@ QUALITY_TEST_PROVIDERS = [
     #"claude-4.6-opus",
     #"claude-4.5-opus",
     #"gemini-3.5-flash",
-    "gemini-3.1-flash-lite",
+    #"gemini-3.1-flash-lite",
     #"gemini-3.1-pro-preview",
     #"gemini-3-flash-preview",
     #"gemini-2.5-flash",
@@ -120,15 +121,18 @@ QUALITY_TEST_PROVIDERS = [
     #"kimi-k2-turbo-preview",
     #"gemini-2.5-pro",
     #"deepseek-chat",
-    "grok-4.3",
-    "grok-4.20-0309-reasoning",
+    #"grok-4.5",
+    "grok-4.3#low",
+    #"grok-4.3#medium",
+    #"grok-4.3#high",
+    #"grok-4.20-0309-reasoning",
     #"grok-build-0.1",
     #"mistral-large",
-    "mistral-medium-3-5",
+    #"mistral-medium-3-5",
     # "grok-3",
     # "grok-3-mini",
-    "deepseek-v4-flash",
-    "qwen3.6-flash"
+    #"deepseek-v4-flash",
+    #"qwen3.6-flash"
 ]
 
 # Default LLM provider for generation

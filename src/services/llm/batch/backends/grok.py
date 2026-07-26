@@ -2,7 +2,7 @@
 
 from src.lib.logging import get_logger
 
-from ._util import error_text
+from ._util import error_text, raise_for_status_with_body
 
 logger = get_logger(__name__)
 
@@ -38,7 +38,7 @@ class GrokBatchBackend:
         # than the quality-test runner (e.g. RAG ingestion) pass their own so the
         # submissions are distinguishable there.
         created = self.http.post("/batches", json={"name": label})
-        created.raise_for_status()
+        raise_for_status_with_body(created)
         batch_id = created.json()["batch_id"]
         payload = {
             "batch_requests": [
@@ -47,7 +47,10 @@ class GrokBatchBackend:
             ]
         }
         added = self.http.post(f"/batches/{batch_id}/requests", json=payload)
-        added.raise_for_status()
+        # xAI validates the whole payload atomically: one unsupported model in the
+        # list rejects every request in the call, so the body is the only way to
+        # tell which of the mixed models was refused.
+        raise_for_status_with_body(added)
         logger.info(f"Submitted Grok batch {batch_id} ({len(lines)} requests)")
         return batch_id
 

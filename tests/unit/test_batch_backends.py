@@ -25,6 +25,16 @@ def test_resolve_backend_excludes_openai_chat_latest():
     assert resolve_backend("gpt-5.4-mini").name == "openai"
 
 
+def test_resolve_backend_excludes_grok_4_5():
+    # xAI answers grok-4.5 with "Model grok-4.5 is not supported for batch
+    # processing", and Grok mixes every model into one batch — so an unexcluded
+    # grok-4.5 400s the submission for all the other grok models too.
+    assert resolve_backend("grok-4.5") is None
+    assert resolve_backend("grok-4.5#high") is None
+    assert resolve_backend("grok-4.3").name == "x"
+    assert resolve_backend("grok-4.3#low").name == "x"
+
+
 def test_resolve_backend_excludes_unbatchable_qwen_models():
     # DashScope's Batch API only accepts the stable qwen aliases; every model in
     # the registry is a versioned/qwen3.x name it rejects with model_not_found

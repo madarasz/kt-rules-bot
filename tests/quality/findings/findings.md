@@ -20,6 +20,10 @@
 
 # Test results
 
+## Reasoning level tests with Grok - 2026.07.24
+- LOW reasoning level works the best: slightly better answers, but much raster answers!
+![grok](2026-07-24-grok-chart_metrics.png)
+
 ## Improved tests, added complex-logic, retired strategic-double-action - 2026.07.21
 - Grok 4.1 became unavailable
 - Grok 4.3 seems to be the best - maybe explaination faithfulness and quote faithfulness can be improved somehow

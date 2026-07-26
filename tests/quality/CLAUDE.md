@@ -297,6 +297,13 @@ OpenAI also rejects its own `*-chat-latest` aliases from the Batch API
 to the **live path** instead. A batch-capable provider can exclude specific models via
 `LLMProvider.batch_supports_model`; `resolve_backend` returns `None` for excluded ones.
 
+**xAI rejects `grok-4.5` from batch** (`Model grok-4.5 is not supported for batch
+processing`), and since Grok puts every model in **one** mixed batch, an unexcluded
+grok-4.5 400s the add-requests call for all the other grok models in the run too.
+`GrokAdapter.BATCH_UNSUPPORTED_MODELS` keeps it on the live path; add any other
+batch-refused xAI model there. The xAI backend now raises with the response body
+attached, so the provider's reason survives into the traceback.
+
 **Judge round:** batches whenever the judge model is batchable — including the
 default `grok-4-1-fast-reasoning` — so reaching `done` normally takes **two
 collects** (gen batch, then judge batch). A non-batchable judge (e.g. DeepSeek)

@@ -72,6 +72,7 @@ class LLMProviderFactory:
         "grok-4-1-fast-non-reasoning": (GrokAdapter, "grok-4-1-fast-non-reasoning", "x"),
         "grok-4-fast-reasoning": (GrokAdapter, "grok-4-fast-reasoning", "x"),
         "grok-4-0709": (GrokAdapter, "grok-4-0709", "x"),
+        "grok-4.5": (GrokAdapter, "grok-4.5", "x"),
         "grok-4.3": (GrokAdapter, "grok-4.3", "x"),
         "grok-4.20-0309-reasoning": (GrokAdapter, "grok-4.20-0309-reasoning", "x"),
         "grok-4.20-0309-non-reasoning": (GrokAdapter, "grok-4.20-0309-non-reasoning", "x"),

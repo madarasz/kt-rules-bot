@@ -4,8 +4,12 @@ NOTE: xAI batch uses the Responses API (`input`, per-item success) and an
 unquantified "reduced" discount. These tests fix the transport/poll logic and
 the request/parse scaffold; live fidelity is smoke-confirmable only."""
 
+import httpx
+import pytest
+
 from src.services.llm.base import GenerationConfig, GenerationRequest
 from src.services.llm.batch.backends import GrokBatchBackend
+from src.services.llm.batch.backends._util import raise_for_status_with_body
 from src.services.llm.grok import GrokAdapter
 
 
@@ -54,6 +58,34 @@ def test_grok_parse_batch_result_output_blocks():
     }
     resp = GrokAdapter.parse_batch_result(raw)
     assert resp.provider == "grok"
+
+
+def test_grok_batch_excludes_unsupported_models():
+    assert not GrokAdapter.batch_supports_model("grok-4.5")
+    assert GrokAdapter.batch_supports_model("grok-4.3")
+
+
+def test_raise_for_status_with_body_keeps_the_provider_message():
+    # The bare httpx message is status + URL only; the reason ("not supported for
+    # batch processing") lives in the body and must reach the traceback.
+    request = httpx.Request("POST", "https://api.x.ai/v1/batches/b1/requests")
+    response = httpx.Response(
+        400,
+        request=request,
+        json={
+            "code": "Client specified an invalid argument",
+            "error": "Model grok-4.5 is not supported for batch processing.",
+        },
+    )
+    with pytest.raises(httpx.HTTPStatusError) as exc:
+        raise_for_status_with_body(response)
+    assert "not supported for batch processing" in str(exc.value)
+    assert exc.value.response is response
+
+
+def test_raise_for_status_with_body_passes_success_through():
+    request = httpx.Request("GET", "https://api.x.ai/v1/batches/b1")
+    raise_for_status_with_body(httpx.Response(200, request=request, json={}))
 
 
 def test_grok_backend_poll_pending_zero_is_ended():

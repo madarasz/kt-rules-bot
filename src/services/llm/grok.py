@@ -36,6 +36,16 @@ class GrokAdapter(LLMProvider):
 
     supports_batch = True
 
+    # xAI rejects these from the Batch API ("Model X is not supported for batch
+    # processing"), and because Grok submits every model in one mixed batch, a
+    # single unsupported model 400s the whole submission — so they must route to
+    # the live path instead. Verified against POST /v1/batches/{id}/requests.
+    BATCH_UNSUPPORTED_MODELS = frozenset({"grok-4.5"})
+
+    @classmethod
+    def batch_supports_model(cls, model_id: str) -> bool:
+        return model_id not in cls.BATCH_UNSUPPORTED_MODELS
+
     def build_batch_request(self, request: GenerationRequest, custom_id: str) -> dict:
         """xAI batch line (Responses-API shape) for GrokBatchBackend.
 

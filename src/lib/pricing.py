@@ -39,7 +39,8 @@ class LLMCostBreakdown:
 # Ratios verified against the pricing pages linked on each family below (July 2026).
 ANTHROPIC_CACHE_READ_MULTIPLIER = 0.1
 ANTHROPIC_CACHE_WRITE_MULTIPLIER = 1.25
-OPENAI_CACHE_READ_MULTIPLIER = 0.5       # gpt-* and grok-* (both 50% cached discount)
+OPENAI_CACHE_READ_MULTIPLIER = 0.5       # gpt-* 50% cached discount
+GROK_CACHE_READ_MULTIPLIER = 0.15        # grok-4.5: $0.30/$2.00 per 1M; overrides below for other models
 GEMINI_CACHE_READ_MULTIPLIER = 0.1
 MISTRAL_CACHE_READ_MULTIPLIER = 0.1
 DEEPSEEK_CACHE_READ_MULTIPLIER = 0.02    # v4-flash $0.0028 hit vs $0.14 miss per 1M
@@ -49,7 +50,8 @@ NO_CACHE_DISCOUNT = 1.0                  # provider has no prompt caching
 
 # Models whose published cached-read discount differs from their family's rate.
 _CACHE_READ_RATIO_OVERRIDES = {
-    "deepseek-v4-pro": 0.00833,  # $0.003625 hit vs $0.435 miss per 1M
+    "grok-build-0.1":  0.20,
+    "deepseek-v4-pro": 0.00833,
 }
 
 # model name -> (prompt, completion) price per 1K tokens
@@ -106,8 +108,9 @@ pricing: dict[str, dict] = {
         "claude-opus-4-1-20250805":   (0.015, 0.075),
         "claude-haiku-4-5-20251001":  (0.001, 0.005),
     }, cache_mode="anthropic"),
-    # https://docs.x.ai/docs/models - OpenAI-compatible cache format, 50% discount
-    **_family(OPENAI_CACHE_READ_MULTIPLIER, {
+    # https://docs.x.ai/developers/pricing - ~15% cached discount (varies by model; see overrides)
+    **_family(GROK_CACHE_READ_MULTIPLIER, {
+        "grok-4.5":                     (0.00200, 0.00600),
         "grok-4.3":                     (0.00125, 0.00250),
         "grok-4.20-0309-reasoning":     (0.00125, 0.00250),
         "grok-4.20-0309-non-reasoning": (0.00125, 0.00250),

@@ -90,6 +90,7 @@ REASONING_EFFORT_SUPPORT: dict[str, frozenset[str]] = {
     # --- Grok (reasoning variants only; grok-4-0709 rejects the param) ---
     "grok-4-1-fast-reasoning": _GROK,
     "grok-4-fast-reasoning": _GROK,
+    "grok-4.5": _GROK,
     "grok-4.3": _GROK,
     "grok-4.20-0309-reasoning": _GROK,
     "grok-3-mini": _GROK,
