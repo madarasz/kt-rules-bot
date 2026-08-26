@@ -45,6 +45,11 @@ WEAPON_RULE_PATTERNS = (
 )
 
 
+# Faction rule names that several kill teams share, so the header needs the team name
+# to stay unique (e.g. "## ANGELS OF DEATH - ASTARTES - Faction Rule")
+SHARED_FACTION_RULES = ("ASTARTES",)
+
+
 @dataclass
 class CleaningStats:
     """Statistics for cleaning operations."""
@@ -58,6 +63,12 @@ class CleaningStats:
     ocr_fixes: int = 0
     within_unbolded: int = 0
     distance_bolded: int = 0
+    stray_asterisks: int = 0
+    heading_case_fixes: int = 0
+    keywords_bolded: int = 0
+    ploy_references_bolded: int = 0
+    designer_notes: int = 0
+    faction_rules_prefixed: int = 0
 
     @property
     def total(self) -> int:
@@ -65,7 +76,10 @@ class CleaningStats:
             self.apostrophes + self.bullets + self.table_lines + self.trailing_spaces +
             self.weapon_type_lowercased + self.weapon_keywords_bolded +
             self.empty_cells_normalized + self.ocr_fixes +
-            self.within_unbolded + self.distance_bolded
+            self.within_unbolded + self.distance_bolded + self.stray_asterisks +
+            self.heading_case_fixes + self.keywords_bolded + self.designer_notes +
+            self.ploy_references_bolded +
+            self.faction_rules_prefixed
         )
 
     def __add__(self, other: "CleaningStats") -> "CleaningStats":
@@ -80,6 +94,12 @@ class CleaningStats:
             ocr_fixes=self.ocr_fixes + other.ocr_fixes,
             within_unbolded=self.within_unbolded + other.within_unbolded,
             distance_bolded=self.distance_bolded + other.distance_bolded,
+            stray_asterisks=self.stray_asterisks + other.stray_asterisks,
+            heading_case_fixes=self.heading_case_fixes + other.heading_case_fixes,
+            keywords_bolded=self.keywords_bolded + other.keywords_bolded,
+            ploy_references_bolded=self.ploy_references_bolded + other.ploy_references_bolded,
+            designer_notes=self.designer_notes + other.designer_notes,
+            faction_rules_prefixed=self.faction_rules_prefixed + other.faction_rules_prefixed,
         )
 
 
@@ -370,16 +390,201 @@ def bold_distance_expressions(content: str) -> tuple[str, int]:
 
     "within 6\"" -> "**within 6\"**"
     "wholly within 3\"" -> "**wholly within 3\"**"
+    "wholly within your drop zone" -> "**wholly within** your drop zone"
 
     Do not re-bold expressions that are already bold.
     """
+    # "**wholly within** 5\"" -> "**wholly within 5\"**" (pull the distance inside the bold)
+    content, pulled_count = re.subn(
+        r'\*\*wholly within\*\* (\d+["″])', r'**wholly within \1**', content
+    )
+
     whole_pattern = re.compile(r'(?<!\*)\bwholly within \d+["″](?!\*)', re.IGNORECASE)
     within_pattern = re.compile(r'(?<!\*)(?<!wholly )\bwithin \d+["″](?!\*)', re.IGNORECASE)
 
     content, whole_count = whole_pattern.subn(lambda match: f"**{match.group(0)}**", content)
     content, within_count = within_pattern.subn(lambda match: f"**{match.group(0)}**", content)
 
-    return content, whole_count + within_count
+    # Bare "wholly within" (no distance) is an always-bold game term
+    content, bare_count = re.subn(
+        r'(?<!\*)\bwholly within\b(?!\*)(?! \d)', "**wholly within**", content
+    )
+
+    return content, whole_count + within_count + pulled_count + bare_count
+
+
+def strip_stray_leading_asterisk(content: str) -> tuple[str, int]:
+    """
+    Remove a leftover footnote marker at the start of a line.
+
+    Weapon rule footnotes in the PDF read `*Poison: ...`; the extraction sometimes
+    keeps the leading `*`, which markdown then renders as an unclosed emphasis.
+    Only strip it on the first line of an `###` section (so footnote markers inside
+    operative selection lists survive) and only when the line has an odd number of
+    single asterisks (so genuine `*italic*` and `**bold**` text is left alone).
+    """
+    lines = content.split("\n")
+    count = 0
+    result_lines = []
+    prev_nonempty = ""
+
+    for line in lines:
+        if (
+            prev_nonempty.startswith("### ")
+            and line.startswith("*")
+            and not line.startswith("**")
+            and not line.startswith("* ")
+        ):
+            singles = len(re.findall(r"(?<!\*)\*(?!\*)", line))
+            if singles % 2 == 1:
+                line = line[1:]
+                count += 1
+        if line.strip():
+            prev_nonempty = line
+        result_lines.append(line)
+
+    return "\n".join(result_lines), count
+
+
+def normalize_heading_case(content: str) -> tuple[str, int]:
+    """
+    Uppercase the name part of a heading that is already mostly uppercase.
+
+    Extraction occasionally title-cases part of a name, e.g.
+    "### RAVENERS KILL Team - Archetypes" -> "### RAVENERS KILL TEAM - Archetypes".
+    Only the text before the first " - " is touched, and only when it is already
+    predominantly uppercase, so headings like "## BURROW - Faction Rule" and
+    mixed-case ability names are left alone.
+    """
+    lines = content.split("\n")
+    count = 0
+    result_lines = []
+
+    for line in lines:
+        match = re.match(r"^(#{2,3} )(.+?)( - .*)$", line)
+        if match and "[FAQ]" not in line:
+            name = match.group(2)
+            letters = [c for c in name if c.isalpha()]
+            uppercase_ratio = sum(c.isupper() for c in letters) / len(letters) if letters else 0
+            if letters and uppercase_ratio >= 0.7 and name != name.upper():
+                line = f"{match.group(1)}{name.upper()}{match.group(3)}"
+                count += 1
+        result_lines.append(line)
+
+    return "\n".join(result_lines), count
+
+
+def bold_rule_text_keywords(content: str) -> tuple[str, int]:
+    """
+    Bold game terms in rule text that extraction bolds only inconsistently.
+
+    - "counteract"/"counteracting"/"counteraction" ("counteracted" is left alone)
+    - "incapacitated"
+    - "shoot"/"fight" when used as the action verb before "against"
+    - "Light"/"Heavy" before "terrain"
+    - both halves of "activation/counteraction" (elsewhere "activation" stays plain)
+    """
+    content, counteract_count = re.subn(
+        r"(?<!\*)\b(counteract|counteracting)\b(?!\*)", r"**\1**", content
+    )
+    content, counteraction_count = re.subn(
+        r"(?<!\*)\bcounteraction\b(?!\*)", "**counteraction**", content
+    )
+    content, incapacitated_count = re.subn(
+        r"(?<!\*)\bincapacitated\b(?!\*)", "**incapacitated**", content
+    )
+    content, action_count = re.subn(
+        r"(?<!\*)\b(shoot|fight)\b(?!\*)(?= against| or (?:\*\*)?(?:shoot|fight)(?:\*\*)? against)",
+        r"**\1**",
+        content,
+    )
+    content, terrain_count = re.subn(
+        r"(?<!\*)\b(Light|Heavy)\b(?!\*)(?= terrain)", r"**\1**", content
+    )
+    pair_pattern = re.compile(
+        r"(?<!\*)(?:\*\*)?\bactivation\b(?:\*\*)?/(?:\*\*)?\bcounteraction\b(?:\*\*)?(?!\*)"
+    )
+    pair_count = sum(
+        1 for m in pair_pattern.finditer(content) if m.group(0) != "**activation**/**counteraction**"
+    )
+    content = pair_pattern.sub("**activation**/**counteraction**", content)
+
+    # Outside that pair, "activation" is never bolded
+    content, unbold_count = re.subn(
+        r"\*\*activation\*\*(?!/\*\*counteraction\*\*)", "activation", content
+    )
+
+    return (
+        content,
+        counteract_count + counteraction_count + incapacitated_count + action_count +
+        terrain_count + pair_count +
+        unbold_count,
+    )
+
+
+def format_designer_notes(content: str) -> tuple[str, int]:
+    """
+    Put designer notes in the standard blockquote format.
+
+    "Designer's Note: text" -> "> **Designer's Note:** text"
+    """
+    pattern = re.compile(
+        r"^(?!> )\**(Designer's (?:Note|Commentary)):?\**:?\s*", re.MULTILINE
+    )
+    return pattern.subn(r"> **\1:** ", content)
+
+
+def prefix_shared_faction_rules(content: str) -> tuple[str, int]:
+    """
+    Add the team name to faction rule headers whose name several kill teams share.
+
+    "## ASTARTES - Faction Rule" -> "## ANGELS OF DEATH - ASTARTES - Faction Rule",
+    using the team name from the `section` front matter field.
+    """
+    section = re.search(r"^section: (.+)$", content, re.MULTILINE)
+    if not section:
+        return content, 0
+
+    team = section.group(1).strip().replace("_", " ").upper()
+    count = 0
+    for rule in SHARED_FACTION_RULES:
+        content, changed = re.subn(
+            rf"^## {rule} - Faction Rule$",
+            f"## {team} - {rule} - Faction Rule",
+            content,
+            flags=re.MULTILINE,
+        )
+        count += changed
+
+    return content, count
+
+
+def bold_ploy_references(content: str) -> tuple[str, int]:
+    """
+    Bold references to this document's own ploys in rule text.
+
+    "the Combat Doctrine strategy ploy" -> "the **Combat Doctrine** strategy ploy".
+    Only names that have a ploy header in this file are bolded, and designer notes
+    (blockquote lines) are left as they are.
+    """
+    names = re.findall(r"^## (.+?) - (?:Strategy|Firefight) Ploy$", content, re.MULTILINE)
+    if not names:
+        return content, 0
+
+    count = 0
+    lines = content.split("\n")
+    for index, line in enumerate(lines):
+        if line.startswith(">") or line.startswith("## "):
+            continue
+        for name in names:
+            pattern = re.compile(
+                rf"(?<!\*)\b{re.escape(name.title())}\b(?!\*)(?= (?:strategy|firefight) ploy)"
+            )
+            line, changed = pattern.subn(f"**{name.title()}**", line)
+            count += changed
+        lines[index] = line
+
+    return "\n".join(lines), count
 
 
 def clean_file(file_path: Path) -> tuple[bool, CleaningStats]:
@@ -408,6 +613,12 @@ def clean_file(file_path: Path) -> tuple[bool, CleaningStats]:
         content, stats.ocr_fixes = fix_ocr_errors(content)
         content, stats.within_unbolded = unbold_within(content)
         content, stats.distance_bolded = bold_distance_expressions(content)
+        content, stats.stray_asterisks = strip_stray_leading_asterisk(content)
+        content, stats.heading_case_fixes = normalize_heading_case(content)
+        content, stats.keywords_bolded = bold_rule_text_keywords(content)
+        content, stats.ploy_references_bolded = bold_ploy_references(content)
+        content, stats.designer_notes = format_designer_notes(content)
+        content, stats.faction_rules_prefixed = prefix_shared_faction_rules(content)
         content, stats.trailing_spaces = trim_trailing_whitespace(content)
 
         if stats.total > 0:
@@ -458,6 +669,18 @@ def process_directory(
                 details.append(f"{stats.weapon_type_lowercased} weapon types lowercased")
             if stats.weapon_keywords_bolded:
                 details.append(f"{stats.weapon_keywords_bolded} weapon keywords bolded")
+            if stats.stray_asterisks:
+                details.append(f"{stats.stray_asterisks} stray asterisks")
+            if stats.heading_case_fixes:
+                details.append(f"{stats.heading_case_fixes} heading case fixes")
+            if stats.keywords_bolded:
+                details.append(f"{stats.keywords_bolded} rule text keywords bolded")
+            if stats.ploy_references_bolded:
+                details.append(f"{stats.ploy_references_bolded} ploy references bolded")
+            if stats.designer_notes:
+                details.append(f"{stats.designer_notes} designer notes formatted")
+            if stats.faction_rules_prefixed:
+                details.append(f"{stats.faction_rules_prefixed} faction rules prefixed")
             if stats.empty_cells_normalized:
                 details.append(f"{stats.empty_cells_normalized} empty cells")
             if stats.ocr_fixes:
@@ -497,6 +720,12 @@ def process_single_file(file_path: Path) -> None:
         print(f"  OCR fixes: {stats.ocr_fixes}")
         print(f"  Within unbolded: {stats.within_unbolded}")
         print(f"  Distance bolded: {stats.distance_bolded}")
+        print(f"  Stray asterisks: {stats.stray_asterisks}")
+        print(f"  Heading case fixes: {stats.heading_case_fixes}")
+        print(f"  Rule text keywords bolded: {stats.keywords_bolded}")
+        print(f"  Ploy references bolded: {stats.ploy_references_bolded}")
+        print(f"  Designer notes formatted: {stats.designer_notes}")
+        print(f"  Faction rules prefixed: {stats.faction_rules_prefixed}")
         print(f"  Trailing spaces trimmed: {stats.trailing_spaces}")
         print(f"  Total changes: {stats.total}")
     else:
@@ -570,6 +799,12 @@ def main():
         print(f"  OCR fixes: {grand_total_stats.ocr_fixes}")
         print(f"  Within unbolded: {grand_total_stats.within_unbolded}")
         print(f"  Distance bolded: {grand_total_stats.distance_bolded}")
+        print(f"  Stray asterisks: {grand_total_stats.stray_asterisks}")
+        print(f"  Heading case fixes: {grand_total_stats.heading_case_fixes}")
+        print(f"  Rule text keywords bolded: {grand_total_stats.keywords_bolded}")
+        print(f"  Ploy references bolded: {grand_total_stats.ploy_references_bolded}")
+        print(f"  Designer notes formatted: {grand_total_stats.designer_notes}")
+        print(f"  Faction rules prefixed: {grand_total_stats.faction_rules_prefixed}")
         print(f"  Trailing spaces: {grand_total_stats.trailing_spaces}")
     else:
         print("No changes needed - all files are clean!")

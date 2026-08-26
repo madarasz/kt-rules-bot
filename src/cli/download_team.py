@@ -172,6 +172,9 @@ def extract_team_name(markdown: str) -> str:
 
             # Convert to lowercase and replace spaces with underscores
             team_name_clean = team_name.lower().replace(" ", "_")
+
+            # Drop trailing "kill team" suffix (e.g. "raveners_kill_team" -> "raveners")
+            team_name_clean = re.sub(r"_kill_team$", "", team_name_clean)
             return team_name_clean
 
     raise ValueError("Could not find team name in extracted markdown (no H2 header found)")

@@ -84,13 +84,12 @@ ALL_LLM_PROVIDERS = list(get_args(LLM_PROVIDERS_LITERAL))
 
 PDF_EXTRACTION_PROVIDERS = [
     "gemini-3.1-pro-preview",
-    "gemini-3-pro-preview",
-    "gemini-2.5-pro",  # Recommended: Most reliable
+    "gemini-2.5-pro",  # Recommended: reproduces the curated format
     "gemini-3.5-flash",
-    "gemini-2.5-flash",  # Recommended: Fast and reliable
+    "gemini-2.5-flash",  # Fast and cheap, but needs manual cleanup afterwards
     "claude-4.5-sonnet",
     "claude-4.1-opus",
-    "grok-4.3"
+    "grok-4.3",
 ]
 
 # Quality test providers (curated list for --all-models testing)
