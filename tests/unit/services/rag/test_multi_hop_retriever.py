@@ -438,6 +438,42 @@ class TestEvaluateContext:
         assert result.can_answer is True
         assert mock_sleep.called  # Should have slept before retry
 
+    @pytest.mark.asyncio
+    @patch("src.services.rag.multi_hop_retriever.LLMProviderFactory.create")
+    @patch("builtins.open", create=True)
+    @patch("src.services.rag.multi_hop_retriever.yaml.safe_load")
+    async def test_evaluate_malformed_json_retry(
+        self, mock_yaml_load, mock_open, mock_create, sample_chunks
+    ):
+        """Malformed structured output is retried with a corrective hint."""
+        mock_llm = Mock()
+        # First call fails schema validation (e.g. bare inch mark closed the string early)
+        mock_llm.generate = AsyncMock(
+            side_effect=[
+                ValueError("returned JSON that failed schema validation"),
+                _make_can_answer_response(reasoning="Success after retry"),
+            ]
+        )
+        mock_create.return_value = mock_llm
+
+        mock_yaml_load.return_value = {}
+        mock_open.return_value.__enter__.return_value.read.return_value = (
+            "{user_query} {retrieved_chunks} {rule_structure} {team_structure}"
+        )
+
+        retriever = MultiHopRetriever(Mock())
+        result = await retriever._evaluate_context("test query", sample_chunks)
+
+        assert result.can_answer is True
+        assert mock_llm.generate.call_count == 2
+
+        first_request = mock_llm.generate.call_args_list[0].args[0]
+        retry_request = mock_llm.generate.call_args_list[1].args[0]
+        assert "inches" not in first_request.prompt
+        assert "inches" in retry_request.prompt
+        assert first_request.config.temperature == 0.0
+        assert retry_request.config.temperature == 0.3
+
 
 class TestRetrieveMultiHop:
     """Tests for retrieve_multi_hop method."""

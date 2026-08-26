@@ -29,12 +29,43 @@ from src.lib.constants import (
 from src.lib.logging import get_logger
 from src.models.rag_context import DocumentChunk, RAGContext
 from src.models.rag_request import RetrieveRequest
-from src.services.llm.base import GenerationConfig, GenerationRequest, RateLimitError
+from src.services.llm.base import (
+    GenerationConfig,
+    GenerationRequest,
+    RateLimitError,
+    TokenLimitError,
+)
 from src.services.llm.factory import LLMProviderFactory
 from src.services.rag.hop_cost_calculator import calculate_hop_evaluation_cost
 from src.services.rag.team_filtering import TeamFilter
 
 logger = get_logger(__name__)
+
+# Appended to the evaluation prompt when the model's previous reply failed JSON /
+# schema validation. The inch mark is the usual culprit: a bare `"` inside a string
+# value terminates it, and the constrained decoder then emits filler until the
+# response ends mid-object.
+MALFORMED_JSON_HINT = (
+    "\n\nIMPORTANT: your previous reply was not valid JSON. Reply with a single JSON "
+    "object and nothing else. Never write the inch symbol inside a JSON string value — "
+    "write the word 'inches' instead (e.g. 'within 2 inches'). Keep 'reasoning' under "
+    "200 characters."
+)
+
+
+def _append_hint(prompt: str | list[dict[str, Any]], hint: str) -> str | list[dict[str, Any]]:
+    """Append hint to a prompt, which may be a plain string or Claude cache blocks.
+
+    For block prompts the hint goes on the last (uncached) block so the cached
+    prefix stays byte-identical.
+    """
+    if isinstance(prompt, str):
+        return prompt + hint
+    blocks = [dict(block) for block in prompt]
+    if not blocks:
+        return hint
+    blocks[-1]["text"] = blocks[-1].get("text", "") + hint
+    return blocks
 
 
 class HopEvaluation:
@@ -382,20 +413,25 @@ class MultiHopRetriever:
             prompt = strip_cache_markers(filled)
 
         # Call evaluation LLM with hop evaluation schema
-        request = GenerationRequest(
-            prompt=prompt,
-            context=[],
-            chunk_ids=[],  # Empty list for hop evaluation (no RAG context)
-            config=GenerationConfig(
-                max_tokens=RAG_HOP_EVALUATION_MAX_TOKENS,
-                temperature=0.0,  # Deterministic
-                timeout_seconds=self.evaluation_timeout,
-                system_prompt="",  # Empty system prompt for hop evaluation
-                structured_output_schema="hop_evaluation",  # Use hop evaluation schema
-            ),
-        )
+        def build_request(corrective: bool) -> GenerationRequest:
+            return GenerationRequest(
+                prompt=_append_hint(prompt, MALFORMED_JSON_HINT) if corrective else prompt,
+                context=[],
+                chunk_ids=[],  # Empty list for hop evaluation (no RAG context)
+                config=GenerationConfig(
+                    max_tokens=RAG_HOP_EVALUATION_MAX_TOKENS,
+                    # Deterministic by default; a repeated temperature-0 call would
+                    # reproduce a malformed response verbatim, so nudge it off 0 on retry
+                    temperature=0.3 if corrective else 0.0,
+                    timeout_seconds=self.evaluation_timeout,
+                    system_prompt="",  # Empty system prompt for hop evaluation
+                    structured_output_schema="hop_evaluation",  # Use hop evaluation schema
+                ),
+            )
 
-        # Retry loop for rate limit errors
+        request = build_request(corrective=False)
+
+        # Retry loop for rate limit and malformed-JSON errors
         last_error = None
         for attempt in range(LLM_MAX_RETRIES + 1):
             try:
@@ -469,19 +505,32 @@ class MultiHopRetriever:
                     )
                     raise
 
-            except json.JSONDecodeError as e:
-                logger.error(
-                    "hop_evaluation_json_parse_failed",
-                    error=str(e),
-                    response_text=response.answer_text[:1000],
-                )
-                raise ValueError(f"Invalid JSON from evaluation LLM: {e}") from e
-
             except TimeoutError as e:
                 logger.error("hop_evaluation_timeout", timeout=self.evaluation_timeout)
                 raise TimeoutError(
                     f"Hop evaluation exceeded {self.evaluation_timeout}s timeout"
                 ) from e
+
+            except (ValueError, TokenLimitError) as e:
+                # Malformed / truncated structured output. Seen with small models that
+                # emit a bare inch mark inside a JSON string value (e.g. `within 2"`),
+                # which closes the string early and leaves the object unterminated.
+                last_error = e
+                if attempt < LLM_MAX_RETRIES:
+                    logger.warning(
+                        "hop_evaluation_malformed_json_retry",
+                        attempt=attempt + 1,
+                        max_retries=LLM_MAX_RETRIES,
+                        error=str(e)[:500],
+                    )
+                    request = build_request(corrective=True)
+                    continue
+                logger.error(
+                    "hop_evaluation_malformed_json_exhausted",
+                    attempts=LLM_MAX_RETRIES + 1,
+                    error=str(e)[:1000],
+                )
+                raise
 
         # Should never reach here, but just in case
         if last_error:

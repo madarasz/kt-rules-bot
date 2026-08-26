@@ -78,6 +78,8 @@ Signs a rule is MISSING (may need to request):
 - **Named entities need their rules**: If the user mentions a specific item, equipment, ploy, or operative by name, request THAT entity's rule — not just related mechanics. "Portable barricade" → request "PORTABLE BARRICADES", not just "COVER".
 - **Question mechanics are mandatory**: If a core game mechanic appears in the user's question (counteract, shoot, fight, charge, dash, orders), its rule definition MUST be in Retrieved Context. If missing, request it — no exceptions.
 - Respond ONLY with valid JSON (no markdown fences, no explanation outside JSON).
+- **Never write the inch symbol inside a JSON string value.** Write the word `inches` instead (`within 2 inches`, `more than 8 inches`). A bare `"` character ends the JSON string and corrupts the whole response.
+- Keep `reasoning` under 300 characters — one or two sentences.
 
 # Common Mistakes to Avoid
 

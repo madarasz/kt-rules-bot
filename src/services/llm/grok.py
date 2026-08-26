@@ -40,7 +40,7 @@ class GrokAdapter(LLMProvider):
     # processing"), and because Grok submits every model in one mixed batch, a
     # single unsupported model 400s the whole submission — so they must route to
     # the live path instead. Verified against POST /v1/batches/{id}/requests.
-    BATCH_UNSUPPORTED_MODELS = frozenset({"grok-4.5"})
+    BATCH_UNSUPPORTED_MODELS = frozenset({"grok-4.5", "grok-build-0.1"})
 
     @classmethod
     def batch_supports_model(cls, model_id: str) -> bool:
