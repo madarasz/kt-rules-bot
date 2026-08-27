@@ -12,11 +12,14 @@ Usage:
 """
 
 import difflib
+import re
 import subprocess
 import sys
 
 
 def paragraphs(text: str) -> list[str]:
+    # The extraction date changes on every run and is not part of the content
+    text = re.sub(r"^last_update_date: .*$", "last_update_date:", text, flags=re.MULTILINE)
     return sorted(p.strip() for p in text.split("\n\n") if p.strip())
 
 

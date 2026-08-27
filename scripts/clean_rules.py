@@ -45,6 +45,21 @@ WEAPON_RULE_PATTERNS = (
 )
 
 
+# Weapon rules as they appear in rule text (outside weapon tables), from
+# extracted-rules/weapon-rules.md. "Heavy" is deliberately absent: it collides with
+# weapon names ("Heavy bolter") and is handled by the terrain rule instead.
+WEAPON_RULE_TEXT_PATTERN = re.compile(
+    r"(?<!\*)\b("
+    r"Accurate \d+|Balanced|Blast \d+[\"\u2033]|Brutal|Ceaseless|"
+    # Devastating can carry a leading distance ("2\" Devastating 3"), and rule text
+    # sometimes writes the placeholder x instead of a number
+    r"(?:\d+|x)[\"\u2033] Devastating (?:\d+|x)|Devastating (?:\d+|x)|Hot|"
+    r"Lethal \d\+|Limited \d+|Piercing Crits \d+|Piercing \d+|Punishing|Range \d+[\"\u2033]|"
+    r"Relentless|Rending|Saturate|Seek Light|Seek|Severe|Shock|Silent|Stun|"
+    r"Torrent \d+[\"\u2033]"
+    r")(?![\w\*-])"
+)
+
 # Faction rule names that several kill teams share, so the header needs the team name
 # to stay unique (e.g. "## ANGELS OF DEATH - ASTARTES - Faction Rule")
 SHARED_FACTION_RULES = ("ASTARTES",)
@@ -67,6 +82,7 @@ class CleaningStats:
     heading_case_fixes: int = 0
     keywords_bolded: int = 0
     ploy_references_bolded: int = 0
+    weapon_rules_in_text: int = 0
     designer_notes: int = 0
     faction_rules_prefixed: int = 0
 
@@ -78,7 +94,7 @@ class CleaningStats:
             self.empty_cells_normalized + self.ocr_fixes +
             self.within_unbolded + self.distance_bolded + self.stray_asterisks +
             self.heading_case_fixes + self.keywords_bolded + self.designer_notes +
-            self.ploy_references_bolded +
+            self.ploy_references_bolded + self.weapon_rules_in_text +
             self.faction_rules_prefixed
         )
 
@@ -98,6 +114,7 @@ class CleaningStats:
             heading_case_fixes=self.heading_case_fixes + other.heading_case_fixes,
             keywords_bolded=self.keywords_bolded + other.keywords_bolded,
             ploy_references_bolded=self.ploy_references_bolded + other.ploy_references_bolded,
+            weapon_rules_in_text=self.weapon_rules_in_text + other.weapon_rules_in_text,
             designer_notes=self.designer_notes + other.designer_notes,
             faction_rules_prefixed=self.faction_rules_prefixed + other.faction_rules_prefixed,
         )
@@ -577,12 +594,38 @@ def bold_ploy_references(content: str) -> tuple[str, int]:
         if line.startswith(">") or line.startswith("## "):
             continue
         for name in names:
+            # Match however the text capitalises the name ("Wrath of Vengeance"), and
+            # keep that capitalisation
             pattern = re.compile(
-                rf"(?<!\*)\b{re.escape(name.title())}\b(?!\*)(?= (?:strategy|firefight) ploy)"
+                rf"(?<!\*)\b({re.escape(name)})\b(?!\*)(?= (?:strategy|firefight) ploy)",
+                re.IGNORECASE,
             )
-            line, changed = pattern.subn(f"**{name.title()}**", line)
+            line, changed = pattern.subn(r"**\1**", line)
             count += changed
         lines[index] = line
+
+    return "\n".join(lines), count
+
+
+def bold_weapon_rules_in_text(content: str) -> tuple[str, int]:
+    """
+    Bold weapon rule names where they are referenced in rule text.
+
+    Weapon tables keep their own formatting (see `bold_weapon_keywords_in_tables`), and
+    headings are left alone. Only team rules files are touched - the core rules explain
+    the weapon rules themselves and write their names plain.
+    """
+    if "document_type: team-rules" not in content:
+        return content, 0
+
+    count = 0
+    lines = content.split("\n")
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("|") or stripped.startswith("#") or stripped.startswith("**Keywords:**"):
+            continue
+        lines[index], changed = WEAPON_RULE_TEXT_PATTERN.subn(r"**\1**", line)
+        count += changed
 
     return "\n".join(lines), count
 
@@ -617,6 +660,7 @@ def clean_file(file_path: Path) -> tuple[bool, CleaningStats]:
         content, stats.heading_case_fixes = normalize_heading_case(content)
         content, stats.keywords_bolded = bold_rule_text_keywords(content)
         content, stats.ploy_references_bolded = bold_ploy_references(content)
+        content, stats.weapon_rules_in_text = bold_weapon_rules_in_text(content)
         content, stats.designer_notes = format_designer_notes(content)
         content, stats.faction_rules_prefixed = prefix_shared_faction_rules(content)
         content, stats.trailing_spaces = trim_trailing_whitespace(content)
@@ -675,6 +719,8 @@ def process_directory(
                 details.append(f"{stats.heading_case_fixes} heading case fixes")
             if stats.keywords_bolded:
                 details.append(f"{stats.keywords_bolded} rule text keywords bolded")
+            if stats.weapon_rules_in_text:
+                details.append(f"{stats.weapon_rules_in_text} weapon rules bolded in text")
             if stats.ploy_references_bolded:
                 details.append(f"{stats.ploy_references_bolded} ploy references bolded")
             if stats.designer_notes:
@@ -724,6 +770,7 @@ def process_single_file(file_path: Path) -> None:
         print(f"  Heading case fixes: {stats.heading_case_fixes}")
         print(f"  Rule text keywords bolded: {stats.keywords_bolded}")
         print(f"  Ploy references bolded: {stats.ploy_references_bolded}")
+        print(f"  Weapon rules bolded in text: {stats.weapon_rules_in_text}")
         print(f"  Designer notes formatted: {stats.designer_notes}")
         print(f"  Faction rules prefixed: {stats.faction_rules_prefixed}")
         print(f"  Trailing spaces trimmed: {stats.trailing_spaces}")
@@ -803,6 +850,7 @@ def main():
         print(f"  Heading case fixes: {grand_total_stats.heading_case_fixes}")
         print(f"  Rule text keywords bolded: {grand_total_stats.keywords_bolded}")
         print(f"  Ploy references bolded: {grand_total_stats.ploy_references_bolded}")
+        print(f"  Weapon rules bolded in text: {grand_total_stats.weapon_rules_in_text}")
         print(f"  Designer notes formatted: {grand_total_stats.designer_notes}")
         print(f"  Faction rules prefixed: {grand_total_stats.faction_rules_prefixed}")
         print(f"  Trailing spaces: {grand_total_stats.trailing_spaces}")

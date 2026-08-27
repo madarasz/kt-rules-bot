@@ -182,7 +182,7 @@ Example:
    - **Bold tac op names** in rule text (e.g. `(e.g. **Surveillance**)`)
    - **Bold both halves of "activation/counteraction"** (`**activation**/**counteraction**`). On its own, "activation" is NOT bolded
    - **Always bold these terms:** **incapacitated**, **counteract**, **visible**, **obscured**, **control range**, **cover** (but NOT in the phrase "cover save", which stays plain), **STORM** (team-specific), **REANIMATED** (team-specific), **Conceal**, **Engage**
-   - **Weapon rules in rule text** (outside tables) should be bold: **Severe**, **Saturate**, **Lethal**, **Rending**, **Piercing**, **Blast**, **Shock**, **Stun**, etc.
+   - **Weapon rules in rule text** (outside tables) should be bold, including the x value where the rule has one: **Accurate 1**, **Balanced**, **Blast 2"**, **Brutal**, **Ceaseless**, **Devastating 3**, **Hot**, **Lethal 5+**, **Limited 1**, **Piercing 1**, **Piercing Crits 1**, **Punishing**, **Range 8"**, **Relentless**, **Rending**, **Saturate**, **Seek**, **Seek Light**, **Severe**, **Shock**, **Silent**, **Stun**, **Torrent 1"**
 
 5. **Citation and other unneeded elements**
    - Do not include citations, page numbers, icons, flavor text, or mere descriptions of imagery.

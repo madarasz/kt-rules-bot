@@ -25,6 +25,7 @@ Two teams are used as references:
 `scripts/paragraph_diff.py` counts paragraphs that differ between the committed and the
 working copy of a rules file. Paragraphs are compared unordered - section order varies
 between runs and carries no meaning - so only added, removed or reworded paragraphs count.
+The `last_update_date` front matter field is ignored, since it changes on every run.
 
 `extracted-rules` is a git submodule, so the reference version lives in that repo's HEAD.
 
@@ -69,6 +70,13 @@ on what the model felt like doing:
   and both halves of `activation/counteraction` (standalone "activation" is unbolded)
 - `bold_ploy_references` - bolds a ploy name in rule text when this same file has a header
   for that ploy ("the **Combat Doctrine** strategy ploy"); designer notes are left alone
+- `bold_weapon_rules_in_text` - bolds weapon rule names where rule text refers to them
+  ("its melee weapons have the **Balanced** weapon rule"), with the x value included
+  (`**Accurate 1**`, `**Torrent 2"**`). The vocabulary comes from
+  `extracted-rules/weapon-rules.md` and lives in `WEAPON_RULE_TEXT_PATTERN`; weapon
+  tables, headings and keyword lines are skipped, as are non-team files (the core rules
+  write these names plain). "Heavy" is excluded - it collides with weapon names
+  ("Heavy bolter") and is covered by the `Light`/`Heavy` terrain rule
 - `format_designer_notes` - `Designer's Note: ...` -> `> **Designer's Note:** ...`
 - `prefix_shared_faction_rules` - adds the team name (taken from the `section` front
   matter field) to the faction rules listed in `SHARED_FACTION_RULES`
@@ -101,6 +109,12 @@ Then, validated against `angels_of_death`:
 | fixed composition wording, one archetype per bullet, restriction bullets | 3 |
 | `counteraction` cleaner + restriction-bullet example | 4 (ploy names lost their bold) |
 | `bold_ploy_references` cleaner | **0** |
+| weapon rules bolded in rule text (`Balanced`, `Accurate x`, ...) | **0** |
+
+Residual variance: with everything above in place a run scores 0-3 on either team. What is
+left is model noise - the same prompt produces a slightly different bold span or, on
+raveners, occasionally invents an "Equal, nothing happens." bullet in Synaptic Link
+despite an explicit prompt rule against it. Re-running usually clears it.
 
 Reverted along the way: a prompt rule bolding lowercase `shoot`/`fight` - the model applied
 it too widely. It is handled deterministically in `clean_rules.py` instead.
