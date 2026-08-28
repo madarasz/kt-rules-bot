@@ -60,6 +60,34 @@ WEAPON_RULE_TEXT_PATTERN = re.compile(
     r")(?![\w\*-])"
 )
 
+# Game terms that extraction bolds only inconsistently, as (pattern, replacement) pairs
+# applied in order. Terms already bolded are skipped by the `(?<!\*)`/`(?!\*)` guards.
+RULE_TEXT_BOLD_RULES = (
+    # "counteracted" is deliberately absent - it is never bolded in the rules text
+    (re.compile(r"(?<!\*)\b(counteract|counteracting|counteraction)\b(?!\*)"), r"**\1**"),
+    (re.compile(r"(?<!\*)\b(incapacitated)\b(?!\*)"), r"**\1**"),
+    # "shoot"/"fight" only as the action verb before "against"
+    (
+        re.compile(
+            r"(?<!\*)\b(shoot|fight)\b(?!\*)"
+            r"(?= against| or (?:\*\*)?(?:shoot|fight)(?:\*\*)? against)"
+        ),
+        r"**\1**",
+    ),
+    (re.compile(r"(?<!\*)\b(Light|Heavy)\b(?!\*)(?= terrain)"), r"**\1**"),
+    (re.compile(r"(?<!\*)\b(Vantage|Accessible|Exposed|Ceiling|Insignificant)\b(?!\*)"), r"**\1**"),
+    # Both halves of the pair are bolded, however the text arrived
+    (
+        re.compile(
+            r"(?<!\*)(?:\*\*)?\bactivation\b(?:\*\*)?/(?:\*\*)?\bcounteraction\b(?:\*\*)?(?!\*)"
+        ),
+        "**activation**/**counteraction**",
+    ),
+    # Outside that pair, "activation" is never bolded
+    (re.compile(r"\*\*activation\*\*(?!/\*\*counteraction\*\*)"), "activation"),
+)
+
+
 # Faction rule names that several kill teams share, so the header needs the team name
 # to stay unique (e.g. "## ANGELS OF DEATH - ASTARTES - Faction Rule")
 SHARED_FACTION_RULES = ("ASTARTES",)
@@ -495,48 +523,23 @@ def bold_rule_text_keywords(content: str) -> tuple[str, int]:
     """
     Bold game terms in rule text that extraction bolds only inconsistently.
 
-    - "counteract"/"counteracting"/"counteraction" ("counteracted" is left alone)
-    - "incapacitated"
-    - "shoot"/"fight" when used as the action verb before "against"
-    - "Light"/"Heavy" before "terrain"
-    - both halves of "activation/counteraction" (elsewhere "activation" stays plain)
+    See `RULE_TEXT_BOLD_RULES` for the terms; the rules are applied in order, so the
+    "activation/counteraction" pair is normalised after its halves are bolded, and the
+    standalone "activation" is unbolded last.
     """
-    content, counteract_count = re.subn(
-        r"(?<!\*)\b(counteract|counteracting)\b(?!\*)", r"**\1**", content
-    )
-    content, counteraction_count = re.subn(
-        r"(?<!\*)\bcounteraction\b(?!\*)", "**counteraction**", content
-    )
-    content, incapacitated_count = re.subn(
-        r"(?<!\*)\bincapacitated\b(?!\*)", "**incapacitated**", content
-    )
-    content, action_count = re.subn(
-        r"(?<!\*)\b(shoot|fight)\b(?!\*)(?= against| or (?:\*\*)?(?:shoot|fight)(?:\*\*)? against)",
-        r"**\1**",
-        content,
-    )
-    content, terrain_count = re.subn(
-        r"(?<!\*)\b(Light|Heavy)\b(?!\*)(?= terrain)", r"**\1**", content
-    )
-    pair_pattern = re.compile(
-        r"(?<!\*)(?:\*\*)?\bactivation\b(?:\*\*)?/(?:\*\*)?\bcounteraction\b(?:\*\*)?(?!\*)"
-    )
-    pair_count = sum(
-        1 for m in pair_pattern.finditer(content) if m.group(0) != "**activation**/**counteraction**"
-    )
-    content = pair_pattern.sub("**activation**/**counteraction**", content)
+    count = 0
 
-    # Outside that pair, "activation" is never bolded
-    content, unbold_count = re.subn(
-        r"\*\*activation\*\*(?!/\*\*counteraction\*\*)", "activation", content
-    )
+    for pattern, replacement in RULE_TEXT_BOLD_RULES:
+        def substitute(match: re.Match, replacement: str = replacement) -> str:
+            nonlocal count
+            replaced = match.expand(replacement)
+            if replaced != match.group(0):
+                count += 1
+            return replaced
 
-    return (
-        content,
-        counteract_count + counteraction_count + incapacitated_count + action_count +
-        terrain_count + pair_count +
-        unbold_count,
-    )
+        content = pattern.sub(substitute, content)
+
+    return content, count
 
 
 def format_designer_notes(content: str) -> tuple[str, int]:

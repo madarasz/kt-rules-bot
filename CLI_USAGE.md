@@ -47,10 +47,6 @@ python -m src.cli run [--mode {dev|production}]
 # Start in production mode
 python -m src.cli run
 
-# Start in development mode
-python -m src.cli run --mode dev
-```
-
 **Requirements:**
 - Discord bot token configured in environment/config
 - Vector database initialized with rules
@@ -59,6 +55,11 @@ python -m src.cli run --mode dev
 **Graceful Shutdown:**
 - Press `Ctrl+C` or send `SIGTERM` for graceful shutdown
 - Bot will close Discord connection and cleanup resources
+
+---
+
+# Admin dashboard (optional, if analytics DB enabled)
+streamlit run src/cli/admin_dashboard.py --server.port 8501
 
 ---
 

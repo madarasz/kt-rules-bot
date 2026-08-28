@@ -132,7 +132,7 @@ Example:
 ## [FAQ] *Question:* Can my **STORM** be measured through Wall Terrain in Close Quarters?
 *Answer:* No.
 ```
-- Bold every named rule referenced in the question or answer - abilities, faction rules, ploys, equipment and tac ops (e.g. `the **Subterranean Ambush** rule`, `the **Implant** tac op`)
+- Bold every named rule referenced in the question or answer - abilities, faction rules, ploys, equipment, tac ops and crit ops (e.g. `the **Subterranean Ambush** rule`, `the **Implant** tac op`)
 - The question goes on the SAME LINE as the header after `*Question:*`
 - Bold game terms like **STORM**, **WOLF SCOUT**, etc. in both question and answer
 - Do NOT repeat the question on a separate line
@@ -160,18 +160,18 @@ Example:
 4. **Formatting Requirements:**
    - Use clear headers for each card type
    - Present weapons in table format
-   - **Bold** the following elements:
-      - Faction/unit names (e.g., **CORSAIR VOIDSCARRED**)
-      - Ability names (e.g., **Warding Shield**)
+   - **Bold these in rule text** (NEVER inside a header - headers stay plain):
+      - Kill team and faction names (e.g., **CORSAIR VOIDSCARRED**, **ANGEL OF DEATH**)
+      - Operative names and keywords (e.g., **PACK LEADER**, **WARRIOR**, **PSYKER**)
+      - Ability names (e.g., **Warding Shield**, **Subterranean Ambush**)
+      - Ploy and equipment names (e.g., the **Combat Doctrine** strategy ploy)
+      - Tac op and crit op names (e.g., **Surveillance**, **Implant**)
       - Game action names (e.g., **Shoot** action, **Guard** action)
-      - Keywords in rule text (e.g., **Blast**, **Heavy** terrain, **Torrent**)
-      - Critical game terms when relevant (e.g., **incapacitated**, **counteract**, **visible**, **wholly within x"**, **control range**, **in cover**)
+      - Game terms: **visible**, **obscured**, **control range**, **cover** (but NOT in the phrase "cover save", which stays plain), **Conceal**, **Engage**
    - **DO NOT bold** weapon rules inside weapon tables - write them as plain text (e.g., `Piercing 1, Lethal 5+` not `**Piercing 1**, **Lethal 5+**`)
    - **Empty weapon rules:** Leave the cell empty (e.g., `| |`) - do NOT use `-` or `—`
    - Use structured formats for complex multi-condition rules
    - **Keep bulleted rule text bulleted:** if the card presents effects as a bulleted list, keep every effect as its own bullet in ONE block - never merge them into a paragraph, and never separate them with blank lines
-   - **"within" should NOT be bolded** - only bold the target (e.g., `within your **STORM**`, `within **control range**`)
-   - **Distance expressions should NOT be bolded** (e.g., `within 6"` not `**within 6"**`)
    - **Period placement:** Place periods INSIDE bold markers for special keywords (e.g., `**STRATEGIC GAMBIT.**` not `**STRATEGIC GAMBIT**.`)
    - **Restriction clauses:** Keep in the same block as the main rule text, never as a separate paragraph. When an action has an effect and a separate restriction sentence, write them as two bullets of one list:
 ```
@@ -179,10 +179,6 @@ Example:
 - Until the start of this operative's next activation, whenever it's shooting, enemy operatives cannot be **obscured**.
 - This operative cannot perform this action while within **control range** of an enemy operative.
 ```
-   - **Bold tac op names** in rule text (e.g. `(e.g. **Surveillance**)`)
-   - **Bold both halves of "activation/counteraction"** (`**activation**/**counteraction**`). On its own, "activation" is NOT bolded
-   - **Always bold these terms:** **incapacitated**, **counteract**, **visible**, **obscured**, **control range**, **cover** (but NOT in the phrase "cover save", which stays plain), **STORM** (team-specific), **REANIMATED** (team-specific), **Conceal**, **Engage**
-   - **Weapon rules in rule text** (outside tables) should be bold, including the x value where the rule has one: **Accurate 1**, **Balanced**, **Blast 2"**, **Brutal**, **Ceaseless**, **Devastating 3**, **Hot**, **Lethal 5+**, **Limited 1**, **Piercing 1**, **Piercing Crits 1**, **Punishing**, **Range 8"**, **Relentless**, **Rending**, **Saturate**, **Seek**, **Seek Light**, **Severe**, **Shock**, **Silent**, **Stun**, **Torrent 1"**
 
 5. **Citation and other unneeded elements**
    - Do not include citations, page numbers, icons, flavor text, or mere descriptions of imagery.
@@ -266,6 +262,7 @@ Example:
   - **Equipment:** `## [EQUIPMENT NAME] - Faction Equipment` (NO team name prefix)
   - This structure is essential for document chunking and searchability
   - Use `###` (H3) for sub-sections within a major element (abilities, actions)
+  - **Headers contain NO bold markers** - `## RAVENERS - RAVENER PRIME`, never `## **RAVENERS** - **RAVENER PRIME**`
 - The distinction between **within** and **wholly within** is very important, do not mix these up
 - No empty header sections. If it's empty, skip it.
 - **Preserve all weapon rules:** Include every special rule listed in WR column
