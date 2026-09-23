@@ -784,6 +784,27 @@ Results: 16 valid, 1 invalid
 
 ---
 
+### `scripts/generate_teams_and_tacops.py` - Generate Teams & Ops Reference
+
+Generate `docs/teams-and-tacops.md`, a reference listing every team (with its faction rules, operatives, ploys and equipment), the TacOps by category, and the CritOps.
+
+**Usage:**
+```bash
+python scripts/generate_teams_and_tacops.py
+```
+
+**Sources:**
+- Teams + operatives: `extracted-rules/teams-structure.yml`
+- Faction rules, strategy/firefight ploys, equipment: heading names in `extracted-rules/team/*.md`
+- TacOps: `extracted-rules/approved-ops-2025/tacops.md` (grouped by category)
+- CritOps: `extracted-rules/approved-ops-2025/critops.md`
+
+**Use Cases:**
+- Quick human-readable index of teams and ops
+- Regenerate after downloading/updating team rules or ops
+
+---
+
 ### SQLite Queries - Query Analytics Database
 
 Query the analytics database directly using sqlite3 CLI. Useful for ad-hoc queries and reviewing admin notes.
