@@ -16,10 +16,12 @@ LLM_PROVIDERS_LITERAL = Literal[
     "claude-4.8-opus",
     "claude-4.7-opus",
     "claude-4.6-opus",
+    "claude-5.5-sonnet",
     "claude-4.6-sonnet",
     "claude-4.5-sonnet",
     "claude-4.5-opus",
     "claude-4.1-opus",
+    "claude-5.5-haiku",
     "claude-4.5-haiku",
     "gemini-3.1-pro-preview",
     "gemini-3-pro-preview",
@@ -48,10 +50,13 @@ LLM_PROVIDERS_LITERAL = Literal[
     # "o3", --- does not support JSON output
     "o3-mini",
     "o4-mini",
+    "grok-4.7",
+    "grok-4.6",
     "grok-4.5",
     "grok-4.3",
     "grok-4.20-0309-reasoning",
     "grok-4.20-0309-non-reasoning",
+    "grok-4.20-multi-agent-0309",
     "grok-build-0.1",
     "grok-3",
     "grok-3-mini",
@@ -105,6 +110,8 @@ QUALITY_TEST_PROVIDERS = [
     #"gpt-4.1",
     #"gpt-4o",
     # "gpt-4.1-mini",
+    "claude-5.5-haiku",
+    "claude-5.5-sonnet",
     #"claude-4.6-sonnet",
     #"claude-4.5-sonnet",
     #"claude-4.6-opus",
@@ -122,6 +129,7 @@ QUALITY_TEST_PROVIDERS = [
     #"deepseek-chat",
     #"grok-4.5",
     "grok-4.3#low",
+    "grok-4.20-multi-agent-0309",
     #"grok-4.3#medium",
     #"grok-4.3#high",
     #"grok-4.20-0309-reasoning",
@@ -351,7 +359,7 @@ RAG_MAX_HOPS = 1
 RAG_HOP_CHUNK_LIMIT = 5
 
 # LLM model for hop context evaluation
-RAG_HOP_EVALUATION_MODEL = "ministral-3-14-b"
+RAG_HOP_EVALUATION_MODEL = "claude-5.5-haiku"
 
 # Hop evaluation timeout in seconds
 RAG_HOP_EVALUATION_TIMEOUT = 30

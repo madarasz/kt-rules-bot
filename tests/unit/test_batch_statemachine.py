@@ -105,6 +105,47 @@ def test_collect_generation_not_ready_is_noop(tmp_path, monkeypatch):
     assert BatchManifest.load(tmp_path).phase == "generation_submitted"
 
 
+def test_collect_generation_poll_error_keeps_other_backends_progress(tmp_path, monkeypatch):
+    # xAI answers 403 once the team is out of credits. That backend must stay
+    # in progress without aborting the pass, so the anthropic results fetched
+    # in the same pass are saved.
+    m = _manifest(tmp_path)
+    m.generation["x"] = {"batch_id": "bx", "status": "in_progress"}
+    m.requests.append({
+        "custom_id": "gen__t1__grok-4.3__run1",
+        "test_id": "t1", "model": "grok-4.3", "run_num": 1,
+        "kind": "gen", "backend": "x", "batchable": True,
+        "embedding_cost": 0.0, "multi_hop_cost": 0.0,
+    })
+    m.save()
+    runner = _runner()
+
+    class _ForbiddenBackend(_FakeBackend):
+        def poll(self, _batch_id):
+            raise RuntimeError("403 Forbidden: used all available credits")
+
+    fakes = {
+        "anthropic": _FakeBackend(
+            "anthropic", "ended", items={"gen__t1__claude-4.6-sonnet__run1": {"ok": 1}}
+        ),
+        "x": _ForbiddenBackend("x", None),
+    }
+    monkeypatch.setattr(backends_mod, "make_backend", lambda name: fakes[name])
+    monkeypatch.setattr(
+        runner, "_write_batch_generation_output", lambda *_a: ("succeeded", None)
+    )
+
+    import asyncio
+    phase = asyncio.run(runner.collect_batch_run(tmp_path))
+
+    assert phase == "generation_submitted"
+    saved = BatchManifest.load(tmp_path)
+    assert saved.generation["anthropic"]["collected"] is True
+    assert not saved.generation["x"].get("collected")
+    row = next(r for r in saved.requests if r["backend"] == "anthropic")
+    assert row["status"] == "succeeded"
+
+
 def test_collect_done_is_idempotent(tmp_path):
     m = _manifest(tmp_path)
     m.phase = "done"

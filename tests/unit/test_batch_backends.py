@@ -31,6 +31,9 @@ def test_resolve_backend_excludes_grok_4_5():
     # grok-4.5 400s the submission for all the other grok models too.
     assert resolve_backend("grok-4.5") is None
     assert resolve_backend("grok-4.5#high") is None
+    # grok-4.6/4.7: same rejection, probed live 2026-10-08
+    assert resolve_backend("grok-4.6") is None
+    assert resolve_backend("grok-4.7#xhigh") is None
     assert resolve_backend("grok-4.3").name == "x"
     assert resolve_backend("grok-4.3#low").name == "x"
 

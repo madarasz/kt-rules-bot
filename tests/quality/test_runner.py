@@ -817,7 +817,16 @@ class QualityTestRunner:
         for name, info in manifest.generation.items():
             if info.get("collected"):
                 continue
-            status = gen_backends[name].poll(info["batch_id"])
+            try:
+                status = gen_backends[name].poll(info["batch_id"])
+            except Exception as e:
+                # One unreachable provider (e.g. out of credits, 403) must not abort
+                # the pass: other backends' fetched results are only persisted by
+                # manifest.save() below. Leave it in progress; the next collect retries.
+                logger.error(f"Polling generation batch {name} failed: {e}")
+                print(f"Generation batch {name}: poll failed, will retry on next collect — {e}")
+                all_collected = False
+                continue
             info["status"] = status
 
             if status == "in_progress":

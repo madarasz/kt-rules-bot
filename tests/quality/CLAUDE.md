@@ -330,6 +330,12 @@ in `src/lib/constants.py`). Each re-request is a fresh small batch picked up on 
   you can top up between collects). An unrecognized error also defaults to transient.
 - **Permanent (not retried):** auth / 401, permission / 403, invalid_request / 400,
   content filter / blocked / recitation / refusal, not_found / 404, canceled.
+  Exception: account limits ("available credits", "spending limit", …) are matched
+  first and stay transient — xAI reports exhausted credits as a 403 "permission" error.
+
+A backend whose **poll** raises (e.g. xAI 403 once the team is out of credits) stays
+`in_progress` instead of aborting the collect pass, so results fetched from the other
+backends in that pass are still saved. Top up, then re-run `batch-collect`.
 
 Per-item state (`status`, `attempts`, `error`, `error_class`) lives on each
 `batch_state.json` request row; a whole-backend `failed` status is resubmitted once then

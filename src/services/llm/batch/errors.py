@@ -14,7 +14,20 @@ adapters' own error handling) rather than SDK-native exception typing, because
 batch results arrive as plain serialized dicts, not raised exceptions.
 """
 
-# Permanent markers are checked FIRST so that a substring like "request" inside an
+# Account limits the user can fix between collects (top up, raise the limit).
+# Checked before the permanent markers: xAI reports exhausted credits as a 403
+# "The caller does not have permission ..." whose body would otherwise match
+# "permission"/"403" and drop recoverable items for good.
+_ACCOUNT_LIMIT_MARKERS = (
+    "available credits",
+    "out of credits",
+    "spending limit",
+    "insufficient credits",
+    "insufficient_credits",
+    "insufficient_quota",
+)
+
+# Permanent markers are checked next so that a substring like "request" inside an
 # "invalid_request_error" can't be mis-matched by a transient rule. A permanent
 # error will not be fixed by re-requesting the same input.
 _PERMANENT_MARKERS = (
@@ -88,11 +101,15 @@ def classify_batch_error(text: str | None) -> tuple[str, str]:
 
     Returns (error_class, reason) where error_class is CLASS_TRANSIENT or
     CLASS_PERMANENT and reason is the marker that matched (or "unclassified").
-    Permanent markers are matched before transient ones. An unrecognized error
+    Account-limit markers (credits, spending limit) match first as transient, then
+    permanent markers before transient ones. An unrecognized error
     defaults to transient so the bounded retry cap gives it a chance rather than
     dropping a possibly-recoverable item.
     """
     haystack = (text or "").lower()
+    for marker in _ACCOUNT_LIMIT_MARKERS:
+        if marker in haystack:
+            return CLASS_TRANSIENT, marker
     for marker in _PERMANENT_MARKERS:
         if marker in haystack:
             return CLASS_PERMANENT, marker

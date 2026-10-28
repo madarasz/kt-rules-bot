@@ -188,6 +188,40 @@ def test_claude_effort_applied(request_):
     assert a.build_batch_request(request_, "c")["params"]["output_config"] == {"effort": "xhigh"}
 
 
+def test_claude_haiku_55_effort_and_no_temperature(request_):
+    # Haiku 5.5 400s on non-default temperature; it accepts the full effort range.
+    a = _with_effort(ClaudeAdapter("k", "claude-haiku-5-5"), "max")
+    params = a.build_batch_request(request_, "c")["params"]
+    assert params["output_config"] == {"effort": "max"}
+    assert "temperature" not in params
+
+
+def test_claude_haiku_55_forced_tool_is_strict(request_):
+    # Non-strict tool input let Haiku 5.5 drop quote_text / double-encode quotes.
+    tool = ClaudeAdapter("k", "claude-haiku-5-5").build_batch_request(request_, "c")["params"]["tools"][0]
+    assert tool["strict"] is True
+    assert "strict" not in ClaudeAdapter("k", "claude-opus-4-8").build_batch_request(
+        request_, "c")["params"]["tools"][0]
+
+
+def test_claude_sonnet_55_uses_structured_outputs_not_forced_tool(request_):
+    # Sonnet 5.5 400s on forced tool_choice, non-default temperature and disabled thinking.
+    params = ClaudeAdapter("k", "claude-sonnet-5-5").build_batch_request(request_, "c")["params"]
+    assert "tools" not in params and "tool_choice" not in params
+    assert "temperature" not in params
+    assert params["output_config"]["format"]["type"] == "json_schema"
+    assert params["thinking"] == {"type": "between_tools"}
+
+
+def test_claude_sonnet_55_effort_turns_thinking_back_on(request_):
+    a = _with_effort(ClaudeAdapter("k", "claude-sonnet-5-5"), "xhigh")
+    params = a.build_batch_request(request_, "c")["params"]
+    assert params["output_config"]["effort"] == "xhigh"
+    assert "format" in params["output_config"]
+    # between_tools 400s at xhigh/max; omitting thinking runs adaptive
+    assert "thinking" not in params
+
+
 def test_claude_effort_ignored_when_unsupported(request_):
     a = _with_effort(ClaudeAdapter("k", "claude-opus-4-1-20250805"), "high")
     assert "output_config" not in a.build_batch_request(request_, "c")["params"]
@@ -287,7 +321,10 @@ def test_effort_matrix_keys_all_resolve_to_a_registry_model():
         ("gpt-5.5#high", lambda r: r["body"]["reasoning_effort"] == "high"),
         ("gpt-5.4-mini#high", lambda r: r["body"]["reasoning_effort"] == "high"),
         ("claude-4.8-opus#xhigh", lambda r: r["params"]["output_config"] == {"effort": "xhigh"}),
+        ("claude-5.5-haiku#low", lambda r: r["params"]["output_config"] == {"effort": "low"}),
+        ("claude-5.5-sonnet#high", lambda r: r["params"]["output_config"]["effort"] == "high"),
         ("grok-4.3#high", lambda r: r["batch_request"]["responses"]["reasoning_effort"] == "high"),
+        ("grok-4.7#xhigh", lambda r: r["batch_request"]["responses"]["reasoning_effort"] == "xhigh"),
         (
             "gemini-2.5-pro#low",
             lambda r: r["request"]["config"]["thinking_config"] == {"thinking_budget": 2048},

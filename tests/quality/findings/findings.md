@@ -1,5 +1,9 @@
 # Decisions
 ## LLM models removed from consideration
+- `claude-5.5-haiku` is good for hop judge, but bad for answes
+- `claude-5.5-sonnet` is a little bit better than `grok-4.3`, but 1.5x more expensive
+- `grok-4.20-multi-agent-0309` is super expensive, 10x expensive as `claude-5.5-sonnet`
+- `grok-4.6` and `grok-4.7` are too slow, ~60s
 - `grok-4.1` models were phased out, it got redirected to `grok-4.3` after a while
 - `kimi-k2.5` answers are good, but it is too slow (60s+). Other Kimi models just give bad answers
 - `gemini-3-flash-preview` is slower (20s+), more expensive than `gemini-2.5-flash`. It might be smarter, but sometimes has truncated JSON isse

@@ -38,6 +38,12 @@ THINKING_MODELS = {"deepseek-v4-flash", "deepseek-v4-pro"}
 # Set False to disable thinking-mode path (uses function calling instead — will fail on thinking models)
 USE_DEEPSEEK_THINKING = False
 
+# Models whose tool-call arguments can come back as malformed JSON, so they use
+# JSON mode instead. deepseek-v4-flash is now served by V4.1-Flash, which emits
+# e.g. '..., "explanation"::' for the Answer schema — with strict mode, any
+# temperature and thinking on or off. deepseek-v4-pro is not affected.
+JSON_MODE_MODELS = {"deepseek-v4-flash"}
+
 
 class DeepSeekAdapter(LLMProvider):
     """DeepSeek API integration using OpenAI-compatible endpoint."""
@@ -83,20 +89,20 @@ class DeepSeekAdapter(LLMProvider):
         # Build prompt with context and optional chunk IDs
         full_prompt = self._build_prompt(request.prompt, request.context, request.chunk_ids)
 
+        thinking_on = USE_DEEPSEEK_THINKING and self.model in THINKING_MODELS
+        use_json_mode = thinking_on or self.model in JSON_MODE_MODELS
+
         # Thinking models use internal reasoning tokens — multiply budget to avoid truncation
-        token_limit = (
-            request.config.max_tokens * 3
-            if USE_DEEPSEEK_THINKING and self.model in THINKING_MODELS
-            else request.config.max_tokens
-        )
+        token_limit = request.config.max_tokens * 3 if thinking_on else request.config.max_tokens
 
         try:
             schema_type = request.config.structured_output_schema
 
-            if USE_DEEPSEEK_THINKING and self.model in THINKING_MODELS:
-                # Thinking mode is incompatible with tool_choice — use JSON mode + schema in prompt
+            if use_json_mode:
+                # Thinking mode is incompatible with tool_choice, and some models emit
+                # malformed tool arguments — use JSON mode + schema in prompt
                 pydantic_model = get_pydantic_model(schema_type)
-                logger.debug(f"Using {schema_type} schema (JSON mode, thinking model)")
+                logger.debug(f"Using {schema_type} schema (JSON mode)")
 
                 json_schema = pydantic_model.model_json_schema()
                 schema_instruction = (
@@ -114,7 +120,11 @@ class DeepSeekAdapter(LLMProvider):
                     ],
                     "max_tokens": token_limit,
                     "response_format": {"type": "json_object"},
+                    # Thinking defaults to enabled on the API, so always set it explicitly
+                    "extra_body": {"thinking": {"type": "enabled" if thinking_on else "disabled"}},
                 }
+                if not thinking_on:
+                    api_params["temperature"] = request.config.temperature
             else:
                 # Non-thinking models: use function calling for structured output
                 schema_info = get_schema_info(schema_type)
@@ -164,7 +174,7 @@ class DeepSeekAdapter(LLMProvider):
                     )
 
             # Extract raw JSON depending on output mode
-            if USE_DEEPSEEK_THINKING and self.model in THINKING_MODELS:
+            if use_json_mode:
                 raw_json = choice.message.content
                 if not raw_json:
                     if choice.finish_reason == "length":

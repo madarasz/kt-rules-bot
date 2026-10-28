@@ -4,7 +4,7 @@ import json
 
 from src.lib.logging import get_logger
 
-from ._util import error_text
+from ._util import error_text, raise_for_status_with_body
 
 logger = get_logger(__name__)
 
@@ -45,20 +45,20 @@ class MistralBatchBackend:
             files={"file": ("batch.jsonl", buf, "application/jsonl")},
             data={"purpose": "batch"},
         )
-        up.raise_for_status()
+        raise_for_status_with_body(up)
         file_id = up.json()["id"]
         job = self.http.post(
             "/batch/jobs",
             json={"input_files": [file_id], "endpoint": "/v1/chat/completions", "model": model},
         )
-        job.raise_for_status()
+        raise_for_status_with_body(job)
         job_id = job.json()["id"]
         logger.info(f"Submitted Mistral batch {job_id} ({len(lines)} requests)")
         return job_id
 
     def poll(self, batch_id: str) -> str:
         r = self.http.get(f"/batch/jobs/{batch_id}")
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         status = r.json()["status"]
         if status == "SUCCESS":
             return "ended"
@@ -70,7 +70,7 @@ class MistralBatchBackend:
 
     def fetch(self, batch_id: str) -> dict[str, dict]:
         r = self.http.get(f"/batch/jobs/{batch_id}")
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         job = r.json()
         out: dict[str, dict] = {}
         output_file = job.get("output_file")

@@ -40,7 +40,20 @@ class GrokAdapter(LLMProvider):
     # processing"), and because Grok submits every model in one mixed batch, a
     # single unsupported model 400s the whole submission — so they must route to
     # the live path instead. Verified against POST /v1/batches/{id}/requests.
-    BATCH_UNSUPPORTED_MODELS = frozenset({"grok-4.5", "grok-build-0.1"})
+    #
+    # grok-4.20-multi-agent-0309 is accepted by xAI's batch endpoint, but its
+    # Responses-only request shape (see RESPONSES_ONLY_MODELS) has not been
+    # smoke-tested through a live batch, so it stays on the live path for now.
+    BATCH_UNSUPPORTED_MODELS = frozenset(
+        {"grok-4.7", "grok-4.6", "grok-4.5", "grok-build-0.1", "grok-4.20-multi-agent-0309"}
+    )
+
+    # Multi-agent models reject chat/completions ("Multi Agent requests are not
+    # allowed on chat completions"); generate() calls the Responses API for them.
+    # Effort goes in reasoning.effort and sets the agent count (low/medium = 4,
+    # high/xhigh = 16). max_output_tokens is omitted: xAI documents it as
+    # unsupported, and sub-agent reasoning would otherwise truncate the answer.
+    RESPONSES_ONLY_MODELS = frozenset({"grok-4.20-multi-agent-0309"})
 
     @classmethod
     def batch_supports_model(cls, model_id: str) -> bool:
@@ -157,6 +170,26 @@ class GrokAdapter(LLMProvider):
 
         logger.info(f"Initialized Grok adapter with model {model}")
 
+    @staticmethod
+    def _responses_output_text(response_data: dict) -> tuple[str, str | None]:
+        """Return (output text, status) from a Responses-API body; raise on a bad status."""
+        status = response_data.get("status")
+        if status == "incomplete":
+            reason = (response_data.get("incomplete_details") or {}).get("reason")
+            if reason == "content_filter":
+                raise ContentFilterError("Grok content filter blocked response")
+            raise TokenLimitError(f"Grok response incomplete (reason: {reason})")
+        content = next(
+            (
+                part.get("text", "")
+                for item in response_data.get("output") or []
+                for part in item.get("content") or []
+                if part.get("type") == "output_text"
+            ),
+            "",
+        )
+        return content, status
+
     async def generate(self, request: GenerationRequest) -> LLMResponse:
         """Generate answer using Grok API.
 
@@ -183,38 +216,59 @@ class GrokAdapter(LLMProvider):
             pydantic_model = get_pydantic_model(schema_type)
             logger.debug(f"Using {schema_type} schema (Pydantic)")
 
-            # Build API request payload with structured output using Pydantic JSON schema
-            # Grok supports OpenAI-compatible response_format for structured outputs
-            payload = {
-                "model": self.model,
-                "messages": [
-                    {"role": "system", "content": request.config.system_prompt},
-                    {"role": "user", "content": full_prompt},
-                ],
-                "max_tokens": request.config.max_tokens,
-                "temperature": request.config.temperature,
-                "stream": False,
-                "response_format": {
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": pydantic_model.__name__,
-                        "schema": pydantic_model.model_json_schema(),
-                        "strict": True,
-                    },
-                },
-            }
-
-            # Reasoning effort (chat/completions shape). Gated by central matrix;
-            # unsupported models/levels warn+ignore (payload unchanged).
+            responses_api = self.model in self.RESPONSES_ONLY_MODELS
             effort = self._resolve_effort()
-            if effort is not None:
-                payload["reasoning_effort"] = effort
-                payload["max_tokens"] = request.config.max_tokens * LLM_REASONING_TOKEN_MULTIPLIER
+            messages = [
+                {"role": "system", "content": request.config.system_prompt},
+                {"role": "user", "content": full_prompt},
+            ]
+            if responses_api:
+                payload = {
+                    "model": self.model,
+                    "input": messages,
+                    "temperature": request.config.temperature,
+                    "text": {
+                        "format": {
+                            "type": "json_schema",
+                            "name": pydantic_model.__name__,
+                            "schema": pydantic_model.model_json_schema(),
+                            "strict": True,
+                        }
+                    },
+                }
+                if effort is not None:
+                    payload["reasoning"] = {"effort": effort}
+                endpoint = "responses"
+            else:
+                # Build API request payload with structured output using Pydantic JSON schema
+                # Grok supports OpenAI-compatible response_format for structured outputs
+                payload = {
+                    "model": self.model,
+                    "messages": messages,
+                    "max_tokens": request.config.max_tokens,
+                    "temperature": request.config.temperature,
+                    "stream": False,
+                    "response_format": {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": pydantic_model.__name__,
+                            "schema": pydantic_model.model_json_schema(),
+                            "strict": True,
+                        },
+                    },
+                }
+
+                # Reasoning effort (chat/completions shape). Gated by central matrix;
+                # unsupported models/levels warn+ignore (payload unchanged).
+                if effort is not None:
+                    payload["reasoning_effort"] = effort
+                    payload["max_tokens"] = request.config.max_tokens * LLM_REASONING_TOKEN_MULTIPLIER
+                endpoint = "chat/completions"
 
             # Call Grok API with timeout
             async with httpx.AsyncClient(timeout=request.config.timeout_seconds) as client:
                 response = await client.post(
-                    f"{self.base_url}/chat/completions", headers=self.headers, json=payload
+                    f"{self.base_url}/{endpoint}", headers=self.headers, json=payload
                 )
 
             latency_ms = int((time.time() - start_time) * 1000)
@@ -243,22 +297,25 @@ class GrokAdapter(LLMProvider):
                     f"(alias/redirect)"
                 )
 
-            # Extract structured JSON from response
-            if not response_data.get("choices") or len(response_data["choices"]) == 0:
-                raise Exception("Grok returned no choices in response")
+            if responses_api:
+                content, finish_reason = self._responses_output_text(response_data)
+            else:
+                # Extract structured JSON from response
+                if not response_data.get("choices") or len(response_data["choices"]) == 0:
+                    raise Exception("Grok returned no choices in response")
 
-            choice = response_data["choices"][0]
-            message = choice.get("message", {})
+                choice = response_data["choices"][0]
+                message = choice.get("message", {})
 
-            # Check finish_reason for errors
-            finish_reason = choice.get("finish_reason")
-            if finish_reason == "content_filter":
-                raise ContentFilterError("Grok content filter blocked response")
-            elif finish_reason == "length":
-                raise TokenLimitError("Grok output was truncated due to max_tokens limit")
+                # Check finish_reason for errors
+                finish_reason = choice.get("finish_reason")
+                if finish_reason == "content_filter":
+                    raise ContentFilterError("Grok content filter blocked response")
+                elif finish_reason == "length":
+                    raise TokenLimitError("Grok output was truncated due to max_tokens limit")
 
-            # Extract JSON content from message
-            content = message.get("content", "")
+                # Extract JSON content from message
+                content = message.get("content", "")
             if not content:
                 raise Exception(
                     f"Grok returned no content (finish_reason: {finish_reason})"
@@ -298,10 +355,17 @@ class GrokAdapter(LLMProvider):
 
             # Token count
             usage = response_data.get("usage", {})
-            prompt_tokens = usage.get("prompt_tokens", 0)
-            completion_tokens = usage.get("completion_tokens", 0)
-            token_count = usage.get("total_tokens", 0)
-            prompt_details = usage.get("prompt_tokens_details", {})
+            if responses_api:
+                # Responses API: output_tokens already includes reasoning tokens
+                prompt_tokens = usage.get("input_tokens", 0)
+                completion_tokens = usage.get("output_tokens", 0)
+                token_count = usage.get("total_tokens", prompt_tokens + completion_tokens)
+                prompt_details = usage.get("input_tokens_details", {})
+            else:
+                prompt_tokens = usage.get("prompt_tokens", 0)
+                completion_tokens = usage.get("completion_tokens", 0)
+                token_count = usage.get("total_tokens", 0)
+                prompt_details = usage.get("prompt_tokens_details", {})
             cache_read_tokens = prompt_details.get("cached_tokens", 0) if prompt_details else 0
 
             logger.info(

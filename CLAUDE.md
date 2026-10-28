@@ -72,10 +72,10 @@ python3 scripts/migrate_db.py
   file, so only changed markdown is re-summarized and re-embedded; optional Batch API
 
 **LLM Providers** (via factory pattern):
-- Claude: `claude-4.5-sonnet`, `claude-4.1-opus`, `claude-4.5-haiku`
+- Claude: `claude-5.5-sonnet`, `claude-4.5-sonnet`, `claude-4.1-opus`, `claude-5.5-haiku`, `claude-4.5-haiku`
 - Gemini: `gemini-2.5-pro`, `gemini-2.5-flash`
 - GPT: `gpt-5`, `gpt-4.1`, `gpt-4o`, `o3`, `o4-mini` + variants
-- Grok: `grok-4-fast-reasoning`, `grok-3` + variants
+- Grok: `grok-4.7`, `grok-4.6`, `grok-4-fast-reasoning`, `grok-3` + variants
 - DeepSeek: `deepseek-chat`, `deepseek-reasoner`
 - Kimi: `kimi-k2.5`, `kimi-k2-0905-preview`, `kimi-k2-turbo-preview`
 

@@ -56,7 +56,7 @@ class GrokBatchBackend:
 
     def poll(self, batch_id: str) -> str:
         r = self.http.get(f"/batches/{batch_id}")
-        r.raise_for_status()
+        raise_for_status_with_body(r)
         state = r.json().get("state", {})
         if state.get("num_pending", 1) == 0:
             return "ended"
@@ -70,7 +70,7 @@ class GrokBatchBackend:
             if token:
                 params["pagination_token"] = token
             r = self.http.get(f"/batches/{batch_id}/results", params=params)
-            r.raise_for_status()
+            raise_for_status_with_body(r)
             data = r.json()
             # xAI returns every item (success or error) under "results"; each has
             # a "batch_request_id" and a "batch_result" that wraps the served

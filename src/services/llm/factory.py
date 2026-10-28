@@ -33,6 +33,7 @@ class LLMProviderFactory:
 
     # Model name to (adapter_class, actual_model_id, api_key_type) mapping
     _model_registry = {
+        "claude-5.5-sonnet": (ClaudeAdapter, "claude-sonnet-5-5", "anthropic"),
         "claude-4.6-sonnet": (ClaudeAdapter, "claude-sonnet-4-6", "anthropic"),
         "claude-4.5-sonnet": (ClaudeAdapter, "claude-sonnet-4-5-20250929", "anthropic"),
         "claude-4.8-opus": (ClaudeAdapter, "claude-opus-4-8", "anthropic"),
@@ -40,6 +41,7 @@ class LLMProviderFactory:
         "claude-4.6-opus": (ClaudeAdapter, "claude-opus-4-6", "anthropic"),
         "claude-4.5-opus": (ClaudeAdapter, "claude-opus-4-5-20251101", "anthropic"),
         "claude-4.1-opus": (ClaudeAdapter, "claude-opus-4-1-20250805", "anthropic"),
+        "claude-5.5-haiku": (ClaudeAdapter, "claude-haiku-5-5", "anthropic"),
         "claude-4.5-haiku": (ClaudeAdapter, "claude-haiku-4-5-20251001", "anthropic"),
         "gemini-3.1-pro-preview": (GeminiAdapter, "gemini-3.1-pro-preview", "google"),
         "gemini-3-pro-preview": (GeminiAdapter, "gemini-3-pro-preview", "google"),
@@ -72,9 +74,12 @@ class LLMProviderFactory:
         "grok-4-1-fast-non-reasoning": (GrokAdapter, "grok-4-1-fast-non-reasoning", "x"),
         "grok-4-fast-reasoning": (GrokAdapter, "grok-4-fast-reasoning", "x"),
         "grok-4-0709": (GrokAdapter, "grok-4-0709", "x"),
+        "grok-4.7": (GrokAdapter, "grok-4.7", "x"),
+        "grok-4.6": (GrokAdapter, "grok-4.6", "x"),
         "grok-4.5": (GrokAdapter, "grok-4.5", "x"),
         "grok-4.3": (GrokAdapter, "grok-4.3", "x"),
         "grok-4.20-0309-reasoning": (GrokAdapter, "grok-4.20-0309-reasoning", "x"),
+        "grok-4.20-multi-agent-0309": (GrokAdapter, "grok-4.20-multi-agent-0309", "x"),
         "grok-4.20-0309-non-reasoning": (GrokAdapter, "grok-4.20-0309-non-reasoning", "x"),
         "grok-build-0.1": (GrokAdapter, "grok-build-0.1", "x"),
         "grok-3": (GrokAdapter, "grok-3", "x"),

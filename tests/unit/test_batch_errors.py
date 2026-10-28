@@ -24,6 +24,10 @@ from src.services.llm.batch.errors import (
         "insufficient_quota: add credits",
         "You have insufficient credits",
         "billing hard limit reached",
+        # xAI out-of-credits arrives as a 403 "permission" error; it is fixable by topping up
+        "Client error '403 Forbidden' {\"code\":\"The caller does not have permission to execute "
+        "the specified operation\",\"error\":\"Your team has either used all available credits "
+        "or reached its monthly spending limit.\"}",
     ],
 )
 def test_transient_errors(text):

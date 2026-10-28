@@ -51,7 +51,15 @@ NO_CACHE_DISCOUNT = 1.0                  # provider has no prompt caching
 # Models whose published cached-read discount differs from their family's rate.
 _CACHE_READ_RATIO_OVERRIDES = {
     "grok-build-0.1":  0.20,
+    "grok-4.7":        0.25,  # $0.50 hit vs $2.00 miss per 1M
+    "grok-4.6":        0.25,
+    # $0.20 hit vs $1.25 miss per 1M (docs.x.ai, 2026-10-08)
+    "grok-4.3":                     0.16,
+    "grok-4.20-0309-reasoning":     0.16,
+    "grok-4.20-0309-non-reasoning": 0.16,
+    "grok-4.20-multi-agent-0309":   0.16,
     "deepseek-v4-pro": 0.00833,
+    "claude-sonnet-5-5": 0.05,  # $0.10 hit vs $2 base per 1M
 }
 
 # model name -> (prompt, completion) price per 1K tokens
@@ -96,24 +104,32 @@ pricing: dict[str, dict] = {
         "gpt-4.1-nano":        (0.0001,  0.0004),
         "gpt-4o":              (0.0025,  0.01),
     }),
-    # https://www.claude.com/pricing#api
+    # https://www.claude.com/pricing#api (verified 2026-10-08)
     # Keyed by the model IDs the API returns; friendly names are aliased below.
     **_family(ANTHROPIC_CACHE_READ_MULTIPLIER, {
-        "claude-sonnet-4-6":          (0.003, 0.006),
-        "claude-sonnet-4-5-20250929": (0.003, 0.006),
+        "claude-sonnet-5-5":          (0.002, 0.010),
+        "claude-sonnet-4-6":          (0.003, 0.015),
+        "claude-sonnet-4-5-20250929": (0.003, 0.015),
         "claude-opus-4-8":            (0.005, 0.025),
         "claude-opus-4-7":            (0.005, 0.025),
         "claude-opus-4-6":            (0.005, 0.025),
         "claude-opus-4-5-20251101":   (0.005, 0.025),
         "claude-opus-4-1-20250805":   (0.015, 0.075),
+        # Haiku 5.5: <=100K-token prompt rate; prompts >100K bill at 5x (not modelled)
+        "claude-haiku-5-5":           (0.0001, 0.0005),
         "claude-haiku-4-5-20251001":  (0.001, 0.005),
     }, cache_mode="anthropic"),
     # https://docs.x.ai/developers/pricing - ~15% cached discount (varies by model; see overrides)
     **_family(GROK_CACHE_READ_MULTIPLIER, {
+        # <200K-token prompt rate; prompts >=200K bill at 2x (not modelled)
+        "grok-4.7":                     (0.00200, 0.00600),
+        "grok-4.6":                     (0.00200, 0.00600),
         "grok-4.5":                     (0.00200, 0.00600),
         "grok-4.3":                     (0.00125, 0.00250),
         "grok-4.20-0309-reasoning":     (0.00125, 0.00250),
         "grok-4.20-0309-non-reasoning": (0.00125, 0.00250),
+        # Leader + sub-agent tokens all billed; usage reports the total
+        "grok-4.20-multi-agent-0309":   (0.00125, 0.00250),
         "grok-build-0.1":               (0.00100, 0.00200),
     }),
     # https://ai.google.dev/gemini-api/docs/pricing
@@ -176,6 +192,7 @@ pricing: dict[str, dict] = {
 # (src/lib must not depend on src/services); tests/unit/test_pricing_aliases.py
 # fails if the two drift apart.
 _PRICING_ALIASES = {
+    "claude-5.5-sonnet":  "claude-sonnet-5-5",
     "claude-4.6-sonnet":  "claude-sonnet-4-6",
     "claude-4.5-sonnet":  "claude-sonnet-4-5-20250929",
     "claude-4.8-opus":    "claude-opus-4-8",
@@ -183,6 +200,7 @@ _PRICING_ALIASES = {
     "claude-4.6-opus":    "claude-opus-4-6",
     "claude-4.5-opus":    "claude-opus-4-5-20251101",
     "claude-4.1-opus":    "claude-opus-4-1-20250805",
+    "claude-5.5-haiku":   "claude-haiku-5-5",
     "claude-4.5-haiku":   "claude-haiku-4-5-20251001",
     "gpt-5.4-mini-2026-03-17": "gpt-5.4-mini",
     "mistral-small-4":    "mistral-small-2603",

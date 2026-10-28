@@ -53,12 +53,18 @@ _OPENAI_GPT56 = frozenset({"low", "medium", "high", "xhigh", "max"})
 _OPENAI_O_SERIES = frozenset({"low", "medium", "high"})
 
 # Anthropic output_config.effort.
+# Also Sonnet 5.5 and Haiku 5.5 (Haiku default "medium", not "high").
 _ANTHROPIC_47_48 = frozenset({"low", "medium", "high", "xhigh", "max"})
 _ANTHROPIC_46 = frozenset({"low", "medium", "high", "max"})
 _ANTHROPIC_45 = frozenset({"low", "medium", "high"})
 
 # Grok reasoning_effort (native none/low/medium/high; canonical intersection).
 _GROK = frozenset({"low", "medium", "high"})
+# grok-4.6/4.7 also accept minimal and xhigh (reasoning tokens scale with level);
+# both reject none and max. Probed live 2026-10-08.
+_GROK_46 = frozenset({"minimal", "low", "medium", "high", "xhigh"})
+# Multi-agent: reasoning.effort sets the agent count (low/medium = 4, high/xhigh = 16).
+_GROK_MULTI_AGENT = frozenset({"low", "medium", "high", "xhigh"})
 
 # Gemini 3 thinking_level (LOW/HIGH; flash/flash-lite add MINIMAL).
 _GEMINI3_PRO = frozenset({"low", "high"})
@@ -83,6 +89,8 @@ REASONING_EFFORT_SUPPORT: dict[str, frozenset[str]] = {
     "o4-mini": _OPENAI_O_SERIES,
     # --- Anthropic ---
     "claude-opus-4-8": _ANTHROPIC_47_48,
+    "claude-sonnet-5-5": _ANTHROPIC_47_48,
+    "claude-haiku-5-5": _ANTHROPIC_47_48,
     "claude-opus-4-7": _ANTHROPIC_47_48,
     "claude-opus-4-6": _ANTHROPIC_46,
     "claude-sonnet-4-6": _ANTHROPIC_46,
@@ -90,9 +98,12 @@ REASONING_EFFORT_SUPPORT: dict[str, frozenset[str]] = {
     # --- Grok (reasoning variants only; grok-4-0709 rejects the param) ---
     "grok-4-1-fast-reasoning": _GROK,
     "grok-4-fast-reasoning": _GROK,
+    "grok-4.7": _GROK_46,
+    "grok-4.6": _GROK_46,
     "grok-4.5": _GROK,
     "grok-4.3": _GROK,
     "grok-4.20-0309-reasoning": _GROK,
+    "grok-4.20-multi-agent-0309": _GROK_MULTI_AGENT,
     "grok-3-mini": _GROK,
     # --- Gemini 3 (thinking_level) ---
     "gemini-3.1-pro-preview": _GEMINI3_PRO,

@@ -45,10 +45,10 @@ Defines the LLM provider interface:
 **Contract**: Based on `specs/001-we-are-building/contracts/llm-adapter.md`
 
 **Output Format**: All providers return **structured JSON** (not markdown) using:
-- Claude: Tool use (`tool_choice`)
+- Claude: Tool use (`tool_choice`; `strict: true` for Haiku 5.5, which otherwise drops required fields); Sonnet 5.5 rejects forced tool use, so it uses structured outputs (`output_config.format`) with thinking off (`thinking: between_tools`) unless a `#effort` is given
 - ChatGPT/Grok: Function calling with strict mode
 - Gemini: JSON mode (`response_mime_type: "application/json"`)
-- DeepSeek: Function calling
+- DeepSeek: Function calling (`deepseek-v4-flash`: JSON mode, see below)
 - Kimi: JSON mode with schema in prompt (thinking mode incompatible with tool_choice)
 
 This ensures consistent, parseable responses across all providers.
@@ -63,8 +63,10 @@ Creates LLM provider instances:
 **Supported Models**:
 ```python
 # Anthropic
+"claude-5.5-sonnet" → claude-sonnet-5-5
 "claude-4.5-sonnet" → claude-sonnet-4-5-20250929
 "claude-4.1-opus" → claude-opus-4-1-20250805
+"claude-5.5-haiku" → claude-haiku-5-5
 "claude-4.5-haiku" → claude-haiku-4-5-20251001
 
 # Google
@@ -109,7 +111,7 @@ All LLM providers return structured JSON conforming to the same schema, but they
 | **ChatGPT** | `beta.chat.completions.parse()` | Native parse (Pydantic instance returned) | ✅ Populated |
 | **Gemini** | JSON mode with `response.parsed` | SDK parse (Pydantic instance via `response.parsed`) | ✅ Populated |
 | **Grok** | OpenAI-style JSON schema | Post-response validation | ✅ Populated |
-| **DeepSeek** | Function calling | Post-response validation | ❌ Not populated |
+| **DeepSeek** | Function calling (`deepseek-v4-flash`: JSON mode) | Post-response validation | ❌ Not populated |
 | **Kimi** | JSON mode with schema in prompt | Post-response validation | ❌ Not populated |
 
 ### Native Parse Methods
@@ -285,6 +287,7 @@ Google Gemini integration:
 X/Grok integration:
 - Uses `httpx` with OpenAI-compatible API
 - **Structured output**: OpenAI-style JSON schema via `response_format`
+- **`RESPONSES_ONLY_MODELS`** (`grok-4.20-multi-agent-0309`): chat/completions rejects multi-agent models, so `generate()` calls `/v1/responses` with `text.format` JSON schema and no `max_output_tokens`. Excluded from batch until a live batch run confirms the request shape
 - **Pydantic usage**: Post-response validation - manually validates JSON string with `model_validate_json()`
 - **Output fields**: Populates both `answer_text` (JSON string) and `structured_output` (dict) in LLMResponse
 - Converts Pydantic model to JSON schema via `model_json_schema()`
@@ -297,6 +300,7 @@ X/Grok integration:
 DeepSeek integration:
 - Uses OpenAI SDK with custom base URL (`https://api.deepseek.com`)
 - **Structured output**: Function calling with `tools` parameter (OpenAI-compatible)
+- **`JSON_MODE_MODELS`** (`deepseek-v4-flash`): JSON mode with schema in prompt instead. The API now serves this name with V4.1-Flash, which returns malformed tool arguments (e.g. `"explanation"::`) even in strict mode; JSON mode returns valid output
 - **Pydantic usage**: Post-response validation - manually validates JSON string with `model_validate_json()`
 - **Output fields**: Only populates `answer_text` (JSON string), `structured_output` field is **NOT populated**
 - Converts Pydantic model to JSON schema for function parameters
@@ -593,8 +597,8 @@ and injects `provider.reasoning_effort`. Each wired adapter reads it via the bas
 | Provider | Param it maps to | Wired models |
 |----------|------------------|--------------|
 | OpenAI | `reasoning_effort` | gpt-5 family (minimal/low/medium/high), gpt-5.6 (low/medium/high/xhigh/max, **no** minimal), o3/o3-mini/o4-mini (low/medium/high) — not gpt-4o/4.1/*-chat-latest |
-| Anthropic | `output_config.effort` (sent via `extra_body`; not a named param in the pinned SDK) | opus-4.5/4.6/4.7/4.8, sonnet-4.6 — not opus-4.1, sonnet-4.5, haiku-4.5 |
-| Grok | `reasoning_effort` | grok-3-mini, grok-4-fast-reasoning, grok-4-1-fast-reasoning, grok-4.20-*-reasoning, grok-4.3 — not grok-4-0709 |
+| Anthropic | `output_config.effort` (sent via `extra_body`; not a named param in the pinned SDK) | opus-4.5/4.6/4.7/4.8, sonnet-4.6, sonnet-5.5, haiku-5.5 — not opus-4.1, sonnet-4.5, haiku-4.5 |
+| Grok | `reasoning_effort` | grok-3-mini, grok-4-fast-reasoning, grok-4-1-fast-reasoning, grok-4.20-*-reasoning, grok-4.3, grok-4.5 (low/medium/high); grok-4.6/4.7 (minimal/low/medium/high/xhigh); grok-4.20-multi-agent-0309 (`reasoning.effort` on the Responses API = agent count: low/medium 4, high/xhigh 16) — not grok-4-0709 |
 | Gemini | `thinking_config` | Gemini 3 → `thinking_level`; Gemini 2.5 → `thinking_budget` (approximate) |
 
 When an effort is active the adapter also inflates the output budget by

@@ -70,7 +70,67 @@ CLAUDE_MODELS_WITH_STRUCTURED_OUTPUTS = [
 CLAUDE_MODELS_WITHOUT_TEMPERATURE = {
     "claude-opus-4-7",
     "claude-opus-4-8",
+    "claude-haiku-5-5",  # only temperature=1 / top_p=0.99 accepted
+    "claude-sonnet-5-5",
 }
+
+# Forced tool_choice ("tool"/"any") returns 400 on these models, so they get JSON
+# through structured outputs (output_config.format) instead of a forced tool call.
+CLAUDE_MODELS_WITHOUT_FORCED_TOOL_CHOICE = {
+    "claude-sonnet-5-5",
+}
+
+# Forced tool calls on these models get strict: true, so the tool input is decoded
+# against the schema. Without it Haiku 5.5 sometimes dropped required fields
+# (quote_text) or sent `quotes` as a malformed JSON string.
+CLAUDE_MODELS_WITH_STRICT_TOOLS = {
+    "claude-haiku-5-5",
+}
+
+# thinking.type "between_tools" = no extended thinking. Only these models accept
+# it; they think by default and reject thinking.type "disabled".
+CLAUDE_MODELS_WITH_BETWEEN_TOOLS = {
+    "claude-sonnet-5-5",
+}
+
+# JSON Schema keywords output_config.format and strict tools reject (the SDK's
+# parse() helpers strip them automatically; raw dict schemas must be stripped by hand).
+_UNSUPPORTED_SCHEMA_KEYWORDS = frozenset({
+    "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
+    "minLength", "maxLength", "minItems", "maxItems",
+})
+
+
+def _strip_unsupported_constraints(schema):
+    """Return a copy of a JSON schema without keywords structured outputs rejects."""
+    if isinstance(schema, list):
+        return [_strip_unsupported_constraints(s) for s in schema]
+    if not isinstance(schema, dict):
+        return schema
+    out = {}
+    for key, value in schema.items():
+        if key in _UNSUPPORTED_SCHEMA_KEYWORDS:
+            continue
+        if key == "properties":
+            # Keys here are property names, not keywords — never strip them.
+            out[key] = {name: _strip_unsupported_constraints(sub) for name, sub in value.items()}
+        else:
+            out[key] = _strip_unsupported_constraints(value)
+    return out
+
+
+def _extract_json_output(content) -> dict:
+    """Return the structured JSON from a forced tool call or a structured-output text block.
+
+    Blocks are read by type: thinking models can lead with thinking blocks.
+    """
+    for block in content:
+        if getattr(block, "type", None) == "tool_use":
+            return block.input
+    for block in content:
+        if getattr(block, "type", None) == "text":
+            return json.loads(block.text)
+    raise Exception("Expected tool_use or JSON text block but none returned")
 
 
 def _effort_max_tokens(max_tokens: int) -> int:
@@ -90,11 +150,9 @@ class ClaudeAdapter(LLMProvider):
     def build_batch_request(self, request: GenerationRequest, custom_id: str) -> dict:
         """Build an Anthropic Messages Batch line for this request.
 
-        Uses the proven tool-use JSON path (same as generate()'s fallback) rather
-        than the structured-outputs beta, so parse_batch_result can read the
-        tool_use block. cache_control blocks and the schema tool ride along.
-        # ponytail: tool-use JSON in batch; switch to output_config.format only
-        # if a model drops tool support.
+        Same JSON params as generate()'s fallback path (_json_request_params):
+        a forced tool call, or output_config.format on models that reject one.
+        cache_control blocks ride along.
         """
         if isinstance(request.prompt, list):
             full_prompt = request.prompt
@@ -106,27 +164,50 @@ class ClaudeAdapter(LLMProvider):
         info = get_schema_info(request.config.structured_output_schema)
         params: dict = {
             "model": self.model,
-            "max_tokens": request.config.max_tokens,
             "system": system,
             "messages": [{"role": "user", "content": full_prompt}],
-            "tools": [
-                {
-                    "name": info.tool_name,
-                    "description": info.tool_description,
-                    "input_schema": info.json_schema,
-                }
-            ],
-            "tool_choice": {"type": "tool", "name": info.tool_name},
+            # Raw batch params are serialised straight to JSON, so output_config and
+            # thinking go in directly here (unlike generate(), which needs extra_body).
+            **self._json_request_params(info, request.config),
         }
+        return {"custom_id": custom_id, "params": params}
+
+    def _json_request_params(self, info, config) -> dict:
+        """Wire-level request params that make this model return the schema's JSON.
+
+        Returns JSON body keys. output_config and thinking are not named params in
+        the pinned SDK (anthropic 0.74.1); generate() moves them into extra_body.
+        """
+        params: dict = {"max_tokens": config.max_tokens}
+        output_config: dict = {}
+        if self.model in CLAUDE_MODELS_WITHOUT_FORCED_TOOL_CHOICE:
+            output_config["format"] = {
+                "type": "json_schema",
+                "schema": _strip_unsupported_constraints(info.json_schema),
+            }
+        else:
+            tool: dict = {
+                "name": info.tool_name,
+                "description": info.tool_description,
+                "input_schema": info.json_schema,
+            }
+            if self.model in CLAUDE_MODELS_WITH_STRICT_TOOLS:
+                tool["strict"] = True
+                tool["input_schema"] = _strip_unsupported_constraints(info.json_schema)
+            params["tools"] = [tool]
+            params["tool_choice"] = {"type": "tool", "name": info.tool_name}
         if self.model not in CLAUDE_MODELS_WITHOUT_TEMPERATURE:
-            params["temperature"] = request.config.temperature
+            params["temperature"] = config.temperature
         effort = self._resolve_effort()
         if effort is not None:
-            # Raw batch params are serialised straight to JSON, so output_config
-            # goes in directly here (unlike generate(), which needs extra_body).
-            params["output_config"] = {"effort": effort}
-            params["max_tokens"] = _effort_max_tokens(request.config.max_tokens)
-        return {"custom_id": custom_id, "params": params}
+            output_config["effort"] = effort
+            params["max_tokens"] = _effort_max_tokens(config.max_tokens)
+        elif self.model in CLAUDE_MODELS_WITH_BETWEEN_TOOLS:
+            # No effort requested: keep thinking off, like the other Claude models
+            params["thinking"] = {"type": "between_tools"}
+        if output_config:
+            params["output_config"] = output_config
+        return params
 
     @classmethod
     def parse_batch_result(cls, raw: dict) -> LLMResponse:
@@ -136,10 +217,8 @@ class ClaudeAdapter(LLMProvider):
                 f"batch item {raw.get('custom_id')} {raw.get('result_type')}"
             )
         msg = raw["message"]
-        tool_block = next(
-            b for b in msg.content if getattr(b, "type", None) == "tool_use"
-        )
-        answer_text = json.dumps(tool_block.input)
+        structured = _extract_json_output(msg.content)
+        answer_text = json.dumps(structured)
         u = msg.usage
         prompt_tokens = u.input_tokens
         completion_tokens = u.output_tokens
@@ -156,7 +235,7 @@ class ClaudeAdapter(LLMProvider):
             completion_tokens=completion_tokens,
             cache_read_tokens=getattr(u, "cache_read_input_tokens", 0) or 0,
             cache_creation_tokens=getattr(u, "cache_creation_input_tokens", 0) or 0,
-            structured_output=tool_block.input,
+            structured_output=structured,
         )
 
     def __init__(self, api_key: str, model: str = "claude-sonnet-4-5-20250929"):
@@ -207,9 +286,6 @@ class ClaudeAdapter(LLMProvider):
             schema_type = request.config.structured_output_schema
             schema_info = get_schema_info(schema_type)
             pydantic_model = schema_info.pydantic_model
-            json_schema = schema_info.json_schema
-            tool_name = schema_info.tool_name
-            tool_description = schema_info.tool_description
             logger.debug(f"Using {schema_type} schema (Pydantic)")
 
             # Check if model supports structured outputs
@@ -257,50 +333,33 @@ class ClaudeAdapter(LLMProvider):
                 )
 
             else:
-                # FALLBACK: Use tool use for models without structured outputs support
-                logger.debug(f"Using tool use fallback for {self.model}")
+                # FALLBACK: forced tool call, or output_config.format on models that
+                # reject forced tool use (see _json_request_params)
+                logger.debug(f"Using JSON fallback (tool use / output_config) for {self.model}")
+                params = self._json_request_params(schema_info, request.config)
+                extra_body = {k: params.pop(k) for k in ("output_config", "thinking") if k in params}
                 create_kwargs = {
                     "model": self.model,
-                    "max_tokens": request.config.max_tokens,
                     "system": system,
                     "messages": [{"role": "user", "content": full_prompt}],
-                    "tools": [{
-                        "name": tool_name,
-                        "description": tool_description,
-                        "input_schema": json_schema
-                    }],
-                    "tool_choice": {
-                        "type": "tool",
-                        "name": tool_name
-                    },
+                    **params,
                 }
-                if self.model not in CLAUDE_MODELS_WITHOUT_TEMPERATURE:
-                    create_kwargs["temperature"] = request.config.temperature
-                effort = self._resolve_effort()
-                if effort is not None:
-                    # output_config is not yet a named param in the pinned SDK
-                    # (anthropic 0.74.1), so pass it through extra_body.
-                    create_kwargs["extra_body"] = {"output_config": {"effort": effort}}
-                    create_kwargs["max_tokens"] = _effort_max_tokens(request.config.max_tokens)
+                if extra_body:
+                    create_kwargs["extra_body"] = extra_body
                 response = await asyncio.wait_for(
                     self.client.messages.create(**create_kwargs),
                     timeout=request.config.timeout_seconds,
                 )
 
-                # Extract JSON from tool use block
-                tool_use_block = None
-                for block in response.content:
-                    if hasattr(block, 'type') and block.type == 'tool_use':
-                        tool_use_block = block
-                        break
-
-                if not tool_use_block:
-                    raise Exception("Expected tool_use block but none returned")
-
-                tool_input = tool_use_block.input
+                try:
+                    tool_input = _extract_json_output(response.content)
+                except json.JSONDecodeError as e:
+                    raise Exception(
+                        f"Claude returned invalid JSON (stop_reason: {response.stop_reason}): {e}"
+                    ) from e
                 answer_text = json.dumps(tool_input)
                 logger.debug(
-                    f"Extracted structured JSON from Claude (tool use): {len(answer_text)} chars"
+                    f"Extracted structured JSON from Claude: {len(answer_text)} chars"
                 )
 
             latency_ms = int((time.time() - start_time) * 1000)
@@ -458,7 +517,8 @@ class ClaudeAdapter(LLMProvider):
 
             latency_ms = int((time.time() - start_time) * 1000)
 
-            markdown_content = response.content[0].text
+            # Read by type: adaptive-thinking models (e.g. Haiku 5.5) lead with thinking blocks
+            markdown_content = next(b.text for b in response.content if b.type == "text")
             prompt_tokens = response.usage.input_tokens
             completion_tokens = response.usage.output_tokens
             token_count = prompt_tokens + completion_tokens

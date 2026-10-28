@@ -41,7 +41,7 @@ class TestCalculateLlmCost:
         assert result.prompt_cost == pytest.approx(0.0015)
         assert result.cache_read_cost == pytest.approx(0.00012)
         assert result.cache_creation_cost == 0.0
-        assert result.total_cost == pytest.approx(0.0015 + 0.00012 + 0.0006)
+        assert result.total_cost == pytest.approx(0.0015 + 0.00012 + 0.0015)
         assert result.cache_savings == pytest.approx(0.00108)
 
     def test_anthropic_cache_creation_reduces_savings(self):

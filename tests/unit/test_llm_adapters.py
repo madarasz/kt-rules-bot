@@ -4,6 +4,7 @@ Tests LLM provider implementations with mocked API calls.
 Based on specs/001-we-are-building/tasks.md T047
 """
 
+import json
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
@@ -167,6 +168,72 @@ class TestClaudeAdapter:
         assert isinstance(content, str)
         assert "Can I shoot twice?" in content
 
+    async def test_haiku_55_hop_evaluation_omits_temperature(self):
+        """Haiku 5.5 as RAG hop judge: forced tool use, no temperature (400 on the API).
+
+        The response leads with a thinking block, so the tool_use block is found by type.
+        """
+        adapter = ClaudeAdapter(api_key="test-key", model="claude-haiku-5-5")
+        hop_input = {"can_answer": True, "reasoning": "Enough context.", "missing_query": None}
+
+        mock_usage = Mock(input_tokens=500, output_tokens=40,
+                          cache_read_input_tokens=0, cache_creation_input_tokens=0)
+        mock_response = Mock(
+            content=[Mock(type="thinking"), Mock(type="tool_use", input=hop_input)],
+            usage=mock_usage,
+        )
+        adapter.client.messages.create = AsyncMock(return_value=mock_response)
+
+        request = GenerationRequest(
+            prompt="Is the context sufficient?",
+            context=[],
+            chunk_ids=[],
+            config=GenerationConfig(
+                system_prompt="", max_tokens=300, temperature=0.3,
+                structured_output_schema="hop_evaluation",
+            ),
+        )
+
+        response = await adapter.generate(request)
+
+        call_kwargs = adapter.client.messages.create.call_args.kwargs
+        assert "temperature" not in call_kwargs
+        assert call_kwargs["tool_choice"]["type"] == "tool"
+        assert response.structured_output == hop_input
+
+    async def test_sonnet_55_judge_uses_output_config_format(self):
+        """Sonnet 5.5: JSON via output_config.format in extra_body, parsed from the text block.
+
+        Numeric bounds (unsupported by structured outputs) are stripped from the schema.
+        """
+        adapter = ClaudeAdapter(api_key="test-key", model="claude-sonnet-5-5")
+        judge = {"explanation_faithfulness": 0.9, "feedback": "ok", "answer_correctness_details": []}
+
+        mock_usage = Mock(input_tokens=500, output_tokens=40,
+                          cache_read_input_tokens=0, cache_creation_input_tokens=0)
+        mock_response = Mock(
+            content=[Mock(type="thinking"), Mock(type="text", text=json.dumps(judge))],
+            usage=mock_usage,
+            stop_reason="end_turn",
+        )
+        adapter.client.messages.create = AsyncMock(return_value=mock_response)
+
+        request = GenerationRequest(
+            prompt="Judge this.",
+            context=[],
+            chunk_ids=[],
+            config=GenerationConfig(system_prompt="", structured_output_schema="custom_judge"),
+        )
+
+        response = await adapter.generate(request)
+
+        call_kwargs = adapter.client.messages.create.call_args.kwargs
+        assert "tool_choice" not in call_kwargs and "temperature" not in call_kwargs
+        assert call_kwargs["extra_body"]["thinking"] == {"type": "between_tools"}
+        schema = call_kwargs["extra_body"]["output_config"]["format"]["schema"]
+        assert "minimum" not in schema["properties"]["explanation_faithfulness"]
+        assert response.structured_output == judge
+
 
 class TestChatGPTAdapter:
     """Test ChatGPT LLM adapter."""
@@ -267,6 +334,46 @@ class TestGrokAdapter:
 
         with pytest.raises(RateLimitError, match="Grok rate limit"):
             await grok_adapter.generate(request)
+
+    async def test_multi_agent_uses_responses_api(self, mock_httpx):
+        """Multi-agent model: /responses with text.format and reasoning.effort, no max tokens."""
+        adapter = GrokAdapter(api_key="test-key", model="grok-4.20-multi-agent-0309")
+        adapter.reasoning_effort = "high"
+        hop = {"can_answer": True, "reasoning": "Enough.", "missing_query": None}
+
+        mock_response = Mock(status_code=200)
+        mock_response.json.return_value = {
+            "model": "grok-4.20-multi-agent-0309",
+            "status": "completed",
+            "output": [
+                {"type": "reasoning", "content": []},
+                {"type": "message", "content": [{"type": "output_text", "text": json.dumps(hop)}]},
+            ],
+            "usage": {"input_tokens": 2708, "output_tokens": 991,
+                      "input_tokens_details": {"cached_tokens": 2560}},
+        }
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_context_manager = AsyncMock()
+        mock_context_manager.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_context_manager.__aexit__ = AsyncMock(return_value=None)
+        mock_httpx.AsyncClient.return_value = mock_context_manager
+
+        request = GenerationRequest(
+            prompt="Enough context?", context=[], chunk_ids=[],
+            config=GenerationConfig(system_prompt="", structured_output_schema="hop_evaluation"),
+        )
+        response = await adapter.generate(request)
+
+        url = mock_client.post.call_args.args[0]
+        payload = mock_client.post.call_args.kwargs["json"]
+        assert url.endswith("/responses")
+        assert payload["reasoning"] == {"effort": "high"}
+        assert payload["text"]["format"]["type"] == "json_schema"
+        assert "max_output_tokens" not in payload and "max_tokens" not in payload
+        assert response.structured_output == hop
+        assert response.completion_tokens == 991
+        assert response.cache_read_tokens == 2560
 
     async def test_generate_auth_error(self, grok_adapter, mock_httpx):
         """Test authentication error handling."""
