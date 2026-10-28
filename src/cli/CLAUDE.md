@@ -134,6 +134,16 @@ Download all team rules from Warhammer Community.
 python -m src.cli download-all-teams --dry-run
 ```
 
+Extraction is non-deterministic, so each re-extraction also changes formatting. After a
+download, run:
+```bash
+python3 scripts/clean_rules.py                       # normalize format
+python3 scripts/stabilize_rules.py extracted-rules/team -v   # keep committed text where only format changed
+git -C extracted-rules diff                          # review the real rule changes
+```
+`stabilize_rules.py` matches sections with the committed version (git HEAD) and keeps the
+committed text where the canonical text (no bold, bullets, case or whitespace) is equal.
+
 ## Main Entry Point
 
 [__main__.py](../../src/cli/__main__.py) uses `argparse` to:

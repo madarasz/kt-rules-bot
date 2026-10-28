@@ -33,9 +33,9 @@ Example: `### WOLF SCOUT FROSTEYE - Storm-veiled Execution`
 
 **Actions with AP cost** use ALL CAPS for the action name:
 ```
-### [OPERATIVE NAME] - [ACTION NAME IN ALL CAPS] [X]AP
+### [OPERATIVE NAME] - [ACTION NAME IN ALL CAPS] [[X]AP]
 ```
-Example: `### WOLF SCOUT FANGBEARER - HEALING BALMS [1AP]`
+Example: `### WOLF SCOUT FANGBEARER - HEALING BALMS [1AP]` (the AP cost is always in square brackets)
 
 ### 2. Kill Team Selection Card
 Black-bordered card containing:
@@ -67,11 +67,19 @@ Your kill team consists of 1 **ANGEL OF DEATH** operative selected from the foll
 And 5 **ANGEL OF DEATH** operatives selected from the following list:
 ```
 
-**Composition format:** The card lists composition as `↘` entries under `OPERATIVES`. Turn those entries into ONE lead-in sentence followed by a single, FLAT bullet list of the selectable operatives - never a nested list. For `↘ 1 RAVENER PRIME operative` and `↘ 4 RAVENER operatives selected from the following list: FELLTALON, ...` write:
+**Composition format:** The card lists composition as `↘` entries under `OPERATIVES`. Use exactly one of these three forms:
+- **Fixed roster** (no entry has a selection list): ONE sentence that names every entry, then a period. For `↘ 1 GEOMANCER operative`, `↘ 2 TOMB CRAWLER operatives`, `↘ 3 WARRIOR operatives` write:
+```
+Your kill team consists of 1 **CANOPTEK CIRCLE GEOMANCER** operative, 2 **CANOPTEK CIRCLE TOMB CRAWLER** operatives and 3 **CANOPTEK CIRCLE WARRIOR** operatives.
+```
+- **One selection list** (only the last entry has a list): ONE lead-in sentence followed by a single, FLAT bullet list of the selectable operatives - never a nested list. For `↘ 1 RAVENER PRIME operative` and `↘ 4 RAVENER operatives selected from the following list: FELLTALON, ...` write:
 ```
 Your kill team consists of 1 **RAVENER PRIME** operative and 4 **RAVENER** operatives selected from the following list:
 - **FELLTALON**
 ```
+- **Several lists** (weapon options for the leader, or more than one selection list): the template above - one paragraph per `↘` entry, the first starting `Your kill team consists of`, each next one starting `And`, each followed by its own flat bullet list.
+
+Weapon options of an operative that is not the first entry go as indented sub-bullets under that operative's bullet.
 
 ### 3. Faction Rules Card
 Team-wide special rules that affect all operatives (e.g., "MARKERLIGHTS"). Put each new faction rule into a new header 2 section. Use header 3 sections if there are multiple variants of a single faction rule, and repeat the rule name in each variant header:
@@ -94,6 +102,8 @@ Example: `## ELEMENTAL STORM - Faction Rule`, NOT `## WOLF SCOUTS - ELEMENTAL ST
 ## ANGELS OF DEATH - ASTARTES - Faction Rule
 ```
 This applies only to the bare keyword; names that already contain it (`VETERAN ASTARTES`, `HUNTING ASTARTES`) stay as they are.
+
+**Variants inside a rule** (e.g. the options of a faction rule such as INVIGORATIONS or ACCURSED GIFTS) are `###` sections as above - never `####` headers, and never a bullet list of named options.
 
 **Designer's Notes** are kept, as a blockquote on their own paragraph:
 ```
@@ -133,6 +143,7 @@ Example:
 *Answer:* No.
 ```
 - Bold every named rule referenced in the question or answer - abilities, faction rules, ploys, equipment, tac ops and crit ops (e.g. `the **Subterranean Ambush** rule`, `the **Implant** tac op`)
+- Output the Q&A pairs in the order they are printed
 - The question goes on the SAME LINE as the header after `*Question:*`
 - Bold game terms like **STORM**, **WOLF SCOUT**, etc. in both question and answer
 - Do NOT repeat the question on a separate line
@@ -167,12 +178,16 @@ Example:
       - Ploy and equipment names (e.g., the **Combat Doctrine** strategy ploy)
       - Tac op and crit op names (e.g., **Surveillance**, **Implant**)
       - Game action names (e.g., **Shoot** action, **Guard** action)
-      - Game terms: **visible**, **obscured**, **control range**, **cover** (but NOT in the phrase "cover save", which stays plain), **Conceal**, **Engage**
+      - Game terms: **visible**, **obscured**, **control range**, **cover** (but NOT in the phrase "cover save", which stays plain; write "in **cover**", not "**in cover**"), **incapacitated**/**incapacitates**, **Conceal**, **Engage**
+      - Weapon rule names that rule text references, also without a number (e.g. the **Piercing** weapon rule, the **Blast** or **Torrent** weapon rule)
+   - **Keywords line is plain:** `**Keywords:** BLOODED, CHAOS, THUG` - only the `**Keywords:**` label is bold
+   - **Weapon table cells have no footnote markers:** write `Repress`, not `Repress*` (the footnote becomes its own `###` section)
    - **DO NOT bold** weapon rules inside weapon tables - write them as plain text (e.g., `Piercing 1, Lethal 5+` not `**Piercing 1**, **Lethal 5+**`)
    - **Empty weapon rules:** Leave the cell empty (e.g., `| |`) - do NOT use `-` or `—`
    - Use structured formats for complex multi-condition rules
    - **Keep bulleted rule text bulleted:** if the card presents effects as a bulleted list, keep every effect as its own bullet in ONE block - never merge them into a paragraph, and never separate them with blank lines
-   - **Period placement:** Place periods INSIDE bold markers for special keywords (e.g., `**STRATEGIC GAMBIT.**` not `**STRATEGIC GAMBIT**.`)
+   - **Period placement:** Place periods INSIDE bold markers for special keywords (e.g., `**STRATEGIC GAMBIT.**` not `**STRATEGIC GAMBIT**.`, `**SUPPORT.**`, `**PSYCHIC.**`)
+   - **Action bodies are bullets:** in every `### [OPERATIVE NAME] - [ACTION NAME] [[X]AP]` section, each effect paragraph and each restriction is a `- ` bullet (see the OPTICS example below)
    - **Restriction clauses:** Keep in the same block as the main rule text, never as a separate paragraph. When an action has an effect and a separate restriction sentence, write them as two bullets of one list:
 ```
 ### ELIMINATOR SNIPER - OPTICS [1AP]
@@ -214,11 +229,11 @@ Example:
 [Complete rule text]
 
 ## [KILL TEAM NAME] - [OPERATIVE NAME]
-**Stats:**    
+**Stats:**
 - APL: [X]
-- Move [X]"
-- Save [X]+
-- Wounds [X]
+- Move: [X]"
+- Save: [X]+
+- Wounds: [X]
 
 **Weapons:**
 | Type | Name | ATK | HIT | DMG | Weapon Rules |
@@ -230,8 +245,9 @@ Example:
 ### [OPERATIVE NAME] - [Ability Name]
 [Full ability description]
 
-### [OPERATIVE NAME] - [Action Name] [X]AP
-[Full action description]
+### [OPERATIVE NAME] - [ACTION NAME] [[X]AP]
+- [Effect]
+- [Restriction]
 
 [Repeat for each operative]
 
@@ -262,6 +278,7 @@ Example:
   - **Equipment:** `## [EQUIPMENT NAME] - Faction Equipment` (NO team name prefix)
   - This structure is essential for document chunking and searchability
   - Use `###` (H3) for sub-sections within a major element (abilities, actions)
+  - Operative ability and action headers start with the operative name, never with the kill team name: `### MAGUS - Spiritual Leader`, NOT `### BROOD BROTHERS - MAGUS - Spiritual Leader`
   - **Headers contain NO bold markers** - `## RAVENERS - RAVENER PRIME`, never `## **RAVENERS** - **RAVENER PRIME**`
 - The distinction between **within** and **wholly within** is very important, do not mix these up
 - No empty header sections. If it's empty, skip it.

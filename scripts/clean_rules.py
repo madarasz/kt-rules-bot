@@ -10,11 +10,13 @@ Transformations:
 - Normalize bullet points to `-` with 4-space indentation per nesting level
 - Clean table formatting (single space padding, `---` separators)
 - Trim trailing whitespace from lines
+- Team rules only: consistent bold of game terms, plain keyword lines, bulleted action
+  bodies, bracketed AP costs, no footnote markers, no team name in ability headers
 """
 
 import argparse
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
 
 
@@ -88,6 +90,33 @@ RULE_TEXT_BOLD_RULES = (
 )
 
 
+# Game terms of team rules text, as (pattern, replacement) pairs applied in order to
+# body lines only (never headers, tables or keyword lines)
+TEAM_TEXT_BOLD_RULES = (
+    (re.compile(r"(?<!\*)\b(control range)\b(?!\*)"), r"**\1**"),
+    (re.compile(r"(?<!\*)\b(incapacitates|incapacitate)\b(?!\*)"), r"**\1**"),
+    # "in cover" bolds only the game term: "**in cover**" -> "in **cover**"
+    (re.compile(r"\*\*in cover\*\*"), "in **cover**"),
+    # "cover" is bolded, except in the phrase "cover save" which stays plain
+    (re.compile(r"\*\*cover\*\* (saves?)\b"), r"cover \1"),
+    (re.compile(r"(?<!\*)\b(cover)\b(?!\*)(?! saves?\b)"), r"**\1**"),
+)
+
+# A weapon rule name as rule text references it: "Piercing", "Lethal 5+", "Range x",
+# "Piercing Crits 1", "Seek Light", "Anti-PSYKER", "Repress"
+_WEAPON_RULE_NAME = r"[A-Z][\w'-]*(?: (?:Crits|Light))?(?: (?:\d+\+?\"?|x))?"
+# The names in a "the X, Y or Z weapon rule(s)" list, plain or already bold
+BARE_WEAPON_RULE_PATTERN = re.compile(
+    r"(?<![\w*])(?!(?:The|This|That|Each|Any|All|Its|Their|Other|Same)\b)"
+    rf"({_WEAPON_RULE_NAME})(?![\w*+\"])"
+    rf"(?=(?:(?:, | or | and )(?:\*\*)?{_WEAPON_RULE_NAME}(?:\*\*)?)* weapon rules?\b)"
+)
+
+# Keywords that open a rule sentence and carry the period inside the bold:
+# "**SUPPORT.** Select..." (never "**SUPPORT**. Select...")
+PERIOD_KEYWORDS = ("SUPPORT", "PSYCHIC", "STRATEGIC GAMBIT")
+
+
 # Faction rule names that several kill teams share, so the header needs the team name
 # to stay unique (e.g. "## ANGELS OF DEATH - ASTARTES - Faction Rule")
 SHARED_FACTION_RULES = ("ASTARTES",)
@@ -113,39 +142,31 @@ class CleaningStats:
     weapon_rules_in_text: int = 0
     designer_notes: int = 0
     faction_rules_prefixed: int = 0
+    footnote_markers: int = 0
+    team_prefixes_removed: int = 0
+    team_terms_bolded: int = 0
+    keywords_lines_unbolded: int = 0
+    keyword_periods: int = 0
+    action_bullets: int = 0
+    header_blank_lines: int = 0
+    ap_costs_bracketed: int = 0
 
     @property
     def total(self) -> int:
-        return (
-            self.apostrophes + self.bullets + self.table_lines + self.trailing_spaces +
-            self.weapon_type_lowercased + self.weapon_keywords_bolded +
-            self.empty_cells_normalized + self.ocr_fixes +
-            self.within_unbolded + self.distance_bolded + self.stray_asterisks +
-            self.heading_case_fixes + self.keywords_bolded + self.designer_notes +
-            self.ploy_references_bolded + self.weapon_rules_in_text +
-            self.faction_rules_prefixed
-        )
+        return sum(getattr(self, field.name) for field in fields(self))
 
     def __add__(self, other: "CleaningStats") -> "CleaningStats":
         return CleaningStats(
-            apostrophes=self.apostrophes + other.apostrophes,
-            bullets=self.bullets + other.bullets,
-            table_lines=self.table_lines + other.table_lines,
-            trailing_spaces=self.trailing_spaces + other.trailing_spaces,
-            weapon_type_lowercased=self.weapon_type_lowercased + other.weapon_type_lowercased,
-            weapon_keywords_bolded=self.weapon_keywords_bolded + other.weapon_keywords_bolded,
-            empty_cells_normalized=self.empty_cells_normalized + other.empty_cells_normalized,
-            ocr_fixes=self.ocr_fixes + other.ocr_fixes,
-            within_unbolded=self.within_unbolded + other.within_unbolded,
-            distance_bolded=self.distance_bolded + other.distance_bolded,
-            stray_asterisks=self.stray_asterisks + other.stray_asterisks,
-            heading_case_fixes=self.heading_case_fixes + other.heading_case_fixes,
-            keywords_bolded=self.keywords_bolded + other.keywords_bolded,
-            ploy_references_bolded=self.ploy_references_bolded + other.ploy_references_bolded,
-            weapon_rules_in_text=self.weapon_rules_in_text + other.weapon_rules_in_text,
-            designer_notes=self.designer_notes + other.designer_notes,
-            faction_rules_prefixed=self.faction_rules_prefixed + other.faction_rules_prefixed,
+            **{field.name: getattr(self, field.name) + getattr(other, field.name) for field in fields(self)}
         )
+
+    def nonzero(self) -> list[tuple[str, int]]:
+        """Return (label, count) for each transformation that changed something."""
+        return [
+            (field.name.replace("_", " "), getattr(self, field.name))
+            for field in fields(self)
+            if getattr(self, field.name)
+        ]
 
 
 def clean_apostrophes(content: str) -> tuple[str, int]:
@@ -633,6 +654,205 @@ def bold_weapon_rules_in_text(content: str) -> tuple[str, int]:
     return "\n".join(lines), count
 
 
+def is_team_rules(content: str) -> bool:
+    """Return whether the content is a team rules file."""
+    return "document_type: team-rules" in content
+
+
+def is_body_line(line: str) -> bool:
+    """Return whether a line is rule text (not a header, table, keyword or front matter line)."""
+    stripped = line.strip()
+    return bool(stripped) and not stripped.startswith(("#", "|", "**Keywords:**", "---")) and not re.match(
+        r"^[a-z_]+: ", stripped
+    )
+
+
+def unbold_keywords_line(content: str) -> tuple[str, int]:
+    """
+    Write the operative keywords line plain.
+
+    "**Keywords:** **BLOODED, CHAOS, THUG**" -> "**Keywords:** BLOODED, CHAOS, THUG"
+    """
+    if not is_team_rules(content):
+        return content, 0
+
+    def substitute(match: re.Match) -> str:
+        return f"**Keywords:** {match.group(1).replace('**', '')}"
+
+    return re.subn(r"^\*\*Keywords:\*\* (.*\*\*.*)$", substitute, content, flags=re.MULTILINE)
+
+
+def fix_keyword_period(content: str) -> tuple[str, int]:
+    """
+    Put the period inside the bold of rule-opening keywords.
+
+    "**SUPPORT**. Select" -> "**SUPPORT.** Select"
+    """
+    names = "|".join(PERIOD_KEYWORDS)
+    return re.subn(rf"\*\*({names})\*\*\.", r"**\1.**", content)
+
+
+def bold_team_text_terms(content: str) -> tuple[str, int]:
+    """
+    Bold game terms in team rules text, see `TEAM_TEXT_BOLD_RULES`.
+
+    Also bolds weapon rule names that rule text references by name only
+    ("the Piercing weapon rule" -> "the **Piercing** weapon rule").
+    """
+    if not is_team_rules(content):
+        return content, 0
+
+    count = 0
+    lines = content.split("\n")
+    for index, line in enumerate(lines):
+        if not is_body_line(line):
+            continue
+        for pattern, replacement in TEAM_TEXT_BOLD_RULES:
+            line, changed = pattern.subn(replacement, line)
+            count += changed
+        line, changed = BARE_WEAPON_RULE_PATTERN.subn(r"**\1**", line)
+        count += changed
+        lines[index] = line
+
+    return "\n".join(lines), count
+
+
+def bullet_action_bodies(content: str) -> tuple[str, int]:
+    """
+    Write every effect and restriction of a unique action as a bullet.
+
+    Applies to the body of `### ... [xAP]` sections. A plain line becomes a top-level
+    `- ` bullet. When a plain line that ends in ":" becomes a bullet, the top-level
+    bullets that follow it are its sub-items, so they are indented one level.
+    """
+    if not is_team_rules(content):
+        return content, 0
+
+    count = 0
+    lines = content.split("\n")
+    in_action = False
+    nest_items = False
+    for index, line in enumerate(lines):
+        if line.startswith("#"):
+            in_action = bool(re.match(r"^### .*\[\d+AP\]\s*$", line))
+            nest_items = False
+            continue
+        if not in_action or not line.strip():
+            continue
+        if line.startswith("- "):
+            if nest_items:
+                lines[index] = f"    {line}"
+                count += 1
+            continue
+        nest_items = False
+        if line.startswith((" ", "|", ">", "**Keywords:**")):
+            continue
+        lines[index] = f"- {line}"
+        count += 1
+        nest_items = line.rstrip().endswith(":")
+
+    return "\n".join(lines), count
+
+
+def bracket_ap_cost(content: str) -> tuple[str, int]:
+    """Put the AP cost of an action header in brackets: "### X - SPOT 1AP" -> "### X - SPOT [1AP]"."""
+    return re.subn(r"^(### .+ )(\d+AP)\s*$", r"\1[\2]", content, flags=re.MULTILINE)
+
+
+def strip_footnote_markers(content: str) -> tuple[str, int]:
+    """
+    Remove footnote `*` markers from weapon table cells and `###` header names.
+
+    "| ... | **Shock**, Repress* |" -> "| ... | **Shock**, Repress |"
+    "### TRAITOR FLENSER - *Stalk" -> "### TRAITOR FLENSER - Stalk"
+    """
+    count = 0
+    lines = content.split("\n")
+    for index, line in enumerate(lines):
+        if line.startswith("|") and not re.match(r"^\|[\s\-:|]+\|?$", line):
+            line, changed = re.subn(r"(?<=[\w\"+)])\*(?=\s*(?:,|\|))", "", line)
+            count += changed
+        elif line.startswith("### "):
+            line, changed = re.subn(r" - \*(?=\w)(?!.*\*$)", " - ", line)
+            count += changed
+        lines[index] = line
+
+    return "\n".join(lines), count
+
+
+def strip_team_prefix_in_h3(content: str) -> tuple[str, int]:
+    """
+    Remove the kill team name from operative ability headers.
+
+    "### BROOD BROTHERS - MAGUS - Spiritual Leader" -> "### MAGUS - Spiritual Leader".
+    Only headers with two more " - " parts after the team name are touched, so
+    "### BROOD BROTHERS - Archetypes" stays as it is.
+    """
+    section = re.search(r"^section: (.+)$", content, re.MULTILINE)
+    if not section or not is_team_rules(content):
+        return content, 0
+
+    team = section.group(1).strip().replace("_", " ").upper()
+    return re.subn(
+        rf"^### {re.escape(team)} - (.+ - .+)$", r"### \1", content, flags=re.MULTILINE
+    )
+
+
+def ensure_blank_line_before_headers(content: str) -> tuple[str, int]:
+    """Insert a blank line before a `##`/`###` header that directly follows text."""
+    return re.subn(r"(?<=\S)\n(#{2,3} )", r"\n\n\1", content)
+
+
+def find_malformed_tables(content: str) -> list[str]:
+    """Return a warning for each table whose rows have a different column count."""
+    warnings = []
+    table: list[str] = []
+    for line in content.split("\n") + [""]:
+        if line.startswith("|"):
+            table.append(line)
+            continue
+        if table:
+            widths = {row.count("|") for row in table}
+            if len(widths) > 1:
+                warnings.append(f"table starting '{table[0][:50]}' has rows of {sorted(widths)} pipes")
+            table = []
+    return warnings
+
+
+def clean_content(content: str) -> tuple[str, CleaningStats]:
+    """Apply all cleaning transformations to file content."""
+    stats = CleaningStats()
+
+    # Apply transformations in order
+    content, stats.apostrophes = clean_apostrophes(content)
+    content, stats.bullets = clean_bullet_points(content)
+    content, stats.table_lines = clean_table_formatting(content)
+    content, stats.weapon_type_lowercased = normalize_weapon_type_lowercase(content)
+    content, stats.footnote_markers = strip_footnote_markers(content)
+    content, stats.weapon_keywords_bolded = bold_weapon_keywords_in_tables(content)
+    content, stats.empty_cells_normalized = normalize_empty_weapon_cells(content)
+    content, stats.ocr_fixes = fix_ocr_errors(content)
+    content, stats.within_unbolded = unbold_within(content)
+    content, stats.distance_bolded = bold_distance_expressions(content)
+    content, stats.stray_asterisks = strip_stray_leading_asterisk(content)
+    content, stats.heading_case_fixes = normalize_heading_case(content)
+    content, stats.team_prefixes_removed = strip_team_prefix_in_h3(content)
+    content, stats.ap_costs_bracketed = bracket_ap_cost(content)
+    content, stats.keywords_bolded = bold_rule_text_keywords(content)
+    content, stats.team_terms_bolded = bold_team_text_terms(content)
+    content, stats.ploy_references_bolded = bold_ploy_references(content)
+    content, stats.weapon_rules_in_text = bold_weapon_rules_in_text(content)
+    content, stats.keywords_lines_unbolded = unbold_keywords_line(content)
+    content, stats.keyword_periods = fix_keyword_period(content)
+    content, stats.action_bullets = bullet_action_bodies(content)
+    content, stats.designer_notes = format_designer_notes(content)
+    content, stats.faction_rules_prefixed = prefix_shared_faction_rules(content)
+    content, stats.header_blank_lines = ensure_blank_line_before_headers(content)
+    content, stats.trailing_spaces = trim_trailing_whitespace(content)
+
+    return content, stats
+
+
 def clean_file(file_path: Path) -> tuple[bool, CleaningStats]:
     """
     Apply all cleaning transformations to a file.
@@ -647,26 +867,10 @@ def clean_file(file_path: Path) -> tuple[bool, CleaningStats]:
         with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
-        stats = CleaningStats()
+        content, stats = clean_content(content)
 
-        # Apply transformations in order
-        content, stats.apostrophes = clean_apostrophes(content)
-        content, stats.bullets = clean_bullet_points(content)
-        content, stats.table_lines = clean_table_formatting(content)
-        content, stats.weapon_type_lowercased = normalize_weapon_type_lowercase(content)
-        content, stats.weapon_keywords_bolded = bold_weapon_keywords_in_tables(content)
-        content, stats.empty_cells_normalized = normalize_empty_weapon_cells(content)
-        content, stats.ocr_fixes = fix_ocr_errors(content)
-        content, stats.within_unbolded = unbold_within(content)
-        content, stats.distance_bolded = bold_distance_expressions(content)
-        content, stats.stray_asterisks = strip_stray_leading_asterisk(content)
-        content, stats.heading_case_fixes = normalize_heading_case(content)
-        content, stats.keywords_bolded = bold_rule_text_keywords(content)
-        content, stats.ploy_references_bolded = bold_ploy_references(content)
-        content, stats.weapon_rules_in_text = bold_weapon_rules_in_text(content)
-        content, stats.designer_notes = format_designer_notes(content)
-        content, stats.faction_rules_prefixed = prefix_shared_faction_rules(content)
-        content, stats.trailing_spaces = trim_trailing_whitespace(content)
+        for warning in find_malformed_tables(content):
+            print(f"  WARNING {file_path.name}: {warning}")
 
         if stats.total > 0:
             with open(file_path, "w", encoding="utf-8") as f:
@@ -705,41 +909,7 @@ def process_directory(
 
         if was_modified:
             relative_path = file_path.relative_to(project_root)
-            details = []
-            if stats.apostrophes:
-                details.append(f"{stats.apostrophes} apostrophes")
-            if stats.bullets:
-                details.append(f"{stats.bullets} bullets")
-            if stats.table_lines:
-                details.append(f"{stats.table_lines} table lines")
-            if stats.weapon_type_lowercased:
-                details.append(f"{stats.weapon_type_lowercased} weapon types lowercased")
-            if stats.weapon_keywords_bolded:
-                details.append(f"{stats.weapon_keywords_bolded} weapon keywords bolded")
-            if stats.stray_asterisks:
-                details.append(f"{stats.stray_asterisks} stray asterisks")
-            if stats.heading_case_fixes:
-                details.append(f"{stats.heading_case_fixes} heading case fixes")
-            if stats.keywords_bolded:
-                details.append(f"{stats.keywords_bolded} rule text keywords bolded")
-            if stats.weapon_rules_in_text:
-                details.append(f"{stats.weapon_rules_in_text} weapon rules bolded in text")
-            if stats.ploy_references_bolded:
-                details.append(f"{stats.ploy_references_bolded} ploy references bolded")
-            if stats.designer_notes:
-                details.append(f"{stats.designer_notes} designer notes formatted")
-            if stats.faction_rules_prefixed:
-                details.append(f"{stats.faction_rules_prefixed} faction rules prefixed")
-            if stats.empty_cells_normalized:
-                details.append(f"{stats.empty_cells_normalized} empty cells")
-            if stats.ocr_fixes:
-                details.append(f"{stats.ocr_fixes} OCR fixes")
-            if stats.within_unbolded:
-                details.append(f"{stats.within_unbolded} within unbolded")
-            if stats.distance_bolded:
-                details.append(f"{stats.distance_bolded} distance bolded")
-            if stats.trailing_spaces:
-                details.append(f"{stats.trailing_spaces} trailing spaces")
+            details = [f"{count} {label}" for label, count in stats.nonzero()]
             print(f"  {relative_path}: {', '.join(details)}")
             modified_count += 1
 
@@ -760,23 +930,8 @@ def process_single_file(file_path: Path) -> None:
     was_modified, stats = clean_file(file_path)
 
     if was_modified:
-        print(f"  Apostrophes replaced: {stats.apostrophes}")
-        print(f"  Bullets normalized: {stats.bullets}")
-        print(f"  Table lines cleaned: {stats.table_lines}")
-        print(f"  Weapon types lowercased: {stats.weapon_type_lowercased}")
-        print(f"  Weapon keywords bolded: {stats.weapon_keywords_bolded}")
-        print(f"  Empty cells normalized: {stats.empty_cells_normalized}")
-        print(f"  OCR fixes: {stats.ocr_fixes}")
-        print(f"  Within unbolded: {stats.within_unbolded}")
-        print(f"  Distance bolded: {stats.distance_bolded}")
-        print(f"  Stray asterisks: {stats.stray_asterisks}")
-        print(f"  Heading case fixes: {stats.heading_case_fixes}")
-        print(f"  Rule text keywords bolded: {stats.keywords_bolded}")
-        print(f"  Ploy references bolded: {stats.ploy_references_bolded}")
-        print(f"  Weapon rules bolded in text: {stats.weapon_rules_in_text}")
-        print(f"  Designer notes formatted: {stats.designer_notes}")
-        print(f"  Faction rules prefixed: {stats.faction_rules_prefixed}")
-        print(f"  Trailing spaces trimmed: {stats.trailing_spaces}")
+        for label, count in stats.nonzero():
+            print(f"  {label}: {count}")
         print(f"  Total changes: {stats.total}")
     else:
         print("  No changes needed - file is clean!")
@@ -840,23 +995,8 @@ def main():
     print(f"Processed {grand_total_files} files total")
     print(f"Modified {grand_total_modified} files")
     if grand_total_stats.total > 0:
-        print(f"  Apostrophes: {grand_total_stats.apostrophes}")
-        print(f"  Bullets: {grand_total_stats.bullets}")
-        print(f"  Table lines: {grand_total_stats.table_lines}")
-        print(f"  Weapon types lowercased: {grand_total_stats.weapon_type_lowercased}")
-        print(f"  Weapon keywords bolded: {grand_total_stats.weapon_keywords_bolded}")
-        print(f"  Empty cells normalized: {grand_total_stats.empty_cells_normalized}")
-        print(f"  OCR fixes: {grand_total_stats.ocr_fixes}")
-        print(f"  Within unbolded: {grand_total_stats.within_unbolded}")
-        print(f"  Distance bolded: {grand_total_stats.distance_bolded}")
-        print(f"  Stray asterisks: {grand_total_stats.stray_asterisks}")
-        print(f"  Heading case fixes: {grand_total_stats.heading_case_fixes}")
-        print(f"  Rule text keywords bolded: {grand_total_stats.keywords_bolded}")
-        print(f"  Ploy references bolded: {grand_total_stats.ploy_references_bolded}")
-        print(f"  Weapon rules bolded in text: {grand_total_stats.weapon_rules_in_text}")
-        print(f"  Designer notes formatted: {grand_total_stats.designer_notes}")
-        print(f"  Faction rules prefixed: {grand_total_stats.faction_rules_prefixed}")
-        print(f"  Trailing spaces: {grand_total_stats.trailing_spaces}")
+        for label, count in grand_total_stats.nonzero():
+            print(f"  {label}: {count}")
     else:
         print("No changes needed - all files are clean!")
 
