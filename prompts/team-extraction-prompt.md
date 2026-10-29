@@ -68,9 +68,12 @@ And 5 **ANGEL OF DEATH** operatives selected from the following list:
 ```
 
 **Composition format:** The card lists composition as `↘` entries under `OPERATIVES`. Use exactly one of these three forms:
-- **Fixed roster** (no entry has a selection list): ONE sentence that names every entry, then a period. For `↘ 1 GEOMANCER operative`, `↘ 2 TOMB CRAWLER operatives`, `↘ 3 WARRIOR operatives` write:
+- **Fixed roster** (no entry has a selection list): the lead-in `Your kill team consists of the following operatives:` followed by one bullet per entry - never a prose sentence. For `↘ 1 GEOMANCER operative`, `↘ 2 TOMB CRAWLER operatives`, `↘ 3 WARRIOR operatives` write:
 ```
-Your kill team consists of 1 **CANOPTEK CIRCLE GEOMANCER** operative, 2 **CANOPTEK CIRCLE TOMB CRAWLER** operatives and 3 **CANOPTEK CIRCLE WARRIOR** operatives.
+Your kill team consists of the following operatives:
+- 1 **CANOPTEK CIRCLE GEOMANCER** operative
+- 2 **CANOPTEK CIRCLE TOMB CRAWLER** operatives
+- 3 **CANOPTEK CIRCLE WARRIOR** operatives
 ```
 - **One selection list** (only the last entry has a list): ONE lead-in sentence followed by a single, FLAT bullet list of the selectable operatives - never a nested list. For `↘ 1 RAVENER PRIME operative` and `↘ 4 RAVENER operatives selected from the following list: FELLTALON, ...` write:
 ```
@@ -177,8 +180,8 @@ Example:
       - Ability names (e.g., **Warding Shield**, **Subterranean Ambush**)
       - Ploy and equipment names (e.g., the **Combat Doctrine** strategy ploy)
       - Tac op and crit op names (e.g., **Surveillance**, **Implant**)
-      - Game action names (e.g., **Shoot** action, **Guard** action)
-      - Game terms: **visible**, **obscured**, **control range**, **cover** (but NOT in the phrase "cover save", which stays plain; write "in **cover**", not "**in cover**"), **incapacitated**/**incapacitates**, **Conceal**, **Engage**
+      - Game action names (e.g., **Shoot** action, **Guard** action, **Pick Up Marker** action, **Place Marker** action)
+      - Game terms: **visible**, **obscured**, **control range**, **cover**, **cover save**/**cover saves** and **in cover** as one bold term each (write "**in cover**", not "in **cover**"; "**cover saves**", not "**cover** saves"), **incapacitated**/**incapacitates**, **Conceal**, **Engage**
       - Weapon rule names that rule text references, also without a number (e.g. the **Piercing** weapon rule, the **Blast** or **Torrent** weapon rule)
    - **Keywords line is plain:** `**Keywords:** BLOODED, CHAOS, THUG` - only the `**Keywords:**` label is bold
    - **Weapon table cells have no footnote markers:** write `Repress`, not `Repress*` (the footnote becomes its own `###` section)
@@ -186,7 +189,7 @@ Example:
    - **Empty weapon rules:** Leave the cell empty (e.g., `| |`) - do NOT use `-` or `—`
    - Use structured formats for complex multi-condition rules
    - **Keep bulleted rule text bulleted:** if the card presents effects as a bulleted list, keep every effect as its own bullet in ONE block - never merge them into a paragraph, and never separate them with blank lines
-   - **Period placement:** Place periods INSIDE bold markers for special keywords (e.g., `**STRATEGIC GAMBIT.**` not `**STRATEGIC GAMBIT**.`, `**SUPPORT.**`, `**PSYCHIC.**`)
+   - **Period placement:** Place periods OUTSIDE bold markers, always (e.g., `**STRATEGIC GAMBIT**.` not `**STRATEGIC GAMBIT.**`, `**SUPPORT**.`, `**PSYCHIC**.`)
    - **Action bodies are bullets:** in every `### [OPERATIVE NAME] - [ACTION NAME] [[X]AP]` section, each effect paragraph and each restriction is a `- ` bullet (see the OPTICS example below)
    - **Restriction clauses:** Keep in the same block as the main rule text, never as a separate paragraph. When an action has an effect and a separate restriction sentence, write them as two bullets of one list:
 ```

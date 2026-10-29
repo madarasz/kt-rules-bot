@@ -95,11 +95,17 @@ RULE_TEXT_BOLD_RULES = (
 TEAM_TEXT_BOLD_RULES = (
     (re.compile(r"(?<!\*)\b(control range)\b(?!\*)"), r"**\1**"),
     (re.compile(r"(?<!\*)\b(incapacitates|incapacitate)\b(?!\*)"), r"**\1**"),
-    # "in cover" bolds only the game term: "**in cover**" -> "in **cover**"
-    (re.compile(r"\*\*in cover\*\*"), "in **cover**"),
-    # "cover" is bolded, except in the phrase "cover save" which stays plain
-    (re.compile(r"\*\*cover\*\* (saves?)\b"), r"cover \1"),
-    (re.compile(r"(?<!\*)\b(cover)\b(?!\*)(?! saves?\b)"), r"**\1**"),
+    # "in cover" is bolded as one term: "in **cover**" -> "**in cover**"
+    (re.compile(r"(?<!\*)\bin \*\*cover\*\*"), "**in cover**"),
+    (re.compile(r"(?<!\*)\b(in cover)\b(?!\*)(?! saves?\b)"), r"**\1**"),
+    # "cover save(s)" is bolded as one term: "**cover** saves" -> "**cover saves**"
+    (re.compile(r"\*\*cover\*\* (saves?)\b"), r"**cover \1**"),
+    (re.compile(r"(?<!\*)\b(cover saves?)\b(?!\*)"), r"**\1**"),
+    # Other "cover" is bolded alone
+    (re.compile(r"(?<!\*)(?<!\*\*in )\b(cover)\b(?!\*)(?! saves?\b)"), r"**\1**"),
+    # Marker actions, in their title case: "Pick up Marker" -> "**Pick Up Marker**"
+    (re.compile(r"(?<!\*)\bpick up marker\b(?!\*)", re.IGNORECASE), "**Pick Up Marker**"),
+    (re.compile(r"(?<!\*)\bplace marker\b(?!\*)", re.IGNORECASE), "**Place Marker**"),
 )
 
 # A weapon rule name as rule text references it: "Piercing", "Lethal 5+", "Range x",
@@ -111,11 +117,6 @@ BARE_WEAPON_RULE_PATTERN = re.compile(
     rf"({_WEAPON_RULE_NAME})(?![\w*+\"])"
     rf"(?=(?:(?:, | or | and )(?:\*\*)?{_WEAPON_RULE_NAME}(?:\*\*)?)* weapon rules?\b)"
 )
-
-# Keywords that open a rule sentence and carry the period inside the bold:
-# "**SUPPORT.** Select..." (never "**SUPPORT**. Select...")
-PERIOD_KEYWORDS = ("SUPPORT", "PSYCHIC", "STRATEGIC GAMBIT")
-
 
 # Faction rule names that several kill teams share, so the header needs the team name
 # to stay unique (e.g. "## ANGELS OF DEATH - ASTARTES - Faction Rule")
@@ -662,6 +663,9 @@ def is_team_rules(content: str) -> bool:
 def is_body_line(line: str) -> bool:
     """Return whether a line is rule text (not a header, table, keyword or front matter line)."""
     stripped = line.strip()
+    # A FAQ header holds the question, which is rule text
+    if stripped.startswith("## [FAQ]"):
+        return True
     return bool(stripped) and not stripped.startswith(("#", "|", "**Keywords:**", "---")) and not re.match(
         r"^[a-z_]+: ", stripped
     )
@@ -684,12 +688,11 @@ def unbold_keywords_line(content: str) -> tuple[str, int]:
 
 def fix_keyword_period(content: str) -> tuple[str, int]:
     """
-    Put the period inside the bold of rule-opening keywords.
+    Put a period that ends a bold span outside the bold.
 
-    "**SUPPORT**. Select" -> "**SUPPORT.** Select"
+    "**SUPPORT.** Select" -> "**SUPPORT**. Select"
     """
-    names = "|".join(PERIOD_KEYWORDS)
-    return re.subn(rf"\*\*({names})\*\*\.", r"**\1.**", content)
+    return re.subn(r"\*\*([^*\n]+?)\.\*\*", r"**\1**.", content)
 
 
 def bold_team_text_terms(content: str) -> tuple[str, int]:
