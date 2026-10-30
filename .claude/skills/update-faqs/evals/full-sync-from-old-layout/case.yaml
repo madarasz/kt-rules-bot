@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: full-sync-from-old-layout
+expected_outcome: |
+  faq-core-rules.md holds only the 43 Core Rules FAQs; faq-approved-ops.md (3), faq-universal-equipment.md (4) and faq-tomb-world.md (2) exist with PDF dates; the Tomb World FAQ is gone from killzone-tomb-world.md; the 2 bogus/outdated entries are dropped and reported; the Mandrakes duplicate is found; rules-structure.yml is untouched.

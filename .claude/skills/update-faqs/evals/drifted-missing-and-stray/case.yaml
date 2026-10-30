@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: drifted-missing-and-stray
+expected_outcome: |
+  The Martyrs FAQ is back in faq-approved-ops.md; the stray Core Rules FAQ copy is removed from rules-2-actions.md; no other entries change; rules-structure.yml is untouched; the report names both fixes.

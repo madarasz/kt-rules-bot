@@ -1,0 +1,40 @@
+{
+  "api": {
+    "url": "https://www.warhammer-community.com/api/search/downloads/",
+    "payload": {
+      "index": "downloads_v2",
+      "searchTerm": "",
+      "gameSystem": "kill-team",
+      "language": "english"
+    },
+    "asset_base": "https://assets.warhammer-community.com/"
+  },
+  "fallback_page": "https://www.warhammer-community.com/en-gb/downloads/kill-team/",
+  "sources": [
+    {
+      "key": "core",
+      "title": "Core Rules: Update Log",
+      "target": "extracted-rules/faq-core-rules.md",
+      "source_label": "Core Rules: Update Log"
+    },
+    {
+      "key": "approved-ops",
+      "title": "Approved Ops: Update Log",
+      "target": "extracted-rules/faq-approved-ops.md",
+      "source_label": "Approved Ops: Update Log",
+      "stop_at": "APPROVED OPS CARD PACK 2024"
+    },
+    {
+      "key": "universal-equipment",
+      "title": "Universal Equipment",
+      "target": "extracted-rules/faq-universal-equipment.md",
+      "source_label": "Universal Equipment: Update Log"
+    },
+    {
+      "key": "tomb-world",
+      "title": "Killzone: Tomb World Update Log",
+      "target": "extracted-rules/faq-tomb-world.md",
+      "source_label": "Killzone: Tomb World: Update Log"
+    }
+  ]
+}

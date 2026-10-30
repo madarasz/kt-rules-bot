@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: check-already-in-sync
+expected_outcome: |
+  All four faq-*.md files already match the PDFs; no rule file is changed; the report says they are in sync.
