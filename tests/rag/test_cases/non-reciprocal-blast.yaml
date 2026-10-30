@@ -1,7 +1,0 @@
-test_id: non-reciprocal-blast
-query: >
-  My operative has a blast 2" weapon. Is it possible for it to be closer than 2"
-  to its target, but not to be hit by the blast?
-
-ground_truth_contexts:
-  - "Blast x": "The target you select is the primary target. After shooting the primary target, shoot with this weapon against each secondary target"

@@ -1,8 +1,14 @@
-# TEST SET CODENAME: WORKING-SATURDAY
-# LAST UPDATE: 2024-12-13
-# NUMBER OF TEST CASES: 13
+# TEST SET CODENAME: DEAD-OF-ROMANIA
+# LAST UPDATE: 2026-10-30
+# NUMBER OF TEST CASES: 12
 # NUMBER OF GROUND TRUTH CONTEXTS: 23
 
+- test_id: die-to-poision-dominate
+  query: >
+    if the Plague Marine’s Poison faction rule alone incapacitates an enemy operative, does the Plague Marine team get a Dominate token?
+  ground_truth_contexts:
+    - "POSION": "## POISON - Faction Rule"
+    - "RECONSTITUTION RITUAL": "## [FAQ] *Question*: For the **Dominate** tac op, when does it count as a friendly operative incapacitating an enemy operative if it's not immediately clear?"
 - test_id: warpcoven-heal
   query: >
     Can I heal with a Warpcoven?
@@ -45,16 +51,16 @@
   ground_truth_contexts:
     - "Torrent X": "Select a valid target as normal as the primary target, then select any number of other valid targets within x of the first valid target"
     - "Blast X": "The target you select is the primary target. After shooting the primary target, shoot with this weapon against each secondary target in an order of your choice (roll each sequence separately)."
-- test_id: team-validity
-  query: >
-    which teams are tournament legal currently?
-  ground_truth_contexts:
-    - "Classified Format": "When planning your tournament, you must determine if it will be using the Classified format."
-- test_id: team-rotation
-  query: >
-    Which teams that have rotated out?
-  ground_truth_contexts:
-    - "Non-classified kill teams": "Non-classified kill teams"
+# - test_id: team-validity
+#   query: >
+#     which teams are tournament legal currently?
+#   ground_truth_contexts:
+#     - "Classified Format": "When planning your tournament, you must determine if it will be using the Classified format."
+# - test_id: team-rotation
+#   query: >
+#     Which teams that have rotated out?
+#   ground_truth_contexts:
+#     - "Non-classified kill teams": "Non-classified kill teams"
 - test_id: nemesis-midnight-clad-barricade
   query: >
     Can a nemesis claw operative use light barricade as cover and be obscured as well if its more than 8 inches away from the enemy operative?
